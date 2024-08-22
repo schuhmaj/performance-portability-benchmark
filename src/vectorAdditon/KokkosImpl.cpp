@@ -15,16 +15,16 @@ std::vector<FloatType> VectorAddition<FloatType>::operator()() {
     Kokkos::View<FloatType*> deviceB("deviceB", _inB.size());
     Kokkos::View<FloatType*> deviceC("deviceC", _outC.size());
 
-    // Step 3: Copy data from host unmanaged views to device managed views
+    // Step 3: Copy data from host unmanaged views to device views
     Kokkos::deep_copy(deviceA, hostA);
     Kokkos::deep_copy(deviceB, hostB);
 
-    // perform vector addition on device
+    // Step 4: Perform vector addition on device
     Kokkos::parallel_for("VecAdd", deviceA.size(), KOKKOS_LAMBDA(const int i) {
        deviceC(i) = deviceA(i) + deviceB(i);
     });
 
-    // deep copy result back to host
+    // Step 5: Deep copy result back to host
     Kokkos::deep_copy(hostC, deviceC);
     return _outC;
 }
