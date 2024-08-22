@@ -15,6 +15,12 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 #######################################################
 # Overall Options
 #######################################################
+if(NOT CMAKE_CONFIGURATION_TYPES AND NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the type of build (Debug or Release)" FORCE)
+    set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
+endif()
+message(STATUS "Building in CMAKE_BUILD_TYPE = '${CMAKE_BUILD_TYPE}' mode")
+
 set(LOGGING_LEVEL "2" CACHE STRING "Set the Logging level, default (INFO=2), available options:
 TRACE=0, DEBUG=1, INFO=2, WARN=3, ERROR=4, CRITICAL=5, OFF=6")
 set_property(CACHE LOGGING_LEVEL PROPERTY STRINGS 0, 1, 2, 3, 4, 5, 6)
