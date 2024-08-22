@@ -1,9 +1,8 @@
 cmake_minimum_required(VERSION 3.22)
 project(performance_portability_benchmark)
 
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
-
 
 #######################################################
 # Overall Options
@@ -16,14 +15,18 @@ add_compile_definitions(SPDLOG_ACTIVE_LEVEL=${LOGGING_LEVEL})
 #######################################################
 # Including dependencies needed across multiple targets
 #######################################################
+
+find_package(OpenCL REQUIRED)
+
 # Appends the the module path to contain additional CMake modules for this project
 # and include everything necessary
 list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 
 # Include dependecies
 include(gbench)
-include(spdlog)
 include(kokkos)
+include(boost)
+
 
 #######################################################
 # Including source subdirectories

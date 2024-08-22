@@ -48,5 +48,5 @@ public:
 };
 
 
-BENCHMARK(VectorAddition<float>::vectorAdditionBenchmark)->Name("Vector Addition Float")->RangeMultiplier(10)->Range(1e3, 1e8)->Complexity();
+// BENCHMARK(VectorAddition<float>::vectorAdditionBenchmark)->Name("Vector Addition Float")->RangeMultiplier(10)->Range(1e3, 1e8)->Complexity();
 BENCHMARK(VectorAddition<double>::vectorAdditionBenchmark)->Name("Vector Addtion Double")->RangeMultiplier(10)->Range(1e3, 1e8)->Complexity();

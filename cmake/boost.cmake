@@ -4,7 +4,7 @@ message(STATUS "Setting up Boost")
 
 set(BOOST_VERSION 1.85.0)
 
-find_package(Boost ${BOOST_VERSION})
+find_package(Boost)
 
 if (${Boost_FOUND})
     message(STATUS "Found existing boost libraries: ${Boost_INCLUDE_DIR}")
