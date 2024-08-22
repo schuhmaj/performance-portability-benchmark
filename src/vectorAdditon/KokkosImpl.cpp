@@ -30,8 +30,13 @@ std::vector<FloatType> VectorAddition<FloatType>::operator()() {
 }
 
 
+// Instantiate a benchmark using single precision
 template std::vector<float> VectorAddition<float>::operator()();
+BENCHMARK(VectorAddition<float>::vectorAdditionBenchmark)->Name("Vector Addition Float")->RangeMultiplier(10)->Range(1e3, 1e8)->Complexity();
+
+// Instantiate a benchmark using double precision
 template std::vector<double> VectorAddition<double>::operator()();
+BENCHMARK(VectorAddition<double>::vectorAdditionBenchmark)->Name("Vector Addtion Double")->RangeMultiplier(10)->Range(1e3, 1e8)->Complexity();
 
 
 int main(int argc, char** argv) {

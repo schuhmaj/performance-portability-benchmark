@@ -21,12 +21,13 @@ std::vector<FloatType> VectorAddition<FloatType>::operator()() {
     compute::copy(_inB.begin(), _inB.end(), deviceB.begin(), queue);
 
     // Step 4: Perform operations on device vectors
+    // One could also use compute::plus<FloatType>(). However, this is a nice example how to define custom functions
+    BOOST_COMPUTE_FUNCTION(FloatType, add_numbers, (FloatType a, FloatType b), { return a + b; });
     compute::transform(deviceA.begin(), deviceA.end(),
                        deviceB.begin(),
                        deviceC.begin(),
-                       compute::plus<FloatType>(),
+                       add_numbers,
                        queue);
-
 
     // Step 5: Copy result back to host
     compute::copy(deviceC.begin(), deviceC.end(), _outC.begin(),queue);
@@ -36,8 +37,10 @@ std::vector<FloatType> VectorAddition<FloatType>::operator()() {
 
 
 template std::vector<float> VectorAddition<float>::operator()();
-template std::vector<double> VectorAddition<double>::operator()();
+BENCHMARK(VectorAddition<float>::vectorAdditionBenchmark)->Name("Vector Addition")->RangeMultiplier(10)->Range(1e3, 1e8)->Complexity();
 
+// One does not have a dedicated double example here, as Boost.Compute only supports OpenCL types
+// Ergo, one only have int and float as potential template specializations
 
 int main(int argc, char** argv) {
     benchmark::Initialize(&argc, argv);
