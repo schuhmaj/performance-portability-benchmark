@@ -48,11 +48,11 @@ std::vector<FloatType> VectorAddition<FloatType>::operator()() {
 // Explicit instantiation and benchmarking setup
 template __global__ void kernel_vector_add<float>(int, float*, float*, float*);
 template std::vector<float> VectorAddition<float>::operator()();
-BENCHMARK(VectorAddition<float>::vectorAdditionBenchmark)->Name("Vector Addition Float")->RangeMultiplier(10)->Range(1e3, 1e8)->Complexity();
+BENCHMARK(VectorAddition<float>::vectorAdditionBenchmark)->Name("VecAdd-Cuda-Float")->RangeMultiplier(10)->Range(1e3, 1e8)->Complexity();
 
 template __global__ void kernel_vector_add<double>(int, double*, double*, double*);
 template std::vector<double> VectorAddition<double>::operator()();
-BENCHMARK(VectorAddition<double>::vectorAdditionBenchmark)->Name("Vector Addition Double")->RangeMultiplier(10)->Range(1e3, 1e8)->Complexity();
+BENCHMARK(VectorAddition<double>::vectorAdditionBenchmark)->Name("VecAdd-Cuda-Double")->RangeMultiplier(10)->Range(1e3, 1e8)->Complexity();
 
 int main(int argc, char** argv) {
     benchmark::Initialize(&argc, argv);

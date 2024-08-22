@@ -25,10 +25,10 @@ std::vector<FloatType> VectorAddition<FloatType>::operator()() {
 
 // Explicit instantiation and benchmarking setup
 template std::vector<float> VectorAddition<float>::operator()();
-BENCHMARK(VectorAddition<float>::vectorAdditionBenchmark)->Name("Vector Addition Float")->RangeMultiplier(10)->Range(1e3, 1e8)->Complexity();
+BENCHMARK(VectorAddition<float>::vectorAdditionBenchmark)->Name("VecAdd-Thrust-Float")->RangeMultiplier(10)->Range(1e3, 1e8)->Complexity();
 
 template std::vector<double> VectorAddition<double>::operator()();
-BENCHMARK(VectorAddition<double>::vectorAdditionBenchmark)->Name("Vector Addition Double")->RangeMultiplier(10)->Range(1e3, 1e8)->Complexity();
+BENCHMARK(VectorAddition<double>::vectorAdditionBenchmark)->Name("VecAdd-Thrust-Double")->RangeMultiplier(10)->Range(1e3, 1e8)->Complexity();
 
 int main(int argc, char** argv) {
     benchmark::Initialize(&argc, argv);

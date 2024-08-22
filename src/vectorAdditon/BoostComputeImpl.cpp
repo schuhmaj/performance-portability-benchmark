@@ -38,7 +38,7 @@ std::vector<FloatType> VectorAddition<FloatType>::operator()() {
 
 
 template std::vector<float> VectorAddition<float>::operator()();
-BENCHMARK(VectorAddition<float>::vectorAdditionBenchmark)->Name("Vector Addition")->RangeMultiplier(10)->Range(1e3, 1e8)->Complexity();
+BENCHMARK(VectorAddition<float>::vectorAdditionBenchmark)->Name("VecAdd-BoostCL-Float")->RangeMultiplier(10)->Range(1e3, 1e8)->Complexity();
 
 // One does not have a dedicated double example here, as Boost.Compute only supports OpenCL types
 // Ergo, one only have int and float as potential template specializations

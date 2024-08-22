@@ -19,6 +19,12 @@ channels:
   - conda-forge
   - nvidia
 dependencies:
+  - python==3.12
+  - numpy
+  - matplotlib
+  - seaborn
+  - pandas
+  - loguru
   - clang==15.0.7
   - clangxx==15.0.7
   - libclang==15.0.7
