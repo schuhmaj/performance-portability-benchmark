@@ -31,14 +31,7 @@ std::vector<FloatType> VectorAddition<FloatType>::operator()() {
     cl_int err;
 
     // Step 0: Get the device
-    const auto platform1 = util::getOpenCLPlattforms()[0];
-    std::vector<cl_device_id> gpus{};
-    try {
-        gpus = util::getOpenCLDevices(platform1, CL_DEVICE_TYPE_GPU);
-    } catch (std::runtime_error &e) {
-        std::cerr << "No GPU devices found!";
-    }
-    cl_device_id device = gpus[0];
+    cl_device_id device = util::getFirstGPU();
 
     // Step 1: Create the compute context and the queue
     cl_context context = clCreateContext(0, 1, &device, nullptr, nullptr, &err);
@@ -88,6 +81,9 @@ BENCHMARK(VectorAddition<float>::vectorAdditionBenchmark)->Name("Vector Addition
 // Ergo, one only have int and float as potential template specializations
 
 int main(int argc, char** argv) {
+    auto gpu = util::getFirstGPU();
+    std::cout << "GPU Name: " << util::getDeviceName(gpu) << '\n';
+
     benchmark::Initialize(&argc, argv);
     benchmark::RunSpecifiedBenchmarks();
     benchmark::Shutdown();

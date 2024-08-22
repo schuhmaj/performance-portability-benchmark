@@ -43,6 +43,10 @@ BENCHMARK(VectorAddition<float>::vectorAdditionBenchmark)->Name("Vector Addition
 // Ergo, one only have int and float as potential template specializations
 
 int main(int argc, char** argv) {
+    namespace compute = boost::compute;
+    compute::device gpu = compute::system::default_device();
+    std::cout << "GPU Name: " << gpu.name() << '\n';
+
     benchmark::Initialize(&argc, argv);
     benchmark::RunSpecifiedBenchmarks();
     benchmark::Shutdown();

@@ -6,13 +6,12 @@
 #include <CL/cl.h>
 #endif
 
-#include <string>
-#include <vector>
 #include <exception>
 #include <stdexcept>
+#include <string>
+#include <vector>
 
 namespace util {
-
     /**
      * Returns all available OpenCL platforms of the computer.
      * @return vector of platform ids
@@ -26,7 +25,8 @@ namespace util {
      * @param type the type of the devices to return, e.g. CL_DEVICE_TYPE_ALL or CL_DEVICE_TYPE_GPU
      * @return vector of device ids
      */
-    std::vector<cl_device_id> getOpenCLDevices(const cl_platform_id& platformId, const cl_device_type& type = CL_DEVICE_TYPE_ALL);
+    std::vector<cl_device_id> getOpenCLDevices(const cl_platform_id &platformId,
+                                               const cl_device_type &type = CL_DEVICE_TYPE_ALL);
 
     /**
      * Resolveds a device id to the humand readable name.
@@ -35,4 +35,10 @@ namespace util {
      */
     std::string getDeviceName(const cl_device_id &deviceId);
 
-}
+
+    /**
+     * Returns the first GPU which can be found on the system.
+     * @return cl_device_id of the first GPU
+     */
+    cl_device_id getFirstGPU();
+} // namespace util
