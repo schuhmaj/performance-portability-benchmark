@@ -29,16 +29,31 @@ target_compile_features(vec_ocl PUBLIC cxx_std_20)
 target_include_directories(vec_ocl PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(vec_ocl
         PUBLIC
-        OpenCL::OpenCL
+            OpenCL::OpenCL
         PRIVATE
-        benchmark::benchmark
+            benchmark::benchmark
 )
+
+if(CMAKE_CUDA_COMPILER)
 ########################################################################################
 # Raw Cuda Implementation
 ########################################################################################
-add_executable(vec_cuda VectorAddition.h CudaImpl.cu)
-target_include_directories(vec_cuda PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(vec_cuda
+    add_executable(vec_cuda VectorAddition.h CudaImpl.cu)
+    target_include_directories(vec_cuda PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+    target_link_libraries(vec_cuda
         PRIVATE
-        benchmark::benchmark
-)
+            benchmark::benchmark
+    )
+    set_target_properties(vec_cuda PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
+########################################################################################
+# Thrust Cuda Implementation
+########################################################################################
+    add_executable(vec_thrust VectorAddition.h ThrustImpl.cu)
+    target_include_directories(vec_thrust PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+    target_link_libraries(vec_thrust
+        PRIVATE
+            Thrust
+            benchmark::benchmark
+    )
+    set_target_properties(vec_thrust PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
+endif ()

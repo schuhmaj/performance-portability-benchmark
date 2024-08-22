@@ -40,6 +40,9 @@ list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 include(gbench)
 include(kokkos)
 include(boost)
+include(thrust)
+
+thrust_create_target(Thrust HOST CPP DEVICE CUDA)
 
 
 #######################################################
