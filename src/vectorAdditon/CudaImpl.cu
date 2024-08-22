@@ -16,43 +16,15 @@ template<typename FloatType>
 std::vector<FloatType> VectorAddition<FloatType>::operator()() {
     // Step 1: Create the device vectors and allocate memory
     FloatType *deviceA, *deviceB, *deviceC;
-    size_t dataSize = _inA.size() * sizeof(FloatType);
+    const size_t dataSize = _inA.size() * sizeof(FloatType);
 
-    cudaError_t err;
-    err = cudaMalloc(&deviceA, dataSize);
-    if (err != cudaSuccess) {
-        throw std::runtime_error("Failed to allocate device memory for deviceA: " + std::string(cudaGetErrorString(err)));
-    }
-
-    err = cudaMalloc(&deviceB, dataSize);
-    if (err != cudaSuccess) {
-        cudaFree(deviceA);
-        throw std::runtime_error("Failed to allocate device memory for deviceB: " + std::string(cudaGetErrorString(err)));
-    }
-
-    err = cudaMalloc(&deviceC, dataSize);
-    if (err != cudaSuccess) {
-        cudaFree(deviceA);
-        cudaFree(deviceB);
-        throw std::runtime_error("Failed to allocate device memory for deviceC: " + std::string(cudaGetErrorString(err)));
-    }
+    cudaMalloc(&deviceA, dataSize);
+    cudaMalloc(&deviceB, dataSize);
+    cudaMalloc(&deviceC, dataSize);
 
     // Step 2: Transfer the input data to the device
-    err = cudaMemcpy(deviceA, _inA.data(), dataSize, cudaMemcpyHostToDevice);
-    if (err != cudaSuccess) {
-        cudaFree(deviceA);
-        cudaFree(deviceB);
-        cudaFree(deviceC);
-        throw std::runtime_error("Failed to copy _inA to device: " + std::string(cudaGetErrorString(err)));
-    }
-
-    err = cudaMemcpy(deviceB, _inB.data(), dataSize, cudaMemcpyHostToDevice);
-    if (err != cudaSuccess) {
-        cudaFree(deviceA);
-        cudaFree(deviceB);
-        cudaFree(deviceC);
-        throw std::runtime_error("Failed to copy _inB to device: " + std::string(cudaGetErrorString(err)));
-    }
+    cudaMemcpy(deviceA, _inA.data(), dataSize, cudaMemcpyHostToDevice);
+    cudaMemcpy(deviceB, _inB.data(), dataSize, cudaMemcpyHostToDevice);
 
     // Step 3: Execute the kernel
     const dim3 threadsPerBlock(256);
@@ -60,22 +32,10 @@ std::vector<FloatType> VectorAddition<FloatType>::operator()() {
     kernel_vector_add<<<numBlocks, threadsPerBlock>>>(_inA.size(), deviceA, deviceB, deviceC);
 
     // Synchronize to check for kernel execution errors
-    err = cudaDeviceSynchronize();
-    if (err != cudaSuccess) {
-        cudaFree(deviceA);
-        cudaFree(deviceB);
-        cudaFree(deviceC);
-        throw std::runtime_error("Kernel execution failed: " + std::string(cudaGetErrorString(err)));
-    }
+    cudaDeviceSynchronize();
 
     // Step 4: Copy the result back to the host and free the memory
-    err = cudaMemcpy(_outC.data(), deviceC, dataSize, cudaMemcpyDeviceToHost);
-    if (err != cudaSuccess) {
-        cudaFree(deviceA);
-        cudaFree(deviceB);
-        cudaFree(deviceC);
-        throw std::runtime_error("Failed to copy deviceC to host: " + std::string(cudaGetErrorString(err)));
-    }
+    cudaMemcpy(_outC.data(), deviceC, dataSize, cudaMemcpyDeviceToHost);
 
     cudaFree(deviceA);
     cudaFree(deviceB);
