@@ -32,6 +32,7 @@ std::vector<FloatType> VectorAddition<FloatType>::operator()() {
     // Step 5: Copy result back to host
     compute::copy(deviceC.begin(), deviceC.end(), _outC.begin(),queue);
     queue.finish();
+    checkValidity();
     return _outC;
 }
 

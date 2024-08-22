@@ -27,6 +27,7 @@ std::vector<FloatType> VectorAddition<FloatType>::operator()() {
 
     // Step 5: Deep copy result back to host
     Kokkos::deep_copy(hostC, deviceC);
+    checkValidity();
     return _outC;
 }
 

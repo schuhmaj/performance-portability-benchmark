@@ -6,6 +6,8 @@
 #include <algorithm>
 #include <numeric>
 #include <chrono>
+#include <exception>
+#include <stdexcept>
 
 /**
  * Simple Class offering a vector addition benchmark
@@ -45,6 +47,17 @@ public:
      * @return results of inA + inB
      */
     std::vector<FloatType> operator()();
+
+    /**
+     * Checks the validity of the vector addition and throws a std::runtime_error in case
+     * a vector addition was not performed.
+     * @throws std::runtime_error if _outC.back() != (_inA.back() + _inB.back())
+     */
+    void checkValidity() {
+        if (_outC.back() != (_inA.back() + _inB.back())) {
+            throw std::runtime_error("Vector addition failed");
+        };
+    }
 
     /**
      * Static method for benchmarking the vector addition, i.e. the operator() of the VectorAddition class

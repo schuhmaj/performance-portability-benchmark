@@ -70,6 +70,7 @@ std::vector<FloatType> VectorAddition<FloatType>::operator()() {
     clReleaseCommandQueue(queue);
     clReleaseContext(context);
 
+    checkValidity();
     return _outC;
 }
 
