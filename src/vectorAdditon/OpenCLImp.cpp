@@ -60,6 +60,7 @@ std::vector<FloatType> VectorAddition<FloatType>::operator()() {
 
     // Step 5: Copy result back to host
     err = clEnqueueReadBuffer(queue, c_buffer, CL_TRUE, 0, _outC.size() * sizeof(FloatType), _outC.data(), 0, nullptr, nullptr);
+    clFinish(queue);
 
     // Step 6: Clean up
     clReleaseMemObject(a_buffer);
