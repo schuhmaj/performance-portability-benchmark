@@ -10,7 +10,7 @@
 #endif
 
 const char* kernelSrc = \
-"__kernel void add_vector( __global const int *a, __global const int *b, __global int *c) {          \
+"__kernel void add_vector( __global const float *a, __global const float *b, __global float *c) {    \
     int gid = get_global_id(0);                                                                      \
     c[gid] = a[gid] + b[gid];                                                                        \
 }                                                                                                    \
