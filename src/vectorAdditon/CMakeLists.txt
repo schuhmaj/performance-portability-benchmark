@@ -22,7 +22,7 @@ target_link_libraries(vec_boost
         benchmark::benchmark
 )
 ########################################################################################
-# Raw OpenCL Compute Implementation
+# Raw OpenCL Implementation
 ########################################################################################
 add_executable(vec_ocl VectorAddition.h OpenCLImp.cpp util/OpenCLUtility.cpp util/OpenCLUtlity.h)
 target_compile_features(vec_ocl PUBLIC cxx_std_20)
@@ -30,6 +30,15 @@ target_include_directories(vec_ocl PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(vec_ocl
         PUBLIC
         OpenCL::OpenCL
+        PRIVATE
+        benchmark::benchmark
+)
+########################################################################################
+# Raw Cuda Implementation
+########################################################################################
+add_executable(vec_cuda VectorAddition.h CudaImpl.cu)
+target_include_directories(vec_cuda PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(vec_cuda
         PRIVATE
         benchmark::benchmark
 )
