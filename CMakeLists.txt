@@ -1,5 +1,13 @@
 cmake_minimum_required(VERSION 3.22)
-project(performance_portability_benchmark)
+project(performance_portability_benchmark VERSION 1.0 LANGUAGES CXX)
+
+# Detect platform and conditionally enable CUDA if not Apple
+if(NOT ${CMAKE_SYSTEM_NAME} MATCHES "Darwin") # Darwin is the system name for macOS
+    enable_language(CUDA)
+    message(STATUS "CUDA support enabled")
+else()
+    message(STATUS "CUDA support not enabled on Apple platforms")
+endif()
 
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
