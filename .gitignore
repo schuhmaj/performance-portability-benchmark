@@ -1,3 +1,5 @@
 .idea
 cmake-build-*
 build*
+results
+scripts/__pycache__/
