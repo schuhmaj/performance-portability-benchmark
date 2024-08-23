@@ -33,7 +33,16 @@ target_link_libraries(vec_ocl
         PRIVATE
             benchmark::benchmark
 )
-
+########################################################################################
+# Standard C++ Implementation
+########################################################################################
+add_executable(vec_std VectorAddition.h CStdImpl.cpp)
+target_compile_features(vec_std PUBLIC cxx_std_20)
+target_include_directories(vec_std PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(vec_std
+        PRIVATE
+            benchmark::benchmark
+)
 if(CMAKE_CUDA_COMPILER)
 ########################################################################################
 # Raw Cuda Implementation

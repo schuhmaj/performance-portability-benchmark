@@ -32,6 +32,7 @@ add_compile_definitions(SPDLOG_ACTIVE_LEVEL=${LOGGING_LEVEL})
 #######################################################
 
 find_package(OpenCL REQUIRED)
+find_package(OpenMP REQUIRED)
 
 # Appends the the module path to contain additional CMake modules for this project
 # and include everything necessary
