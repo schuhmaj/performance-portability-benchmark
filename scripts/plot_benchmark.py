@@ -1,4 +1,3 @@
-import os
 import subprocess
 import json
 import pandas as pd
@@ -10,13 +9,13 @@ from loguru import logger
 from pathlib import Path
 
 
-def find_cmake_targets(search_dir: Path, pattern: str) -> list[Path]:
+def find_files(search_dir: Path, pattern: str) -> list[Path]:
     cmake_targets = []
-    logger.info(f"Recursive searching for executable targets in {search_dir} according to pattern: {pattern}")
+    logger.info(f"Recursive searching for files in {search_dir} according to pattern: {pattern}")
     for file in search_dir.rglob(pattern):
         if file.is_file():
             cmake_targets.append(file.resolve())
-    logger.info(f"Found {len(cmake_targets)} cmake targets")
+    logger.info(f"Found {len(cmake_targets)} files")
     return cmake_targets
 
 
@@ -89,7 +88,7 @@ def load_reports(report_files: list[Path]) -> pd.DataFrame:
 def plot_benchmarks(df: pd.DataFrame, save_path: Path = Path("./results.pdf")) -> tuple[plt.Figure, plt.Axes]:
     df = df[df['Data Type'] == 'float']
     fig, ax = plt.subplots(figsize=(10, 6))
-    sns.lineplot(x='Problem Size', y='Runtime', hue='Framework', data=df, marker='o', ax=ax)
+    sns.lineplot(x='Problem Size', y='Runtime', hue='Framework', hue_order=df["Framework"].unique().sort() ,  data=df, marker='o', ax=ax)
     ax.set_xscale('log')
     ax.set_yscale('log')
     ax.set_ylabel('Runtime [ns]')
@@ -104,20 +103,17 @@ def plot_benchmarks(df: pd.DataFrame, save_path: Path = Path("./results.pdf")) -
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Benchmarking Command Line Interface")
-    parser.add_argument('-p', '--path', type=Path, default=Path.cwd(), help="Path to search for targets")
-    parser.add_argument('-r', '--regex', type=str, required=True, help="Regex Pattern for targets to search")
+    parser.add_argument('--report', action='store_false', default=True, help='If set, the regex and path are used to directly search for the report files instead of benchmarking targets')
+    parser.add_argument('-p', '--path', type=Path, default=Path.cwd(), help="Path to search for files")
+    parser.add_argument('-r', '--regex', type=str, required=True, help="Regex Pattern for files to search")
     parser.add_argument('-o', '--output', type=Path, default=Path("result.pdf"), help="Output file name for the plots")
 
     args = parser.parse_args()
 
-    # Use the arguments from the CLI
-    search_path = args.path
-    pattern = args.regex
-    output_file = args.output
-
     # Run the benchmark pipeline
-    targets = find_cmake_targets(search_path, pattern)
-    files = run_benchmarks(targets)
+    files = find_files(args.path, args.regex)
+    if args.report:
+        files = run_benchmarks(files)
     df = load_reports(files)
-    plot_benchmarks(df, output_file)
-    df.to_csv(output_file.with_suffix(".csv"), index=False)
+    plot_benchmarks(df, args.output)
+    df.to_csv(args.output.with_suffix(".csv"), index=False)
