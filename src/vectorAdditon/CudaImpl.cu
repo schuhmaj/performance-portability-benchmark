@@ -27,7 +27,7 @@ std::vector<FloatType> VectorAddition<FloatType>::operator()() {
     cudaMemcpy(deviceB, _inB.data(), dataSize, cudaMemcpyHostToDevice);
 
     // Step 3: Execute the kernel
-    const dim3 threadsPerBlock(256);
+    const dim3 threadsPerBlock(1024);
     const dim3 numBlocks((_inA.size() + threadsPerBlock.x - 1) / threadsPerBlock.x); // Adjust numBlocks to cover all elements
     kernel_vector_add<<<numBlocks, threadsPerBlock>>>(_inA.size(), deviceA, deviceB, deviceC);
 
