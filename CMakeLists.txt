@@ -4,6 +4,7 @@ project(performance_portability_benchmark VERSION 1.0 LANGUAGES CXX)
 # Detect platform and conditionally enable CUDA if not Apple
 if(NOT ${CMAKE_SYSTEM_NAME} MATCHES "Darwin") # Darwin is the system name for macOS
     enable_language(CUDA)
+    find_package(CUDAToolkit)
     message(STATUS "CUDA support enabled")
 else()
     message(STATUS "CUDA support not enabled on Apple platforms")

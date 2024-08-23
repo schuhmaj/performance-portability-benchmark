@@ -46,6 +46,17 @@ if(CMAKE_CUDA_COMPILER)
     )
     set_target_properties(vec_cuda PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 ########################################################################################
+# Raw Cuda Implementation
+########################################################################################
+add_executable(vec_cublas VectorAddition.h CublasImpl.cu)
+target_include_directories(vec_cublas PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(vec_cublas
+        PRIVATE
+        benchmark::benchmark
+        CUDA::cublas
+)
+set_target_properties(vec_cublas PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
+########################################################################################
 # Thrust Cuda Implementation
 ########################################################################################
     add_executable(vec_thrust VectorAddition.h ThrustImpl.cu)
