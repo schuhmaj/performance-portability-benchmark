@@ -20,7 +20,7 @@ std::vector<FloatType> VectorAddition<FloatType>::operator()() {
 
 template std::vector<float> VectorAddition<float>::operator()();
 BENCHMARK(VectorAddition<float>::vectorAdditionBenchmark)
-    ->Name("VecAdd-CStd-Float")
+    ->Name("VecAdd-OpenMP-Float")
     ->RangeMultiplier(10)
     ->Range(1e3, 1e8)
     ->Complexity();
@@ -40,7 +40,8 @@ int main(int argc, char **argv) {
             printf("Running on device with %d teams in total and %d threads in each team\n", nteams, nthreads);
         }
     }
-    benchmark::Initialize(&argc, argv);
-    benchmark::RunSpecifiedBenchmarks();
-    benchmark::Shutdown();
+    // Deactivate Benchmrk
+    // benchmark::Initialize(&argc, argv);
+    // benchmark::RunSpecifiedBenchmarks();
+    // benchmark::Shutdown();
 }
