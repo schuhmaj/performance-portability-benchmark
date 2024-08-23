@@ -43,6 +43,19 @@ target_link_libraries(vec_std
         PRIVATE
             benchmark::benchmark
 )
+########################################################################################
+# OpenMP Target Implementation
+########################################################################################
+add_executable(vec_omp VectorAddition.h OpenMpImpl.cpp)
+target_compile_features(vec_omp PUBLIC cxx_std_20)
+target_include_directories(vec_omp PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(vec_omp
+        PRIVATE
+            benchmark::benchmark
+            OpenMP::OpenMP_CXX
+)
+
+
 if(CMAKE_CUDA_COMPILER)
 ########################################################################################
 # Raw Cuda Implementation
