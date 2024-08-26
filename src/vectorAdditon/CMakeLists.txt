@@ -68,7 +68,7 @@ set_target_properties(vec_acc PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 
 if(CMAKE_CUDA_COMPILER)
 ########################################################################################
-# Raw Cuda Implementation
+# Cuda Implementation
 ########################################################################################
     add_executable(vec_cuda VectorAddition.h CudaImpl.cu)
     target_include_directories(vec_cuda PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
@@ -78,7 +78,28 @@ if(CMAKE_CUDA_COMPILER)
     )
     set_target_properties(vec_cuda PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 ########################################################################################
-# Raw Cuda Implementation
+# Cuda 2 Implementation
+########################################################################################
+add_executable(vec_cuda2 VectorAddition.h Cuda2Impl.cu)
+target_include_directories(vec_cuda2 PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(vec_cuda2
+        PRIVATE
+        benchmark::benchmark
+)
+set_target_properties(vec_cuda2 PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
+########################################################################################
+# Cuda 3 Implementation
+########################################################################################
+add_executable(vec_cuda3 VectorAddition.h Cuda3Impl.cu)
+target_include_directories(vec_cuda3 PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(vec_cuda3
+        PRIVATE
+        benchmark::benchmark
+)
+set_target_properties(vec_cuda3 PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
+
+########################################################################################
+# Cublas Implementation
 ########################################################################################
 add_executable(vec_cublas VectorAddition.h CublasImpl.cu)
 target_include_directories(vec_cublas PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
@@ -89,7 +110,7 @@ target_link_libraries(vec_cublas
 )
 set_target_properties(vec_cublas PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 ########################################################################################
-# Thrust Cuda Implementation
+# Thrust Implementation
 ########################################################################################
     add_executable(vec_thrust VectorAddition.h ThrustImpl.cu)
     target_include_directories(vec_thrust PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
