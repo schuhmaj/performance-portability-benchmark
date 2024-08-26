@@ -46,17 +46,20 @@ target_link_libraries(vec_std
 ########################################################################################
 # OpenMP Target Implementation
 ########################################################################################
-add_executable(vec_omp VectorAddition.h OpenMpImpl.cpp)
-target_compile_features(vec_omp PUBLIC cxx_std_20)
-target_include_directories(vec_omp PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(vec_omp
-        PRIVATE
-            benchmark::benchmark
-            OpenMP::OpenMP_CXX
-)
+if (${PPB_ENABLE_OpenMP})
+    add_executable(vec_omp VectorAddition.h OpenMpImpl.cpp)
+    target_compile_features(vec_omp PUBLIC cxx_std_20)
+    target_include_directories(vec_omp PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+    target_link_libraries(vec_omp
+            PRIVATE
+                benchmark::benchmark
+                OpenMP::OpenMP_CXX
+    )
+endif ()
 ########################################################################################
 # OpenACC Target Implementation
 ########################################################################################
+if (${PPB_ENABLE_OpenACC})
 add_executable(vec_acc VectorAddition.h OpenACCImpl.cu)
 target_include_directories(vec_acc PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(vec_acc
@@ -65,6 +68,7 @@ target_link_libraries(vec_acc
             OpenACC::OpenACC_CXX
 )
 set_target_properties(vec_acc PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
+endif ()
 
 if(CMAKE_CUDA_COMPILER)
 ########################################################################################

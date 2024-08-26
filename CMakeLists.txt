@@ -27,13 +27,22 @@ TRACE=0, DEBUG=1, INFO=2, WARN=3, ERROR=4, CRITICAL=5, OFF=6")
 set_property(CACHE LOGGING_LEVEL PROPERTY STRINGS 0, 1, 2, 3, 4, 5, 6)
 add_compile_definitions(SPDLOG_ACTIVE_LEVEL=${LOGGING_LEVEL})
 
+option(PPB_ENABLE_OpenACC "Enable OpenACC Target" OFF)
+option(PPB_ENABLE_OpenMP "Enable OpenMP Target" OFF)
+
 #######################################################
 # Including dependencies needed across multiple targets
 #######################################################
 
 find_package(OpenCL REQUIRED)
-find_package(OpenMP REQUIRED)
-find_package(OpenACC REQUIRED)
+
+if (${PPB_ENABLE_OpenMP})
+    find_package(OpenMP REQUIRED)
+endif ()
+
+if (${PPB_ENABLE_OpenACC})
+    find_package(OpenACC REQUIRED)
+endif ()
 
 # Appends the the module path to contain additional CMake modules for this project
 # and include everything necessary
