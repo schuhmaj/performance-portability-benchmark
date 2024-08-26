@@ -29,6 +29,7 @@ add_compile_definitions(SPDLOG_ACTIVE_LEVEL=${LOGGING_LEVEL})
 
 option(PPB_ENABLE_OpenACC "Enable OpenACC Target" OFF)
 option(PPB_ENABLE_OpenMP "Enable OpenMP Target" OFF)
+option(PPB_ENABLE_AdaptiveCpp "Enable AdaptiveCPP Target" OFF)
 
 #######################################################
 # Including dependencies needed across multiple targets
@@ -53,6 +54,10 @@ include(gbench)
 include(kokkos)
 include(boost)
 include(thrust)
+
+if (${PPB_ENABLE_AdaptiveCpp})
+    include(adaptive_cpp)
+endif ()
 
 thrust_create_target(Thrust HOST CPP DEVICE CUDA)
 

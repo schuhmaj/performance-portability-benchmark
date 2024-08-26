@@ -34,6 +34,19 @@ target_link_libraries(vec_ocl
             benchmark::benchmark
 )
 ########################################################################################
+# Adaptive CPP/ OpenSYCL Implementation
+########################################################################################
+if (${PPB_ENABLE_AdaptiveCpp})
+    add_executable(vec_acpp VectorAddition.h AdaptiveCppImpl.cpp)
+    target_compile_features(vec_acpp PUBLIC cxx_std_17)
+    target_include_directories(vec_acpp PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+    add_sycl_to_target(TARGET vec_acpp SOURCES VectorAddition.h AdaptiveCppImpl.cpp)
+    target_link_libraries(vec_acpp
+            PRIVATE
+            benchmark::benchmark
+    )
+endif ()
+########################################################################################
 # Standard C++ Implementation
 ########################################################################################
 add_executable(vec_std VectorAddition.h CStdImpl.cpp)
