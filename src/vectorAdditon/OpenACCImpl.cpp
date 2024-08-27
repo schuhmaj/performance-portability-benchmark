@@ -25,14 +25,14 @@ BENCHMARK(VectorAddition<float>::vectorAdditionBenchmark)
     ->Complexity();
 
 int main(int argc, char **argv) {
+    // Get number of devices before any parallel regions
     int num_devices = acc_get_num_devices(acc_device_default);
     printf("Number of available devices %d\n", num_devices);
 
-#pragma acc parallel
-    {
-        int device_num = acc_get_device_num(acc_device_default);
-        printf("Running on device number %d\n", device_num);
-    }
+    // Fetch the device number outside region
+    int device_num = acc_get_device_num(acc_device_default);
+    printf("Running on device number %d\n", device_num);
+
     benchmark::Initialize(&argc, argv);
     benchmark::RunSpecifiedBenchmarks();
     benchmark::Shutdown();

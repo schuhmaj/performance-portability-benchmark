@@ -73,7 +73,7 @@ endif ()
 # OpenACC Target Implementation
 ########################################################################################
 if (${PPB_ENABLE_OpenACC})
-add_executable(vec_acc VectorAddition.h OpenACCImpl.cu)
+add_executable(vec_acc VectorAddition.h OpenACCImpl.cpp)
 target_include_directories(vec_acc PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(vec_acc
         PRIVATE
