@@ -9,30 +9,33 @@ target_link_libraries(vec_kokkos
         benchmark::benchmark
         Kokkos::kokkos
 )
-########################################################################################
-# Boost Compute Implementation
-########################################################################################
-add_executable(vec_boost VectorAddition.h BoostComputeImpl.cpp)
-target_compile_features(vec_boost PUBLIC cxx_std_14)
-target_include_directories(vec_boost PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} ${Boost_INCLUDE_DIR})
-target_link_libraries(vec_boost
-    PUBLIC
-        OpenCL::OpenCL
-    PRIVATE
-        benchmark::benchmark
-)
-########################################################################################
-# Raw OpenCL Implementation
-########################################################################################
-add_executable(vec_ocl VectorAddition.h OpenCLImp.cpp util/OpenCLUtility.cpp util/OpenCLUtlity.h)
-target_compile_features(vec_ocl PUBLIC cxx_std_20)
-target_include_directories(vec_ocl PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(vec_ocl
+
+if (${PPB_ENABLE_OpenCL})
+    ########################################################################################
+    # Boost Compute Implementation
+    ########################################################################################
+    add_executable(vec_boost VectorAddition.h BoostComputeImpl.cpp)
+    target_compile_features(vec_boost PUBLIC cxx_std_14)
+    target_include_directories(vec_boost PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} ${Boost_INCLUDE_DIR})
+    target_link_libraries(vec_boost
         PUBLIC
             OpenCL::OpenCL
         PRIVATE
             benchmark::benchmark
-)
+    )
+    ########################################################################################
+    # Raw OpenCL Implementation
+    ########################################################################################
+    add_executable(vec_ocl VectorAddition.h OpenCLImp.cpp util/OpenCLUtility.cpp util/OpenCLUtlity.h)
+    target_compile_features(vec_ocl PUBLIC cxx_std_20)
+    target_include_directories(vec_ocl PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+    target_link_libraries(vec_ocl
+            PUBLIC
+                OpenCL::OpenCL
+            PRIVATE
+                benchmark::benchmark
+    )
+endif()
 ########################################################################################
 # Adaptive CPP/ OpenSYCL Implementation
 ########################################################################################
@@ -50,12 +53,12 @@ endif ()
 # Standard C++ Implementation
 ########################################################################################
 add_executable(vec_std VectorAddition.h CStdImpl.cpp)
-target_compile_features(vec_std PUBLIC cxx_std_20)
 target_include_directories(vec_std PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_options(vec_std PRIVATE -stdpar=gpu)
 target_link_libraries(vec_std
         PRIVATE
             benchmark::benchmark
+            -stdpar
 )
 ########################################################################################
 # OpenMP Target Implementation

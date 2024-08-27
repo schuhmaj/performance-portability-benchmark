@@ -30,12 +30,15 @@ add_compile_definitions(SPDLOG_ACTIVE_LEVEL=${LOGGING_LEVEL})
 option(PPB_ENABLE_OpenACC "Enable OpenACC Target" OFF)
 option(PPB_ENABLE_OpenMP "Enable OpenMP Target" OFF)
 option(PPB_ENABLE_AdaptiveCpp "Enable AdaptiveCPP Target" OFF)
+option(PPB_ENABLE_OpenCL "Enable AdaptiveCPP Target" OFF)
 
 #######################################################
 # Including dependencies needed across multiple targets
 #######################################################
 
-find_package(OpenCL REQUIRED)
+if (${PPB_ENABLE_OpenCL})
+    find_package(OpenCL REQUIRED)
+endif()
 
 if (${PPB_ENABLE_OpenMP})
     find_package(OpenMP REQUIRED)

@@ -6,7 +6,8 @@
 
 template <typename FloatType>
 std::vector<FloatType> VectorAddition<FloatType>::operator()() {
-    std::transform(std::execution::par_unseq ,_inA.begin(), _inA.end(), _inB.begin(), _outC.begin(), std::plus<FloatType>());
+    std::transform(std::execution::par_unseq, _inA.begin(), _inA.end(), _inB.begin(), _outC.begin(),
+                   std::plus<FloatType>());
     checkValidity();
     return _outC;
 }
