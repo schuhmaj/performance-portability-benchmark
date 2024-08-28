@@ -31,39 +31,51 @@ option(PPB_ENABLE_OpenACC "Enable OpenACC Target" OFF)
 option(PPB_ENABLE_OpenMP "Enable OpenMP Target" OFF)
 option(PPB_ENABLE_AdaptiveCpp "Enable AdaptiveCPP Target" OFF)
 option(PPB_ENABLE_OpenCL "Enable OpenCL Targets" OFF)
+option(PPB_ENABLE_Kokkos "Enable Kokkos Target" OFF)
+option(PPB_ENABLE_Cuda "Enable Cuda and Thrust Targets" OFF)
 
 #######################################################
 # Including dependencies needed across multiple targets
 #######################################################
 
-if (${PPB_ENABLE_OpenCL})
-    find_package(OpenCL REQUIRED)
-endif()
-
-if (${PPB_ENABLE_OpenMP})
-    find_package(OpenMP REQUIRED)
-endif ()
-
-if (${PPB_ENABLE_OpenACC})
-    find_package(OpenACC REQUIRED)
-endif ()
-
 # Appends the the module path to contain additional CMake modules for this project
 # and include everything necessary
 list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 
-# Include dependecies
+# We always requires Google Benchmark and Boost Libraries
 include(gbench)
 include(boost)
-include(kokkos)
-include(thrust)
 
+# OpenCL Inclusion
+if (${PPB_ENABLE_OpenCL})
+    find_package(OpenCL REQUIRED)
+endif()
+
+# OpenMP Inclusion
+if (${PPB_ENABLE_OpenMP})
+    find_package(OpenMP REQUIRED)
+endif ()
+
+# OpenACC Inclusion
+if (${PPB_ENABLE_OpenACC})
+    find_package(OpenACC REQUIRED)
+endif ()
+
+# Kokkos Inclusion
+if (${PPB_ENABLE_Kokkos})
+    include(kokkos)
+endif()
+
+# Thrust Inclusion (requires Cuda)
+if (${PPB_ENABLE_Cuda})
+    include(thrust)
+    thrust_create_target(Thrust HOST CPP DEVICE CUDA)
+endif()
+
+# AdaptiveCPP Inclusion
 if (${PPB_ENABLE_AdaptiveCpp})
     include(adaptive_cpp)
 endif ()
-
-thrust_create_target(Thrust HOST CPP DEVICE CUDA)
-
 
 #######################################################
 # Including source subdirectories

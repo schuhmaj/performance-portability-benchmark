@@ -41,7 +41,12 @@ if (NOT ${AdaptiveCpp_FOUND})
 
     # Set-Up the CMake project in the above specified "build" directory
     execute_process(
-            COMMAND ${CMAKE_COMMAND} -G "${CMAKE_GENERATOR}" -S ${adaptivecpp_SOURCE_DIR} -B ${ADAPTIVE_CPP_BINARY_DIR} -DCMAKE_INSTALL_PREFIX=${ADAPTIVE_CPP_INSTALL_DIR} -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH} -DWITH_SSCP_COMPILER=${WITH_SSCP_COMPILER}
+            COMMAND ${CMAKE_COMMAND} 
+                -G "${CMAKE_GENERATOR}" -S ${adaptivecpp_SOURCE_DIR} -B ${ADAPTIVE_CPP_BINARY_DIR}
+                -DCMAKE_INSTALL_PREFIX=${ADAPTIVE_CPP_INSTALL_DIR}
+                -DCMAKE_BUILD_TYPE=Release
+                -DCMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH} 
+                -DWITH_SSCP_COMPILER=${WITH_SSCP_COMPILER}
             RESULT_VARIABLE result
     )
     if (result)

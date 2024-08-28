@@ -1,13 +1,19 @@
 #include <algorithm>
 #include <benchmark/benchmark.h>
+#ifdef __NVCOMPILER
 #include <execution>
+#endif
 #include "VectorAddition.h"
 
 
 template <typename FloatType>
 std::vector<FloatType> VectorAddition<FloatType>::operator()() {
+#ifdef __NVCOMPILER
     std::transform(std::execution::par_unseq, _inA.begin(), _inA.end(), _inB.begin(), _outC.begin(),
                    std::plus<FloatType>());
+#else
+    std::transform(_inA.begin(), _inA.end(), _inB.begin(), _outC.begin(), std::plus<FloatType>());
+#endif
     checkValidity();
     return _outC;
 }
