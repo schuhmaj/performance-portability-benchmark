@@ -100,7 +100,7 @@ if (${PPB_ENABLE_OpenACC})
     set_target_properties(vec_acc PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 endif ()
 
-if(${CMAKE_CUDA_COMPILER} AND ${PPB_ENABLE_Cuda})
+if(CMAKE_CUDA_COMPILER AND PPB_ENABLE_Cuda)
 ########################################################################################
 # Cuda Implementation
 ########################################################################################
