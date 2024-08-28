@@ -30,7 +30,7 @@ add_compile_definitions(SPDLOG_ACTIVE_LEVEL=${LOGGING_LEVEL})
 option(PPB_ENABLE_OpenACC "Enable OpenACC Target" OFF)
 option(PPB_ENABLE_OpenMP "Enable OpenMP Target" OFF)
 option(PPB_ENABLE_AdaptiveCpp "Enable AdaptiveCPP Target" OFF)
-option(PPB_ENABLE_OpenCL "Enable AdaptiveCPP Target" OFF)
+option(PPB_ENABLE_OpenCL "Enable OpenCL Targets" OFF)
 
 #######################################################
 # Including dependencies needed across multiple targets
@@ -54,8 +54,8 @@ list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 
 # Include dependecies
 include(gbench)
-include(kokkos)
 include(boost)
+include(kokkos)
 include(thrust)
 
 if (${PPB_ENABLE_AdaptiveCpp})
