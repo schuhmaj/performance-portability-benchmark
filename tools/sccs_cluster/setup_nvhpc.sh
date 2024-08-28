@@ -41,7 +41,6 @@ cd "${BUILD_DIR}"
 echo "Running cmake configuration..."
 cmake .. -G Ninja \
   -DPPB_ENABLE_OpenACC=ON \
-  -DPPB_ENABLE_OpenMP=ON \
   -DPPB_ENABLE_Kokkos=ON \
   -DCMAKE_C_COMPILER=nvc \
   -DCMAKE_CXX_COMPILER=nvc++ \
