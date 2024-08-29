@@ -32,6 +32,7 @@ option(PPB_ENABLE_OpenMP "Enable OpenMP Target" OFF)
 option(PPB_ENABLE_AdaptiveCpp "Enable AdaptiveCPP Target" OFF)
 option(PPB_ENABLE_OpenCL "Enable OpenCL Targets" OFF)
 option(PPB_ENABLE_Kokkos "Enable Kokkos Target" OFF)
+option(PPB_ENABLE_Kokkos "Enable Raja Target" OFF)
 option(PPB_ENABLE_Cuda "Enable Cuda and Thrust Targets" OFF)
 
 #######################################################
@@ -64,6 +65,11 @@ endif ()
 # Kokkos Inclusion
 if (${PPB_ENABLE_Kokkos})
     include(kokkos)
+endif()
+
+# Kokkos Inclusion
+if (${PPB_ENABLE_Raja})
+    include(raja)
 endif()
 
 # Thrust Inclusion (requires Cuda)

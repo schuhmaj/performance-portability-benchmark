@@ -12,6 +12,20 @@ if (${PPB_ENABLE_Kokkos})
     )
 endif()
 
+if (${PPB_ENABLE_Raja})
+########################################################################################
+# RAJA IMPLEMENTATION
+########################################################################################
+    add_executable(vec_raja VectorAddition.h RajaImpl.cpp)
+    target_compile_features(vec_raja PUBLIC cxx_std_17)
+    target_include_directories(vec_raja PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+    target_link_libraries(vec_raja
+            PRIVATE
+            benchmark::benchmark
+            RAJA
+    )
+endif()
+
 if (${PPB_ENABLE_OpenCL})
 ########################################################################################
 # Boost Compute Implementation
