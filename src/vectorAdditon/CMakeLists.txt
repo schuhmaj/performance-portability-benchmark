@@ -67,23 +67,29 @@ if (${PPB_ENABLE_AdaptiveCpp})
             PRIVATE
             benchmark::benchmark
     )
+
+    add_executable(vec_acpp_std VectorAddition.h AdaptiveCppStdImpl.cpp)
+    target_compile_features(vec_acpp_std PUBLIC cxx_std_17)
+    target_compile_options(vec_acpp_std PRIVATE --acpp-stdpar)
+    target_include_directories(vec_acpp_std PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+    target_link_libraries(vec_acpp_std
+            PRIVATE
+            benchmark::benchmark
+    )
 endif ()
 
 ########################################################################################
-# Standard C++ Implementation
+# Standard C++ Implementation parallel with NVHPC
 ########################################################################################
-add_executable(vec_std VectorAddition.h CStdImpl.cpp)
-target_include_directories(vec_std PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(vec_std
-        PRIVATE
-            benchmark::benchmark
-)
 if (CMAKE_CXX_COMPILER_ID STREQUAL "NVHPC")
-    target_compile_options(vec_std PRIVATE -stdpar=gpu)
-    target_link_libraries(vec_std
+    add_executable(vec_nvhpc_std VectorAddition.h NvhpcStdImpl.cpp)
+    target_include_directories(vec_nvhpc_std PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+    target_link_libraries(vec_nvhpc_std
             PRIVATE
+                benchmark::benchmark
                 -stdpar
     )
+    target_compile_options(vec_nvhpc_std PRIVATE -stdpar=gpu)
 endif()
 
 
