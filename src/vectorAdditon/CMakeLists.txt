@@ -16,14 +16,15 @@ if (${PPB_ENABLE_Raja})
 ########################################################################################
 # RAJA IMPLEMENTATION
 ########################################################################################
-    add_executable(vec_raja VectorAddition.h RajaImpl.cpp)
-    target_compile_features(vec_raja PUBLIC cxx_std_17)
+    add_executable(vec_raja VectorAddition.h RajaImpl.cu)
+    target_compile_options(vec_raja PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:--extended-lambda>)
     target_include_directories(vec_raja PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
     target_link_libraries(vec_raja
             PRIVATE
             benchmark::benchmark
             RAJA
     )
+    set_target_properties(vec_raja PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 endif()
 
 if (${PPB_ENABLE_OpenCL})
