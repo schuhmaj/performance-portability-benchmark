@@ -68,8 +68,8 @@ if (${PPB_ENABLE_AdaptiveCpp})
             benchmark::benchmark
     )
 
-    # Working on my RTX2080 setup, not working on SCCS-Cluster (Reason 1: acpp not in path, Reason 2: ??)
-    # Custom target for vec_acpp_std using acpp
+    # Working on my RTX2080 setup
+    # Not working on SCCS-Cluster (Complains about missing TBB? But should not be needed)
 #    add_custom_target(vec_acpp_std ALL
 #        COMMAND acpp -O3 --acpp-stdpar -std=c++17 -I${CMAKE_CURRENT_SOURCE_DIR} -I${CMAKE_BINARY_DIR}/_deps/googlebench-src/include -c ${CMAKE_CURRENT_SOURCE_DIR}/AdaptiveCppStdImpl.cpp -o AdaptiveCppStdImpl.o
 #        COMMAND acpp -o vec_acpp_std AdaptiveCppStdImpl.o -L${CMAKE_BINARY_DIR}/_deps/googlebench-build/src -lbenchmark
