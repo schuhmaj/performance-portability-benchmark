@@ -7,6 +7,8 @@ find_package(benchmark ${GOOGLE_BENCHMARK_VERSION} QUIET)
 
 if (${benchmark_FOUND})
     message(STATUS "Found existing Google Benchmark: ${benchmark_DIR}")
+    set(GOOGLE_BENCHMARK_INCLUDE_DIR ${benchmark}/include)
+    set(GOOGLE_BENCHMARK_LIBRARY_DIR ${benchmark}/lib)
 else ()
     message(STATUS "Using Google Benchmark from GitHub Release ${GOOGLE_BENCHMARK_VERSION}")
 
@@ -18,4 +20,6 @@ else ()
     set(BENCHMARK_ENABLE_TESTING OFF CACHE BOOL "Disable benchmark testing" FORCE)
 
     FetchContent_MakeAvailable(benchmark)
+    set(GOOGLE_BENCHMARK_INCLUDE_DIR ${benchmark_SOURCE_DIR}/include)
+    set(GOOGLE_BENCHMARK_LIBRARY_DIR ${benchmark_BINARY_DIR}/src)
 endif ()

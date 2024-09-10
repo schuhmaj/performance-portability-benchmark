@@ -62,19 +62,22 @@ if (${PPB_ENABLE_AdaptiveCpp})
     add_executable(vec_acpp VectorAddition.h AdaptiveCppImpl.cpp)
     target_compile_features(vec_acpp PUBLIC cxx_std_17)
     target_include_directories(vec_acpp PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-    add_sycl_to_target(TARGET vec_acpp SOURCES VectorAddition.h AdaptiveCppImpl.cpp)
+    add_sycl_to_target(TARGET vec_acpp)
     target_link_libraries(vec_acpp
             PRIVATE
             benchmark::benchmark
     )
 
-    # Working on my RTX2080 setup
-    # Not working on SCCS-Cluster (Complains about missing TBB? But should not be needed)
-#    add_custom_target(vec_acpp_std ALL
-#        COMMAND acpp -O3 --acpp-stdpar -std=c++17 -I${CMAKE_CURRENT_SOURCE_DIR} -I${CMAKE_BINARY_DIR}/_deps/googlebench-src/include -c ${CMAKE_CURRENT_SOURCE_DIR}/AdaptiveCppStdImpl.cpp -o AdaptiveCppStdImpl.o
-#        COMMAND acpp -o vec_acpp_std AdaptiveCppStdImpl.o -L${CMAKE_BINARY_DIR}/_deps/googlebench-build/src -lbenchmark
-#        DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/AdaptiveCppStdImpl.cpp
-#    )
+    add_executable(vec_acpp_std VectorAddition.h AdaptiveCppStdImpl.cpp)
+    target_compile_features(vec_acpp_std PUBLIC cxx_std_17)
+    target_include_directories(vec_acpp_std PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+    target_compile_options(vec_acpp_std PRIVATE --acpp-stdpar --acpp-stdpar-unconditional-offload)
+    add_sycl_to_target(TARGET vec_acpp_std)
+    target_link_libraries(vec_acpp_std
+            PRIVATE
+                benchmark::benchmark
+                TBB::tbb
+    )
 endif ()
 
 ########################################################################################

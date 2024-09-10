@@ -7,7 +7,7 @@ set(BOOST_VERSION 1.85.0)
 find_package(Boost)
 
 if (${Boost_FOUND})
-    message(STATUS "Found existing boost libraries: ${Boost_INCLUDE_DIR}")
+    message(STATUS "Found existing boost libraries: ${Boost_DIR}")
     set(BOOST_DOWNLOADED False)
 else ()
     message(STATUS "Using Boost from GitHub Release ${BOOST_VERSION}")

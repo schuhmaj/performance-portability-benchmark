@@ -8,7 +8,8 @@
 # REQUIREMENTS BEFORE USING THIS SCRIPT
 # =========================================================================
 # Load the required modules before running this script:
-#   module load ninja-1.10.2 cmake-3.23.0 boost-1.69.0 llvm-14.0.0 cuda-11.6.0
+#   module load ninja-1.10.2 cmake-3.23.0 boost-1.69.0 llvm-14.0.0
+#     cuda-11.6.0 intel-tbb-2020.3
 # =========================================================================
 # USAGE INSTRUCTION
 # =========================================================================
