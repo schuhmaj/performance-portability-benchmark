@@ -107,6 +107,7 @@ if (${PPB_ENABLE_OpenMP})
                 benchmark::benchmark
                 OpenMP::OpenMP_CXX
     )
+    target_compile_options(vec_omp PRIVATE -mp=gpu)
 endif ()
 
 if (${PPB_ENABLE_OpenACC})
