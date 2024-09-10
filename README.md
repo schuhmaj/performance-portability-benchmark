@@ -5,6 +5,15 @@ but implemented employing different libraries, frameworks, programming paradigms
 and compilers used for performance portability.
 Some frameworks are not portable to every platform.
 
+
+<p align="center">
+  <img src="results/result.png" width="90%">
+  <br>
+  <em>
+    Runtime of a Simple Vector Addition on the RTX 3080 using Different Pardigms
+  </em>
+</p>
+
 ## Requirements
 
 In order to properly work with **all** implementation, please ensure the presence
@@ -80,16 +89,23 @@ module load module load ninja-1.10.2 cmake-3.23.0 boost-1.69.0 nvhpc-23.9
 ```
 
 Further, [HOW-TO-MODULE](./tools/sccs_cluster/HOW-TO-MODULE.md)
-contains instructions on how to simplify
-local dependency management.
+contains instructions on how to simplify the local dependency management.
 
+## Execution
 
-### Results
+The individual run-targets use Google Benchmark.
+You find the available options by running
 
-<p align="center">
-  <img src="results/result.png" width="90%">
-  <br>
-  <em>
-    Runtime of Vector Addition on the RTX 3080 using Different Pardigms
-  </em>
-</p>
+```bash
+./vec_* --help
+```
+
+Batch Evaluation is simple using the provided Python script.
+It requires `pandas`, `matplotlib`, `seaborn` and `loguru`.
+
+Just execute in the repository root:
+
+```bash
+mkdir results && cd results
+python ../scripts/plot_benchmark.py -r "vec_*" -p ..
+```
