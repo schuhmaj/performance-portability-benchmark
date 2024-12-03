@@ -4,6 +4,8 @@ message(STATUS "Setting up Metal CPP")
 include(FetchContent)
 
 # Declare and fetch the metal-cpp project
+# We're using the CMake Template at https://github.com/LeeTeng2001/metal-cpp-cmake/tree/main
+# We're using the recent Metal-Cpp Library released at https://developer.apple.com/metal/cpp/
 FetchContent_Declare(
         MetalCpp
         URL "${PROJECT_SOURCE_DIR}/libs/metal-cpp.zip"

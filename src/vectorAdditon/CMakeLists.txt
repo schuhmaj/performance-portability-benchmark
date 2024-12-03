@@ -192,3 +192,14 @@ if (${PPB_ENABLE_MetalCpp})
             MetalCpp::metal-cpp
     )
 endif ()
+
+########################################################################################
+# C++ Serial Standard CPU Reference
+########################################################################################
+add_executable(vec_cstd VectorAddition.h CStdImpl.cpp)
+target_include_directories(vec_cstd PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_compile_features(vec_cstd PUBLIC cxx_std_17)
+target_link_libraries(vec_cstd
+        PRIVATE
+        benchmark::benchmark
+)
