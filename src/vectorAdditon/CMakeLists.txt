@@ -178,3 +178,17 @@ if(CMAKE_CUDA_COMPILER AND PPB_ENABLE_Cuda)
     )
     set_target_properties(vec_thrust PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 endif ()
+
+if (${PPB_ENABLE_MetalCpp})
+    ########################################################################################
+    # MetalCpp Target Implementation
+    ########################################################################################
+    add_executable(vec_metal VectorAddition.h MetalCppImpl.cpp)
+    target_include_directories(vec_metal PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+    target_compile_features(vec_metal PUBLIC cxx_std_17)
+    target_link_libraries(vec_metal
+            PRIVATE
+            benchmark::benchmark
+            MetalCpp::metal-cpp
+    )
+endif ()

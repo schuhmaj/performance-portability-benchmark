@@ -34,6 +34,7 @@ option(PPB_ENABLE_OpenCL "Enable OpenCL Targets" OFF)
 option(PPB_ENABLE_Kokkos "Enable Kokkos Target" OFF)
 option(PPB_ENABLE_Kokkos "Enable Raja Target" OFF)
 option(PPB_ENABLE_Cuda "Enable Cuda and Thrust Targets" OFF)
+option(PPB_ENABLE_MetalCpp "Enable MetalCpp (Only on macOS!)" OFF)
 
 #######################################################
 # Including dependencies needed across multiple targets
@@ -82,6 +83,11 @@ endif()
 # AdaptiveCPP Inclusion
 if (${PPB_ENABLE_AdaptiveCpp})
     include(adaptive_cpp)
+endif ()
+
+# AdaptiveCPP Inclusion
+if (${PPB_ENABLE_MetalCpp})
+    include(metal)
 endif ()
 
 #######################################################

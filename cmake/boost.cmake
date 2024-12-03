@@ -4,7 +4,8 @@ message(STATUS "Setting up Boost")
 
 set(BOOST_VERSION 1.85.0)
 
-find_package(Boost)
+cmake_policy(SET CMP0167 NEW)
+find_package(Boost QUIET)
 
 if (${Boost_FOUND})
     message(STATUS "Found existing boost libraries: ${Boost_DIR}")
