@@ -1,27 +1,29 @@
-include(FetchContent)
-
 message(STATUS "Setting up Kokkos")
+set(Kokkos_VERSION 4.6.01)
 
-set(KOKKOS_VERSION 4.3.00)
+find_package(Kokkos ${Kokkos_VERSION} QUIET)
 
-include(FetchContent)
+if (${Kokkos_FOUND})
+    message(STATUS "Found existing Kokkos libraries: ${Kokkos_DIR}")
+else ()
+    message(STATUS "Using Kokkos from GitHub Release ${Kokkos_VERSION}")
+    include(FetchContent)
 
-if(${CMAKE_VERSION} VERSION_GREATER_EQUAL "3.24")
+    # For the CPU Code always optimize for the machine being build on (use vectorization, etc.)
+    set(Kokkos_ARCH_NATIVE ON CACHE BOOl "Always build for the machine on which AutoPas is being compiled" FORCE)
+
     FetchContent_Declare(
             Kokkos
-            URL https://github.com/kokkos/kokkos/archive/refs/tags/${KOKKOS_VERSION}.tar.gz
-            FIND_PACKAGE_ARGS
+            URL https://github.com/kokkos/kokkos/archive/refs/tags/${Kokkos_VERSION}.tar.gz
     )
-else()
-    FetchContent_Declare(
-            Kokkos
-            URL https://github.com/kokkos/kokkos/archive/refs/tags/${KOKKOS_VERSION}.tar.gz
-    )
-endif()
-FetchContent_MakeAvailable(Kokkos)
+    FetchContent_MakeAvailable(Kokkos)
 
-if(EXISTS ${CMAKE_BINARY_DIR}/_deps/kokkos-src)
-    message(STATUS "Kokkos was setup from its GitHub Release ${KOKKOS_VERSION}")
-else()
-    message(STATUS "Kokkos was found on the system!")
-endif()
+    # Mark all CMake variables of the Kokkos project as advanced for this project expect the main backend selection
+    get_cmake_property(_vars CACHE_VARIABLES)
+    foreach(_var ${_vars})
+        if(_var MATCHES "^Kokkos_" AND
+                NOT _var MATCHES "^Kokkos_ENABLE_(SERIAL|OPENMP|THREADS|HPX|CUDA|HIP|SYCL|OPENMPTARGET|OPENACC)$")
+            mark_as_advanced(${_var})
+        endif()
+    endforeach()
+endif ()
