@@ -1,7 +1,7 @@
 include(FetchContent)
 
 message(STATUS "Setting up Google Benchmark")
-set(GOOGLE_BENCHMARK_VERSION 1.9.0)
+set(GOOGLE_BENCHMARK_VERSION 1.9.4)
 
 find_package(benchmark ${GOOGLE_BENCHMARK_VERSION} QUIET)
 
