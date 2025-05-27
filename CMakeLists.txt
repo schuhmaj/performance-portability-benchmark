@@ -32,7 +32,6 @@ option(PPB_ENABLE_OpenMP "Enable OpenMP Target" OFF)
 option(PPB_ENABLE_AdaptiveCpp "Enable AdaptiveCPP Target" OFF)
 option(PPB_ENABLE_OpenCL "Enable OpenCL Targets" OFF)
 option(PPB_ENABLE_Kokkos "Enable Kokkos Target" OFF)
-option(PPB_ENABLE_Raja "Enable Raja Target" OFF)
 option(PPB_ENABLE_Cuda "Enable Cuda and Thrust Targets" OFF)
 option(PPB_ENABLE_MetalCpp "Enable MetalCpp (Only on macOS!)" OFF)
 

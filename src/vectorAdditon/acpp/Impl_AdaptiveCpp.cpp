@@ -1,7 +1,7 @@
-#include "VectorAddition.h"
+#include <CL/sycl.hpp>
 #include <benchmark/benchmark.h>
 #include <iostream>
-#include <CL/sycl.hpp>
+#include "VectorAddition.h"
 
 template<typename FloatType>
 std::vector<FloatType> VectorAddition<FloatType>::operator()() {

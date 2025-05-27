@@ -1,6 +1,6 @@
-#include "VectorAddition.h"
 #include <benchmark/benchmark.h>
 #include <iostream>
+#include "VectorAddition.h"
 #include "Kokkos_Core.hpp"
 
 

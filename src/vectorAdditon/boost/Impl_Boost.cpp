@@ -1,5 +1,5 @@
-#include "VectorAddition.h"
 #include <benchmark/benchmark.h>
+#include "VectorAddition.h"
 #include "boost/compute.hpp"
 
 

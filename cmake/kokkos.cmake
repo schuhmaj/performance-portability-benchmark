@@ -10,7 +10,7 @@ else ()
     include(FetchContent)
 
     # For the CPU Code always optimize for the machine being build on (use vectorization, etc.)
-    set(Kokkos_ARCH_NATIVE ON CACHE BOOl "Always build for the machine on which AutoPas is being compiled" FORCE)
+    set(Kokkos_ARCH_NATIVE ON CACHE STRING "Always build for the machine on which AutoPas is being compiled" FORCE)
 
     FetchContent_Declare(
             Kokkos

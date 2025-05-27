@@ -1,7 +1,7 @@
+#include <Metal/Metal.hpp>
+#include <benchmark/benchmark.h>
 #include <iostream>
 #include <vector>
-#include <benchmark/benchmark.h>
-#include <Metal/Metal.hpp>
 #include "VectorAddition.h"
 
 MTL::Device* device = nullptr;
