@@ -4,7 +4,7 @@
 
 
 template<typename FloatType>
-std::vector<FloatType> VectorAddition<FloatType>::operator()() {
+std::vector<FloatType> ppb::VectorAddition<FloatType>::operator()() {
     namespace compute = boost::compute;
     // Step 1: Create the compute context and the queue
     compute::device gpu = compute::system::default_device();
@@ -37,8 +37,8 @@ std::vector<FloatType> VectorAddition<FloatType>::operator()() {
 }
 
 
-template std::vector<float> VectorAddition<float>::operator()();
-BENCHMARK(VectorAddition<float>::vectorAdditionBenchmark)->Name("VecAdd-BoostCL-Float")->RangeMultiplier(10)->Range(1e3, 1e8)->Complexity();
+template std::vector<float> ppb::VectorAddition<float>::operator()();
+BENCHMARK(ppb::VectorAddition<float>::vectorAdditionBenchmark)->Name("VecAdd-BoostCL-Float")->RangeMultiplier(10)->Range(1e3, 1e8)->Complexity();
 
 // One does not have a dedicated double example here, as Boost.Compute only supports OpenCL types
 // Ergo, one only have int and float as potential template specializations

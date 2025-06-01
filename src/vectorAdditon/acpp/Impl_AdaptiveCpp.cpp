@@ -4,7 +4,7 @@
 #include "VectorAddition.h"
 
 template<typename FloatType>
-std::vector<FloatType> VectorAddition<FloatType>::operator()() {
+std::vector<FloatType> ppb::VectorAddition<FloatType>::operator()() {
     cl::sycl::default_selector selector;
     cl::sycl::device device{selector};
     cl::sycl::queue q{selector};
@@ -34,8 +34,8 @@ std::vector<FloatType> VectorAddition<FloatType>::operator()() {
 
 
 // Instantiate a benchmark using single precision
-template std::vector<float> VectorAddition<float>::operator()();
-BENCHMARK(VectorAddition<float>::vectorAdditionBenchmark)->Name("VecAdd-AdaptiveCpp-Float")->RangeMultiplier(10)->Range(1e3, 1e8)->Complexity();
+template std::vector<float> ppb::VectorAddition<float>::operator()();
+BENCHMARK(ppb::VectorAddition<float>::vectorAdditionBenchmark)->Name("VecAdd-AdaptiveCpp-Float")->RangeMultiplier(10)->Range(1e3, 1e8)->Complexity();
 
 int main(int argc, char** argv) {
     benchmark::Initialize(&argc, argv);

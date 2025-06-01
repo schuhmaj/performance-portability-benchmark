@@ -28,7 +28,7 @@ size_t roundUp(int group_size, int global_size) {
 
 
 template <typename FloatType>
-std::vector<FloatType> VectorAddition<FloatType>::operator()() {
+std::vector<FloatType> ppb::VectorAddition<FloatType>::operator()() {
     cl_int err;
 
     // Step 0: Get the device
@@ -80,8 +80,8 @@ std::vector<FloatType> VectorAddition<FloatType>::operator()() {
 }
 
 
-template std::vector<float> VectorAddition<float>::operator()();
-BENCHMARK(VectorAddition<float>::vectorAdditionBenchmark)
+template std::vector<float> ppb::VectorAddition<float>::operator()();
+BENCHMARK(ppb::VectorAddition<float>::vectorAdditionBenchmark)
     ->Name("VecAdd-OpenCL-Float")
     ->RangeMultiplier(10)
     ->Range(1e3, 1e8)

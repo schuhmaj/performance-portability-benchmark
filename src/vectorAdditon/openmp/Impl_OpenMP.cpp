@@ -5,7 +5,7 @@
 
 
 template <typename FloatType>
-std::vector<FloatType> VectorAddition<FloatType>::operator()() {
+std::vector<FloatType> ppb::VectorAddition<FloatType>::operator()() {
     const size_t size = _inA.size();
     FloatType *a = _inA.data();
     FloatType *b = _inB.data();
@@ -18,8 +18,8 @@ std::vector<FloatType> VectorAddition<FloatType>::operator()() {
     return _outC;
 }
 
-template std::vector<float> VectorAddition<float>::operator()();
-BENCHMARK(VectorAddition<float>::vectorAdditionBenchmark)
+template std::vector<float> ppb::VectorAddition<float>::operator()();
+BENCHMARK(ppb::VectorAddition<float>::vectorAdditionBenchmark)
     ->Name("VecAdd-OpenMP-Float")
     ->RangeMultiplier(10)
     ->Range(1e3, 1e8)

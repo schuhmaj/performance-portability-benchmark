@@ -5,15 +5,15 @@
 
 
 template <typename FloatType>
-std::vector<FloatType> VectorAddition<FloatType>::operator()() {
+std::vector<FloatType> ppb::VectorAddition<FloatType>::operator()() {
     std::transform(std::execution::par_unseq, _inA.begin(), _inA.end(), _inB.begin(), _outC.begin(),
                    std::plus<FloatType>());
     checkValidity();
     return _outC;
 }
 
-template std::vector<float> VectorAddition<float>::operator()();
-BENCHMARK(VectorAddition<float>::vectorAdditionBenchmark)
+template std::vector<float> ppb::VectorAddition<float>::operator()();
+BENCHMARK(ppb::VectorAddition<float>::vectorAdditionBenchmark)
     ->Name("VecAdd-NvhpcCStd-Float")
     ->RangeMultiplier(10)
     ->Range(1e3, 1e8)

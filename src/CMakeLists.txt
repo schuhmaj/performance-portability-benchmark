@@ -1,1 +1,2 @@
 add_subdirectory(vectorAdditon)
+add_subdirectory(nBodySimulation)

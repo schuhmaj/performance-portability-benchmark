@@ -7,7 +7,7 @@
 
 
 template<typename FloatType>
-std::vector<FloatType> VectorAddition<FloatType>::operator()() {
+std::vector<FloatType> ppb::VectorAddition<FloatType>::operator()() {
     const size_t size = _inA.size();
     // Step 1: Copy data to gpu device
     thrust::device_vector<FloatType> deviceA(_inA.begin(), _inA.end());
@@ -25,11 +25,11 @@ std::vector<FloatType> VectorAddition<FloatType>::operator()() {
 }
 
 // Explicit instantiation and benchmarking setup
-template std::vector<float> VectorAddition<float>::operator()();
-BENCHMARK(VectorAddition<float>::vectorAdditionBenchmark)->Name("VecAdd-Thrust-Float")->RangeMultiplier(10)->Range(1e3, 1e8)->Complexity();
+template std::vector<float> ppb::VectorAddition<float>::operator()();
+BENCHMARK(ppb::VectorAddition<float>::vectorAdditionBenchmark)->Name("VecAdd-Thrust-Float")->RangeMultiplier(10)->Range(1e3, 1e8)->Complexity();
 
-template std::vector<double> VectorAddition<double>::operator()();
-BENCHMARK(VectorAddition<double>::vectorAdditionBenchmark)->Name("VecAdd-Thrust-Double")->RangeMultiplier(10)->Range(1e3, 1e7)->Complexity();
+template std::vector<double> ppb::VectorAddition<double>::operator()();
+BENCHMARK(ppb::VectorAddition<double>::vectorAdditionBenchmark)->Name("VecAdd-Thrust-Double")->RangeMultiplier(10)->Range(1e3, 1e7)->Complexity();
 
 int main(int argc, char** argv) {
     benchmark::Initialize(&argc, argv);
