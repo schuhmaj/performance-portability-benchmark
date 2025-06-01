@@ -34,11 +34,11 @@ std::vector<FloatType> ppb::VectorAddition<FloatType>::operator()() {
 
 // Instantiate a benchmark using single precision
 template std::vector<float> ppb::VectorAddition<float>::operator()();
-BENCHMARK(ppb::VectorAddition<float>::vectorAdditionBenchmark)->Name("VecAdd-Kokkos-Float")->RangeMultiplier(10)->Range(1e3, 1e8)->Complexity();
+BENCHMARK(ppb::VectorAddition<float>::benchmark)->Name("VecAdd-Kokkos-Float")->RangeMultiplier(10)->Range(1e3, 1e8)->Complexity();
 
 // Instantiate a benchmark using double precision
 template std::vector<double> ppb::VectorAddition<double>::operator()();
-BENCHMARK(ppb::VectorAddition<double>::vectorAdditionBenchmark)->Name("VecAdd-Kokkos-Double")->RangeMultiplier(10)->Range(1e3, 1e8)->Complexity();
+BENCHMARK(ppb::VectorAddition<double>::benchmark)->Name("VecAdd-Kokkos-Double")->RangeMultiplier(10)->Range(1e3, 1e8)->Complexity();
 
 
 int main(int argc, char** argv) {

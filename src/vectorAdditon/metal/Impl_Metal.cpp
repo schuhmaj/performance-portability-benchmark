@@ -55,7 +55,7 @@ std::vector<FloatType> ppb::VectorAddition<FloatType>::operator()() {
 
 // Instantiate a benchmark using single precision
 template std::vector<float> ppb::VectorAddition<float>::operator()();
-BENCHMARK(ppb::VectorAddition<float>::vectorAdditionBenchmark)->Name("VecAdd-MetalCpp-Float")->RangeMultiplier(10)->Range(1e3, 1e8)->Complexity();
+BENCHMARK(ppb::VectorAddition<float>::benchmark)->Name("VecAdd-MetalCpp-Float")->RangeMultiplier(10)->Range(1e3, 1e8)->Complexity();
 
 int main(int argc, char** argv) {
     benchmark::Initialize(&argc, argv);

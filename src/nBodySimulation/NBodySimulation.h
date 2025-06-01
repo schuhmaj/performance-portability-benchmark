@@ -1,22 +1,25 @@
-
 #pragma once
 #include "benchmark/benchmark.h"
 
 namespace ppb {
 
-    template<typename FloatType>
+    template<typename Container>
     class NBodySimulation {
 
+        Container _particles;
 
 
-        static void inline vectorAdditionBenchmark(benchmark::State& state) {
+        Container operator()();
+
+
+        static void inline benchmark(benchmark::State& state) {
             const size_t size = state.range(0);
-            VectorAddition<FloatType> vec{size};
+            NBodySimulation<Container> nbodySimulation{size};
 
             for (auto _ : state) {
                 const auto start = std::chrono::high_resolution_clock::now();
 
-                auto result = vec();
+                auto result = nbodySimulation();
                 benchmark::DoNotOptimize(result);
 
                 const auto end = std::chrono::high_resolution_clock::now();

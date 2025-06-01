@@ -1,4 +1,10 @@
 set(VECTOR_ADDITION_ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR})
+set(VECTOR_ADDITION_FILES VectorAddition.h)
+
+add_library(vec_lib INTERFACE ${VECTOR_ADDITION_FILES})
+target_link_libraries(vec_lib INTERFACE benchmark::benchmark)
+target_include_directories(vec_lib INTERFACE ${VECTOR_ADDITION_ROOT_DIR})
+
 
 if (${PPB_ENABLE_Kokkos})
     add_subdirectory(kokkos)

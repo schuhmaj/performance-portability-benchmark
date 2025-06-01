@@ -67,7 +67,7 @@ namespace ppb {
          * the time measurements.
          * @param state the benchmarking state, must contain a range determining the size of the vectors to be added
          */
-        static void inline vectorAdditionBenchmark(benchmark::State& state) {
+        static void inline benchmark(benchmark::State& state) {
             const size_t size = state.range(0);
             VectorAddition<FloatType> vec{size};
 

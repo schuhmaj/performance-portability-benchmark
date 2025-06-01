@@ -5,7 +5,8 @@ set(NBODY_SIMULATION_FILES
     Particle.h
 )
 
-add_library(nbody_lib ${NBODY_SIMULATION_FILES})
+add_library(nbody_lib STATIC ${NBODY_SIMULATION_FILES})
+target_include_directories(nbody_lib PUBLIC ${NBODY_SIMULATION_ROOT_DIR})
 target_link_libraries(nbody_lib
     PUBLIC
         benchmark::benchmark
