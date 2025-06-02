@@ -7,6 +7,7 @@
 #include <numeric>
 #include <chrono>
 #include <exception>
+#include <memory>
 #include <stdexcept>
 
 namespace ppb {
@@ -23,8 +24,8 @@ namespace ppb {
         /** Second input vector to be summed */
         std::vector<FloatType> _inB;
 
-        /** Output of the addition of vector inA and inB */
-        std::vector<FloatType> _outC;
+        struct impl;
+        std::unique_ptr<impl> _impl;
 
     public:
 
@@ -34,31 +35,22 @@ namespace ppb {
          * fully zeros the output vector.
          * @param size - the size of the vector addition
          */
-        explicit VectorAddition(size_t size) : _inA(size), _inB(size), _outC(size) {
+        explicit VectorAddition(const size_t size) : _inA(size), _inB(size) {
             std::iota(_inA.begin(), _inA.end(), 0);
             std::iota(_inB.begin(), _inB.end(), 0);
-            std::fill(_outC.begin(), _outC.end(), 0);
+            this->init();
         }
 
         /** Default Destructor */
         ~VectorAddition() = default;
+
+        void init();
 
         /**
          * Performs the vector addition and returns the _outC vector.
          * @return results of inA + inB
          */
         std::vector<FloatType> operator()();
-
-        /**
-         * Checks the validity of the vector addition and throws a std::runtime_error in case
-         * a vector addition was not performed.
-         * @throws std::runtime_error if _outC.back() != (_inA.back() + _inB.back())
-         */
-        void checkValidity() {
-            if (_outC.back() != (_inA.back() + _inB.back())) {
-                throw std::runtime_error("Vector addition failed");
-            };
-        }
 
         /**
          * Static method for benchmarking the vector addition, i.e. the operator() of the VectorAddition class
