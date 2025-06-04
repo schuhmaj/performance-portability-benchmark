@@ -18,6 +18,9 @@ namespace ppb {
     template<typename FloatType>
     class VectorAddition {
 
+        /** The size of the vector addition */
+        size_t _size;
+
         /** First input vector to be summed */
         std::vector<FloatType> _inA;
 
@@ -28,14 +31,13 @@ namespace ppb {
         std::unique_ptr<impl> _impl{nullptr};
 
     public:
-
         /**
          * Constructs a new Vector Addition class with a given size.
          * Initializes the classes' input vectors with incrementing numbers starting from zero and
          * fully zeros the output vector.
          * @param size - the size of the vector addition
          */
-        explicit VectorAddition(const size_t size) : _inA(size), _inB(size) {
+        explicit VectorAddition(const size_t size) : _size{size}, _inA(size), _inB(size) {
             std::iota(_inA.begin(), _inA.end(), 0);
             std::iota(_inB.begin(), _inB.end(), 0);
             this->init();

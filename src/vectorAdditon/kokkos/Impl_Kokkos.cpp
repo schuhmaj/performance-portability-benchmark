@@ -8,7 +8,7 @@ struct ppb::VectorAddition<FloatType>::impl {
     Kokkos::View<FloatType *> deviceA;
     Kokkos::View<FloatType *> deviceB;
 
-    explicit impl(const std::vector<FloatType> &a, const std::vector<FloatType> &b) : deviceA{"deviceA", a.size()}, deviceB {"deviceB", b.size()} {
+    explicit impl(const size_t size, const std::vector<FloatType> &a, const std::vector<FloatType> &b) : deviceA{"deviceA", size}, deviceB {"deviceB", size} {
         typename Kokkos::View<FloatType *>::HostMirror hostA = Kokkos::create_mirror_view(deviceA);
         std::copy(a.begin(), a.end(), hostA.data());
         Kokkos::deep_copy(deviceA, hostA);
@@ -20,17 +20,16 @@ struct ppb::VectorAddition<FloatType>::impl {
 
 template<typename FloatType>
 void ppb::VectorAddition<FloatType>::init() {
-    _impl = std::make_unique<impl>(_inA, _inB);
+    _impl = std::make_unique<impl>(_size, _inA, _inB);
 }
 
 template <typename FloatType>
 std::vector<FloatType> ppb::VectorAddition<FloatType>::operator()() {
-    const size_t size = _impl->deviceA.size();
-    Kokkos::View<FloatType *> result("result",size);
+    Kokkos::View<FloatType *> result("result",_size);
     const auto& deviceA = _impl->deviceA;
     const auto& deviceB = _impl->deviceB;
 
-    Kokkos::parallel_for("VecAdd", size, KOKKOS_LAMBDA(const int i) {
+    Kokkos::parallel_for("VecAdd", _size, KOKKOS_LAMBDA(const int i) {
         result(i) = deviceA(i) + deviceB(i);
     });
 
