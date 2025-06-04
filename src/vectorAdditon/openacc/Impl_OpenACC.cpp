@@ -4,17 +4,26 @@
 #include "VectorAddition.h"
 
 template <typename FloatType>
+struct ppb::VectorAddition<FloatType>::impl {
+
+};
+
+template<typename FloatType>
+void ppb::VectorAddition<FloatType>::init() {
+    _impl = std::make_unique<impl>();
+}
+
+template <typename FloatType>
 std::vector<FloatType> ppb::VectorAddition<FloatType>::operator()() {
-    const size_t size = _inA.size();
     FloatType *a = _inA.data();
     FloatType *b = _inB.data();
-    FloatType *c = _outC.data();
-#pragma acc parallel loop copyin(a[0 : size], b[0 : size]) copyout(c[0 : size])
-    for (size_t i = 0; i < size; ++i) {
+    std::vector<FloatType> result(_size);
+    FloatType *c = result.data();
+#pragma acc parallel loop copyin(a[0 : _size], b[0 : _size]) copyout(c[0 : _size])
+    for (size_t i = 0; i < _size; ++i) {
         c[i] = a[i] + b[i];
     }
-    checkValidity();
-    return _outC;
+    return result;
 }
 
 template std::vector<float> ppb::VectorAddition<float>::operator()();

@@ -9,6 +9,7 @@
 #include <exception>
 #include <memory>
 #include <stdexcept>
+#include <sstream>
 
 namespace ppb {
     /**
@@ -81,7 +82,7 @@ namespace ppb {
 
                 // Sanity Check that the Vector Addition was actually successful (this is not in the benchmark by design)
                 if (result[1] != vec._inA[1] + vec._inB[1]) {
-                    std::stringstream ss;
+                    std::stringstream ss{};
                     ss << "Vector addition failed! " << result[1] << " != " << vec._inA[1] << " + " << vec._inB[1];
                     throw std::runtime_error(ss.str());
                 }
