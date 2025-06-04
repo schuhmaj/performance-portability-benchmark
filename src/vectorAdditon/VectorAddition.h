@@ -25,7 +25,7 @@ namespace ppb {
         std::vector<FloatType> _inB;
 
         struct impl;
-        std::unique_ptr<impl> _impl;
+        std::unique_ptr<impl> _impl{nullptr};
 
     public:
 
@@ -44,6 +44,10 @@ namespace ppb {
         /** Default Destructor */
         ~VectorAddition() = default;
 
+        /**
+         * Initializes the internal implementation of the class (the _impl member).
+         * This method is called in the constructor of the class.
+         */
         void init();
 
         /**
@@ -72,6 +76,13 @@ namespace ppb {
                 const auto end = std::chrono::high_resolution_clock::now();
                 const auto elapsed_seconds = std::chrono::duration_cast<std::chrono::duration<double>>(end - start);
                 state.SetIterationTime(elapsed_seconds.count());
+
+                // Sanity Check that the Vector Addition was actually successful (this is not in the benchmark by design)
+                if (result[1] != vec._inA[1] + vec._inB[1]) {
+                    std::stringstream ss;
+                    ss << "Vector addition failed! " << result[1] << " != " << vec._inA[1] << " + " << vec._inB[1];
+                    throw std::runtime_error(ss.str());
+                }
             }
             state.SetComplexityN(static_cast<long long>(size));
         }

@@ -146,10 +146,10 @@ def plot_benchmarks(benchmark_df: pd.DataFrame, save_path: Path | None = None) -
     Returns:
         A tuple containing the matplotlib Figure and Axes objects for the generated plot.
     """
-    benchmark_df = benchmark_df[benchmark_df["Data Type"] == "float"]
+    # benchmark_df = benchmark_df[benchmark_df["Data Type"] == "float"]
     fig, ax = plt.subplots(figsize=(10, 6))
     sns.lineplot(x="Problem Size", y="Runtime", hue="Framework", hue_order=benchmark_df["Framework"].unique().sort(), data=benchmark_df,
-                 marker="o", ax=ax, palette="tab20", )
+                 marker="o", ax=ax, palette="tab20", style="Data Type",)
     ax.set_xscale("log")
     ax.set_yscale("log")
     ax.set_ylabel("Runtime [ns]")

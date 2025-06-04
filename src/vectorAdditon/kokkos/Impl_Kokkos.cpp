@@ -30,10 +30,12 @@ std::vector<FloatType> ppb::VectorAddition<FloatType>::operator()() {
     const auto& deviceA = _impl->deviceA;
     const auto& deviceB = _impl->deviceB;
 
-    Kokkos::parallel_for(
-        "VecAdd", size, KOKKOS_LAMBDA(const int i) { result(i) = deviceA(i) + deviceB(i); });
+    Kokkos::parallel_for("VecAdd", size, KOKKOS_LAMBDA(const int i) {
+        result(i) = deviceA(i) + deviceB(i);
+    });
 
     const auto res_host = Kokkos::create_mirror_view(result);
+    Kokkos::deep_copy(res_host, result);
     return std::vector<FloatType>(res_host.data(), res_host.data() + res_host.size());
 }
 
@@ -57,10 +59,9 @@ BENCHMARK(ppb::VectorAddition<double>::benchmark)
 
 int main(int argc, char **argv) {
     Kokkos::ScopeGuard guard{argc, argv};
-
-    std::cout << "Default Execution Space: " << Kokkos::DefaultExecutionSpace::name() << std::endl;
-
+    // std::cout << "Default Execution Space: " << Kokkos::DefaultExecutionSpace::name() << std::endl;
     benchmark::MaybeReenterWithoutASLR(argc, argv);
+    benchmark::Initialize(&argc, argv);
     benchmark::RunSpecifiedBenchmarks();
     benchmark::Shutdown();
 }
