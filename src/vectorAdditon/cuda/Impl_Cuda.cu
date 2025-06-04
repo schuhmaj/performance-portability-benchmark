@@ -1,15 +1,12 @@
 #include "VectorAddition.h"
 #include <benchmark/benchmark.h>
-#include <cublas_v2.h>
 #include <iostream>
-#include <vector>
 
 template <typename FloatType>
 struct ppb::VectorAddition<FloatType>::impl {
 
     FloatType* deviceA;
     FloatType* deviceB;
-    cublasHandle_t handle;
 
     impl(const size_t size, const std::vector<FloatType> &a, const std::vector<FloatType> &b)
     : deviceA{nullptr},
@@ -18,13 +15,11 @@ struct ppb::VectorAddition<FloatType>::impl {
         cudaMalloc(&deviceB, size * sizeof(FloatType));
         cudaMemcpy(deviceA, a.data(), size * sizeof(FloatType), cudaMemcpyHostToDevice);
         cudaMemcpy(deviceB, b.data(), size * sizeof(FloatType), cudaMemcpyHostToDevice);
-        cublasCreate(&handle);
     }
 
     ~impl() {
         cudaFree(deviceA);
         cudaFree(deviceB);
-        cublasDestroy(handle);
     }
 };
 
@@ -33,19 +28,27 @@ void ppb::VectorAddition<FloatType>::init() {
     _impl = std::make_unique<impl>(_size, _inA, _inB);
 }
 
+// Kernel for vector addition
+template<typename FloatType>
+__global__ void kernel_vector_add(int size, FloatType* a, FloatType* b, FloatType* c) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i < size) {
+        c[i] = a[i] + b[i];
+    }
+}
+
+// VectorAddition operator() implementation
 template<typename FloatType>
 std::vector<FloatType> ppb::VectorAddition<FloatType>::operator()() {
     std::vector<FloatType> result(_size);
     FloatType* resultBuffer;
     cudaMalloc(&resultBuffer, _size * sizeof(FloatType));
-    cudaMemcpy(resultBuffer, _impl->deviceB, _size * sizeof(FloatType), cudaMemcpyDeviceToDevice);
 
-    constexpr FloatType alpha = 1.0;
-    if constexpr (std::is_same_v<FloatType, float>) {
-        cublasSaxpy(_impl->handle, _size, &alpha, _impl->deviceA, 1, resultBuffer, 1);
-    } else if constexpr (std::is_same_v<FloatType, double>) {
-        cublasDaxpy(_impl->handle, _size, &alpha, _impl->deviceA, 1, resultBuffer, 1);
-    }
+
+    const dim3 threadsPerBlock(1024);
+    const dim3 numBlocks((_inA.size() + threadsPerBlock.x - 1) / threadsPerBlock.x);
+    kernel_vector_add<<<numBlocks, threadsPerBlock>>>(_size, _impl->deviceA, _impl->deviceB, resultBuffer);
+    cudaDeviceSynchronize();
 
     cudaMemcpy(result.data(), resultBuffer, _size * sizeof(FloatType), cudaMemcpyDeviceToHost);
     cudaFree(resultBuffer);
@@ -53,11 +56,13 @@ std::vector<FloatType> ppb::VectorAddition<FloatType>::operator()() {
 }
 
 // Explicit instantiation and benchmarking setup
+template __global__ void kernel_vector_add<float>(int, float*, float*, float*);
 template std::vector<float> ppb::VectorAddition<float>::operator()();
-BENCHMARK(ppb::VectorAddition<float>::benchmark)->Name("VecAdd-Cublas-Float")->RangeMultiplier(10)->Range(1e3, 1e8)->Complexity();
+BENCHMARK(ppb::VectorAddition<float>::benchmark)->Name("VecAdd-Cuda-Float")->RangeMultiplier(10)->Range(1e3, 1e8)->Complexity();
 
+template __global__ void kernel_vector_add<double>(int, double*, double*, double*);
 template std::vector<double> ppb::VectorAddition<double>::operator()();
-BENCHMARK(ppb::VectorAddition<double>::benchmark)->Name("VecAdd-Cublas-Double")->RangeMultiplier(10)->Range(1e3, 1e8)->Complexity();
+BENCHMARK(ppb::VectorAddition<double>::benchmark)->Name("VecAdd-Cuda-Double")->RangeMultiplier(10)->Range(1e3, 1e8)->Complexity();
 
 int main(int argc, char** argv) {
     benchmark::MaybeReenterWithoutASLR(argc, argv);
