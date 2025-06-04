@@ -2,52 +2,62 @@
 #include "VectorAddition.h"
 #include "boost/compute.hpp"
 
+template <typename FloatType>
+struct ppb::VectorAddition<FloatType>::impl {
+
+    boost::compute::device gpu = boost::compute::system::default_device();
+    boost::compute::context ctx{gpu};
+    boost::compute::command_queue queue{ctx, gpu};
+
+
+    boost::compute::vector<FloatType> deviceA;
+    boost::compute::vector<FloatType> deviceB;
+
+    impl(const size_t size, const std::vector<FloatType> &a, const std::vector<FloatType> &b)
+    : deviceA{size, ctx},
+      deviceB {size, ctx} {
+        boost::compute::copy(a.begin(), a.end(), deviceA.begin(), queue);
+        boost::compute::copy(b.begin(), b.end(), deviceB.begin(), queue);
+    }
+};
+
+template<typename FloatType>
+void ppb::VectorAddition<FloatType>::init() {
+    _impl = std::make_unique<impl>(_size, _inA, _inB);
+}
+
 
 template<typename FloatType>
 std::vector<FloatType> ppb::VectorAddition<FloatType>::operator()() {
-    namespace compute = boost::compute;
-    // Step 1: Create the compute context and the queue
-    compute::device gpu = compute::system::default_device();
-    compute::context ctx{gpu};
-    compute::command_queue queue{ctx, gpu};
+    std::vector<FloatType> result(_size);
+    boost::compute::vector<FloatType> resultBuffer(_size, _impl->ctx);
 
-    // Step 2: Create memory on the device
-    compute::vector<FloatType> deviceA(_inA.size(), ctx);
-    compute::vector<FloatType> deviceB(_inB.size(), ctx);
-    compute::vector<FloatType> deviceC(_outC.size(), ctx);
-
-    // Step 3: Copy data from host to device
-    compute::copy(_inA.begin(), _inA.end(), deviceA.begin(), queue);
-    compute::copy(_inB.begin(), _inB.end(), deviceB.begin(), queue);
-
-    // Step 4: Perform operations on device vectors
-    // One could also use compute::plus<FloatType>(). However, this is a nice example how to define custom functions
     BOOST_COMPUTE_FUNCTION(FloatType, add_numbers, (FloatType a, FloatType b), { return a + b; });
-    compute::transform(deviceA.begin(), deviceA.end(),
-                       deviceB.begin(),
-                       deviceC.begin(),
+    boost::compute::transform(_impl->deviceA.begin(), _impl->deviceA.end(),
+                       _impl->deviceB.begin(),
+                       resultBuffer.begin(),
                        add_numbers,
-                       queue);
+                       _impl->queue);
 
-    // Step 5: Copy result back to host
-    compute::copy(deviceC.begin(), deviceC.end(), _outC.begin(),queue);
-    queue.finish();
-    checkValidity();
-    return _outC;
+    boost::compute::copy(resultBuffer.begin(), resultBuffer.end(), result.begin(), _impl->queue);
+    _impl->queue.finish();
+    return result;
 }
 
 
 template std::vector<float> ppb::VectorAddition<float>::operator()();
 BENCHMARK(ppb::VectorAddition<float>::benchmark)->Name("VecAdd-BoostCL-Float")->RangeMultiplier(10)->Range(1e3, 1e8)->Complexity();
 
-// One does not have a dedicated double example here, as Boost.Compute only supports OpenCL types
-// Ergo, one only have int and float as potential template specializations
+template std::vector<double> ppb::VectorAddition<double>::operator()();
+BENCHMARK(ppb::VectorAddition<double>::benchmark)->Name("VecAdd-BoostCL-Double")->RangeMultiplier(10)->Range(1e3, 1e8)->Complexity();
+
 
 int main(int argc, char** argv) {
     namespace compute = boost::compute;
     compute::device gpu = compute::system::default_device();
     std::cout << "GPU Name: " << gpu.name() << '\n';
 
+    benchmark::MaybeReenterWithoutASLR(argc, argv);
     benchmark::Initialize(&argc, argv);
     benchmark::RunSpecifiedBenchmarks();
     benchmark::Shutdown();

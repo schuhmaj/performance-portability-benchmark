@@ -21,8 +21,6 @@ struct ppb::VectorAddition<FloatType>::impl {
     cl_mem deviceA = nullptr;
     cl_mem deviceB = nullptr;
 
-    static inline const char* kernelSrc = "__kernel void add_vector(__global const float* a, __global const float* b, __global float* c) { int gid = get_global_id(0); c[gid]=a[gid]+b[gid]; } ";
-
     impl(size_t size, const std::vector<FloatType>& a, const std::vector<FloatType>& b) {
         // 0. Get device
         device = util::getFirstGPU();
@@ -37,7 +35,23 @@ struct ppb::VectorAddition<FloatType>::impl {
         deviceB = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,  size * sizeof(FloatType), const_cast<FloatType*>(b.data()), &err);
 
         // 3. OpenCL program & kernel
-        program = clCreateProgramWithSource(context, 1, &kernelSrc, nullptr, &err);
+        std::string kernelSource;
+        if constexpr (std::is_same_v<FloatType, float>) {
+            kernelSource = "__kernel void add_vector(__global const float* a, __global const float* b, __global float* c) {"
+            " int gid = get_global_id(0);"
+            " c[gid] = a[gid] + b[gid];"
+            " }";
+        } else if constexpr (std::is_same_v<FloatType, double>) {
+            kernelSource = "__kernel void add_vector(__global const double* a, __global const double* b, __global double* c) {"
+            " int gid = get_global_id(0);"
+            " c[gid] = a[gid] + b[gid];"
+            " }";
+        } else {
+            static_assert(std::is_same_v<FloatType, float> || std::is_same_v<FloatType, double>, "Unsupported type");
+        }
+        const char* kernelProg = kernelSource.c_str();
+        program = clCreateProgramWithSource(context, 1, &kernelProg, nullptr, &err);
+
         err = clBuildProgram(program, 0, nullptr, nullptr, nullptr, nullptr);
         kernel = clCreateKernel(program, "add_vector", &err);
     }
@@ -93,20 +107,25 @@ std::vector<FloatType> ppb::VectorAddition<FloatType>::operator()() {
 
 
 
-template std::vector<float> ppb::VectorAddition<float>::operator()();
-BENCHMARK(ppb::VectorAddition<float>::benchmark)
-    ->Name("VecAdd-OpenCL-Float")
+// template std::vector<float> ppb::VectorAddition<float>::operator()();
+// BENCHMARK(ppb::VectorAddition<float>::benchmark)
+//     ->Name("VecAdd-OpenCL-Float")
+//     ->RangeMultiplier(10)
+//     ->Range(1e3, 1e8)
+//     ->Complexity();
+
+template std::vector<double> ppb::VectorAddition<double>::operator()();
+BENCHMARK(ppb::VectorAddition<double>::benchmark)
+    ->Name("VecAdd-OpenCL-Double")
     ->RangeMultiplier(10)
     ->Range(1e3, 1e8)
     ->Complexity();
-
-// One does not have a dedicated double example here, as Boost.Compute only supports OpenCL types
-// Ergo, one only have int and float as potential template specializations
 
 int main(int argc, char **argv) {
     auto gpu = util::getFirstGPU();
     std::cout << "GPU Name: " << util::getDeviceName(gpu) << '\n';
 
+    benchmark::MaybeReenterWithoutASLR(argc, argv);
     benchmark::Initialize(&argc, argv);
     benchmark::RunSpecifiedBenchmarks();
     benchmark::Shutdown();

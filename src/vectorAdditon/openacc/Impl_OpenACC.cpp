@@ -42,6 +42,7 @@ int main(int argc, char **argv) {
     int device_num = acc_get_device_num(acc_device_default);
     printf("Running on device number %d\n", device_num);
 
+    benchmark::MaybeReenterWithoutASLR(argc, argv);
     benchmark::Initialize(&argc, argv);
     benchmark::RunSpecifiedBenchmarks();
     benchmark::Shutdown();
