@@ -1,2 +1,6 @@
-add_subdirectory(vectorAdditon)
-add_subdirectory(nBodySimulation)
+if (${PPB_ENABLE_VectorAddition})
+    add_subdirectory(vectorAdditon)
+endif ()
+if (${PPB_ENABLE_NBodySimulation})
+    add_subdirectory(nBodySimulation)
+endif ()

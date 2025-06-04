@@ -36,6 +36,9 @@ option(PPB_ENABLE_Kokkos "Enable Kokkos Target" OFF)
 option(PPB_ENABLE_Cuda "Enable Cuda and Thrust Targets" OFF)
 option(PPB_ENABLE_MetalCpp "Enable MetalCpp (Only on macOS!)" OFF)
 
+option(PPB_ENABLE_VectorAddition "Enable VectorAddition Benchmarks" ON)
+option(PPB_ENABLE_NBodySimulation "Enable NBodySimulation Benchmarks" OFF)
+
 message(STATUS "####################################################")
 message(STATUS "Build Type                      ${CMAKE_BUILD_TYPE}")
 message(STATUS "Logging Level                   ${PPB_LOGGING_LEVEL}")
@@ -47,6 +50,9 @@ message(STATUS "OpenMP                          ${PPB_ENABLE_OpenMP}")
 message(STATUS "OpenCL (incl. Boost::Compute)   ${PPB_ENABLE_OpenCL}")
 message(STATUS "Cuda                            ${PPB_ENABLE_Cuda}")
 message(STATUS "MetalCpp                        ${PPB_ENABLE_MetalCpp}")
+message(STATUS "####################################################")
+message(STATUS "VectorAddition                  ${PPB_ENABLE_VectorAddition}")
+message(STATUS "NBodySimulation                 ${PPB_ENABLE_NBodySimulation}")
 message(STATUS "####################################################")
 
 #######################################################

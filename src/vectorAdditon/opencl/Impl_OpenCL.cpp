@@ -107,12 +107,12 @@ std::vector<FloatType> ppb::VectorAddition<FloatType>::operator()() {
 
 
 
-// template std::vector<float> ppb::VectorAddition<float>::operator()();
-// BENCHMARK(ppb::VectorAddition<float>::benchmark)
-//     ->Name("VecAdd-OpenCL-Float")
-//     ->RangeMultiplier(10)
-//     ->Range(1e3, 1e8)
-//     ->Complexity();
+template std::vector<float> ppb::VectorAddition<float>::operator()();
+BENCHMARK(ppb::VectorAddition<float>::benchmark)
+    ->Name("VecAdd-OpenCL-Float")
+    ->RangeMultiplier(10)
+    ->Range(1e3, 1e8)
+    ->Complexity();
 
 template std::vector<double> ppb::VectorAddition<double>::operator()();
 BENCHMARK(ppb::VectorAddition<double>::benchmark)
