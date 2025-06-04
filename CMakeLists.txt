@@ -46,7 +46,6 @@ list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 # We always requires Google Benchmark and Boost Libraries
 include(gbench)
 include(boost)
-include(tbb)
 
 # OpenCL Inclusion
 if (${PPB_ENABLE_OpenCL})

@@ -17,8 +17,8 @@ else ()
     )
 
     # Disable tests & and do not treat tbb-compile errors as warnings
-    set(TBB_TEST OFF CACHE BOOL "" FORCE)
-    set(TBB_STRICT OFF CACHE BOOl "" FORCE)
+    set(TBB_TEST OFF CACHE STRING "" FORCE)
+    set(TBB_STRICT OFF CACHE STRING "" FORCE)
 
     FetchContent_MakeAvailable(tbb)
 endif ()
