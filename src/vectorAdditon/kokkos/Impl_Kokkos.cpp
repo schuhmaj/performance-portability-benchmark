@@ -27,9 +27,11 @@ template <typename FloatType>
 std::vector<FloatType> ppb::VectorAddition<FloatType>::operator()() {
     const size_t size = _impl->deviceA.size();
     Kokkos::View<FloatType *> result("result",size);
+    const auto& deviceA = _impl->deviceA;
+    const auto& deviceB = _impl->deviceB;
 
     Kokkos::parallel_for(
-        "VecAdd", size, KOKKOS_LAMBDA(const int i) { result(i) = _impl->deviceA(i) + _impl->deviceB(i); });
+        "VecAdd", size, KOKKOS_LAMBDA(const int i) { result(i) = deviceA(i) + deviceB(i); });
 
     const auto res_host = Kokkos::create_mirror_view(result);
     return std::vector<FloatType>(res_host.data(), res_host.data() + res_host.size());
@@ -58,7 +60,7 @@ int main(int argc, char **argv) {
 
     std::cout << "Default Execution Space: " << Kokkos::DefaultExecutionSpace::name() << std::endl;
 
-    benchmark::Initialize(&argc, argv);
+    benchmark::MaybeReenterWithoutASLR(argc, argv);
     benchmark::RunSpecifiedBenchmarks();
     benchmark::Shutdown();
 }

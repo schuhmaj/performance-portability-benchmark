@@ -13,13 +13,12 @@ Usage:
     $ python script.py -p /path/to/search/ -r "*.out" -o output.pdf
 
 2. Only search for existing report files and generate plots and CSV:
-    $ python script.py --report=False -p /path/to/search/ -r "*.json" -o output.pdf
+    $ python script.py --report -p /path/to/search/ -r "*.json" -o output.pdf
 
 Arguments:
 ----------
 --report:
-    If set to False, the script will search for existing report files instead of running the benchmarking targets.
-    Default is True.
+    If set, the script will search for existing report files instead of running the benchmarking targets.
 
 -p, --path:
     List of paths to search for files. Default is the current working directory.
