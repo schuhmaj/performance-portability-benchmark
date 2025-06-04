@@ -1,7 +1,7 @@
 #include <benchmark/benchmark.h>
 #include <iostream>
 #include "VectorAddition.h"
-#include "util/OpenCLUtlity.h"
+#include "opencl/util/OpenCLUtility.h""
 
 #ifdef __APPLE__
 #include <OpenCL/opencl.h>
@@ -9,75 +9,88 @@
 #include <CL/cl.h>
 #endif
 
-const char *kernelSrc =
-    "__kernel void add_vector( __global const float *a, __global const float *b, __global float *c) {    \
-    int gid = get_global_id(0);                                                                      \
-    c[gid] = a[gid] + b[gid];                                                                        \
-}                                                                                                    \
-";
 
-size_t roundUp(int group_size, int global_size) {
-    int r = global_size % group_size;
-    if (r == 0) {
-        return global_size;
+template <typename FloatType>
+struct ppb::VectorAddition<FloatType>::impl {
+    cl_context context = nullptr;
+    cl_command_queue queue = nullptr;
+    cl_device_id device = nullptr;
+    cl_program program = nullptr;
+    cl_kernel kernel = nullptr;
+
+    cl_mem deviceA = nullptr;
+    cl_mem deviceB = nullptr;
+
+    static inline const char* kernelSrc = "__kernel void add_vector(__global const float* a, __global const float* b, __global float* c) { int gid = get_global_id(0); c[gid]=a[gid]+b[gid]; } ";
+
+    impl(size_t size, const std::vector<FloatType>& a, const std::vector<FloatType>& b) {
+        // 0. Get device
+        device = util::getFirstGPU();
+
+        // 1. Context & queue
+        cl_int err;
+        context = clCreateContext(0, 1, &device, nullptr, nullptr, &err);
+        queue = clCreateCommandQueue(context, device, 0, &err);
+
+        // 2. Buffers (allocate once, refill on demand)
+        deviceA = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,  size * sizeof(FloatType), const_cast<FloatType*>(a.data()), &err);
+        deviceB = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,  size * sizeof(FloatType), const_cast<FloatType*>(b.data()), &err);
+
+        // 3. OpenCL program & kernel
+        program = clCreateProgramWithSource(context, 1, &kernelSrc, nullptr, &err);
+        err = clBuildProgram(program, 0, nullptr, nullptr, nullptr, nullptr);
+        kernel = clCreateKernel(program, "add_vector", &err);
     }
-    else {
-        return global_size + group_size - r;
+
+    ~impl() {
+        clReleaseMemObject(deviceA);
+        clReleaseMemObject(deviceB);
+        clReleaseProgram(program);
+        clReleaseKernel(kernel);
+        clReleaseCommandQueue(queue);
+        clReleaseContext(context);
     }
+};
+
+
+template<typename FloatType>
+void ppb::VectorAddition<FloatType>::init() {
+    _impl = std::make_unique<impl>(_size, _inA, _inB);
 }
 
+static size_t roundUp(int group_size, int global_size) {
+    int r = global_size % group_size;
+    return r == 0 ? global_size : global_size + group_size - r;
+}
 
 template <typename FloatType>
 std::vector<FloatType> ppb::VectorAddition<FloatType>::operator()() {
-    cl_int err;
+    cl_int err = 0;
+    std::vector<FloatType> result(_size);
+    cl_mem resultBuffer = clCreateBuffer(_impl->context, CL_MEM_WRITE_ONLY, _size * sizeof(FloatType), nullptr, nullptr);;
 
-    // Step 0: Get the device
-    cl_device_id device = util::getFirstGPU();
+    err = clSetKernelArg(_impl->kernel, 0, sizeof(cl_mem), &(_impl->deviceA));
+    if (err != CL_SUCCESS) throw std::runtime_error("SetKernelArg 0 failed");
+    err = clSetKernelArg(_impl->kernel, 1, sizeof(cl_mem), &(_impl->deviceB));
+    if (err != CL_SUCCESS) throw std::runtime_error("SetKernelArg 1 failed");
+    err = clSetKernelArg(_impl->kernel, 2, sizeof(cl_mem), &resultBuffer);
+    if (err != CL_SUCCESS) throw std::runtime_error("SetKernelArg 2 failed");
 
-    // Step 1: Create the compute context and the queue
-    cl_context context = clCreateContext(0, 1, &device, nullptr, nullptr, &err);
-    cl_command_queue queue = clCreateCommandQueue(context, device, 0, &err);
-
-    // Step 2: Create Buffers between Host and Device Memory
-    cl_mem a_buffer = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, _inA.size() * sizeof(FloatType),
-                                     _inA.data(), nullptr);
-    cl_mem b_buffer = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, _inB.size() * sizeof(FloatType),
-                                     _inB.data(), nullptr);
-    cl_mem c_buffer = clCreateBuffer(context, CL_MEM_WRITE_ONLY, _outC.size() * sizeof(FloatType), nullptr, nullptr);
-
-
-    // Step 3a: Create the Kernel
-    cl_program program = clCreateProgramWithSource(context, 1, (const char **)&kernelSrc, nullptr, &err);
-    err = clBuildProgram(program, 0, nullptr, nullptr, nullptr, nullptr);
-    cl_kernel kernel = clCreateKernel(program, "add_vector", &err);
-
-    // Step 3b: Set-Up the Kernels Arguments
-    err = clSetKernelArg(kernel, 0, sizeof(cl_mem), &a_buffer);
-    err |= clSetKernelArg(kernel, 1, sizeof(cl_mem), &b_buffer);
-    err |= clSetKernelArg(kernel, 2, sizeof(cl_mem), &c_buffer);
-
-    // Step 4: Execute the kernel
+    // 3. Launch kernel
     const size_t localWorkSize = 1024;
-    const size_t globalWorkSize = roundUp(localWorkSize, _inA.size());
-    err = clEnqueueNDRangeKernel(queue, kernel, 1, nullptr, &globalWorkSize, &localWorkSize, 0, nullptr, nullptr);
+    const size_t globalWorkSize = roundUp(localWorkSize, _size);
+    err = clEnqueueNDRangeKernel(_impl->queue, _impl->kernel, 1, nullptr, &globalWorkSize, &localWorkSize, 0, nullptr, nullptr);
+    if (err != CL_SUCCESS) throw std::runtime_error("EnqueueNDRangeKernel failed");
 
-    // Step 5: Copy result back to host
-    err = clEnqueueReadBuffer(queue, c_buffer, CL_TRUE, 0, _outC.size() * sizeof(FloatType), _outC.data(), 0, nullptr,
-                              nullptr);
-    clFinish(queue);
+    // 4. Copy result C back
+    err = clEnqueueReadBuffer(_impl->queue, resultBuffer, CL_TRUE, 0, _size * sizeof(FloatType), const_cast<FloatType*>(result.data()), 0, nullptr, nullptr);
+    if (err != CL_SUCCESS) throw std::runtime_error("ReadBuffer result failed: ");
+    clFinish(_impl->queue);
+    clReleaseMemObject(resultBuffer);
 
-    // Step 6: Clean up
-    clReleaseMemObject(a_buffer);
-    clReleaseMemObject(b_buffer);
-    clReleaseMemObject(c_buffer);
-    clReleaseProgram(program);
-    clReleaseKernel(kernel);
-    clReleaseCommandQueue(queue);
-    clReleaseContext(context);
-
-    checkValidity();
-    return _outC;
+    return result;
 }
+
 
 
 template std::vector<float> ppb::VectorAddition<float>::operator()();

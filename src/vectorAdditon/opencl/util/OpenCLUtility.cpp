@@ -1,4 +1,4 @@
-#include "OpenCLUtlity.h"
+#include "OpenCLUtility.h"
 
 namespace util {
 
