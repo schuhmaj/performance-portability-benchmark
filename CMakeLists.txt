@@ -73,7 +73,11 @@ endif ()
 
 # OpenACC Inclusion
 if (${PPB_ENABLE_OpenACC})
-    find_package(OpenACC REQUIRED)
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "NVHPC")
+        find_package(OpenACC REQUIRED)
+    else ()
+        message(FATAL_ERROR "Unsupported Compiler! OpenACC is only supported through the NVIDIA HPC SDK!")
+    endif ()
 endif ()
 
 # Kokkos Inclusion
