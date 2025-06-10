@@ -1,8 +1,8 @@
 set(NBODY_SIMULATION_ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 set(NBODY_SIMULATION_FILES
     NBodySimulation.h
-    Particle.cpp
     Particle.h
+    UtilityContainer.h
 )
 
 add_library(nbody_lib STATIC ${NBODY_SIMULATION_FILES})
