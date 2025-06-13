@@ -1,10 +1,12 @@
 #include <Kokkos_Core.hpp>
 #define FUNCTION_PREFIX KOKKOS_FUNCTION
 
+#include <Kokkos_Core.hpp>
+#include <iostream>
 #include "NBodySimulation.h"
 #include "UtilityContainer.h"
-#include <iostream>
-#include <Kokkos_Core.hpp>
+
+#include "CSVFileHandler.h"
 
 template <typename FloatType>
 struct ppb::NBodySimulation<FloatType>::impl {

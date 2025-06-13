@@ -23,17 +23,19 @@ namespace ppb {
         struct impl;
         std::unique_ptr<impl> _impl{nullptr};
 
-        NBodySimulation(size_t size, double endT = 1, double deltaT = 0.001) : _particles{Particle<FloatType>::generateCuboid({0,0,0}, {1, 1, 1}, size)}, _endT{endT}, _deltaT {deltaT} {
+        void init();
+
+    public:
+
+        explicit NBodySimulation(size_t size, double endT = 1, double deltaT = 0.001) : _particles{Particle<FloatType>::generateCuboid({0,0,0}, {1, 1, 1}, size)}, _endT{endT}, _deltaT {deltaT} {
             this->init();
         }
 
-        void init();
-
-
         ParticleContainer operator()();
 
-        public:
-
+        std::vector<Particle<FloatType>> getParticles() {
+            return _particles;
+        }
 
         static void inline benchmark(benchmark::State& state) {
             const size_t size = state.range(0);

@@ -22,25 +22,27 @@ namespace ppb {
     template <typename FloatType>
     class Particle {
 
-    public:
         std::array<FloatType, 3> _position{};
         std::array<FloatType, 3> _velocity{};
         std::array<FloatType, 3> _force{};
         std::array<FloatType, 3> _oldForce{};
-        int _id{};
+        int _type{};
+
+    public:
+
 
         static std::map<int, ParticleProperties<FloatType>> PARTICLE_PROPERTIES;
 
-        FUNCTION_PREFIX Particle() {}
+        FUNCTION_PREFIX Particle() = default;
 
-        FUNCTION_PREFIX Particle(std::array<FloatType, 3> position, int id = 0)
-            : _position{position}, _id{id} {}
+        FUNCTION_PREFIX explicit Particle(std::array<FloatType, 3> position, const int type = 0)
+            : _position{position}, _type{type} {}
 
-        FUNCTION_PREFIX Particle(std::array<FloatType, 3> position, std::array<FloatType, 3> velocity, int id = 0)
-            : _position{position}, _velocity{velocity}, _id{id} {}
+        FUNCTION_PREFIX Particle(std::array<FloatType, 3> position, std::array<FloatType, 3> velocity, const int type = 0)
+            : _position{position}, _velocity{velocity}, _type{type} {}
 
-        FUNCTION_PREFIX Particle(std::array<FloatType, 3> position, std::array<FloatType, 3> velocity, std::array<FloatType, 3> force, int id = 0)
-            : _position{position}, _velocity{velocity}, _force{force}, _id{id} {}
+        FUNCTION_PREFIX Particle(std::array<FloatType, 3> position, std::array<FloatType, 3> velocity, std::array<FloatType, 3> force, const int type = 0)
+            : _position{position}, _velocity{velocity}, _force{force}, _type{type} {}
 
 
         FUNCTION_PREFIX FloatType getMass() const {
@@ -51,6 +53,10 @@ namespace ppb {
         }
         FUNCTION_PREFIX FloatType getEpsilon() const {
             return 5.0;
+        }
+
+        FUNCTION_PREFIX int getType() const {
+            return _type;
         }
 
         FUNCTION_PREFIX std::array<FloatType, 3> getPosition() const {

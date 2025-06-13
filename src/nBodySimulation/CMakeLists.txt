@@ -3,6 +3,7 @@ set(NBODY_SIMULATION_FILES
     NBodySimulation.h
     Particle.h
     UtilityContainer.h
+    CSVFileHandler.h
 )
 
 add_library(nbody_lib STATIC ${NBODY_SIMULATION_FILES})

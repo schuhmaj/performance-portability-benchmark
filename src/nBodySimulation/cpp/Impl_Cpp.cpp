@@ -91,26 +91,6 @@ typename ppb::NBodySimulation<FloatType>::ParticleContainer ppb::NBodySimulation
     return _particles;
 }
 
-
 template ppb::NBodySimulation<float>::ParticleContainer ppb::NBodySimulation<float>::operator()();
-BENCHMARK(ppb::NBodySimulation<float>::benchmark)
-    ->Name("NBody-CStd-Float")
-    ->RangeMultiplier(10)
-    ->Range(1e1, 1e3)
-    ->Unit(benchmark::kMillisecond)
-    ->Complexity();
-
 template ppb::NBodySimulation<double>::ParticleContainer ppb::NBodySimulation<double>::operator()();
-BENCHMARK(ppb::NBodySimulation<double>::benchmark)
-    ->Name("NBody-CStd-Double")
-    ->RangeMultiplier(10)
-    ->Range(1e1, 1e3)
-    ->Unit(benchmark::kMillisecond)
-    ->Complexity();
 
-int main(int argc, char** argv) {
-    benchmark::MaybeReenterWithoutASLR(argc, argv);
-    benchmark::Initialize(&argc, argv);
-    benchmark::RunSpecifiedBenchmarks();
-    benchmark::Shutdown();
-}
