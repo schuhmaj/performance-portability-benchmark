@@ -1,46 +1,15 @@
-#include <Kokkos_Core.hpp>
-#define FUNCTION_PREFIX KOKKOS_FUNCTION
+#include "Impl_Kokkos.h"
 
-#include <Kokkos_Core.hpp>
-#include <iostream>
-#include "NBodySimulation.h"
-#include "UtilityContainer.h"
+namespace ppb {
 
-#include "CSVFileHandler.h"
+    template <typename FloatType>
+    ImplKokkos<FloatType>::ImplKokkos(const ParticleSimulationConfig<FloatType> &config) : _config{config} {
 
-template <typename FloatType>
-struct ppb::NBodySimulation<FloatType>::impl {
-
-    std::vector<Particle<FloatType>>& particles;
-    double &endT;
-    double &deltaT;
-    std::array<FloatType, 3> globalForce;
-
-    using ParticleView = Kokkos::View<Particle<FloatType>*>;
-    ParticleView particlesDevice;
-    typename ParticleView::HostMirror particlesHost;
-
-    Kokkos::View<FloatType[3]> globalForceDevice;
-    typename decltype(globalForceDevice)::HostMirror globalForceHost;
-
-
-    impl(std::vector<Particle<FloatType>>& particles, double &endT, double &deltaT, std::array<FloatType, 3> &globalForce) :
-        particles{particles}, endT{endT}, deltaT{deltaT}, globalForce{globalForce} {
-
-        particlesDevice = ParticleView("particlesDevice", particles.size());
-        particlesHost = Kokkos::create_mirror_view(particlesDevice);
-        std::copy(particles.begin(), particles.end(), particlesHost.data());
-
-        globalForceDevice = Kokkos::View<FloatType[3]>("globalForce");
-        globalForceHost = Kokkos::create_mirror_view(globalForceDevice);
-        std::copy(globalForce.begin(), globalForce.end(), globalForceHost.data());
-
-        Kokkos::deep_copy(particlesDevice, particlesHost);
-        Kokkos::deep_copy(globalForceDevice, globalForceHost);
     }
 
-    void updatePositionsAndResetForce() {
-        const auto dt = static_cast<FloatType>(deltaT);
+    template<typename FloatType>
+    void ImplKokkos<FloatType>::updatePositionsAndResetForce() {
+        const auto dt = static_cast<FloatType>(_config.deltaT);
 
         Kokkos::parallel_for("update_positions", particlesDevice.extent(0), KOKKOS_LAMBDA(const int i) {
             using namespace ppb::util;
@@ -50,7 +19,7 @@ struct ppb::NBodySimulation<FloatType>::impl {
             auto f = particle.getForce();
 
             particle.setOldForce(f);
-            particle.setForce(globalForce);
+            particle.setForce(_config.globalForce);
 
             v *= dt;
             f *= (dt * dt / (2 * m));
@@ -59,8 +28,9 @@ struct ppb::NBodySimulation<FloatType>::impl {
         });
     }
 
-    void updateVelocities() {
-        const auto dt = static_cast<FloatType>(deltaT);
+    template<typename FloatType>
+    void ImplKokkos<FloatType>::updateVelocities() {
+        const auto dt = static_cast<FloatType>(_config.deltaT);
 
         Kokkos::parallel_for("update_velocities", particlesDevice.extent(0), KOKKOS_LAMBDA(const int i) {
             using namespace ppb::util;
@@ -73,7 +43,8 @@ struct ppb::NBodySimulation<FloatType>::impl {
         });
     }
 
-    void computeForces() {
+    template<typename FloatType>
+    void ImplKokkos<FloatType>::computeForces() {
         Kokkos::parallel_for("compute_forces", particlesDevice.extent(0), KOKKOS_LAMBDA(const int i) {
             using namespace ppb::util;
             auto& pi = particlesDevice(i);
@@ -105,53 +76,31 @@ struct ppb::NBodySimulation<FloatType>::impl {
         });
     }
 
-    void simulate() {
-        for (double currentT = 0.0; currentT < endT; currentT += deltaT) {
+    template<typename FloatType>
+    std::vector<Particle<FloatType>> ImplKokkos<FloatType>::simulate(const std::vector<Particle<FloatType>> &particles) {
+        std::vector<Particle<FloatType>> particlesCopy{particles};
+        particlesDevice = ParticleView("particlesDevice", particles.size());
+        particlesHost = Kokkos::create_mirror_view(particlesDevice);
+        std::copy(particles.begin(), particles.end(), particlesHost.data());
+
+        Kokkos::deep_copy(particlesDevice, particlesHost);
+
+        for (double currentT = 0.0; currentT < _config.endT; currentT += _config.deltaT) {
             updatePositionsAndResetForce();
             computeForces();
             updateVelocities();
         }
+
         Kokkos::fence();
         Kokkos::deep_copy(particlesHost, particlesDevice);
         for (size_t i = 0; i < particles.size(); ++i) {
-            particles[i] = particlesHost(i);
+            particlesCopy[i] = particlesHost(i);
         }
+        return particlesCopy;
     }
+
+    /* Explicit Instantiation for float and double */
+    template class ImplKokkos<float>;
+    template class ImplKokkos<double>;
+
 };
-
-template<typename FloatType>
-void ppb::NBodySimulation<FloatType>::init() {
-    _impl = std::make_unique<impl>(_particles, _endT, _deltaT, _globalForce);
-}
-
-
-template <typename FloatType>
-typename ppb::NBodySimulation<FloatType>::ParticleContainer ppb::NBodySimulation<FloatType>::operator()() {
-    _impl->simulate();
-    return _particles;
-}
-
-
-template ppb::NBodySimulation<float>::ParticleContainer ppb::NBodySimulation<float>::operator()();
-BENCHMARK(ppb::NBodySimulation<float>::benchmark)
-    ->Name("NBody-Kokkos-Float")
-    ->RangeMultiplier(10)
-    ->Range(1e1, 1e3)
-    ->Unit(benchmark::kMillisecond)
-    ->Complexity();
-
-template ppb::NBodySimulation<double>::ParticleContainer ppb::NBodySimulation<double>::operator()();
-BENCHMARK(ppb::NBodySimulation<double>::benchmark)
-    ->Name("NBody-Kokkos-Double")
-    ->RangeMultiplier(10)
-    ->Range(1e1, 1e3)
-    ->Unit(benchmark::kMillisecond)
-    ->Complexity();
-
-int main(int argc, char** argv) {
-    Kokkos::ScopeGuard guard{argc, argv};
-    benchmark::MaybeReenterWithoutASLR(argc, argv);
-    benchmark::Initialize(&argc, argv);
-    benchmark::RunSpecifiedBenchmarks();
-    benchmark::Shutdown();
-}

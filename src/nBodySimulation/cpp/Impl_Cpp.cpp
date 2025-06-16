@@ -1,45 +1,50 @@
-#include "NBodySimulation.h"
-#include "UtilityContainer.h"
-#include <iostream>
+#include "Impl_Cpp.h"
 
-template <typename FloatType>
-struct ppb::NBodySimulation<FloatType>::impl {
+namespace ppb {
 
-    std::vector<Particle<FloatType>>& particles;
-    double &endT;
-    double &deltaT;
-    std::array<FloatType, 3> &globalForce;
+    template <typename FloatType>
+    ImplCpp<FloatType>::ImplCpp(const ParticleSimulationConfig<FloatType> &config) : _config{config} {}
 
-    impl(std::vector<Particle<FloatType>>& particles, double &endT, double &deltaT, std::array<FloatType, 3> &globalForce) :
-        particles{particles}, endT{endT}, deltaT{deltaT}, globalForce{globalForce} {}
+    template <typename FloatType>
+    std::vector<Particle<FloatType>> ImplCpp<FloatType>::simulate(const std::vector<Particle<FloatType>> &particles) {
+        std::vector<Particle<FloatType>> particlesCopy{particles};
+        for (double currentT = 0.0; currentT < _config.endT; currentT += _config.deltaT) {
+            updatePositionsAndResetForce(particlesCopy);
+            computeForces(particlesCopy);
+            updateVelocities(particlesCopy);
+        }
+        return particlesCopy;
+    }
 
-    void updatePositionsAndResetForce() {
+    template <typename FloatType>
+    void ImplCpp<FloatType>::updatePositionsAndResetForce(std::vector<Particle<FloatType>> &particles) {
         using namespace ppb::util;
         for (auto &particle : particles) {
             const auto m = particle.getMass();
             auto v = particle.getVelocity();
             auto f = particle.getForce();
             particle.setOldForce(f);
-            particle.setForce(globalForce);
-            v *= deltaT;
-            f *= (deltaT * deltaT / (2 * m));
+            particle.setForce(_config.globalForce);
+            v *= _config.deltaT;
+            f *= (_config.deltaT * _config.deltaT / (2 * m));
             const auto displacement = v + f;
             particle.addPosition(displacement);
         }
     }
-
-    void updateVelocities() {
+    template <typename FloatType>
+    void ImplCpp<FloatType>::updateVelocities(std::vector<Particle<FloatType>> &particles) {
         using namespace ppb::util;
         for (auto &particle : particles) {
             const auto molecularMass = particle.getMass();
             const auto force = particle.getForce();
             const auto oldForce = particle.getOldForce();
-            const auto changeInVel = (force + oldForce) * (deltaT / (2 * molecularMass));
+            const auto changeInVel = (force + oldForce) * (_config.deltaT / (2 * molecularMass));
             particle.addVelocity(changeInVel);
         }
     }
 
-    void computeForces() {
+    template <typename FloatType>
+    void ImplCpp<FloatType>::computeForces(std::vector<Particle<FloatType>> &particles) {
         using namespace ppb::util;
         const size_t size = particles.size();
         for (size_t i = 0; i < size; ++i) {
@@ -69,28 +74,10 @@ struct ppb::NBodySimulation<FloatType>::impl {
         }
     }
 
-    void simulate() {
-        for (double currentT = 0.0; currentT < endT; currentT += deltaT) {
-            updatePositionsAndResetForce();
-            computeForces();
-            updateVelocities();
-        }
-    }
+    /* Explicit Instantiation for float and double */
+    template class ImplCpp<float>;
+    template class ImplCpp<double>;
 
-};
+} // namespace ppb
 
-template<typename FloatType>
-void ppb::NBodySimulation<FloatType>::init() {
-    _impl = std::make_unique<impl>(_particles, _endT, _deltaT, _globalForce);
-}
-
-
-template <typename FloatType>
-typename ppb::NBodySimulation<FloatType>::ParticleContainer ppb::NBodySimulation<FloatType>::operator()() {
-    _impl->simulate();
-    return _particles;
-}
-
-template ppb::NBodySimulation<float>::ParticleContainer ppb::NBodySimulation<float>::operator()();
-template ppb::NBodySimulation<double>::ParticleContainer ppb::NBodySimulation<double>::operator()();
 

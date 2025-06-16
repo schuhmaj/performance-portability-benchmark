@@ -6,10 +6,10 @@ set(NBODY_SIMULATION_FILES
     CSVFileHandler.h
 )
 
-add_library(nbody_lib STATIC ${NBODY_SIMULATION_FILES})
-target_include_directories(nbody_lib PUBLIC ${NBODY_SIMULATION_ROOT_DIR})
+add_library(nbody_lib INTERFACE ${NBODY_SIMULATION_FILES})
+target_include_directories(nbody_lib INTERFACE ${NBODY_SIMULATION_ROOT_DIR})
 target_link_libraries(nbody_lib
-    PUBLIC
+    INTERFACE
         benchmark::benchmark
 )
 

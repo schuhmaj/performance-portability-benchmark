@@ -38,6 +38,7 @@ option(PPB_ENABLE_MetalCpp "Enable MetalCpp (Only on macOS!)" OFF)
 
 option(PPB_ENABLE_VectorAddition "Enable VectorAddition Benchmarks" ON)
 option(PPB_ENABLE_NBodySimulation "Enable NBodySimulation Benchmarks" OFF)
+option(PPB_ENABLE_Testing "Enable Testing" ON)
 
 message(STATUS "####################################################")
 message(STATUS "Build Type                      ${CMAKE_BUILD_TYPE}")
@@ -53,6 +54,7 @@ message(STATUS "MetalCpp                        ${PPB_ENABLE_MetalCpp}")
 message(STATUS "####################################################")
 message(STATUS "VectorAddition                  ${PPB_ENABLE_VectorAddition}")
 message(STATUS "NBodySimulation                 ${PPB_ENABLE_NBodySimulation}")
+message(STATUS "Testing                         ${PPB_ENABLE_Testing}")
 message(STATUS "####################################################")
 
 #######################################################
@@ -110,6 +112,11 @@ endif ()
 # AdaptiveCPP Inclusion
 if (${PPB_ENABLE_MetalCpp})
     include(metal)
+endif ()
+
+if (${PPB_ENABLE_Testing})
+    enable_testing()
+    add_subdirectory(test)
 endif ()
 
 #######################################################
