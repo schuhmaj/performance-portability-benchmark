@@ -121,6 +121,13 @@ namespace ppb {
         {}
 
         /**
+         * Constructs the simulation, generating an initial cuboid set of particles, and initializing the implementation.
+         *
+         * @param size the number of particles in the cuboid
+         */
+        explicit NBodySimulation(const size_t size) : NBodySimulation(ParticleSimulationConfig<FloatType>(size)) {}
+
+        /**
          * Executes the simulation and returns the resulting particles.
          *
          * @return the particle vector resulting from the implementation's simulate() call.
@@ -135,8 +142,7 @@ namespace ppb {
          */
         static void inline benchmark(benchmark::State& state) {
             const size_t size = state.range(0);
-            ParticleSimulationConfig<FloatType> config{size};
-            NBodySimulation nbodySimulation{config};
+            NBodySimulation nbodySimulation{size};
 
             for (auto _ : state) {
                 const auto start = std::chrono::high_resolution_clock::now();

@@ -114,13 +114,14 @@ if (${PPB_ENABLE_MetalCpp})
     include(metal)
 endif ()
 
-if (${PPB_ENABLE_Testing})
-    enable_testing()
-    add_subdirectory(test)
-endif ()
-
 #######################################################
 # Including source subdirectories
 #######################################################
 
 add_subdirectory(src)
+
+if (${PPB_ENABLE_Testing})
+    enable_testing()
+    add_subdirectory(test)
+endif ()
+

@@ -10,7 +10,6 @@
 #pragma once
 
 #include <Kokkos_Core.hpp>
-#define FUNCTION_PREFIX KOKKOS_FUNCTION
 #include "NBodySimulation.h"
 #include "Particle.h"
 #include "UtilityContainer.h"

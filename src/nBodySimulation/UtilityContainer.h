@@ -1,9 +1,5 @@
 #pragma once
 
-#ifndef FUNCTION_PREFIX
-#define FUNCTION_PREFIX
-#endif
-
 #include <array>
 #include <set>
 #include <numeric>
@@ -33,7 +29,7 @@ namespace ppb::util {
      * @return a container containing the result
      */
     template<typename Container, typename BinOp>
-    FUNCTION_PREFIX Container applyBinaryFunction(const Container &lhs, const Container &rhs, BinOp binOp) {
+    __attribute__((device)) __attribute__((host)) Container applyBinaryFunction(const Container &lhs, const Container &rhs, BinOp binOp) {
         Container ret = lhs;
         for (size_t i = 0; i < std::size(lhs); ++i) {
             ret[i] = binOp(lhs[i], rhs[i]);
@@ -54,7 +50,7 @@ namespace ppb::util {
      * @return a container containing the result
      */
     template<typename Container, typename Scalar, typename BinOp>
-    FUNCTION_PREFIX Container applyBinaryFunction(const Container &lhs, const Scalar &scalar, BinOp binOp) {
+    __attribute__((device)) __attribute__((host)) Container applyBinaryFunction(const Container &lhs, const Scalar &scalar, BinOp binOp) {
         Container ret = lhs;
         for (size_t i = 0; i < std::size(lhs); ++i) {
             ret[i] = binOp(lhs[i], scalar);
@@ -71,12 +67,12 @@ namespace ppb::util {
      * @return the difference
      */
     template<typename Container>
-    FUNCTION_PREFIX Container operator-(const Container &lhs, const Container &rhs) {
+    __attribute__((device)) __attribute__((host)) Container operator-(const Container &lhs, const Container &rhs) {
         return applyBinaryFunction(lhs, rhs, std::minus<>());
     }
 
     template<typename Container>
-    FUNCTION_PREFIX Container operator-=(Container &lhs, const Container &rhs) {
+    __attribute__((device)) __attribute__((host)) Container operator-=(Container &lhs, const Container &rhs) {
         lhs = lhs - rhs;
         return lhs;
     }
@@ -90,12 +86,12 @@ namespace ppb::util {
     * @return the sum
     */
     template<typename Container>
-    FUNCTION_PREFIX Container operator+(const Container &lhs, const Container &rhs) {
+    __attribute__((device)) __attribute__((host)) Container operator+(const Container &lhs, const Container &rhs) {
         return applyBinaryFunction(lhs, rhs, std::plus<>());
     }
 
     template<typename Container>
-    FUNCTION_PREFIX Container operator+=(Container &lhs, const Container &rhs) {
+    __attribute__((device)) __attribute__((host)) Container operator+=(Container &lhs, const Container &rhs) {
         lhs = lhs + rhs;
         return lhs;
     }
@@ -109,12 +105,12 @@ namespace ppb::util {
     * @return the product
     */
     template<typename Container>
-    FUNCTION_PREFIX Container operator*(const Container &lhs, const Container &rhs) {
+    __attribute__((device)) __attribute__((host)) Container operator*(const Container &lhs, const Container &rhs) {
         return applyBinaryFunction(lhs, rhs, std::multiplies<>());
     }
 
     template<typename Container>
-    FUNCTION_PREFIX Container operator*=(Container &lhs, const Container &rhs) {
+    __attribute__((device)) __attribute__((host)) Container operator*=(Container &lhs, const Container &rhs) {
         lhs = lhs * rhs;
         return lhs;
     }
@@ -128,7 +124,7 @@ namespace ppb::util {
     * @return the product
     */
     template<typename Container>
-    FUNCTION_PREFIX Container operator/(const Container &lhs, const Container &rhs) {
+    __attribute__((device)) __attribute__((host)) Container operator/(const Container &lhs, const Container &rhs) {
         return applyBinaryFunction(lhs, rhs, std::divides<>());
     }
 
@@ -142,12 +138,12 @@ namespace ppb::util {
     * @return a Container
     */
     template<typename Container, typename Scalar>
-    FUNCTION_PREFIX Container operator+(const Container &lhs, const Scalar &scalar) {
+    __attribute__((device)) __attribute__((host)) Container operator+(const Container &lhs, const Scalar &scalar) {
         return applyBinaryFunction(lhs, scalar, std::plus<>());
     }
 
     template<typename Container, typename Scalar>
-    FUNCTION_PREFIX Container operator+=(Container &lhs, const Scalar &scalar) {
+    __attribute__((device)) __attribute__((host)) Container operator+=(Container &lhs, const Scalar &scalar) {
         lhs = lhs + scalar;
         return lhs;
     }
@@ -162,12 +158,12 @@ namespace ppb::util {
     * @return a Container
     */
     template<typename Container, typename Scalar>
-    FUNCTION_PREFIX Container operator-(const Container &lhs, const Scalar &scalar) {
+    __attribute__((device)) __attribute__((host)) Container operator-(const Container &lhs, const Scalar &scalar) {
         return applyBinaryFunction(lhs, scalar, std::minus<>());
     }
 
     template<typename Container, typename Scalar>
-    FUNCTION_PREFIX Container operator-=(Container &lhs, const Scalar &scalar) {
+    __attribute__((device)) __attribute__((host)) Container operator-=(Container &lhs, const Scalar &scalar) {
         lhs = lhs - scalar;
         return lhs;
     }
@@ -182,12 +178,12 @@ namespace ppb::util {
     * @return a Container
     */
     template<typename Container, typename Scalar>
-    FUNCTION_PREFIX Container operator*(const Container &lhs, const Scalar &scalar) {
+    __attribute__((device)) __attribute__((host)) Container operator*(const Container &lhs, const Scalar &scalar) {
         return applyBinaryFunction(lhs, scalar, std::multiplies<>());
     }
 
     template<typename Container, typename Scalar>
-    FUNCTION_PREFIX Container operator*=(Container &lhs, const Scalar &scalar) {
+    __attribute__((device)) __attribute__((host)) Container operator*=(Container &lhs, const Scalar &scalar) {
         lhs = lhs * scalar;
         return lhs;
     }
@@ -202,7 +198,7 @@ namespace ppb::util {
      * @return a Container
      */
     template<typename Container, typename Scalar>
-    FUNCTION_PREFIX Container operator/(const Container &lhs, const Scalar &scalar) {
+    __attribute__((device)) __attribute__((host)) Container operator/(const Container &lhs, const Scalar &scalar) {
         return applyBinaryFunction(lhs, scalar, std::divides<>());
     }
 
@@ -213,7 +209,7 @@ namespace ppb::util {
      * @return a double containing the L2 norm
      */
     template<typename Container>
-    FUNCTION_PREFIX double euclideanNorm(const Container &container) {
+    __attribute__((device)) __attribute__((host)) double euclideanNorm(const Container &container) {
         return std::sqrt(std::inner_product(std::begin(container), std::end(container), std::begin(container), 0.0));
     }
 
@@ -224,7 +220,7 @@ namespace ppb::util {
      * @return a container with the modified values
      */
     template<typename Container>
-    FUNCTION_PREFIX Container abs(const Container &container) {
+    __attribute__((device)) __attribute__((host)) Container abs(const Container &container) {
         Container ret = container;
         std::transform(std::begin(container), std::end(container), std::begin(ret),
                        [](const auto &element) { return std::abs(element); });
@@ -272,7 +268,7 @@ namespace ppb::util {
     * @return cross product
     */
     template<typename T>
-    FUNCTION_PREFIX std::array<T, 3> cross(const std::array<T, 3> &lhs, const std::array<T, 3> &rhs) {
+    __attribute__((device)) __attribute__((host)) std::array<T, 3> cross(const std::array<T, 3> &lhs, const std::array<T, 3> &rhs) {
         std::array<T, 3> result{};
         result[0] = lhs[1] * rhs[2] - lhs[2] * rhs[1];
         result[1] = lhs[2] * rhs[0] - lhs[0] * rhs[2];
@@ -303,7 +299,7 @@ namespace ppb::util {
     * @return dot product
     */
     template<typename T>
-    FUNCTION_PREFIX T dot(const std::array<T, 3> &lhs, const std::array<T, 3> &rhs) {
+    __attribute__((device)) __attribute__((host)) T dot(const std::array<T, 3> &lhs, const std::array<T, 3> &rhs) {
         return lhs[0] * rhs[0] + lhs[1] * rhs[1] + lhs[2] * rhs[2];
     }
 

@@ -9,6 +9,6 @@ target_link_libraries(nbody_kokkos_lib
 add_executable(nbody_kokkos main.cpp)
 target_compile_features(nbody_kokkos PUBLIC cxx_std_20)
 target_link_libraries(nbody_kokkos
-    PUBLIC
+    PRIVATE
         nbody_kokkos_lib
 )

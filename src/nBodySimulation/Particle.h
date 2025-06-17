@@ -5,10 +5,7 @@
 #include <vector>
 #include <map>
 #include "UtilityContainer.h"
-
-#ifndef FUNCTION_PREFIX
-#define FUNCTION_PREFIX
-#endif
+#include "UtilityFloatArithmetic.h"
 
 namespace ppb {
 
@@ -33,88 +30,104 @@ namespace ppb {
 
         static std::map<int, ParticleProperties<FloatType>> PARTICLE_PROPERTIES;
 
-        FUNCTION_PREFIX Particle() = default;
+        __attribute__((device)) __attribute__((host)) Particle() = default;
 
-        FUNCTION_PREFIX explicit Particle(std::array<FloatType, 3> position, const int type = 0)
+        __attribute__((device)) __attribute__((host)) explicit Particle(std::array<FloatType, 3> position, const int type = 0)
             : _position{position}, _type{type} {}
 
-        FUNCTION_PREFIX Particle(std::array<FloatType, 3> position, std::array<FloatType, 3> velocity, const int type = 0)
+        __attribute__((device)) __attribute__((host)) Particle(std::array<FloatType, 3> position, std::array<FloatType, 3> velocity, const int type = 0)
             : _position{position}, _velocity{velocity}, _type{type} {}
 
-        FUNCTION_PREFIX Particle(std::array<FloatType, 3> position, std::array<FloatType, 3> velocity, std::array<FloatType, 3> force, const int type = 0)
+        __attribute__((device)) __attribute__((host)) Particle(std::array<FloatType, 3> position, std::array<FloatType, 3> velocity, std::array<FloatType, 3> force, const int type = 0)
             : _position{position}, _velocity{velocity}, _force{force}, _type{type} {}
 
 
-        FUNCTION_PREFIX FloatType getMass() const {
+        __attribute__((device)) __attribute__((host)) FloatType getMass() const {
             return 1.0;
         }
-        FUNCTION_PREFIX FloatType getSigma() const {
+        __attribute__((device)) __attribute__((host)) FloatType getSigma() const {
             return 1.0;
         }
-        FUNCTION_PREFIX FloatType getEpsilon() const {
+        __attribute__((device)) __attribute__((host)) FloatType getEpsilon() const {
             return 5.0;
         }
 
-        FUNCTION_PREFIX int getType() const {
+        __attribute__((device)) __attribute__((host)) int getType() const {
             return _type;
         }
 
-        FUNCTION_PREFIX std::array<FloatType, 3> getPosition() const {
+        __attribute__((device)) __attribute__((host)) std::array<FloatType, 3> getPosition() const {
             return _position;
         }
 
-        FUNCTION_PREFIX void setPosition(const std::array<FloatType, 3> &position) {
+        __attribute__((device)) __attribute__((host)) void setPosition(const std::array<FloatType, 3> &position) {
             _position = position;
         }
 
-        FUNCTION_PREFIX void addPosition(const std::array<FloatType, 3> &position) {
+        __attribute__((device)) __attribute__((host)) void addPosition(const std::array<FloatType, 3> &position) {
             for (int i = 0; i < 3; ++i) {
                 _position[i] += position[i];
             }
         }
 
-        FUNCTION_PREFIX std::array<FloatType, 3> getVelocity() const {
+        __attribute__((device)) __attribute__((host)) std::array<FloatType, 3> getVelocity() const {
             return _velocity;
         }
 
-        FUNCTION_PREFIX void setVelocity(const std::array<FloatType, 3> &velocity) {
+        __attribute__((device)) __attribute__((host)) void setVelocity(const std::array<FloatType, 3> &velocity) {
             _velocity = velocity;
         }
 
-        FUNCTION_PREFIX void addVelocity(const std::array<FloatType, 3> &velocity) {
+        __attribute__((device)) __attribute__((host)) void addVelocity(const std::array<FloatType, 3> &velocity) {
             for (int i = 0; i < 3; ++i) {
                 _velocity[i] += velocity[i];
             }
         }
 
-        FUNCTION_PREFIX std::array<FloatType, 3> getForce() const {
+        __attribute__((device)) __attribute__((host)) std::array<FloatType, 3> getForce() const {
             return _force;
         }
 
-        FUNCTION_PREFIX void setForce(const std::array<FloatType, 3> &force) {
+        __attribute__((device)) __attribute__((host)) void setForce(const std::array<FloatType, 3> &force) {
             _force = force;
         }
 
-        FUNCTION_PREFIX void addForce(const std::array<FloatType, 3> &force) {
+        __attribute__((device)) __attribute__((host)) void addForce(const std::array<FloatType, 3> &force) {
             for (int i = 0; i < 3; ++i) {
                 _force[i] += force[i];
             }
         }
 
-        FUNCTION_PREFIX void subtractForce(const std::array<FloatType, 3> &force) {
+        __attribute__((device)) __attribute__((host)) void subtractForce(const std::array<FloatType, 3> &force) {
             for (int i = 0; i < 3; ++i) {
                 _force[i] -= force[i];
             }
         }
 
-        FUNCTION_PREFIX std::array<FloatType, 3> getOldForce() const {
+        __attribute__((device)) __attribute__((host)) std::array<FloatType, 3> getOldForce() const {
             return _oldForce;
         }
 
-        FUNCTION_PREFIX void setOldForce(const std::array<FloatType, 3> &oldForce) {
+        __attribute__((device)) __attribute__((host)) void setOldForce(const std::array<FloatType, 3> &oldForce) {
             _oldForce = oldForce;
         }
 
+        bool operator==(const Particle &other) const {
+            return _type == other._type &&
+                util::almostEqualRelative(_position[0], other._position[0]) &&
+                util::almostEqualRelative(_position[1], other._position[1]) &&
+                util::almostEqualRelative(_position[2], other._position[2]) &&
+                util::almostEqualRelative(_velocity[0], other._velocity[0]) &&
+                util::almostEqualRelative(_velocity[1], other._velocity[1]) &&
+                util::almostEqualRelative(_velocity[2], other._velocity[2]) &&
+                util::almostEqualRelative(_force[0], other._force[0]) &&
+                util::almostEqualRelative(_force[1], other._force[1]) &&
+                util::almostEqualRelative(_force[2], other._force[2]);
+        }
+
+        bool operator!=(const Particle &other) const {
+            return !this->operator==(other);
+        }
 
         static std::vector<Particle<FloatType>> generateCuboid(const std::array<double, 3> &boxMin, const std::array<double, 3> &boxMax, size_t numParticles) {
             std::vector<Particle<FloatType>> particles;
@@ -164,4 +177,18 @@ namespace ppb {
             return particles;
         }
     };
+
+    template<typename FloatType>
+    std::ostream& operator<<(std::ostream& os, const Particle<FloatType>& particle) {
+        const auto& pos = particle.getPosition();
+        const auto& vel = particle.getVelocity();
+        const auto& force = particle.getForce();
+        const auto& oldForce = particle.getOldForce();
+        os << "Particle(type=" << particle.getType()
+           << ", position=[" << pos[0] << ", " << pos[1] << ", " << pos[2] << "]"
+           << ", velocity=[" << vel[0] << ", " << vel[1] << ", " << vel[2] << "]"
+           << ", force=[" << force[0] << ", " << force[1] << ", " << force[2] << "]"
+           << ", oldForce=[" << oldForce[0] << ", " << oldForce[1] << ", " << oldForce[2] << "])";
+        return os;
+    }
 } // namespace ppb

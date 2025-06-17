@@ -2,7 +2,7 @@
 add_library(nbody_cpp_lib STATIC Impl_Cpp.h Impl_Cpp.cpp)
 target_compile_features(nbody_cpp_lib PUBLIC cxx_std_20)
 target_link_libraries(nbody_cpp_lib
-        PUBLIC
+    PUBLIC
         nbody_lib
 )
 
@@ -10,6 +10,6 @@ target_link_libraries(nbody_cpp_lib
 add_executable(nbody_cpp main.cpp)
 target_compile_features(nbody_cpp PUBLIC cxx_std_20)
 target_link_libraries(nbody_cpp
-        PUBLIC
+    PRIVATE
         nbody_cpp_lib
 )
