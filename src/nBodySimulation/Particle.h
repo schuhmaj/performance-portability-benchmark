@@ -30,85 +30,85 @@ namespace ppb {
 
         static std::map<int, ParticleProperties<FloatType>> PARTICLE_PROPERTIES;
 
-        __attribute__((device)) __attribute__((host)) Particle() = default;
+        Particle() = default;
 
-        __attribute__((device)) __attribute__((host)) explicit Particle(std::array<FloatType, 3> position, const int type = 0)
+        explicit Particle(std::array<FloatType, 3> position, const int type = 0)
             : _position{position}, _type{type} {}
 
-        __attribute__((device)) __attribute__((host)) Particle(std::array<FloatType, 3> position, std::array<FloatType, 3> velocity, const int type = 0)
+        Particle(std::array<FloatType, 3> position, std::array<FloatType, 3> velocity, const int type = 0)
             : _position{position}, _velocity{velocity}, _type{type} {}
 
-        __attribute__((device)) __attribute__((host)) Particle(std::array<FloatType, 3> position, std::array<FloatType, 3> velocity, std::array<FloatType, 3> force, const int type = 0)
+        Particle(std::array<FloatType, 3> position, std::array<FloatType, 3> velocity, std::array<FloatType, 3> force, const int type = 0)
             : _position{position}, _velocity{velocity}, _force{force}, _type{type} {}
 
 
-        __attribute__((device)) __attribute__((host)) FloatType getMass() const {
+        FloatType getMass() const {
             return 1.0;
         }
-        __attribute__((device)) __attribute__((host)) FloatType getSigma() const {
+        FloatType getSigma() const {
             return 1.0;
         }
-        __attribute__((device)) __attribute__((host)) FloatType getEpsilon() const {
+        FloatType getEpsilon() const {
             return 5.0;
         }
 
-        __attribute__((device)) __attribute__((host)) int getType() const {
+        int getType() const {
             return _type;
         }
 
-        __attribute__((device)) __attribute__((host)) std::array<FloatType, 3> getPosition() const {
+        std::array<FloatType, 3> getPosition() const {
             return _position;
         }
 
-        __attribute__((device)) __attribute__((host)) void setPosition(const std::array<FloatType, 3> &position) {
+        void setPosition(const std::array<FloatType, 3> &position) {
             _position = position;
         }
 
-        __attribute__((device)) __attribute__((host)) void addPosition(const std::array<FloatType, 3> &position) {
+        void addPosition(const std::array<FloatType, 3> &position) {
             for (int i = 0; i < 3; ++i) {
                 _position[i] += position[i];
             }
         }
 
-        __attribute__((device)) __attribute__((host)) std::array<FloatType, 3> getVelocity() const {
+        std::array<FloatType, 3> getVelocity() const {
             return _velocity;
         }
 
-        __attribute__((device)) __attribute__((host)) void setVelocity(const std::array<FloatType, 3> &velocity) {
+        void setVelocity(const std::array<FloatType, 3> &velocity) {
             _velocity = velocity;
         }
 
-        __attribute__((device)) __attribute__((host)) void addVelocity(const std::array<FloatType, 3> &velocity) {
+        void addVelocity(const std::array<FloatType, 3> &velocity) {
             for (int i = 0; i < 3; ++i) {
                 _velocity[i] += velocity[i];
             }
         }
 
-        __attribute__((device)) __attribute__((host)) std::array<FloatType, 3> getForce() const {
+        std::array<FloatType, 3> getForce() const {
             return _force;
         }
 
-        __attribute__((device)) __attribute__((host)) void setForce(const std::array<FloatType, 3> &force) {
+        void setForce(const std::array<FloatType, 3> &force) {
             _force = force;
         }
 
-        __attribute__((device)) __attribute__((host)) void addForce(const std::array<FloatType, 3> &force) {
+        void addForce(const std::array<FloatType, 3> &force) {
             for (int i = 0; i < 3; ++i) {
                 _force[i] += force[i];
             }
         }
 
-        __attribute__((device)) __attribute__((host)) void subtractForce(const std::array<FloatType, 3> &force) {
+        void subtractForce(const std::array<FloatType, 3> &force) {
             for (int i = 0; i < 3; ++i) {
                 _force[i] -= force[i];
             }
         }
 
-        __attribute__((device)) __attribute__((host)) std::array<FloatType, 3> getOldForce() const {
+        std::array<FloatType, 3> getOldForce() const {
             return _oldForce;
         }
 
-        __attribute__((device)) __attribute__((host)) void setOldForce(const std::array<FloatType, 3> &oldForce) {
+        void setOldForce(const std::array<FloatType, 3> &oldForce) {
             _oldForce = oldForce;
         }
 
