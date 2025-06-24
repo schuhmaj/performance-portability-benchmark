@@ -38,12 +38,12 @@ namespace ppb {
         /**
          * Simulation end time.
          */
-        double endT{1.0};
+        FloatType endT{1.0};
 
         /**
          * Size of the simulation time step.
          */
-        double deltaT{1e-3};
+        FloatType deltaT{1e-3};
 
         /**
          * Global force applied to all particles (3D vector).
@@ -53,12 +53,12 @@ namespace ppb {
         /**
          * Minimum coordinates of the simulation bounding box.
          */
-        std::array<double, 3> boxMin{0, 0, 0};
+        std::array<FloatType, 3> boxMin{0, 0, 0};
 
         /**
          * Maximum coordinates of the simulation bounding box.
          */
-        std::array<double, 3> boxMax{1, 1, 1};
+        std::array<FloatType, 3> boxMax{1, 1, 1};
 
         /**
          * Creates a simulation configuration.

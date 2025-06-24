@@ -129,14 +129,14 @@ namespace ppb {
             return !this->operator==(other);
         }
 
-        static std::vector<Particle<FloatType>> generateCuboid(const std::array<double, 3> &boxMin, const std::array<double, 3> &boxMax, size_t numParticles) {
+        static std::vector<Particle<FloatType>> generateCuboid(const std::array<FloatType, 3> &boxMin, const std::array<FloatType, 3> &boxMax, size_t numParticles) {
             std::vector<Particle<FloatType>> particles;
             if (numParticles == 0) return particles;
 
             // Calculate lengths in each dimension
-            double xLen = boxMax[0] - boxMin[0];
-            double yLen = boxMax[1] - boxMin[1];
-            double zLen = boxMax[2] - boxMin[2];
+            FloatType xLen = boxMax[0] - boxMin[0];
+            FloatType yLen = boxMax[1] - boxMin[1];
+            FloatType zLen = boxMax[2] - boxMin[2];
 
             // Find number of particles in x, y, z directions to fill the box as uniformly as possible
             size_t nX = std::max<size_t>(1, std::round(std::pow(numParticles * xLen * xLen / (yLen * zLen), 1.0/3)));
@@ -152,9 +152,9 @@ namespace ppb {
             }
 
             // Compute grid spacings
-            double dx = (nX > 1) ? xLen / (nX - 1) : 0.0;
-            double dy = (nY > 1) ? yLen / (nY - 1) : 0.0;
-            double dz = (nZ > 1) ? zLen / (nZ - 1) : 0.0;
+            FloatType dx = (nX > 1) ? xLen / (nX - 1) : 0.0;
+            FloatType dy = (nY > 1) ? yLen / (nY - 1) : 0.0;
+            FloatType dz = (nZ > 1) ? zLen / (nZ - 1) : 0.0;
 
             size_t count = 0;
             for (size_t ix = 0; ix < nX; ++ix) {

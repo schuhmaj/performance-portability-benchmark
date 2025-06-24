@@ -135,7 +135,7 @@ def load_reports(report_files: list[Path]) -> pd.DataFrame:
     return pd.concat(data)
 
 
-def plot_benchmarks(benchmark_df: pd.DataFrame, save_path: Path | None = None) -> tuple[plt.Figure, plt.Axes]:
+def plot_benchmarks(benchmark_df: pd.DataFrame, save_path: Path | None = None, time_unit: str = "nanoseconds") -> tuple[plt.Figure, plt.Axes]:
     """Generates a log-log plot from the given benchmark DataFrame. and stores the result
     into a file if one is specified
 
@@ -152,9 +152,9 @@ def plot_benchmarks(benchmark_df: pd.DataFrame, save_path: Path | None = None) -
                  marker="o", ax=ax, palette="tab20", style="Data Type",)
     ax.set_xscale("log")
     ax.set_yscale("log")
-    ax.set_ylabel("Runtime [ns]")
+    ax.set_ylabel(f"Runtime [{time_unit}]")
     ax.set_xlabel("Problem Size [1]")
-    ax.set_title(f'Runtime in nanoseconds vs. Problem Size $N$ for {benchmark_df["Problem"].unique()[0]}')
+    ax.set_title(f'Runtime in {time_unit} vs. Problem Size $N$ for {benchmark_df["Problem"].unique()[0]}')
     ax.grid(True, which="both", linestyle="--", alpha=0.7)
     fig.tight_layout()
     if save_path is not None:
@@ -170,7 +170,8 @@ if __name__ == "__main__":
     parser.add_argument("--report", action="store_false", default=True,
         help="If set, the regex and path are used to directly search for the report files instead of benchmarking targets", )
     parser.add_argument("-p", "--path", nargs='+', type=Path, default=[Path.cwd()], help="Path to search for files")
-    parser.add_argument("-r", "--regex", type=str, required=True, help="Regex Pattern for files to search", )
+    parser.add_argument("-r", "--regex", type=str, required=True, help="Regex Pattern for files to search")
+    parser.add_argument("-t", "--time-unit",type=str, default="nanoseconds", help="Time unit for the plots",)
     default_output = datetime.now().strftime("%Y-%m-%d_%H-%M_Benchmark_Result.pdf")
     parser.add_argument("-o", "--output", type=Path, default=Path(default_output),
         help="Output file name for the plots", )
@@ -182,5 +183,5 @@ if __name__ == "__main__":
     if args.report:
         files = run_benchmarks(files)
     df = load_reports(files)
-    plot_benchmarks(df, args.output)
+    plot_benchmarks(df, args.output, args.time_unit)
     df.to_csv(args.output.with_suffix(".csv"), index=False)

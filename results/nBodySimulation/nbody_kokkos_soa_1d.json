@@ -40,10 +40,10 @@
   },
   "benchmarks": [
     {
-      "name": "NBody-Kokkos_SoA1-Float/10",
+      "name": "NBody-Kokkos_SoA_1D_Kernel-Float/10",
       "family_index": 0,
       "per_family_instance_index": 0,
-      "run_name": "NBody-Kokkos_SoA1-Float/10",
+      "run_name": "NBody-Kokkos_SoA_1D_Kernel-Float/10",
       "run_type": "iteration",
       "repetitions": 1,
       "repetition_index": 0,
@@ -54,10 +54,10 @@
       "time_unit": "ms"
     },
     {
-      "name": "NBody-Kokkos_SoA1-Float/100",
+      "name": "NBody-Kokkos_SoA_1D_Kernel-Float/100",
       "family_index": 0,
       "per_family_instance_index": 1,
-      "run_name": "NBody-Kokkos_SoA1-Float/100",
+      "run_name": "NBody-Kokkos_SoA_1D_Kernel-Float/100",
       "run_type": "iteration",
       "repetitions": 1,
       "repetition_index": 0,
@@ -68,10 +68,10 @@
       "time_unit": "ms"
     },
     {
-      "name": "NBody-Kokkos_SoA1-Float/1000",
+      "name": "NBody-Kokkos_SoA_1D_Kernel-Float/1000",
       "family_index": 0,
       "per_family_instance_index": 2,
-      "run_name": "NBody-Kokkos_SoA1-Float/1000",
+      "run_name": "NBody-Kokkos_SoA_1D_Kernel-Float/1000",
       "run_type": "iteration",
       "repetitions": 1,
       "repetition_index": 0,
@@ -82,10 +82,10 @@
       "time_unit": "ms"
     },
     {
-      "name": "NBody-Kokkos_SoA1-Float_BigO",
+      "name": "NBody-Kokkos_SoA_1D_Kernel-Float_BigO",
       "family_index": 0,
       "per_family_instance_index": 0,
-      "run_name": "NBody-Kokkos_SoA1-Float",
+      "run_name": "NBody-Kokkos_SoA_1D_Kernel-Float",
       "run_type": "aggregate",
       "repetitions": 1,
       "threads": 1,
@@ -97,10 +97,10 @@
       "time_unit": "ns"
     },
     {
-      "name": "NBody-Kokkos_SoA1-Float_RMS",
+      "name": "NBody-Kokkos_SoA_1D_Kernel-Float_RMS",
       "family_index": 0,
       "per_family_instance_index": 0,
-      "run_name": "NBody-Kokkos_SoA1-Float",
+      "run_name": "NBody-Kokkos_SoA_1D_Kernel-Float",
       "run_type": "aggregate",
       "repetitions": 1,
       "threads": 1,
@@ -109,10 +109,10 @@
       "rms": 7.4170579091419773e-03
     },
     {
-      "name": "NBody-Kokkos_SoA1-Double/10",
+      "name": "NBody-Kokkos_SoA_1D_Kernel-Double/10",
       "family_index": 1,
       "per_family_instance_index": 0,
-      "run_name": "NBody-Kokkos_SoA1-Double/10",
+      "run_name": "NBody-Kokkos_SoA_1D_Kernel-Double/10",
       "run_type": "iteration",
       "repetitions": 1,
       "repetition_index": 0,
@@ -123,10 +123,10 @@
       "time_unit": "ms"
     },
     {
-      "name": "NBody-Kokkos_SoA1-Double/100",
+      "name": "NBody-Kokkos_SoA_1D_Kernel-Double/100",
       "family_index": 1,
       "per_family_instance_index": 1,
-      "run_name": "NBody-Kokkos_SoA1-Double/100",
+      "run_name": "NBody-Kokkos_SoA_1D_Kernel-Double/100",
       "run_type": "iteration",
       "repetitions": 1,
       "repetition_index": 0,
@@ -137,10 +137,10 @@
       "time_unit": "ms"
     },
     {
-      "name": "NBody-Kokkos_SoA1-Double/1000",
+      "name": "NBody-Kokkos_SoA_1D_Kernel-Double/1000",
       "family_index": 1,
       "per_family_instance_index": 2,
-      "run_name": "NBody-Kokkos_SoA1-Double/1000",
+      "run_name": "NBody-Kokkos_SoA_1D_Kernel-Double/1000",
       "run_type": "iteration",
       "repetitions": 1,
       "repetition_index": 0,
@@ -151,10 +151,10 @@
       "time_unit": "ms"
     },
     {
-      "name": "NBody-Kokkos_SoA1-Double_BigO",
+      "name": "NBody-Kokkos_SoA_1D_Kernel-Double_BigO",
       "family_index": 1,
       "per_family_instance_index": 0,
-      "run_name": "NBody-Kokkos_SoA1-Double",
+      "run_name": "NBody-Kokkos_SoA_1D_Kernel-Double",
       "run_type": "aggregate",
       "repetitions": 1,
       "threads": 1,
@@ -166,10 +166,10 @@
       "time_unit": "ns"
     },
     {
-      "name": "NBody-Kokkos_SoA1-Double_RMS",
+      "name": "NBody-Kokkos_SoA_1D_Kernel-Double_RMS",
       "family_index": 1,
       "per_family_instance_index": 0,
-      "run_name": "NBody-Kokkos_SoA1-Double",
+      "run_name": "NBody-Kokkos_SoA_1D_Kernel-Double",
       "run_type": "aggregate",
       "repetitions": 1,
       "threads": 1,

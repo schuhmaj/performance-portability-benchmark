@@ -16,33 +16,98 @@
 
 namespace ppb {
 
-    template<typename FloatType>
+    /**
+     * @struct KokkosParticleSoA
+     * Structure of Arrays (SoA) container for particle attributes optimized for Kokkos parallelism.
+     *
+     * Stores particle positions, velocities, forces, and related data in device views for efficient
+     * bulk memory access and parallel computation on CPUs or GPUs using Kokkos. The data is laid out
+     * in a structure-of-arrays style, enabling high memory throughput and coalesced access patterns.
+     *
+     * Host mirror views are provided for transferring data between host and device memory spaces.
+     *
+     * @tparam FloatType Floating-point type for numeric data (e.g., float or double).
+     */
+    template <typename FloatType>
     struct KokkosParticleSoA {
-        Kokkos::View<FloatType*[3]> positions;
-        typename Kokkos::View<FloatType*[3]>::HostMirror positionsHost;
-        Kokkos::View<FloatType*[3]> velocities;
-        typename Kokkos::View<FloatType*[3]>::HostMirror velocitiesHost;
-        Kokkos::View<FloatType*[3]> forces;
-        typename Kokkos::View<FloatType*[3]>::HostMirror forcesHost;
-        Kokkos::View<FloatType*[3]> oldForces;
-        Kokkos::View<int*> types;
+        /**
+         * Device view of particle positions, shape [N][3].
+         */
+        Kokkos::View<FloatType *[3]> positions;
 
-        const std::vector<Particle<FloatType>>& _ref;
+        /**
+         * Host mirror view of particle positions, shape [N][3].
+         */
+        typename Kokkos::View<FloatType *[3]>::HostMirror positionsHost;
 
+        /**
+         * Device view of particle velocities, shape [N][3].
+         */
+        Kokkos::View<FloatType *[3]> velocities;
+
+        /**
+         * Host mirror view of particle velocities, shape [N][3].
+         */
+        typename Kokkos::View<FloatType *[3]>::HostMirror velocitiesHost;
+
+        /**
+         * Device view of particle forces, shape [N][3].
+         */
+        Kokkos::View<FloatType *[3]> forces;
+
+        /**
+         * Host mirror view of particle forces, shape [N][3].
+         */
+        typename Kokkos::View<FloatType *[3]>::HostMirror forcesHost;
+
+        /**
+         * Device view of previous forces for velocity Verlet integration, shape [N][3].
+         */
+        Kokkos::View<FloatType *[3]> oldForces;
+
+        /**
+         * Device view of integer particle types or identifiers, shape [N].
+         */
+        Kokkos::View<int *> types;
+
+        /**
+         * Reference to the original vector of particles (used as a data source during initialization and conversion).
+         */
+        const std::vector<Particle<FloatType>> &_ref;
+
+        /**
+         * Constructs a KokkosParticleSoA from a standard vector of Particle objects.
+         * Allocates device and host mirror memory and copies the input particle data
+         * into the SoA structure for efficient parallel access.
+         *
+         * @param particles Input vector of Particle<FloatType> objects to initialize from.
+         */
         explicit KokkosParticleSoA(const std::vector<Particle<FloatType>> &particles);
 
+        /**
+         * Copies the current SoA data back into a standard vector of Particle objects.
+         * This involves copying data from device to host and assembling Particle instances.
+         *
+         * @return A vector of Particle<FloatType> reflecting the state stored in device views.
+         */
         std::vector<Particle<FloatType>> toParticles();
 
+        /**
+         * Returns the number of particles managed by this structure.
+         *
+         * @return Particle count (size of the arrays).
+         */
         size_t size() const;
     };
 
     /**
      * @class ImplKokkos
-     * Templated n-body simulation using Kokkos for parallelism, the Lennard-Jones potential, and velocity Verlet integration.
+     * Templated n-body simulation using Kokkos for parallelism, the Lennard-Jones potential, and velocity Verlet
+     * integration.
      *
      * @tparam FloatType Floating-point type for simulation (e.g., float or double).
      */
-    template<typename FloatType>
+    template <typename FloatType>
     class ImplKokkos {
 
         /**
@@ -50,10 +115,12 @@ namespace ppb {
          */
         ParticleSimulationConfig<FloatType> _config;
 
+        /**
+         * The SoA GPU structure. It is initalized each time the simulate() functions is called
+         */
         std::optional<KokkosParticleSoA<FloatType>> _particles{std::nullopt};
 
     public:
-
         /**
          * Type alias for the floating-point type used in this simulation.
          */
@@ -75,7 +142,6 @@ namespace ppb {
         std::vector<Particle<FloatType>> simulate(const std::vector<Particle<FloatType>> &particles);
 
     private:
-
         /**
          * Updates positions of all particles on the device using the velocity Verlet integrator,
          * and resets each particle's force to the configured global force in parallel.
