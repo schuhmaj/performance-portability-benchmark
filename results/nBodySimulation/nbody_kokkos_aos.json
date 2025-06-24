@@ -1,0 +1,181 @@
+{
+  "context": {
+    "date": "2025-06-24T12:15:30+02:00",
+    "host_name": "Zeus",
+    "executable": "./src/nBodySimulation/kokkos/nbody_kokkos",
+    "num_cpus": 16,
+    "mhz_per_cpu": 4801,
+    "cpu_scaling_enabled": false,
+    "aslr_enabled": false,
+    "caches": [
+      {
+        "type": "Data",
+        "level": 1,
+        "size": 32768,
+        "num_sharing": 2
+      },
+      {
+        "type": "Instruction",
+        "level": 1,
+        "size": 32768,
+        "num_sharing": 2
+      },
+      {
+        "type": "Unified",
+        "level": 2,
+        "size": 262144,
+        "num_sharing": 2
+      },
+      {
+        "type": "Unified",
+        "level": 3,
+        "size": 16777216,
+        "num_sharing": 16
+      }
+    ],
+    "load_avg": [0.228027,0.574707,0.594727],
+    "library_version": "v1.9.4",
+    "library_build_type": "release",
+    "json_schema_version": 1
+  },
+  "benchmarks": [
+    {
+      "name": "NBody-Kokkos_AoS-Float/10",
+      "family_index": 0,
+      "per_family_instance_index": 0,
+      "run_name": "NBody-Kokkos_AoS-Float/10",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 51,
+      "real_time": 1.4268680156865408e+01,
+      "cpu_time": 1.3950891647058825e+01,
+      "time_unit": "ms"
+    },
+    {
+      "name": "NBody-Kokkos_AoS-Float/100",
+      "family_index": 0,
+      "per_family_instance_index": 1,
+      "run_name": "NBody-Kokkos_AoS-Float/100",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 7,
+      "real_time": 9.9892832428590083e+01,
+      "cpu_time": 9.7947930571428557e+01,
+      "time_unit": "ms"
+    },
+    {
+      "name": "NBody-Kokkos_AoS-Float/1000",
+      "family_index": 0,
+      "per_family_instance_index": 2,
+      "run_name": "NBody-Kokkos_AoS-Float/1000",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 1,
+      "real_time": 1.1552174440003000e+03,
+      "cpu_time": 1.1337092750000002e+03,
+      "time_unit": "ms"
+    },
+    {
+      "name": "NBody-Kokkos_AoS-Float_BigO",
+      "family_index": 0,
+      "per_family_instance_index": 0,
+      "run_name": "NBody-Kokkos_AoS-Float",
+      "run_type": "aggregate",
+      "repetitions": 1,
+      "threads": 1,
+      "aggregate_name": "BigO",
+      "aggregate_unit": "time",
+      "cpu_coefficient": 1.1322082734121508e+06,
+      "real_coefficient": 1.1536970736013539e+06,
+      "big_o": "N",
+      "time_unit": "ns"
+    },
+    {
+      "name": "NBody-Kokkos_AoS-Float_RMS",
+      "family_index": 0,
+      "per_family_instance_index": 0,
+      "run_name": "NBody-Kokkos_AoS-Float",
+      "run_type": "aggregate",
+      "repetitions": 1,
+      "threads": 1,
+      "aggregate_name": "RMS",
+      "aggregate_unit": "percentage",
+      "rms": 2.1650499612772545e-02
+    },
+    {
+      "name": "NBody-Kokkos_AoS-Double/10",
+      "family_index": 1,
+      "per_family_instance_index": 0,
+      "run_name": "NBody-Kokkos_AoS-Double/10",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 47,
+      "real_time": 1.5197871042549563e+01,
+      "cpu_time": 1.4910793468085096e+01,
+      "time_unit": "ms"
+    },
+    {
+      "name": "NBody-Kokkos_AoS-Double/100",
+      "family_index": 1,
+      "per_family_instance_index": 1,
+      "run_name": "NBody-Kokkos_AoS-Double/100",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 6,
+      "real_time": 1.1556873533330266e+02,
+      "cpu_time": 1.1341084383333344e+02,
+      "time_unit": "ms"
+    },
+    {
+      "name": "NBody-Kokkos_AoS-Double/1000",
+      "family_index": 1,
+      "per_family_instance_index": 2,
+      "run_name": "NBody-Kokkos_AoS-Double/1000",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 1,
+      "real_time": 1.2006409570003598e+03,
+      "cpu_time": 1.1904207639999997e+03,
+      "time_unit": "ms"
+    },
+    {
+      "name": "NBody-Kokkos_AoS-Double_BigO",
+      "family_index": 1,
+      "per_family_instance_index": 0,
+      "run_name": "NBody-Kokkos_AoS-Double",
+      "run_type": "aggregate",
+      "repetitions": 1,
+      "threads": 1,
+      "aggregate_name": "BigO",
+      "aggregate_unit": "time",
+      "cpu_coefficient": 1.1898930366478702e+06,
+      "real_coefficient": 1.2002275113791856e+06,
+      "big_o": "N",
+      "time_unit": "ns"
+    },
+    {
+      "name": "NBody-Kokkos_AoS-Double_RMS",
+      "family_index": 1,
+      "per_family_instance_index": 0,
+      "run_name": "NBody-Kokkos_AoS-Double",
+      "run_type": "aggregate",
+      "repetitions": 1,
+      "threads": 1,
+      "aggregate_name": "RMS",
+      "aggregate_unit": "percentage",
+      "rms": 8.3553000850955638e-03
+    }
+  ]
+}

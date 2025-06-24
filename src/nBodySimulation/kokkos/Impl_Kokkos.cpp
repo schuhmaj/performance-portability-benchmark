@@ -116,35 +116,34 @@ namespace ppb {
         auto &velocity = _particles->velocities;
         auto &position = _particles->positions;
 
-        Kokkos::parallel_for("compute_forces", size, KOKKOS_LAMBDA(const int i) {
+        Kokkos::MDRangePolicy<Kokkos::Rank<2>> policy({0, 0}, {size, size});
+        Kokkos::parallel_for("compute_forces", policy, KOKKOS_LAMBDA(const int i, const int j) {
             using namespace ppb::util;
+            if (i <= j) return;
 
-            for (int j = 0; j < size; ++j) {
-                if (i == j) continue;
+            constexpr auto sigmaSrc = 1.0;
+            constexpr auto epsilonSrc = 5.0;
 
-                constexpr auto sigmaSrc = 1.0;
-                constexpr auto epsilonSrc = 5.0;
+            constexpr auto sigma = sigmaSrc * sigmaSrc * 0.5;
+            const auto sigmaSquared = sigma * sigma;
+            const auto epsilon24 = Kokkos::sqrt(epsilonSrc * epsilonSrc) * 24.0;
 
-                constexpr auto sigma = sigmaSrc * sigmaSrc * 0.5;
-                const auto sigmaSquared = sigma * sigma;
-                const auto epsilon24 = Kokkos::sqrt(epsilonSrc * epsilonSrc) * 24.0;
+            std::array<FloatType, 3> dr{};
+            for (int k = 0; k < 3; ++k) {
+                dr[k] = position(i, k) - position(j, k);
+            }
+            const auto dr2 = ppb::util::dot(dr, dr);
 
-                std::array<FloatType, 3> dr{};
-                for (int k = 0; k < 3; ++k) {
-                    dr[k] = position(i, k) - position(j, k);
-                }
-                const auto dr2 = ppb::util::dot(dr, dr);
-
-                for (int k = 0; k < 3; ++k) {
-                    const auto invdr2 = 1.0 / dr2;
-                    auto lj6 = sigmaSquared * invdr2;
-                    lj6 = lj6 * lj6 * lj6;
-                    const auto lj12 = lj6 * lj6;
-                    const auto lj12m6 = lj12 - lj6;
-                    const auto fac = epsilon24 * (lj12 + lj12m6) * invdr2;
-                    const auto f = dr[k] * fac;
-                    force(i, k) = force(i, k) + f;
-                }
+            for (int k = 0; k < 3; ++k) {
+                const auto invdr2 = 1.0 / dr2;
+                auto lj6 = sigmaSquared * invdr2;
+                lj6 = lj6 * lj6 * lj6;
+                const auto lj12 = lj6 * lj6;
+                const auto lj12m6 = lj12 - lj6;
+                const auto fac = epsilon24 * (lj12 + lj12m6) * invdr2;
+                const auto f = dr[k] * fac;
+                Kokkos::atomic_add(&force(i, k), f);
+                Kokkos::atomic_sub(&force(j, k), f);
             }
         });
     }

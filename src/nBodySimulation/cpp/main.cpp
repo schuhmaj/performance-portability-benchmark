@@ -5,13 +5,13 @@
 BENCHMARK(ppb::NBodySimulation<ppb::ImplCpp<float>>::benchmark)
     ->Name("NBody-CStd-Float")
     ->RangeMultiplier(10)
-    ->Range(1e1, 1e3)
+    ->Range(1e1, 1e4)
     ->Unit(benchmark::kMillisecond)
     ->Complexity();
 BENCHMARK(ppb::NBodySimulation<ppb::ImplCpp<double>>::benchmark)
     ->Name("NBody-CStd-Double")
     ->RangeMultiplier(10)
-    ->Range(1e1, 1e3)
+    ->Range(1e1, 1e4)
     ->Unit(benchmark::kMillisecond)
     ->Complexity();
 

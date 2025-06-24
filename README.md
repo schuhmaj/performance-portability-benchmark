@@ -7,7 +7,7 @@ Some frameworks are not portable to every platform.
 
 
 <p align="center">
-  <img src="results/result.png" width="90%">
+  <img src="results/vectorAddition/result.png" width="90%">
   <br>
   <em>
     Runtime of a Simple Vector Addition on the RTX 3080 using Different Pardigms
