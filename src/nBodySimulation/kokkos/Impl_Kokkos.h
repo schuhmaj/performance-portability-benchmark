@@ -16,6 +16,26 @@
 
 namespace ppb {
 
+    template<typename FloatType>
+    struct KokkosParticleSoA {
+        Kokkos::View<FloatType*[3]> positions;
+        typename Kokkos::View<FloatType*[3]>::HostMirror positionsHost;
+        Kokkos::View<FloatType*[3]> velocities;
+        typename Kokkos::View<FloatType*[3]>::HostMirror velocitiesHost;
+        Kokkos::View<FloatType*[3]> forces;
+        typename Kokkos::View<FloatType*[3]>::HostMirror forcesHost;
+        Kokkos::View<FloatType*[3]> oldForces;
+        Kokkos::View<int*> types;
+
+        const std::vector<Particle<FloatType>>& _ref;
+
+        explicit KokkosParticleSoA(const std::vector<Particle<FloatType>> &particles);
+
+        std::vector<Particle<FloatType>> toParticles();
+
+        size_t size() const;
+    };
+
     /**
      * @class ImplKokkos
      * Templated n-body simulation using Kokkos for parallelism, the Lennard-Jones potential, and velocity Verlet integration.
@@ -30,16 +50,7 @@ namespace ppb {
          */
         ParticleSimulationConfig<FloatType> _config;
 
-        /**
-         * Type alias for a Kokkos View of Particle<FloatType> on the device.
-         */
-        using ParticleView = Kokkos::View<Particle<FloatType>*>;
-        ParticleView particlesDevice;
-
-        /**
-         * Host mirror for the device particle view, used for data transfers between host and device.
-         */
-        typename ParticleView::HostMirror particlesHost;
+        std::optional<KokkosParticleSoA<FloatType>> _particles{std::nullopt};
 
     public:
 
