@@ -66,45 +66,46 @@ namespace ppb {
 
     template<typename FloatType>
     void ImplKokkos<FloatType>::updatePositionsAndResetForce() {
+        const size_t size = _particles->size();
+        constexpr size_t dim = 3;
         const auto dt = static_cast<FloatType>(_config.deltaT);
         auto &force = _particles->forces;
         auto &oldForce = _particles->oldForces;
         auto &velocity = _particles->velocities;
         auto &position = _particles->positions;
 
-        Kokkos::parallel_for("update_positions", _particles->size(), KOKKOS_LAMBDA(const int i) {
+        Kokkos::MDRangePolicy<Kokkos::Rank<2>> policy({0, 0}, {size, dim});
+        Kokkos::parallel_for("update_positions", policy, KOKKOS_LAMBDA(const int i, const int j) {
             using namespace ppb::util;
             const auto m = 1.0;
-            for (int j = 0; j < 3; ++j) {
-                auto v = velocity(i, j);
-                auto f = force(i, j);
+            auto v = velocity(i, j);
+            auto f = force(i, j);
 
-                oldForce(i, j) = f;
-                force(i, j) = _config.globalForce[j];
+            oldForce(i, j) = f;
+            force(i, j) = _config.globalForce[j];
 
-                v *= dt;
-                f *= (dt * dt / (2 * m));
-                const auto displacement = v + f;
-                position(i, j) = position(i, j) + displacement;
-            }
-
+            v *= dt;
+            f *= (dt * dt / (2 * m));
+            const auto displacement = v + f;
+            position(i, j) = position(i, j) + displacement;
         });
     }
 
     template<typename FloatType>
     void ImplKokkos<FloatType>::updateVelocities() {
+        const size_t size = _particles->size();
+        constexpr size_t dim = 3;
         const auto dt = static_cast<FloatType>(_config.deltaT);
         auto &force = _particles->forces;
         auto &oldForce = _particles->oldForces;
         auto &velocity = _particles->velocities;
 
-        Kokkos::parallel_for("update_velocities", _particles->size(), KOKKOS_LAMBDA(const int i) {
+        Kokkos::MDRangePolicy<Kokkos::Rank<2>> policy({0, 0}, {size, dim});
+        Kokkos::parallel_for("update_velocities", policy, KOKKOS_LAMBDA(const int i, const int j) {
             using namespace ppb::util;
-            for (int j = 0; j < 3; ++j) {
-                constexpr auto m = 1.0;
-                const auto changeInVel = (force(i, j) + oldForce(i, j)) * (dt / (2 * m));
-                velocity(i, j) = velocity(i, j) + changeInVel;
-            }
+            constexpr auto m = 1.0;
+            const auto changeInVel = (force(i, j) + oldForce(i, j)) * (dt / (2 * m));
+            velocity(i, j) = velocity(i, j) + changeInVel;
         });
     }
 
@@ -133,14 +134,13 @@ namespace ppb {
                 dr[k] = position(i, k) - position(j, k);
             }
             const auto dr2 = ppb::util::dot(dr, dr);
-
+            const auto invdr2 = 1.0 / dr2;
+            auto lj6 = sigmaSquared * invdr2;
+            lj6 = lj6 * lj6 * lj6;
+            const auto lj12 = lj6 * lj6;
+            const auto lj12m6 = lj12 - lj6;
+            const auto fac = epsilon24 * (lj12 + lj12m6) * invdr2;
             for (int k = 0; k < 3; ++k) {
-                const auto invdr2 = 1.0 / dr2;
-                auto lj6 = sigmaSquared * invdr2;
-                lj6 = lj6 * lj6 * lj6;
-                const auto lj12 = lj6 * lj6;
-                const auto lj12m6 = lj12 - lj6;
-                const auto fac = epsilon24 * (lj12 + lj12m6) * invdr2;
                 const auto f = dr[k] * fac;
                 Kokkos::atomic_add(&force(i, k), f);
                 Kokkos::atomic_sub(&force(j, k), f);
