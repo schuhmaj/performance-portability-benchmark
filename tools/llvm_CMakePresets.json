@@ -12,8 +12,8 @@
       "binaryDir": "${sourceDir}/build",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
-        "CMAKE_INSTALL_PREFIX": "/opt/llvm/20.1.6",
-        "CMAKE_INSTALL_RPATH": "/opt/llvm/20.1.6/LIB",
+        "CMAKE_INSTALL_PREFIX": "~/modules/llvm/20.1.8",
+        "CMAKE_INSTALL_RPATH": "~/modules/llvm/20.1.8/LIB",
         "LLVM_ENABLE_PROJECTS": "clang;compiler-rt;lld",
         "LLVM_ENABLE_RUNTIMES": "openmp;offload",
         "LLVM_TARGETS_TO_BUILD": "NVPTX;X86",
@@ -32,14 +32,24 @@
     }
   ],
   "buildPresets": [
-    {"name": "default", "configurePreset": "default", "targets": "install" }
+    {
+      "name": "default",
+      "configurePreset": "default",
+      "targets": "install"
+    }
   ],
   "workflowPresets": [
     {
       "name": "default",
       "steps": [
-        { "type": "configure", "name": "default"},
-        { "type": "build", "name": "default"}
+        {
+          "type": "configure",
+          "name": "default"
+        },
+        {
+          "type": "build",
+          "name": "default"
+        }
       ]
     }
   ]
