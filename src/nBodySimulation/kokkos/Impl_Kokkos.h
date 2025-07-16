@@ -141,7 +141,6 @@ namespace ppb {
          */
         std::vector<Particle<FloatType>> simulate(const std::vector<Particle<FloatType>> &particles);
 
-    private:
         /**
          * Updates positions of all particles on the device using the velocity Verlet integrator,
          * and resets each particle's force to the configured global force in parallel.
