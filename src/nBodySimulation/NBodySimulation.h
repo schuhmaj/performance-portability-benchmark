@@ -68,11 +68,33 @@ namespace ppb {
     };
 
     /**
+     * Concept that validates a type Impl as a valid n-body simulation implementation.
+     *
+     * Requirements:
+     * - Impl must provide a nested type float_type.
+     * - Impl must be constructible from ParticleSimulationConfig<float_type>.
+     * - Impl must provide a simulate() method taking a vector of Particle<float_type> and returning
+     *   a vector of Particle<float_type>.
+     *
+     * Usage: Used to constrain templates to valid implementation types for the simulation framework.
+     */
+#if __cplusplus >= 202002L
+    template <typename Impl>
+    concept ParticleSimulationImpl = requires(Impl impl, ParticleSimulationConfig<typename Impl::float_type> config, const std::vector<Particle<typename Impl::float_type>> &particles) {
+        typename Impl::float_type;
+        {Impl {config}};
+        {impl.simulate(particles) } -> std::convertible_to<std::vector<Particle<typename Impl::float_type>>>;
+    };
+
+    /**
      * Generic benchmarking wrapper for an n-body simulation algorithm implementation.
      *
      * @tparam ParticleSimulationImpl The simulation implementation to use (must satisfy the ParticleSimulationImpl concept).
      */
+    template<ParticleSimulationImpl ParticleSimulationImpl>
+#else
     template<class ParticleSimulationImpl>
+#endif
     class NBodySimulation {
 
         /**
