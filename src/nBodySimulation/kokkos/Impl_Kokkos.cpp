@@ -69,6 +69,7 @@ namespace ppb {
         const size_t size = _particles->size();
         constexpr size_t dim = 3;
         const auto dt = static_cast<FloatType>(_config.deltaT);
+        const auto &globalForce = _config.globalForce;
         auto &force = _particles->forces;
         auto &oldForce = _particles->oldForces;
         auto &velocity = _particles->velocities;
@@ -82,7 +83,7 @@ namespace ppb {
             auto f = force(i, j);
 
             oldForce(i, j) = f;
-            force(i, j) = _config.globalForce[j];
+            force(i, j) = globalForce[j];
 
             v *= dt;
             f *= (dt * dt / (2 * m));
