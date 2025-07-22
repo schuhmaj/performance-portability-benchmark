@@ -7,7 +7,7 @@ Some frameworks are not portable to every platform.
 
 
 <p align="center">
-  <img src="results/vectorAddition/result.png" width="90%">
+  <img src="results/vectorAddition/2025-06-04_19-41_Benchmark_Result.png" width="90%">
   <br>
   <em>
     Runtime of a Simple Vector Addition on the RTX 3080 using Different Pardigms
@@ -23,8 +23,15 @@ of the following two options:
   - [Nvidia HPC SDK](https://developer.nvidia.com/hpc-sdk)
 - Option 2: **LLVM-based**
   - [Nvidia CUDA Toolkit](https://developer.nvidia.com/cuda-toolkit)
-  - [LLVM Compiler and Libraries](https://github.com/llvm/llvm-project), alternatively [Clang with OpenACC support](https://github.com/llvm-doe-org/llvm-project/tree/clacc/main)
-
+  - [LLVM Compiler and Libraries](https://github.com/llvm/llvm-project), alternatively [Clang with OpenACC support](https://github.com/llvm-doe-org/llvm-project/tree/clacc/main).
+    Compile your own LLVM by downloading the [latest release](https://github.com/llvm/llvm-project/releases):
+  ```bash
+  tar -xvf llvmorg-<version>.tar.gz
+  cd llvm-project-llvmorg-<version>/llvm
+  cp <this-repo>/tools/llvm_CMakePresets.json CMakePresets.json
+  # Before executing the next line, modify CMAKE_INSTALL_PREFIX and CMAKE_INSTALL_RPATH in the Preset accordingly! 
+  cmake --workflow --preset default 
+  ```
 
 Requirements that might be necessary:
 
@@ -47,15 +54,15 @@ By default **all** CMake Targets are disabled. One have
 to explicit enable one technology:
 
 
-| Option Name              | Description                   | Toolchain   |
-|--------------------------|-------------------------------|-------------|
-| PPB_ENABLE_OpenACC       | Enable OpenACC Target         | NVHPC       |
-| PPB_ENABLE_OpenMP        | Enable OpenMP Target          | -           |
-| PPB_ENABLE_AdaptiveCpp   | Enable AdaptiveCPP Target     | LLVM        |
-| PPB_ENABLE_OpenCL        | Enable OpenCL Targets         | LLVM, NVHPC |
-| PPB_ENABLE_Kokkos        | Enable Kokkos Target          | LLVM, NVHPC |
-| PPB_ENABLE_Raja          | Enable Raja Target            | LLVM, NVHPC |
-| PPB_ENABLE_Cuda          | Enable Cuda and Thrust Targets| LLVM, NVHPC |
+| Option Name              | Description                         | Toolchain   |
+|--------------------------|-------------------------------------|-------------|
+| PPB_ENABLE_OpenACC       | Enable OpenACC Target               | NVHPC       |
+| PPB_ENABLE_OpenMP        | Enable OpenMP Target                | LLVM        |
+| PPB_ENABLE_AdaptiveCpp   | Enable AdaptiveCPP Target           | LLVM        |
+| PPB_ENABLE_OpenCL        | Enable OpenCL Targets (incl. Boost) | LLVM, NVHPC |
+| PPB_ENABLE_Kokkos        | Enable Kokkos Target                | LLVM, NVHPC |
+| PPB_ENABLE_Raja          | Enable Raja Target                  | LLVM, NVHPC |
+| PPB_ENABLE_Cuda          | Enable Cuda and Thrust Targets      | LLVM, NVHPC |
 
 
 ### Typically Workflow
