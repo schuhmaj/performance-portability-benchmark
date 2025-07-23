@@ -7,19 +7,27 @@ struct ppb::VectorAddition<FloatType>::impl {
 
     FloatType* deviceA;
     FloatType* deviceB;
+    FloatType* deviceC;
+    cudaStream_t stream;
 
     impl(const size_t size, const std::vector<FloatType> &a, const std::vector<FloatType> &b)
     : deviceA{nullptr},
-      deviceB {nullptr} {
-        cudaMalloc(&deviceA, size * sizeof(FloatType));
-        cudaMalloc(&deviceB, size * sizeof(FloatType));
-        cudaMemcpy(deviceA, a.data(), size * sizeof(FloatType), cudaMemcpyHostToDevice);
-        cudaMemcpy(deviceB, b.data(), size * sizeof(FloatType), cudaMemcpyHostToDevice);
+      deviceB {nullptr},
+      deviceC {nullptr},
+      stream{} {
+        cudaStreamCreate(&stream);
+        cudaMallocAsync(&deviceA, size * sizeof(FloatType), stream);
+        cudaMallocAsync(&deviceB, size * sizeof(FloatType), stream);
+        cudaMallocAsync(&deviceC, size * sizeof(FloatType), stream);
+
+        cudaMemcpyAsync(deviceA, a.data(), size * sizeof(FloatType), cudaMemcpyHostToDevice, stream);
+        cudaMemcpyAsync(deviceB, b.data(), size * sizeof(FloatType), cudaMemcpyHostToDevice, stream);
     }
 
     ~impl() {
         cudaFree(deviceA);
         cudaFree(deviceB);
+        cudaFree(deviceC);
     }
 };
 
@@ -41,8 +49,6 @@ __global__ void kernel_vector_add(int size, FloatType* __restrict__ a, FloatType
 template<typename FloatType>
 std::vector<FloatType> ppb::VectorAddition<FloatType>::operator()() {
     std::vector<FloatType> result(_size);
-    FloatType* resultBuffer;
-    cudaMalloc(&resultBuffer, _size * sizeof(FloatType));
 
     int minGridSize;
     int blockSize = 256;
@@ -55,11 +61,10 @@ std::vector<FloatType> ppb::VectorAddition<FloatType>::operator()() {
     );
     int gridSize = (_size + blockSize - 1) / blockSize;
 
-    kernel_vector_add<<<gridSize, blockSize>>>(_size, _impl->deviceA, _impl->deviceB, resultBuffer);
-    cudaDeviceSynchronize();
+    kernel_vector_add<<<gridSize, blockSize, 0, _impl->stream>>>(_size, _impl->deviceA, _impl->deviceB, _impl->deviceC);
 
-    cudaMemcpy(result.data(), resultBuffer, _size * sizeof(FloatType), cudaMemcpyDeviceToHost);
-    cudaFree(resultBuffer);
+    cudaMemcpyAsync(result.data(), _impl->deviceC, _size * sizeof(FloatType), cudaMemcpyDeviceToHost, _impl->stream);
+    cudaStreamSynchronize(_impl->stream);
     return result;
 }
 
