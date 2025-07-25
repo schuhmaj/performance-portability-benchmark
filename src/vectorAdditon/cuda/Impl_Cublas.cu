@@ -9,21 +9,29 @@ struct ppb::VectorAddition<FloatType>::impl {
 
     FloatType* deviceA;
     FloatType* deviceB;
+    FloatType* deviceC;
+    cudaStream_t stream;
     cublasHandle_t handle;
 
     impl(const size_t size, const std::vector<FloatType> &a, const std::vector<FloatType> &b)
     : deviceA{nullptr},
-      deviceB {nullptr} {
-        cudaMalloc(&deviceA, size * sizeof(FloatType));
-        cudaMalloc(&deviceB, size * sizeof(FloatType));
-        cudaMemcpy(deviceA, a.data(), size * sizeof(FloatType), cudaMemcpyHostToDevice);
-        cudaMemcpy(deviceB, b.data(), size * sizeof(FloatType), cudaMemcpyHostToDevice);
+      deviceB {nullptr},
+      deviceC{nullptr},
+      stream{nullptr} {
+        cudaStreamCreate(&stream);
+        cudaMallocAsync(&deviceA, size * sizeof(FloatType), stream);
+        cudaMallocAsync(&deviceB, size * sizeof(FloatType), stream);
+        cudaMallocAsync(&deviceC, size * sizeof(FloatType), stream);
+        cudaMemcpyAsync(deviceA, a.data(), size * sizeof(FloatType), cudaMemcpyHostToDevice, stream);
+        cudaMemcpyAsync(deviceB, b.data(), size * sizeof(FloatType), cudaMemcpyHostToDevice, stream);
         cublasCreate(&handle);
+        cublasSetStream(handle, stream);
     }
 
     ~impl() {
         cudaFree(deviceA);
         cudaFree(deviceB);
+        cudaFree(deviceC);
         cublasDestroy(handle);
     }
 };
@@ -36,28 +44,23 @@ void ppb::VectorAddition<FloatType>::init() {
 template<typename FloatType>
 std::vector<FloatType> ppb::VectorAddition<FloatType>::operator()() {
     std::vector<FloatType> result(_size);
-    FloatType* resultBuffer;
-    cudaMalloc(&resultBuffer, _size * sizeof(FloatType));
-    cudaMemcpy(resultBuffer, _impl->deviceB, _size * sizeof(FloatType), cudaMemcpyDeviceToDevice);
+    cudaMemcpyAsync(_impl->deviceC, _impl->deviceB, _size * sizeof(FloatType), cudaMemcpyDeviceToDevice, _impl->stream);
 
     constexpr FloatType alpha = 1.0;
     if constexpr (std::is_same_v<FloatType, float>) {
-        cublasSaxpy(_impl->handle, _size, &alpha, _impl->deviceA, 1, resultBuffer, 1);
+        cublasSaxpy(_impl->handle, _size, &alpha, _impl->deviceA, 1, _impl->deviceC, 1);
     } else if constexpr (std::is_same_v<FloatType, double>) {
-        cublasDaxpy(_impl->handle, _size, &alpha, _impl->deviceA, 1, resultBuffer, 1);
+        cublasDaxpy(_impl->handle, _size, &alpha, _impl->deviceA, 1, _impl->deviceC, 1);
     }
 
-    cudaMemcpy(result.data(), resultBuffer, _size * sizeof(FloatType), cudaMemcpyDeviceToHost);
-    cudaFree(resultBuffer);
+    cudaMemcpyAsync(result.data(), _impl->deviceC, _size * sizeof(FloatType), cudaMemcpyDeviceToHost, _impl->stream);
+    cudaStreamSynchronize(_impl->stream);
     return result;
 }
 
 // Explicit instantiation and benchmarking setup
 template std::vector<float> ppb::VectorAddition<float>::operator()();
-BENCHMARK(ppb::VectorAddition<float>::benchmark)->Name("VecAdd-Cublas-Float")->RangeMultiplier(10)->Range(1e3, 1e8)->Complexity();
-
-template std::vector<double> ppb::VectorAddition<double>::operator()();
-BENCHMARK(ppb::VectorAddition<double>::benchmark)->Name("VecAdd-Cublas-Double")->RangeMultiplier(10)->Range(1e3, 1e8)->Complexity();
+BENCHMARK(ppb::VectorAddition<float>::benchmark)->Name("VecAdd-Cublas-Float")->RangeMultiplier(10)->Range(1e6, 1e8)->Complexity();
 
 int main(int argc, char** argv) {
     benchmark::MaybeReenterWithoutASLR(argc, argv);
