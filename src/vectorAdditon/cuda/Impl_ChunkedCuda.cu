@@ -5,29 +5,40 @@
 template <typename FloatType>
 struct ppb::VectorAddition<FloatType>::impl {
 
-    FloatType* deviceA;
-    FloatType* deviceB;
-    FloatType* deviceC;
-    cudaStream_t stream;
+    static constexpr size_t NUM_STREAMS = 4;
+    size_t chunkSize;
+
+    FloatType* deviceA[NUM_STREAMS];
+    FloatType* deviceB[NUM_STREAMS];
+    FloatType* deviceC[NUM_STREAMS];
+    cudaStream_t stream[NUM_STREAMS];
 
     impl(const size_t size, const std::vector<FloatType> &a, const std::vector<FloatType> &b)
     : deviceA{nullptr},
       deviceB {nullptr},
       deviceC {nullptr},
       stream{} {
-        cudaStreamCreate(&stream);
-        cudaMallocAsync(&deviceA, size * sizeof(FloatType), stream);
-        cudaMallocAsync(&deviceB, size * sizeof(FloatType), stream);
-        cudaMallocAsync(&deviceC, size * sizeof(FloatType), stream);
+        size_t freeMemory, totalMemory;
+        cudaMemGetInfo(&freeMemory, &totalMemory);
+        size_t usableMemory = static_cast<size_t>(static_cast<double>(freeMemory) * 0.8);
+        chunkSize = usableMemory / (3 * NUM_STREAMS * sizeof(FloatType));
 
-        cudaMemcpyAsync(deviceA, a.data(), size * sizeof(FloatType), cudaMemcpyHostToDevice, stream);
-        cudaMemcpyAsync(deviceB, b.data(), size * sizeof(FloatType), cudaMemcpyHostToDevice, stream);
+        for (int i = 0; i < NUM_STREAMS; i++) {
+            cudaStreamCreateWithFlags(&stream[i], cudaStreamNonBlocking);
+            cudaMallocAsync(&deviceA[i], chunkSize * sizeof(FloatType), stream[i]);
+            cudaMallocAsync(&deviceB[i], chunkSize * sizeof(FloatType), stream[i]);
+            cudaMallocAsync(&deviceC[i], chunkSize * sizeof(FloatType), stream[i]);
+        }
     }
 
     ~impl() {
-        cudaFree(deviceA);
-        cudaFree(deviceB);
-        cudaFree(deviceC);
+        for (int i = 0; i < NUM_STREAMS; i++) {
+            cudaFreeAsync(deviceA[i], stream[i]);
+            cudaFreeAsync(deviceB[i], stream[i]);
+            cudaFreeAsync(deviceC[i], stream[i]);
+            cudaStreamSynchronize(stream[i]);
+            cudaStreamDestroy(stream[i]);
+        }
     }
 };
 
@@ -59,12 +70,36 @@ std::vector<FloatType> ppb::VectorAddition<FloatType>::operator()() {
         0,
         _size
     );
-    int gridSize = (_size + blockSize - 1) / blockSize;
 
-    kernel_vector_add<<<gridSize, blockSize, 0, _impl->stream>>>(_size, _impl->deviceA, _impl->deviceB, _impl->deviceC);
+    size_t neededChunks = (_size + _impl->chunkSize - 1) / _impl->chunkSize;
 
-    cudaMemcpyAsync(result.data(), _impl->deviceC, _size * sizeof(FloatType), cudaMemcpyDeviceToHost, _impl->stream);
-    cudaStreamSynchronize(_impl->stream);
+    for (size_t chunk_idx = 0; chunk_idx < neededChunks; ++chunk_idx) {
+        int stream_idx = chunk_idx % _impl->NUM_STREAMS;
+        size_t offset = chunk_idx * _impl->chunkSize;
+        size_t current_chunk_size = std::min(_impl->chunkSize, _size - offset);
+
+        cudaMemcpyAsync(_impl->deviceA[stream_idx], &_inA[offset],
+                       current_chunk_size * sizeof(FloatType),
+                       cudaMemcpyHostToDevice, _impl->stream[stream_idx]);
+        cudaMemcpyAsync(_impl->deviceB[stream_idx],  &_inB[offset],
+                       current_chunk_size * sizeof(FloatType),
+                       cudaMemcpyHostToDevice, _impl->stream[stream_idx]);
+
+        int gridSize = (current_chunk_size + blockSize - 1) / blockSize;
+        kernel_vector_add<<<gridSize, blockSize, 0, _impl->stream[stream_idx]>>>(current_chunk_size,
+            _impl->deviceA[stream_idx], _impl->deviceB[stream_idx],
+            _impl->deviceC[stream_idx]);
+
+        // Copy result back
+        cudaMemcpyAsync(&result[offset], _impl->deviceC[stream_idx],
+                       current_chunk_size * sizeof(FloatType),
+                       cudaMemcpyDeviceToHost, _impl->stream[stream_idx]);
+    }
+
+    // Wait for all streams to complete
+    for (int i = 0; i < _impl->NUM_STREAMS; ++i) {
+        cudaStreamSynchronize(_impl->stream[i]);
+    }
     return result;
 }
 
