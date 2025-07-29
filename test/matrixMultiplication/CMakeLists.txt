@@ -1,0 +1,19 @@
+# Creates the Test Target
+add_library(matMul_test_lib INTERFACE)
+
+# Links target breakupModelTest against gtest_main (entry point, so no own main method is required)
+target_link_libraries(matMul_test_lib
+    INTERFACE
+        GTest::gtest
+        GTest::gmock
+        matMul_cpp_lib
+)
+target_include_directories(matMul_test_lib INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})
+
+# Copies the test resources into a directory next to the test executable
+file(COPY "${PPB_TEST_RESOURCES_DIRECTORY}" DESTINATION "${CMAKE_CURRENT_BINARY_DIR}")
+
+# Adds the Tests to CTest by querying the test target executable
+include(GoogleTest)
+
+add_subdirectory(cpp)

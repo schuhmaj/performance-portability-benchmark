@@ -73,65 +73,9 @@ template __global__ void kernel_vector_add<float>(int, float*, float*, float*);
 template std::vector<float> ppb::VectorAddition<float>::operator()();
 BENCHMARK(ppb::VectorAddition<float>::benchmark)->Name("VecAdd-Cuda-Float")->RangeMultiplier(10)->Range(1e6, 1e9)->Complexity();
 
-// template __global__ void kernel_vector_add<double>(int, double*, double*, double*);
-// template std::vector<double> ppb::VectorAddition<double>::operator()();
-// BENCHMARK(ppb::VectorAddition<double>::benchmark)->Name("VecAdd-Cuda-Double")->RangeMultiplier(10)->Range(1e3, 1e8)->Complexity();
-
 int main(int argc, char** argv) {
     benchmark::MaybeReenterWithoutASLR(argc, argv);
     benchmark::Initialize(&argc, argv);
     benchmark::RunSpecifiedBenchmarks();
     benchmark::Shutdown();
-
-    // int numBlocks;
-    // int blockSize = 768;
-
-    // // These variables are used to convert occupancy to warps
-    // int device;
-    // cudaDeviceProp prop;
-    // int activeWarps;
-    // int maxWarps;
-
-    // cudaGetDevice(&device);
-    // cudaGetDeviceProperties(&prop, device);
-
-    // cudaOccupancyMaxActiveBlocksPerMultiprocessor(
-    //     &numBlocks,
-    //     kernel_vector_add<float>,
-    //     blockSize,
-    //     0);
-
-
-    // activeWarps = numBlocks * blockSize / prop.warpSize;
-    // maxWarps = prop.maxThreadsPerMultiProcessor / prop.warpSize;
-
-    // std::cout << "Device: " << prop.name << '\n'
-    //           << "Wrap Size: " << prop.warpSize << '\n'
-    //           << "Active Warps: " << activeWarps << '\n'
-    //           << "Max Warps: " << maxWarps << '\n'
-    //           << "Max Threads Per Block: " << prop.maxThreadsPerBlock << '\n'
-    //           << "Max Threads Per MultiProcessor: " << prop.maxThreadsPerMultiProcessor << '\n'
-    //           << "Max Blocks Per MultiProcessor: " << numBlocks << '\n'
-    //           << "Occupancy: " << (double)activeWarps / maxWarps * 100 << "%" << std::endl;
-
-    // blockSize = 0;
-    // int minGridSize;    // The minimum grid size needed to achieve the
-    //                     // maximum occupancy for a full device
-    //                     // launch
-    // int gridSize;       // The actual grid size needed, based on input
-    //                     // size
-
-    // int arrayCount = 1e6; // Example size, replace with actual size
-    // cudaOccupancyMaxPotentialBlockSize(
-    //     &minGridSize,
-    //     &blockSize,
-    //     (void*)kernel_vector_add<float>,
-    //     0,
-    //     arrayCount
-    // );
-    // gridSize = (arrayCount + blockSize - 1) / blockSize;
-    // std::cout << "Block Size: " << blockSize << '\n'
-    //           << "Min Grid Size: " << minGridSize << '\n'
-    //           << "Grid Size: " << gridSize << '\n'
-    //           << "Occupancy: " << (double)gridSize / maxWarps * 100 << "%" << std::endl;
 }
