@@ -14,7 +14,7 @@ namespace ppb {
 
         std::vector<FloatType> operator()(const std::vector<FloatType> &a, const std::vector<FloatType> &b, const MatrixMultiplicationConfig &config);
 
-        static int getIdealBlockSize(int problemSize);
+        static dim3 getIdealBlockSize(unsigned int x, unsigned int y);
 
     };
 

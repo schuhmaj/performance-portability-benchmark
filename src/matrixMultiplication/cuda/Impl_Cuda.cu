@@ -20,7 +20,7 @@ namespace ppb {
     template __global__ void matrixMultiplication<float>(const float*, const float*, float*, const int, const int, const int);
 
     template <typename FloatType>
-    std::vector<FloatType> ppb::ImplCuda<FloatType>::operator()(const std::vector<FloatType> &a,
+    std::vector<FloatType> ImplCuda<FloatType>::operator()(const std::vector<FloatType> &a,
                                                                 const std::vector<FloatType> &b,
                                                                 const MatrixMultiplicationConfig &config) {
 
@@ -37,9 +37,7 @@ namespace ppb {
         cudaMemcpy(devA, a.data(), sizeA, cudaMemcpyHostToDevice);
         cudaMemcpy(devB, b.data(), sizeB, cudaMemcpyHostToDevice);
 
-        //std::cout << getIdealBlockSize(config.m * config.n) << " threads per block" << std::endl;
-
-        dim3 blockSize(32, 32, 1);
+        const dim3 blockSize = getIdealBlockSize(config.m, config.n);
         dim3 gridSize(config.m / blockSize.x + 1, config.n / blockSize.y + 1, 1);
 
         matrixMultiplication<<<gridSize, blockSize>>>(devA, devB, devC, config.m, config.n, config.l);
@@ -54,12 +52,19 @@ namespace ppb {
     }
 
     template <typename FloatType>
-    int ImplCuda<FloatType>::getIdealBlockSize(const int problemSize) {
+    dim3 ImplCuda<FloatType>::getIdealBlockSize(const unsigned int x, const unsigned int y) {
+        constexpr unsigned int WRAP_SIZE = 32;
+        const unsigned int blockSizeLimit = x * y;
         int blockSize = 0;
         int minGridSize = 0;
-
-        cudaOccupancyMaxPotentialBlockSize(&minGridSize, &blockSize, (void *)matrixMultiplication<float>, 0, problemSize);
-        return blockSize;
+        cudaOccupancyMaxPotentialBlockSize(&minGridSize, &blockSize, reinterpret_cast<void *>(matrixMultiplication<float>), 0, blockSizeLimit);
+        if (blockSize == blockSizeLimit) {
+            return {x, y, 1};
+        }
+        // blockSize is most likely either 768 (32x24) or 1024 (32x32) given the current GPUs
+        // Number of Resident Threads varies between 1024, 1536 and 2048; maximum block size is always 1024
+        // Hence, it's either 1x1024 per SM, 2x768 per SM or 2x1024 per SM
+        return {WRAP_SIZE, blockSize / WRAP_SIZE, 1};
     }
 
     /* Explicit Instantiation for float and double */
