@@ -38,7 +38,7 @@ namespace ppb {
         cudaMemcpy(devB, b.data(), sizeB, cudaMemcpyHostToDevice);
 
         const dim3 blockSize = getIdealBlockSize(config.m, config.n);
-        dim3 gridSize(config.m / blockSize.x + 1, config.n / blockSize.y + 1, 1);
+        const dim3 gridSize = getIdealGridSize(blockSize, config.m, config.n);
 
         matrixMultiplication<<<gridSize, blockSize>>>(devA, devB, devC, config.m, config.n, config.l);
 
@@ -52,20 +52,26 @@ namespace ppb {
     }
 
     template <typename FloatType>
-    dim3 ImplCuda<FloatType>::getIdealBlockSize(const unsigned int x, const unsigned int y) {
+    dim3 ImplCuda<FloatType>::getIdealBlockSize(const unsigned int m, const unsigned int n) {
         constexpr unsigned int WRAP_SIZE = 32;
-        const unsigned int blockSizeLimit = x * y;
+        const int blockSizeLimit = static_cast<int>(m) * static_cast<int>(n);
         int blockSize = 0;
         int minGridSize = 0;
         cudaOccupancyMaxPotentialBlockSize(&minGridSize, &blockSize, reinterpret_cast<void *>(matrixMultiplication<float>), 0, blockSizeLimit);
         if (blockSize == blockSizeLimit) {
-            return {x, y, 1};
+            return {m, n, 1};
         }
         // blockSize is most likely either 768 (32x24) or 1024 (32x32) given the current GPUs
         // Number of Resident Threads varies between 1024, 1536 and 2048; maximum block size is always 1024
         // Hence, it's either 1x1024 per SM, 2x768 per SM or 2x1024 per SM
         return {WRAP_SIZE, blockSize / WRAP_SIZE, 1};
     }
+
+    template <typename FloatType>
+    dim3 ImplCuda<FloatType>::getIdealGridSize(const dim3 &blockSize, const int m, const int n) {
+        return {(m + blockSize.x - 1) / blockSize.x, (n + blockSize.y - 1) / blockSize.y, 1};
+    }
+
 
     /* Explicit Instantiation for float and double */
     template class ImplCuda<float>;
