@@ -24,30 +24,35 @@ namespace ppb {
                                                                 const std::vector<FloatType> &b,
                                                                 const MatrixMultiplicationConfig &config) {
 
+        cudaStream_t stream;
+        cudaStreamCreate(&stream);
+
         // Allocate device memory
         FloatType *devA, *devB, *devC;
         const size_t sizeA = config.m * config.l * sizeof(FloatType);
         const size_t sizeB = config.l * config.n * sizeof(FloatType);
         const size_t sizeC = config.m * config.n * sizeof(FloatType);
 
-        cudaMalloc(&devA, sizeA);
-        cudaMalloc(&devB, sizeB);
-        cudaMalloc(&devC, sizeC);
-
-        cudaMemcpy(devA, a.data(), sizeA, cudaMemcpyHostToDevice);
-        cudaMemcpy(devB, b.data(), sizeB, cudaMemcpyHostToDevice);
-
         const dim3 blockSize = getIdealBlockSize(config.m, config.n);
         const dim3 gridSize = getIdealGridSize(blockSize, config.m, config.n);
 
-        matrixMultiplication<<<gridSize, blockSize>>>(devA, devB, devC, config.m, config.n, config.l);
+        cudaMallocAsync(&devA, sizeA, stream);
+        cudaMallocAsync(&devB, sizeB, stream);
+        cudaMallocAsync(&devC, sizeC, stream);
+
+        cudaMemcpyAsync(devA, a.data(), sizeA, cudaMemcpyHostToDevice, stream);
+        cudaMemcpyAsync(devB, b.data(), sizeB, cudaMemcpyHostToDevice, stream);
+
+        matrixMultiplication<<<gridSize, blockSize, 0, stream>>>(devA, devB, devC, config.m, config.n, config.l);
 
         std::vector<FloatType> result(config.m * config.n, 0.0);
-        cudaMemcpy(result.data(), devC, sizeC, cudaMemcpyDeviceToHost);
+        cudaMemcpyAsync(result.data(), devC, sizeC, cudaMemcpyDeviceToHost, stream);
 
-        cudaFree(devA);
-        cudaFree(devB);
-        cudaFree(devC);
+        cudaFreeAsync(devA, stream);
+        cudaFreeAsync(devB, stream);
+        cudaFreeAsync(devC, stream);
+        cudaStreamSynchronize(stream);
+        cudaStreamDestroy(stream);
         return result;
     }
 
