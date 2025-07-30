@@ -4,7 +4,6 @@ message(STATUS "Setting up Boost")
 
 set(BOOST_VERSION 1.85.0)
 
-cmake_policy(SET CMP0167 NEW)
 find_package(Boost QUIET)
 
 if (${Boost_FOUND})
