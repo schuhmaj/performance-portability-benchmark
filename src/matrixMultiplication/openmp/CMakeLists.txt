@@ -14,6 +14,8 @@ target_link_libraries(matMul_omp_dev
         matMul_lib
         OpenMP::OpenMP_CXX
 )
-cmake_path(GET OpenMP_omp_LIBRARY PARENT_PATH omp_lib_dir)
 target_compile_options(matMul_omp_dev PUBLIC -fopenmp-targets=nvptx64-nvidia-cuda)
-target_link_options(matMul_omp_dev PUBLIC -fopenmp -fopenmp-targets=nvptx64-nvidia-cuda "-Wl,-rpath,${omp_lib_dir}")
+if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    cmake_path(GET OpenMP_omp_LIBRARY PARENT_PATH omp_lib_dir)
+    target_link_options(matMul_omp_dev PUBLIC -fopenmp -fopenmp-targets=nvptx64-nvidia-cuda "-Wl,-rpath,${omp_lib_dir}")
+endif ()
