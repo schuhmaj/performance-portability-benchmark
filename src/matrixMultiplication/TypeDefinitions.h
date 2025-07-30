@@ -68,18 +68,24 @@ namespace ppb {
 
 #else
 
-    // Trait to detect if T is a string type
-    template<typename T>
+    // Trait to detect string types
+    template <typename T>
     struct is_string : std::false_type {};
+    template <> struct is_string<std::string> : std::true_type {};
+    template <> struct is_string<std::wstring> : std::true_type {};
+    template <> struct is_string<std::u16string> : std::true_type {};
+    template <> struct is_string<std::u32string> : std::true_type {};
 
-    template<>
-    struct is_string<std::string> : std::true_type {};
-    template<>
-    struct is_string<std::wstring> : std::true_type {};
-    template<>
-    struct is_string<std::u16string> : std::true_type {};
-    template<>
-    struct is_string<std::u32string> : std::true_type {};
+    // C++17: "is container but not string"
+    template <typename T, typename = void>
+    struct is_container : std::false_type {};
+
+    template <typename T>
+    struct is_container<T, std::void_t<
+        decltype(std::declval<T>().begin()),
+        decltype(std::declval<T>().end()),
+        decltype(std::declval<T>().size())
+    >> : std::integral_constant<bool, !is_string<T>::value> {};
 
 #endif
 

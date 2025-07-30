@@ -28,12 +28,7 @@ namespace ppb {
 #else
     template <
         typename Container,
-        typename = typename std::enable_if<
-            !is_string<Container>::value &&
-            std::is_same<decltype(std::declval<Container>().begin()), typename Container::const_iterator>::value &&
-            std::is_same<decltype(std::declval<Container>().end()), typename Container::const_iterator>::value &&
-            std::is_convertible<decltype(std::declval<Container>().size()), size_t>::value
-        >::type
+        typename std::enable_if<is_container<Container>::value, int>::type = 0
     >
 #endif
     std::ostream &operator<<(std::ostream &os, const Container &container) {
