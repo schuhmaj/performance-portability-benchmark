@@ -67,9 +67,12 @@ message(STATUS "####################################################")
 # and include everything necessary
 list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 
-# We always requires Google Benchmark and Boost Libraries
+# We always requires Google Benchmark
 include(gbench)
-include(boost)
+
+if (${PPB_ENABLE_OpenCL} OR ${PPB_ENABLE_AdaptiveCpp})
+    include(boost)
+endif ()
 
 # OpenCL Inclusion
 if (${PPB_ENABLE_OpenCL})
