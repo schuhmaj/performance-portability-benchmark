@@ -1,12 +1,18 @@
 #pragma once
 
-#include <compare>
-#include <concepts>
 #include <cstddef>
 #include <iterator>
 #include <type_traits>
 
+#if __cplusplus >= 202002L
+#include <compare>
+#include <concepts>
+#endif
+
 namespace ppb {
+
+#if __cplusplus >= 202002L
+
     /**
      * @brief Concept that defines requirements for a type T to be considered a Container.
      *
@@ -59,5 +65,22 @@ namespace ppb {
         typename T::value_type;
         typename T::allocator_type;
     } && std::is_same_v<T, std::vector<typename T::value_type, typename T::allocator_type>>;
+
+#else
+
+    // Trait to detect if T is a string type
+    template<typename T>
+    struct is_string : std::false_type {};
+
+    template<>
+    struct is_string<std::string> : std::true_type {};
+    template<>
+    struct is_string<std::wstring> : std::true_type {};
+    template<>
+    struct is_string<std::u16string> : std::true_type {};
+    template<>
+    struct is_string<std::u32string> : std::true_type {};
+
+#endif
 
 }

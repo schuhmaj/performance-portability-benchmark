@@ -1,6 +1,6 @@
 # This is the main executable to be used for benchmarking purposes
 add_executable(matMul_omp main.cpp Impl_OpenMP.cpp Impl_OpenMP.h)
-target_compile_features(matMul_omp PUBLIC cxx_std_20)
+target_compile_features(matMul_omp PUBLIC cxx_std_17)
 target_link_libraries(matMul_omp
         PRIVATE
         matMul_lib
@@ -8,7 +8,7 @@ target_link_libraries(matMul_omp
 )
 
 add_executable(matMul_omp_dev mainDevice.cpp Impl_OpenMPDevice.cpp Impl_OpenMPDevice.h)
-target_compile_features(matMul_omp_dev PUBLIC cxx_std_20)
+target_compile_features(matMul_omp_dev PUBLIC cxx_std_17)
 target_link_libraries(matMul_omp_dev
         PRIVATE
         matMul_lib
