@@ -37,6 +37,8 @@ namespace ppb {
         cudaMemcpy(devA, a.data(), sizeA, cudaMemcpyHostToDevice);
         cudaMemcpy(devB, b.data(), sizeB, cudaMemcpyHostToDevice);
 
+        //std::cout << getIdealBlockSize(config.m * config.n) << " threads per block" << std::endl;
+
         dim3 blockSize(32, 32, 1);
         dim3 gridSize(config.m / blockSize.x + 1, config.n / blockSize.y + 1, 1);
 
@@ -56,7 +58,7 @@ namespace ppb {
         int blockSize = 0;
         int minGridSize = 0;
 
-        //cudaOccupancyMaxPotentialBlockSize(&minGridSize, &blockSize, (void *)matrixMultiplication, 0, problemSize);
+        cudaOccupancyMaxPotentialBlockSize(&minGridSize, &blockSize, (void *)matrixMultiplication<float>, 0, problemSize);
         return blockSize;
     }
 
