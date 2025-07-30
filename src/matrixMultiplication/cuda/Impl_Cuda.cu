@@ -3,18 +3,32 @@
 namespace ppb {
 
     template<typename FloatType>
-    __global__ void matrixMultiplication(const FloatType *a, const FloatType *b, FloatType *c, const int m, const int n,
+    __global__ void matrixMultiplication(const FloatType *__restrict__ a, const FloatType* __restrict__ b, FloatType* __restrict__ c, const int m, const int n,
                                          const int l) {
-        const unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
-        const unsigned int j = blockIdx.y * blockDim.y + threadIdx.y;
-        if (i >= n || j >= m) {
+        extern __shared__ float bShared[];
+        const unsigned int row = blockIdx.x * blockDim.x + threadIdx.x;
+        const unsigned int column = blockIdx.y * blockDim.y + threadIdx.y;
+        if (row >= n || column >= m) {
             return;
         }
-        FloatType sum = 0.0;
-        for (unsigned int entry = 0; entry < l; ++entry) {
-            sum += a[i + entry * m] * b[entry + j * l];
+        // Assign b into bShared; workload every thread: l / (blockDim.x * blockDim.y)
+        const unsigned int totalThreadsInBlock = blockDim.x * blockDim.y;
+        const unsigned int threadIdInBlock = threadIdx.y * blockDim.x + threadIdx.x;
+        const unsigned int elementsPerThread = (l + totalThreadsInBlock - 1) / totalThreadsInBlock;
+
+        for (unsigned int i = 0; i < elementsPerThread; ++i) {
+            const unsigned int globalIdx = threadIdInBlock * elementsPerThread + i;
+            if (globalIdx < l) {
+                bShared[globalIdx] = b[globalIdx + column * l];
+            }
         }
-        c[i + j * m] =sum;
+        __syncthreads();
+
+        FloatType sum = 0.0;
+        for (unsigned int i = 0; i < l; ++i) {
+            sum += a[row + i * m] * bShared[i];
+        }
+        c[row + column * m] += sum;
     }
 
     template __global__ void matrixMultiplication<float>(const float*, const float*, float*, const int, const int, const int);
@@ -39,11 +53,12 @@ namespace ppb {
         cudaMallocAsync(&devA, sizeA, stream);
         cudaMallocAsync(&devB, sizeB, stream);
         cudaMallocAsync(&devC, sizeC, stream);
+        cudaMemsetAsync(&devC, 0, sizeC, stream);
 
         cudaMemcpyAsync(devA, a.data(), sizeA, cudaMemcpyHostToDevice, stream);
         cudaMemcpyAsync(devB, b.data(), sizeB, cudaMemcpyHostToDevice, stream);
 
-        matrixMultiplication<<<gridSize, blockSize, 0, stream>>>(devA, devB, devC, config.m, config.n, config.l);
+        matrixMultiplication<<<gridSize, blockSize, config.l * sizeof(FloatType), stream>>>(devA, devB, devC, config.m, config.n, config.l);
 
         std::vector<FloatType> result(config.m * config.n, 0.0);
         cudaMemcpyAsync(result.data(), devC, sizeC, cudaMemcpyDeviceToHost, stream);
