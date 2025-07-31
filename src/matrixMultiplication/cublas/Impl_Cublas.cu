@@ -16,8 +16,8 @@ namespace ppb {
 
         // Allocate device memory
         FloatType *devA, *devB, *devC;
-        const size_t sizeA = config.m * config.l * sizeof(FloatType);
-        const size_t sizeB = config.l * config.n * sizeof(FloatType);
+        const size_t sizeA = config.m * config.k * sizeof(FloatType);
+        const size_t sizeB = config.k * config.n * sizeof(FloatType);
         const size_t sizeC = config.m * config.n * sizeof(FloatType);
 
         cudaMalloc(&devA, sizeA);
@@ -35,18 +35,18 @@ namespace ppb {
         // Note: CUBLAS expects column-major matrices
         if constexpr (std::is_same_v<FloatType, float>) {
             cublasSgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N,
-                       config.m, config.n, config.l,
+                       config.m, config.n, config.k,
                        &alpha,
                        devA, config.m,
-                       devB, config.l,
+                       devB, config.k,
                        &beta,
                        devC, config.m);
         } else if constexpr (std::is_same_v<FloatType, double>) {
             cublasDgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N,
-            config.m, config.n, config.l,
+            config.m, config.n, config.k,
             &alpha,
             devA, config.m,
-            devB, config.l,
+            devB, config.k,
             &beta,
             devC, config.m);
         } else {

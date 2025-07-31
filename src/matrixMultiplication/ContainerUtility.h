@@ -32,7 +32,7 @@ namespace ppb {
     >
 #endif
     std::ostream &operator<<(std::ostream &os, const Container &container) {
-        os.operator<<("[ ");
+        os <<("[ ");
         std::for_each_n(container.begin(), container.size() - 1, [&os](const auto &el) { os << el << ", "; });
         os << container.back() << " ]";
         return os;
@@ -62,19 +62,19 @@ namespace ppb {
         template <typename Container>
     #endif
         std::ostream &to_matrix(std::ostream &os, const Container &container, const size_t dimension0) {
-            os.operator<<("[ ");
+            os << "\n[ ";
             size_t element = 0;
             for (auto it = container.begin(); it != container.end() - 1; ++it) {
                 if (element % dimension0 == 0) {
-                    os.operator<<("[ ");
+                    os << "[ ";
                 }
                 os << *it << ", ";
                 if (element % dimension0 == dimension0 - 1) {
-                    os.operator<<( "],\n");
+                    os << "],\n";
                 }
                 element += 1;
             }
-            os << container.back() << ", ] ]";
+            os << container.back() << "] ]";
             return os;
         }
     } // namespace detail

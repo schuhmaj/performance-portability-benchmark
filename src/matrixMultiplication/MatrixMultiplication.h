@@ -16,7 +16,7 @@ namespace ppb {
     struct MatrixMultiplicationConfig {
         int m;
         int n;
-        int l;
+        int k;
     };
 
     /**
@@ -26,7 +26,10 @@ namespace ppb {
      *
      * Provides matrix multiplication for two input matrices, A and B, resulting
      * in an output matrix C. The sizes of the matrices are defined by the
-     * constructor parameters m, n, and k.
+     * constructor parameters m, n, and l.
+     * A is M x K
+     * B is K x N
+     * C is M x N
      *
      * The data is stored in a column-major format.
      *
@@ -67,14 +70,14 @@ namespace ppb {
          * Constructor to initialize matrix dimensions and seed for random number generation.
          * @param m Number of rows in matrix A and matrix C.
          * @param n Number of columns in matrix B and matrix C.
-         * @param l Number of columns in matrix A and number of rows in matrix B.
+         * @param k Number of columns in matrix A and number of rows in matrix B.
          * @param seed Seed for the random number generator.
          */
-        MatrixMultiplication(const int m, const int n, const int l, const unsigned int seed = 42u)
-            : _inputA{ppb::generateUniformVector<std::vector<FloatType>>(m * l, seed)},
-              _inputB{ppb::generateUniformVector<std::vector<FloatType>>(l * n, seed + 1)},
+        MatrixMultiplication(const int m, const int n, const int k, const unsigned int seed = 42u)
+            : _inputA{ppb::generateUniformVector<std::vector<FloatType>>(m * k, seed)},
+              _inputB{ppb::generateUniformVector<std::vector<FloatType>>(k * n, seed + 1)},
               _impl{},
-              _config{MatrixMultiplicationConfig{m, n, l}} {
+              _config{MatrixMultiplicationConfig{m, n, k}} {
             isFunctional();
         }
 
@@ -93,15 +96,21 @@ namespace ppb {
             return _impl(_inputA, _inputB, _config);
         }
 
+        /**
+         * Quick check if the selected implementation is functional and can calculate the product of
+         * array([[1, 2], [3, 4], [5, 6]]) * array([[7, 8, 9], [10, 11, 12]]) resulting in
+         * array([[ 27,  30,  33], [ 61,  68,  75], [ 95, 106, 117]])
+         * Matrices are stored in column-major format as specified in the documentation.
+         */
         void isFunctional() {
-            const std::vector<FloatType> matrixA = {1, 3, 2, 4};
-            const std::vector<FloatType> matrixB = {5, 7, 6, 8};
-            const std::vector<FloatType> expectedResult = {19, 43, 22, 50};
-            const auto actualResult = _impl(matrixA, matrixB, {2, 2, 2});
+            const std::vector<FloatType> matrixA = {1, 3, 5, 2, 4, 6};
+            const std::vector<FloatType> matrixB = {7, 10, 8, 11, 9, 12};
+            const std::vector<FloatType> expectedResult = {27, 61, 95, 30, 68, 106, 33, 75, 117};
+            const auto actualResult = _impl(matrixA, matrixB, {3, 3, 2});
             if (!std::equal(actualResult.begin(), actualResult.end(), expectedResult.begin())) {
                 std::cerr << "Matrix multiplication failed!" << std::endl;
-                std::cerr << "Expected: " << expectedResult << std::endl;
-                std::cerr << "Actual: " << actualResult << std::endl;
+                std::cerr << "Expected: " << to_string(expectedResult, 3) << std::endl;
+                std::cerr << "Actual: " << to_string(actualResult, 3) << std::endl;
                 std::exit(1);
             }
         }
