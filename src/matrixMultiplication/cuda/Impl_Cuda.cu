@@ -2,6 +2,82 @@
 
 namespace ppb {
 
+    __global__ void kernel_matrixMultOverlapped(const float *__restrict__ devA,
+                                            const float *__restrict__ devB,
+                                            float *__restrict__ devC, const size_t size) {
+        const int TILE_SIZE = 64;
+        __shared__ float shrA[TILE_SIZE][TILE_SIZE];
+        __shared__ float shrB[TILE_SIZE][TILE_SIZE];
+
+        const int tx = threadIdx.x;
+        const int ty = threadIdx.y;
+
+        const int row = blockIdx.x * TILE_SIZE + tx;
+        const int column = blockIdx.y * TILE_SIZE + ty;
+        if ((row < size) && (column < size)) {
+
+            float Celem = 0.0f, Aelem = 0.0f, Belem = 0.0f;
+            // load the first tile into registers
+            Aelem = devA[row + size * ty];
+            Belem = devB[tx + column * size];
+
+            for (int m = 0; m < (size / TILE_SIZE) - 1; ++m) {
+                // load tiles of A and B to the shared mem.
+                shrA[ty][tx] = Aelem;
+                shrB[ty][tx] = Belem;
+                __syncthreads();
+
+                // load the next tile to the registers
+                Aelem = devA[row + size * (ty + (m + 1) * TILE_SIZE)];
+                Belem = devB[(tx + (m + 1) * TILE_SIZE) + column * size];
+
+                for (int j = 0; j < TILE_SIZE; ++j)
+                    Celem += shrA[j][tx] * shrB[ty][j];
+                __syncthreads();
+            };
+
+            // compute the last tile
+            const int m = (size / TILE_SIZE) - 1;
+            shrA[ty][tx] = Aelem;
+            shrB[ty][tx] = Belem;
+            __syncthreads();
+            for (int j = 0; j < TILE_SIZE; ++j)
+                Celem += shrA[j][tx] * shrB[ty][j];
+
+            devC[row + size * column] += Celem;
+        }
+    }
+
+    __global__ void kernel_matrixMultCoalescedDym(const float *__restrict__ devA,
+                                              const float *__restrict__ devB,
+                                              float *__restrict__ devC, const size_t size) {
+        const int TILE_SIZE = blockDim.x;
+        extern __shared__ float shrA[];
+        float *__restrict shrB = &shrA[TILE_SIZE * TILE_SIZE];
+
+        const int tx = threadIdx.x;
+        const int ty = threadIdx.y;
+
+        const int row = blockIdx.x * TILE_SIZE + tx;
+        const int column = blockIdx.y * TILE_SIZE + ty;
+        if ((row < size) && (column < size)) {
+            float Celem = 0.0f;
+
+            for (int m = 0; m < size / TILE_SIZE; ++m) {
+                // load tiles of A and B to the shared mem.
+                shrA[tx + TILE_SIZE * ty] = devA[row + size * (ty + m * TILE_SIZE)];
+                shrB[tx + TILE_SIZE * ty] = devB[(tx + m * TILE_SIZE) + column * size];
+                __syncthreads();
+
+                for (int j = 0; j < TILE_SIZE; ++j)
+                    Celem += shrA[tx + TILE_SIZE * j] * shrB[j + TILE_SIZE * ty];
+                __syncthreads();
+            };
+
+            devC[row + size * column] += Celem;
+        }
+    }
+
     template<typename FloatType>
     __global__ void matrixMultiplication(const FloatType *__restrict__ a, const FloatType* __restrict__ b, FloatType* __restrict__ c, const int m, const int n,
                                          const int l) {
@@ -33,6 +109,11 @@ namespace ppb {
 
     template __global__ void matrixMultiplication<float>(const float*, const float*, float*, const int, const int, const int);
 
+
+    size_t get1DGrid(size_t blockSize, size_t matrixSize) {
+        return (matrixSize + blockSize - 1) / blockSize;
+    }
+
     template <typename FloatType>
     std::vector<FloatType> ImplCuda<FloatType>::operator()(const std::vector<FloatType> &a,
                                                                 const std::vector<FloatType> &b,
@@ -58,7 +139,16 @@ namespace ppb {
         cudaMemcpyAsync(devA, a.data(), sizeA, cudaMemcpyHostToDevice, stream);
         cudaMemcpyAsync(devB, b.data(), sizeB, cudaMemcpyHostToDevice, stream);
 
-        matrixMultiplication<<<gridSize, blockSize, config.l * sizeof(FloatType), stream>>>(devA, devB, devC, config.m, config.n, config.l);
+
+        constexpr int tileSize = 64;
+        const size_t shrMemSize = 2 * tileSize * tileSize * sizeof(float);
+        dim3 dimBlock(tileSize, tileSize);
+        const size_t Grid1D = get1DGrid(dimBlock.x, config.n);
+        dim3 dimGrid(Grid1D, Grid1D);
+        // kernel_matrixMultCoalescedDym<<<dimGrid, dimBlock, shrMemSize, stream>>>(devA, devB, devC, config.n);
+        kernel_matrixMultOverlapped<<<dimGrid, dimBlock, shrMemSize, stream>>>(devA, devB, devC, config.n);
+
+        //matrixMultiplication<<<gridSize, blockSize, config.l * sizeof(FloatType), stream>>>(devA, devB, devC, config.m, config.n, config.l);
 
         std::vector<FloatType> result(config.m * config.n, 0.0);
         cudaMemcpyAsync(result.data(), devC, sizeC, cudaMemcpyDeviceToHost, stream);
@@ -95,5 +185,5 @@ namespace ppb {
 
     /* Explicit Instantiation for float and double */
     template class ImplCuda<float>;
-    template class ImplCuda<double>;
+    //template class ImplCuda<double>;
 } // namespace ppb
