@@ -109,8 +109,8 @@ namespace ppb {
             const auto actualResult = _impl(matrixA, matrixB, {3, 3, 2});
             if (!std::equal(actualResult.begin(), actualResult.end(), expectedResult.begin())) {
                 std::cerr << "Matrix multiplication failed!" << std::endl;
-                std::cerr << "Expected: " << to_string(expectedResult, 3) << std::endl;
-                std::cerr << "Actual: " << to_string(actualResult, 3) << std::endl;
+                std::cerr << "Expected: " << expectedResult << std::endl;
+                std::cerr << "Actual: " << actualResult << std::endl;
                 std::exit(1);
             }
         }

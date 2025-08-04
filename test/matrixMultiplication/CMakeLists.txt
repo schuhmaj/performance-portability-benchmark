@@ -17,3 +17,7 @@ file(COPY "${PPB_TEST_RESOURCES_DIRECTORY}" DESTINATION "${CMAKE_CURRENT_BINARY_
 include(GoogleTest)
 
 add_subdirectory(cpp)
+
+if (CMAKE_CUDA_COMPILER AND PPB_ENABLE_Cuda)
+    add_subdirectory(cuda)
+endif ()
