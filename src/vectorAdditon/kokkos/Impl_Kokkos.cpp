@@ -3,6 +3,37 @@
 #include "Kokkos_Core.hpp"
 #include "VectorAddition.h"
 
+// This neat code using SharedMemory performs better for smaller vector sizes N
+// However, the larger the vector becomes, the better a "pure" GPU version becomes
+
+// template <typename FloatType>
+// struct ppb::VectorAddition<FloatType>::impl {
+//     Kokkos::View<FloatType *, Kokkos::SharedSpace> deviceA;
+//     Kokkos::View<FloatType *, Kokkos::SharedSpace> deviceB;
+//
+//     explicit impl(const size_t size, const std::vector<FloatType> &a, const std::vector<FloatType> &b) :
+//         deviceA{"deviceA", size}, deviceB {"deviceB", size} {
+//         std::copy(a.begin(), a.end(), deviceA.data());
+//         std::copy(b.begin(), b.end(), deviceB.data());
+//     }
+// };
+
+// Equivalent in runtime and the meaning compared to the formulation below
+// The syntax is shorter
+
+// template <typename FloatType>
+// struct ppb::VectorAddition<FloatType>::impl {
+//     Kokkos::View<FloatType *> deviceA;
+//     Kokkos::View<FloatType *> deviceB;
+//
+//     explicit impl(const size_t size, const std::vector<FloatType> &a, const std::vector<FloatType> &b) : deviceA{Kokkos::view_alloc("deviceA", Kokkos::WithoutInitializing)}, deviceB{Kokkos::view_alloc("deviceB", Kokkos::WithoutInitializing)} {
+//         Kokkos::View<FloatType*, Kokkos::HostSpace, Kokkos::MemoryUnmanaged> hostA(const_cast<FloatType*>(a.data()), size);
+//         Kokkos::View<FloatType*, Kokkos::HostSpace, Kokkos::MemoryUnmanaged> hostB(const_cast<FloatType*>(b.data()), size);
+//         deviceA = Kokkos::create_mirror_view_and_copy(Kokkos::DefaultExecutionSpace{}, hostA);
+//         deviceB = Kokkos::create_mirror_view_and_copy(Kokkos::DefaultExecutionSpace{}, hostB);
+//     }
+// };
+
 template <typename FloatType>
 struct ppb::VectorAddition<FloatType>::impl {
     Kokkos::View<FloatType *> deviceA;

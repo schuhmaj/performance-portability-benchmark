@@ -10,8 +10,12 @@ if (CMAKE_CUDA_COMPILER AND PPB_ENABLE_Cuda)
     add_subdirectory(cublas)
 endif ()
 
-if (PPB_ENABLE_OpenMP)
+if (${PPB_ENABLE_OpenMP})
     add_subdirectory(openmp)
+endif ()
+
+if (${PPB_ENABLE_Kokkos})
+    add_subdirectory(kokkos)
 endif ()
 
 add_subdirectory(cpp)
