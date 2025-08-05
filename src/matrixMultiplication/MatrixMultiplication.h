@@ -42,13 +42,16 @@ namespace ppb {
          * The floating point type used by the simulation (extracted from the implementation).
          */
         using FloatType = typename Implementation::float_type;
+        using is_row_major = typename Implementation::row_major;
 
     protected:
         /** Input matrix A in column-major format. */
         std::vector<FloatType> _inputA;
+        std::vector<FloatType> _inputA_row_major;
 
         /** Input matrix B in column-major format. */
         std::vector<FloatType> _inputB;
+        std::vector<FloatType> _inputB_row_major;
 
         /**
          * The simulation implementation instance.
@@ -75,7 +78,9 @@ namespace ppb {
          */
         MatrixMultiplication(const int m, const int n, const int k, const unsigned int seed = 42u)
             : _inputA{ppb::generateUniformVector<std::vector<FloatType>>(m * k, seed)},
+               _inputA_row_major{changeOrdering(_inputA, m)},
               _inputB{ppb::generateUniformVector<std::vector<FloatType>>(k * n, seed + 1)},
+                _inputB_row_major{changeOrdering(_inputB, k)},
               _impl{},
               _config{MatrixMultiplicationConfig{m, n, k}} {
             isFunctional();
@@ -93,7 +98,11 @@ namespace ppb {
          * @return The resulting matrix C.
          */
         std::vector<FloatType> operator()() {
-            return _impl(_inputA, _inputB, _config);
+            if constexpr (std::is_same_v<is_row_major, std::true_type>) {
+                return _impl(_inputA_row_major, _inputB_row_major, _config);
+            } else {
+                return _impl(_inputA, _inputB, _config);
+            }
         }
 
         /**
@@ -104,14 +113,28 @@ namespace ppb {
          */
         void isFunctional() {
             const std::vector<FloatType> matrixA = {1, 3, 5, 2, 4, 6};
+            const std::vector<FloatType> matrixA_row_major = {1, 2, 3, 4, 5, 6};
             const std::vector<FloatType> matrixB = {7, 10, 8, 11, 9, 12};
+            const std::vector<FloatType> matrixB_row_major = {7, 8, 9, 10, 11, 12};
             const std::vector<FloatType> expectedResult = {27, 61, 95, 30, 68, 106, 33, 75, 117};
-            const auto actualResult = _impl(matrixA, matrixB, {3, 3, 2});
-            if (!std::equal(actualResult.begin(), actualResult.end(), expectedResult.begin())) {
-                std::cerr << "Matrix multiplication failed!" << std::endl;
-                std::cerr << "Expected: " << expectedResult << std::endl;
-                std::cerr << "Actual: " << actualResult << std::endl;
-                std::exit(1);
+            const std::vector<FloatType> expectedResult_row_major = {27, 30, 33, 61, 68, 75, 95, 106, 117};
+            std::vector<FloatType> actualResult;
+            if constexpr (std::is_same_v<is_row_major, std::true_type>) {
+                actualResult = _impl(matrixA_row_major, matrixB_row_major, {3, 3, 2});
+                if (!std::equal(actualResult.begin(), actualResult.end(), expectedResult_row_major.begin())) {
+                    std::cerr << "Matrix multiplication failed!" << std::endl;
+                    std::cerr << "Expected: " << expectedResult << std::endl;
+                    std::cerr << "Actual: " << actualResult << std::endl;
+                    std::exit(1);
+                }
+            } else {
+                actualResult = _impl(matrixA, matrixB, {3, 3, 2});
+                if (!std::equal(actualResult.begin(), actualResult.end(), expectedResult.begin())) {
+                    std::cerr << "Matrix multiplication failed!" << std::endl;
+                    std::cerr << "Expected: " << expectedResult << std::endl;
+                    std::cerr << "Actual: " << actualResult << std::endl;
+                    std::exit(1);
+                }
             }
         }
 

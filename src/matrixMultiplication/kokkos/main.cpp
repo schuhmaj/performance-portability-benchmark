@@ -5,7 +5,8 @@
 
 BENCHMARK(ppb::MatrixMultiplication<ppb::ImplKokkos<float>>::benchmark)
     ->Name("MatrixMultiplication-Kokkos-Float")
-    ->Arg(512)
+    ->Arg(8096)
+    ->Iterations(3)
     ->Unit(benchmark::kMillisecond)
     ->Complexity();
 
