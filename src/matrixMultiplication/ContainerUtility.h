@@ -132,4 +132,32 @@ namespace ppb {
         return vec;
     }
 
+    /**
+     * The method takes an 2-dimensional matrix with either left-memory (column-major) or right-memory (row-major)
+     * layout and transforms it into the opposing layout.
+     *
+     * @tparam Container The container type, which must satisfy the Container concept.
+     * @param container The container to change the index scheme
+     * @param The size of the first dimension (i.e. colum-major => number of rows/ length of a column)
+     * @return The container with the changed index scheme
+     */
+#if __cplusplus >= 202002L
+    template <Container Container>
+#else
+    template <typename Container>
+#endif
+    Container changeOrdering(const Container &container, const size_t firstDimSize) {
+        Container result(container.size());
+        const size_t secondDimSize = container.size() / firstDimSize;
+        for (size_t i = 0; i < firstDimSize; ++i) {
+            for (size_t j = 0; j < secondDimSize; ++j) {
+                size_t row_major_idx = j * firstDimSize + i;
+                size_t col_major_idx = i * secondDimSize + j;
+                result[col_major_idx] = container[row_major_idx];
+            }
+        }
+        return result;
+    }
+
+
 } // namespace ppb
