@@ -123,7 +123,7 @@ namespace ppb {
                 actualResult = _impl(matrixA_row_major, matrixB_row_major, {3, 3, 2});
                 if (!std::equal(actualResult.begin(), actualResult.end(), expectedResult_row_major.begin())) {
                     std::cerr << "Matrix multiplication failed!" << std::endl;
-                    std::cerr << "Expected: " << expectedResult << std::endl;
+                    std::cerr << "Expected: " << expectedResult_row_major << std::endl;
                     std::cerr << "Actual: " << actualResult << std::endl;
                     std::exit(1);
                 }
