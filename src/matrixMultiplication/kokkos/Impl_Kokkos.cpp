@@ -7,9 +7,9 @@ namespace ppb {
                                                                const std::vector<FloatType> &b, const MatrixMultiplicationConfig &config) {
         std::vector<FloatType> result(config.m * config.n, 0.0);
 
-        Kokkos::View<FloatType**, Kokkos::HostSpace, Kokkos::MemoryUnmanaged> hostA(const_cast<FloatType *>(a.data()), config.m, config.k);
-        Kokkos::View<FloatType**, Kokkos::HostSpace, Kokkos::MemoryUnmanaged> hostB(const_cast<FloatType *>(b.data()), config.k, config.n);
-        Kokkos::View<FloatType**, Kokkos::DefaultExecutionSpace> devC("devC", config.m, config.n);
+        Kokkos::View<FloatType**, Kokkos::LayoutLeft, Kokkos::HostSpace, Kokkos::MemoryUnmanaged> hostA(const_cast<FloatType *>(a.data()), config.m, config.k);
+        Kokkos::View<FloatType**, Kokkos::LayoutLeft, Kokkos::HostSpace, Kokkos::MemoryUnmanaged> hostB(const_cast<FloatType *>(b.data()), config.k, config.n);
+        Kokkos::View<FloatType**, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> devC("devC", config.m, config.n);
 
         auto devA = Kokkos::create_mirror_view_and_copy(Kokkos::DefaultExecutionSpace{}, hostA);
         auto devB = Kokkos::create_mirror_view_and_copy(Kokkos::DefaultExecutionSpace{}, hostB);
@@ -22,7 +22,7 @@ namespace ppb {
             }
             devC(i, j) += sum;
         });
-        typename Kokkos::View<FloatType**, Kokkos::DefaultExecutionSpace>::HostMirror hostC = Kokkos::create_mirror_view_and_copy(Kokkos::DefaultHostExecutionSpace{}, devC);
+        typename Kokkos::View<FloatType**, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>::HostMirror hostC = Kokkos::create_mirror_view_and_copy(Kokkos::DefaultHostExecutionSpace{}, devC);
         std::copy(hostC.data(), hostC.data() + config.m * config.n, result.begin());
         return result;
     }
