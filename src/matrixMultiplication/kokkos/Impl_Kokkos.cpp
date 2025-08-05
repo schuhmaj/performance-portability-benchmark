@@ -7,22 +7,23 @@ namespace ppb {
                                                                const std::vector<FloatType> &b, const MatrixMultiplicationConfig &config) {
         std::vector<FloatType> result(config.m * config.n, 0.0);
 
-        Kokkos::View<FloatType**, Kokkos::LayoutLeft, Kokkos::SharedSpace, Kokkos::MemoryUnmanaged> hostA(const_cast<FloatType *>(a.data()), config.m, config.k);
-        // Kokkos::View<FloatType**, Kokkos::LayoutLeft> devB("devB", config.k, config.n);
-        // Kokkos::View<FloatType**, Kokkos::LayoutLeft> devC("devC", config.n, config.m);
+        Kokkos::View<FloatType**, Kokkos::LayoutLeft, Kokkos::HostSpace, Kokkos::MemoryUnmanaged> hostA(const_cast<FloatType *>(a.data()), config.m, config.k);
+        Kokkos::View<FloatType**, Kokkos::LayoutLeft, Kokkos::HostSpace, Kokkos::MemoryUnmanaged> hostB(const_cast<FloatType *>(b.data()), config.k, config.n);
+        Kokkos::View<FloatType**, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> devC("devC", config.m, config.n);
 
-        // auto hostA = Kokkos::create_mirror_view(devA);
-        // std::memcpy(hostA.data(), a.data(), sizeof(FloatType) * config.m * config.k);
-        // Kokkos::deep_copy(devA, hostA);
-        // auto hostB = Kokkos::create_mirror_view(devB);
-        // std::memcpy(hostB.data(), b.data(), sizeof(FloatType) * config.k * config.n);
-        // Kokkos::deep_copy(devB, hostB);
-        // auto hostC = Kokkos::create_mirror_view(devC);
+        auto devA = Kokkos::create_mirror_view_and_copy(Kokkos::DefaultExecutionSpace{}, hostA);
+        auto devB = Kokkos::create_mirror_view_and_copy(Kokkos::DefaultExecutionSpace{}, hostB);
 
-
-        std::array<FloatType, 5> x{hostA(0,0), hostA(0,1), hostA(0,2), hostA(1,0), hostA(1,1)};
-
-
+        // Indexing this way: (row, column)
+        Kokkos::parallel_for("matrix_multiplication", Kokkos::MDRangePolicy<Kokkos::Rank<2>>({0, 0}, {config.m, config.n}), KOKKOS_LAMBDA(const int i, const int j) {
+            FloatType sum = 0.0;
+            for (int entry = 0; entry < config.k; ++entry) {
+                sum += devA(i, entry) * devB(entry, j);
+            }
+            devC(i, j) += sum;
+        });
+        typename Kokkos::View<FloatType**, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>::HostMirror hostC = Kokkos::create_mirror_view_and_copy(Kokkos::DefaultHostExecutionSpace{}, devC);
+        std::copy(hostC.data(), hostC.data() + config.m * config.n, result.begin());
         return result;
     }
 
