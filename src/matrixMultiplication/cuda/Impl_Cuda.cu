@@ -42,8 +42,7 @@ namespace ppb {
                                                                 const std::vector<FloatType> &b,
                                                                 const MatrixMultiplicationConfig &config) {
 
-        cudaStream_t stream;
-        cudaStreamCreate(&stream);
+        cudaStream_t stream = cudaStreamPerThread;
 
         // Allocate device memory
         FloatType *devA, *devB, *devC;
@@ -71,8 +70,6 @@ namespace ppb {
         cudaFreeAsync(devA, stream);
         cudaFreeAsync(devB, stream);
         cudaFreeAsync(devC, stream);
-        cudaStreamSynchronize(stream);
-        cudaStreamDestroy(stream);
         return result;
     }
 
