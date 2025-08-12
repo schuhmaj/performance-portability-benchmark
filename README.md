@@ -32,6 +32,11 @@ of the following two options:
   # Before executing the next line, modify CMAKE_INSTALL_PREFIX and CMAKE_INSTALL_RPATH in the Preset accordingly! 
   cmake --workflow --preset default 
   ```
+- Option 3 **Intel oneAPI Based**
+  - Install [Intel oneAPI Base Toolkit](https://www.intel.com/content/www/us/en/developer/tools/oneapi/base-toolkit-download.html)
+  - Install the SYCL Extension from Codeplay for [Nvidia](https://developer.codeplay.com/products/oneapi/nvidia/download/) or [AMD](https://developer.codeplay.com/products/oneapi/amd/home/) GPUs
+  - If Nvidia: Install [Nvidia CUDA Toolkit](https://developer.nvidia.com/cuda-toolkit) _before_ installing the SYCL Extension.
+  - You can easily source the full environment by executing `source /opt/intel/oneapi/setvars.sh` after installation.
 
 Requirements that might be necessary:
 
@@ -58,7 +63,7 @@ to explicit enable one technology:
 |--------------------------|-------------------------------------|-------------|
 | PPB_ENABLE_OpenACC       | Enable OpenACC Target               | NVHPC       |
 | PPB_ENABLE_OpenMP        | Enable OpenMP Target                | LLVM        |
-| PPB_ENABLE_AdaptiveCpp   | Enable AdaptiveCPP Target           | LLVM        |
+| PPB_ENABLE_AdaptiveCpp   | Enable AdaptiveCPP/ SYCL Target     | LLVM        |
 | PPB_ENABLE_OpenCL        | Enable OpenCL Targets (incl. Boost) | LLVM, NVHPC |
 | PPB_ENABLE_Kokkos        | Enable Kokkos Target                | LLVM, NVHPC |
 | PPB_ENABLE_Raja          | Enable Raja Target                  | LLVM, NVHPC |
