@@ -110,7 +110,7 @@ if (${PPB_ENABLE_Cuda})
 endif()
 
 # AdaptiveCPP Inclusion
-if (${PPB_ENABLE_AdaptiveCpp})
+if (${PPB_ENABLE_AdaptiveCpp} AND NOT CMAKE_CXX_COMPILER_ID STREQUAL "IntelLLVM")
     include(adaptive_cpp)
 endif ()
 

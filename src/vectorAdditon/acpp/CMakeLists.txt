@@ -1,6 +1,11 @@
 add_executable(vec_acpp Impl_AdaptiveCpp.cpp)
 target_compile_features(vec_acpp PUBLIC cxx_std_17)
-add_sycl_to_target(TARGET vec_acpp)
+if (CMAKE_CXX_COMPILER_ID STREQUAL "IntelLLVM")
+    target_compile_options(vec_acpp PUBLIC -fsycl -fsycl-targets=nvptx64-nvidia-cuda)
+    target_link_options(vec_acpp PUBLIC -fsycl -fsycl-targets=nvptx64-nvidia-cuda)
+else ()
+    add_sycl_to_target(TARGET vec_acpp)
+endif ()
 target_link_libraries(vec_acpp PRIVATE vec_lib)
 
 #add_executable(vec_acpp_std Impl_AdaptiveCppStd.cpp)
