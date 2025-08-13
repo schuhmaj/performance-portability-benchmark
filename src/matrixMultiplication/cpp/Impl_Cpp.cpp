@@ -1,5 +1,4 @@
 #include "Impl_Cpp.h"
-#include "omp.h"
 
 namespace ppb {
     template <typename FloatType>
@@ -7,9 +6,9 @@ namespace ppb {
                                                                const std::vector<FloatType> &b, const MatrixMultiplicationConfig &config) {
         std::vector<FloatType> result(config.m * config.n, 0.0);
         for (int i = 0; i < config.m; ++i) {
-            for (int j = 0; j < config.n; ++j) {
-                for (int entry = 0; entry < config.k; ++entry) {
-                    result[i + j * config.m] += a[i + entry * config.m] * b[entry + j * config.k];
+            for (int entry = 0; entry < config.k; ++entry) {
+                for (int j = 0; j < config.n; ++j) {
+                    result[i * config.n + j] += a[i * config.k + entry] * b[entry * config.n + j];
                 }
             }
         }

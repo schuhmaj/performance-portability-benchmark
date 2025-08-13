@@ -11,7 +11,7 @@ namespace ppb {
     public:
 
         using float_type = FloatType;
-        using row_major = std::false_type;
+        using row_major = std::true_type;
 
         std::vector<FloatType> operator()(const std::vector<FloatType> &a, const std::vector<FloatType> &b, const MatrixMultiplicationConfig &config);
 

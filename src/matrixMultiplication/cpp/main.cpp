@@ -4,7 +4,7 @@
 
 BENCHMARK(ppb::MatrixMultiplication<ppb::ImplCpp<float>>::benchmark)
     ->Name("MatrixMultiplication-CStd-Float")
-    ->Arg(512)
+    ->Arg(2048)
     ->Unit(benchmark::kMillisecond)
     ->Complexity();
 
