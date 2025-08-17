@@ -1,4 +1,5 @@
 #include "Impl_Cpp.h"
+#include "omp.h"
 
 namespace ppb {
     template <typename FloatType>
@@ -6,6 +7,7 @@ namespace ppb {
                                                                const std::vector<FloatType> &b, const MatrixMultiplicationConfig &config) {
         std::vector<FloatType> result(config.m * config.n, 0.0);
         constexpr int TILE_SIZE = 64;
+#pragma omp parallel for
         for (int tile = 0; tile < config.k; tile += TILE_SIZE) {
             const int endK = std::min(tile + TILE_SIZE, config.k);
             for (int i = 0; i < config.m; ++i) {

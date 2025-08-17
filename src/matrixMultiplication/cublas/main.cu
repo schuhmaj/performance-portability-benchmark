@@ -4,7 +4,7 @@
 
 BENCHMARK(ppb::MatrixMultiplication<ppb::ImplCublas<float>>::benchmark)
     ->Name("MatrixMultiplication-Cublas-Float")
-    ->Arg(8096)
+    ->Arg(4096)
     ->Iterations(3)
     ->Unit(benchmark::kMillisecond)
     ->Complexity();

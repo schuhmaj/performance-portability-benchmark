@@ -4,7 +4,7 @@
 
 BENCHMARK(ppb::MatrixMultiplication<ppb::ImplCuda<float>>::benchmark)
     ->Name("MatrixMultiplication-Cuda-Float")
-    ->Arg(8096)
+    ->Arg(4096)
     ->Iterations(3)
     ->Unit(benchmark::kMillisecond)
     ->Complexity();
