@@ -2,8 +2,8 @@
 
 namespace ppb {
 
-    __global__ void matrixMultiplication(const float *__restrict__ a, const float *__restrict__ b, float *__restrict__ c, const int m, const int n,
-                                         const int k) {
+    __global__ void matrixMultiplication(const float *__restrict__ a, const float *__restrict__ b, float *__restrict__ c, const int M, const int N,
+                                         const int K) {
         extern __shared__ float shrA[];
         const unsigned int threadsInBlock = blockDim.x * blockDim.y;
         float *__restrict__ shrB = shrA + threadsInBlock;
@@ -12,17 +12,16 @@ namespace ppb {
 
         const unsigned int tx = threadIdx.x;
         const unsigned int ty = threadIdx.y;
-        if (row >= n || column >= m) {
-            return;
-        }
 
         float sum = 0.0;
-        const unsigned int numTiles = (k + blockDim.x - 1) / blockDim.x;
+        const unsigned int numTiles = (K + blockDim.x - 1) / blockDim.x;
         #pragma unroll
         for (int i = 0; i < numTiles; ++i) {
             const unsigned int offset = tx + blockDim.x * ty;
-            shrA[offset] = a[row + m * (ty + i * blockDim.x)];
-            shrB[offset] = b[column * k + (tx + i * blockDim.x)];
+            const unsigned int kA = i * blockDim.x + ty;
+            const unsigned int kB = i * blockDim.x + tx;
+            shrA[offset] = (row < M && kA < K) ? a[row + M * kA] : 0.0f;
+            shrB[offset] = (column < N && kB < K) ? b[column * K + kB] : 0.0f;
             __syncthreads();
             #pragma unroll
             for (int j = 0; j < blockDim.x; ++j) {
@@ -30,7 +29,10 @@ namespace ppb {
             }
             __syncthreads();
         }
-        c[row + column * m] = sum;
+        if (row < N && column < M) {
+            c[row + column * M] = sum;
+        }
+
     }
 
     template <typename FloatType>
