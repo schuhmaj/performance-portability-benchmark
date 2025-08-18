@@ -4,7 +4,6 @@ target_compile_features(matMul_cpp_lib PUBLIC cxx_std_17)
 target_link_libraries(matMul_cpp_lib
         PUBLIC
         matMul_lib
-        OpenMP::OpenMP_CXX
 )
 
 # This is the main executable to be used for benchmarking purposes
