@@ -6,7 +6,7 @@
 #include "cuda/Impl_Cuda.cuh"
 
 
-class MatrixMultiplicationTest : public ::testing::Test {
+class MatrixMultiplicationTest : public ::testing::TestWithParam<size_t> {
 protected:
 
     static constexpr double EPSILON = 1e-4;
@@ -17,65 +17,25 @@ protected:
 
 };
 
-TEST_F(MatrixMultiplicationTest, CudaImplementation_Size2x2) {
+TEST_P(MatrixMultiplicationTest, CudaImplementation_AllSizes) {
     using namespace testing;
     using namespace ppb;
 
-    constexpr size_t SIZE = 2;
-    ImplCpp<float> matMul{};
-    auto actualResult = matMul(matrixA, matrixB, {SIZE, SIZE, SIZE});
+    const int size = GetParam();
 
-    ASSERT_THAT(actualResult, Pointwise(FloatEq(), matrixC));
-}
+    if (size == 2) {
+        ImplCpp<float> matMul{};
+        const auto actualResult = matMul(matrixA, matrixB, {size, size, size});
+        ASSERT_THAT(actualResult, Pointwise(FloatEq(), matrixC));
+        return;
+    }
 
-TEST_F(MatrixMultiplicationTest, CudaImplementation_Size10x10) {
-    using namespace testing;
-    using namespace ppb;
-
-    constexpr size_t SIZE = 10;
-    MatrixMultiplication<ImplCpp<float>> cppMatMul{SIZE};
-    MatrixMultiplication<ImplCuda<float>> cudaMatMul{SIZE};
+    MatrixMultiplication<ImplCpp<float>> cppMatMul{size};
+    MatrixMultiplication<ImplCuda<float>> cudaMatMul{size};
     const auto expectedResult = cppMatMul();
     const auto actualResult = cudaMatMul();
 
     ASSERT_THAT(actualResult, Pointwise(FloatNear(EPSILON), expectedResult));
 }
 
-TEST_F(MatrixMultiplicationTest, CudaImplementation_Size32x32) {
-    using namespace testing;
-    using namespace ppb;
-
-    constexpr size_t SIZE = 32;
-    MatrixMultiplication<ImplCpp<float>> cppMatMul{SIZE};
-    MatrixMultiplication<ImplCuda<float>> cudaMatMul{SIZE};
-    const auto expectedResult = cppMatMul();
-    const auto actualResult = cudaMatMul();
-
-    ASSERT_THAT(actualResult, Pointwise(FloatNear(EPSILON), expectedResult));
-}
-
-TEST_F(MatrixMultiplicationTest, CudaImplementation_Size64x64) {
-    using namespace testing;
-    using namespace ppb;
-
-    constexpr size_t SIZE = 64;
-    MatrixMultiplication<ImplCpp<float>> cppMatMul{SIZE};
-    MatrixMultiplication<ImplCuda<float>> cudaMatMul{SIZE};
-    const auto expectedResult = cppMatMul();
-    const auto actualResult = cudaMatMul();
-
-    ASSERT_THAT(actualResult, Pointwise(FloatNear(EPSILON), expectedResult));
-}
-
-TEST_F(MatrixMultiplicationTest, CudaImplementation_Size512x512) {
-    using namespace testing;
-    using namespace ppb;
-
-    constexpr size_t SIZE = 512;
-    MatrixMultiplication<ImplCpp<float>> cppMatMul{SIZE};
-    MatrixMultiplication<ImplCuda<float>> cudaMatMul{SIZE};
-    const auto expectedResult = cppMatMul();
-    const auto actualResult = cudaMatMul();
-
-    ASSERT_THAT(actualResult, Pointwise(FloatNear(EPSILON), expectedResult));
-}
+INSTANTIATE_TEST_SUITE_P(BySize,MatrixMultiplicationTest, ::testing::Values(2, 10, 32, 50, 64, 512));

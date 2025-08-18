@@ -83,7 +83,7 @@ namespace ppb {
                 _inputB_row_major{changeOrdering(_inputB, k)},
               _impl{},
               _config{MatrixMultiplicationConfig{m, n, k}} {
-            isFunctional();
+            //isFunctional();
         }
 
         /**
