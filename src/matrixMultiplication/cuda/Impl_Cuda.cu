@@ -2,8 +2,7 @@
 
 namespace ppb {
 
-    template<typename FloatType>
-    __global__ void matrixMultiplication(const FloatType *__restrict__ a, const FloatType *__restrict__ b, FloatType *__restrict__ c, const int m, const int n,
+    __global__ void matrixMultiplication(const float *__restrict__ a, const float *__restrict__ b, float *__restrict__ c, const int m, const int n,
                                          const int k) {
         extern __shared__ float shrA[];
         const unsigned int threadsInBlock = blockDim.x * blockDim.y;
@@ -17,7 +16,7 @@ namespace ppb {
             return;
         }
 
-        FloatType sum = 0.0;
+        float sum = 0.0;
         const unsigned int numTiles = (k + blockDim.x - 1) / blockDim.x;
         #pragma unroll
         for (int i = 0; i < numTiles; ++i) {
@@ -33,9 +32,6 @@ namespace ppb {
         }
         c[row + column * m] = sum;
     }
-
-    template __global__ void matrixMultiplication<float>(const float* __restrict__, const float* __restrict__, float* __restrict__, int, int, int);
-
 
     template <typename FloatType>
     std::vector<FloatType> ImplCuda<FloatType>::operator()(const std::vector<FloatType> &a,
@@ -83,7 +79,7 @@ namespace ppb {
         }
         int blockSize = 0;
         int minGridSize = 0;
-        cudaOccupancyMaxPotentialBlockSize(&minGridSize, &blockSize, reinterpret_cast<void *>(matrixMultiplication<float>), 0, blockSizeLimit);
+        cudaOccupancyMaxPotentialBlockSize(&minGridSize, &blockSize, reinterpret_cast<void *>(matrixMultiplication), 0, blockSizeLimit);
 
         // blockSize is most likely either 768 (32x24) or 1024 (32x32) given the current GPUs
         // Number of Resident Threads varies between 1024, 1536 and 2048; maximum block size is always 1024
