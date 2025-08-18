@@ -5,6 +5,11 @@
 
 namespace ppb {
 
+    template<typename T>
+    __host__ __device__ inline T ceilDiv(const T &a, const T &b) {
+        return (a + b - 1) / b;
+    }
+
     template<typename FloatType>
     class ImplCuda {
 
@@ -18,7 +23,6 @@ namespace ppb {
         static dim3 getIdealBlockSize(unsigned int m, unsigned int n);
 
         static dim3 getIdealGridSize(const dim3 &blockSize, int m, int n);
-
     };
 
     };
