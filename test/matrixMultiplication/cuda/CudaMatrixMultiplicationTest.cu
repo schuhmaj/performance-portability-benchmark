@@ -4,6 +4,7 @@
 #include "MatrixMultiplication.h"
 #include "cpp/Impl_Cpp.h"
 #include "cuda/Impl_Cuda.cuh"
+#include "cuda/Impl_CudaTensor.cuh"
 
 
 class MatrixMultiplicationTest : public ::testing::TestWithParam<size_t> {
@@ -47,6 +48,38 @@ TEST_P(MatrixMultiplicationTest, CudaImplementation_AllSizes) {
 
     MatrixMultiplication<ImplCpp<float>> cppMatMul{size};
     MatrixMultiplication<ImplCuda<float>> cudaMatMul{size};
+    const auto expectedResult = cppMatMul();
+    const auto actualResult = cudaMatMul();
+
+    ASSERT_THAT(actualResult, Pointwise(FloatNear(EPSILON), expectedResult));
+}
+
+TEST_P(MatrixMultiplicationTest, CudaTensorImplementation_AllSizes) {
+    using namespace testing;
+    using namespace ppb;
+
+    const int size = GetParam();
+
+    if (size == 2) {
+        ImplCudaTensor<float> cudaMatMul{};
+        ImplCpp<float> cppMatMul{};
+        static_assert(ImplCuda<float>::row_major::value == ImplCpp<float>::row_major::value, "Memory Layout must be the same for both implementations");
+        if constexpr (ImplCuda<float>::row_major::value) {
+            const auto expectedResult = cppMatMul(matrixA_rowMajor, matrixB_rowMajor, {size, size, size});
+            const auto actualResult = cudaMatMul(matrixA_rowMajor, matrixB_rowMajor, {size, size, size});
+            ASSERT_THAT(matrixC_rowMajor, Pointwise(FloatEq(), actualResult));
+            ASSERT_THAT(matrixC_rowMajor, Pointwise(FloatEq(), expectedResult));
+        } else {
+            const auto expectedResult = cppMatMul(matrixA, matrixB, {size, size, size});
+            const auto actualResult = cudaMatMul(matrixA, matrixB, {size, size, size});
+            ASSERT_THAT(matrixC, Pointwise(FloatEq(), actualResult));
+            ASSERT_THAT(matrixC, Pointwise(FloatEq(), expectedResult));
+        }
+        return;
+    }
+
+    MatrixMultiplication<ImplCpp<float>> cppMatMul{size};
+    MatrixMultiplication<ImplCudaTensor<float>> cudaMatMul{size};
     const auto expectedResult = cppMatMul();
     const auto actualResult = cudaMatMul();
 

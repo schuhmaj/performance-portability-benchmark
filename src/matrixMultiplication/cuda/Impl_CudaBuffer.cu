@@ -1,9 +1,52 @@
-#include "Impl_Cuda.cuh"
+#include "Impl_CudaBuffer.cuh"
 #include <mma.h>
+#include <cuda/barrier>
+#include <cooperative_groups/memcpy_async.h>
 
 namespace ppb {
 
-    __global__ void matrixMultiplication(const float *__restrict__ a,
+    using barrier = cuda::barrier<cuda::thread_scope_block>;
+
+
+    __device__ void fillSharedMemory(const float *__restrict__ a, float *__restrict__ tileA,
+                                    const float *__restrict__ b, float *__restrict__ tileB,
+                                           const int M, const int N, const int K,
+                                            const unsigned int tile) {
+        constexpr unsigned int ROWS_PER_THREAD = 4;
+        const unsigned int TILE_K = blockDim.x;
+        const unsigned int TILE_M = blockDim.x * ROWS_PER_THREAD;
+        const unsigned int TILE_N = blockDim.y;
+
+        const unsigned int tx = threadIdx.x;
+        const unsigned int ty = threadIdx.y;
+
+        const unsigned int baseRow = blockIdx.x * TILE_M + tx * ROWS_PER_THREAD;
+        const unsigned int column  = blockIdx.y * blockDim.y + ty;
+        for (unsigned int kk = ty; kk < TILE_K; kk += blockDim.y) {
+            const unsigned int kGlobal = tile * TILE_K + kk;
+            const unsigned int shBase = kk * TILE_M + tx * ROWS_PER_THREAD;
+
+            if (kGlobal < K) {
+                const float* ptrA = a + kGlobal * M + baseRow;
+                tileA[shBase + 0] = (baseRow + 0 < M) ? ptrA[0] : 0.0f;
+                tileA[shBase + 1] = (baseRow + 1 < M) ? ptrA[1] : 0.0f;
+                tileA[shBase + 2] = (baseRow + 2 < M) ? ptrA[2] : 0.0f;
+                tileA[shBase + 3] = (baseRow + 3 < M) ? ptrA[3] : 0.0f;
+            } else {
+                tileA[shBase + 0] = 0.0f;
+                tileA[shBase + 1] = 0.0f;
+                tileA[shBase + 2] = 0.0f;
+                tileA[shBase + 3] = 0.0f;
+            }
+        }
+        for (unsigned int kk = tx; kk < TILE_K; kk += blockDim.x) {
+            const unsigned int kGlobal = tile * TILE_K + kk;
+            const unsigned int shIdx = kk * TILE_N + ty;
+            tileB[shIdx] = column < N && kGlobal < K ? b[column * K + kGlobal] : 0.0f;;
+        }
+    }
+
+    __global__ void matrixMultiplicationBuffer(const float *__restrict__ a,
                                            const float *__restrict__ b,
                                            float *__restrict__ c,
                                            const int M, const int N, const int K) {
@@ -17,8 +60,15 @@ namespace ppb {
         const unsigned int TILE_N = blockDim.y;
 
         extern __shared__ float smem[];
-        float* __restrict__ tileA = smem;
-        float* __restrict__ tileB = tileA + (TILE_M * TILE_K);
+        const unsigned int size = TILE_M * TILE_K;
+        float* __restrict__ tileA[2] = {smem, smem + 2 * size};
+        float* __restrict__ tileB[2] = {smem + size, smem + 3 * size};
+        __shared__ barrier filled[2];
+        auto block = cooperative_groups::this_thread_block();
+        if (block.thread_rank() < 2) {
+            init(filled + block.thread_rank(), block.size());
+        }
+        block.sync();
 
         const unsigned int tx = threadIdx.x;
         const unsigned int ty = threadIdx.y;
@@ -28,43 +78,29 @@ namespace ppb {
 
         const unsigned int numTiles = ceilDiv<unsigned int>(K, TILE_K);
         float4 acc = make_float4(0.0f, 0.0f, 0.0f, 0.0f);
-        for (unsigned int tile = 0; tile < numTiles; ++tile) {
-            for (unsigned int kk = ty; kk < TILE_K; kk += blockDim.y) {
-                const unsigned int kGlobal = tile * TILE_K + kk;
-                const unsigned int shBase = kk * TILE_M + tx * ROWS_PER_THREAD;
 
-                if (kGlobal < K) {
-                    const float* ptrA = a + kGlobal * M + baseRow;
-                    tileA[shBase + 0] = (baseRow + 0 < M) ? ptrA[0] : 0.0f;
-                    tileA[shBase + 1] = (baseRow + 1 < M) ? ptrA[1] : 0.0f;
-                    tileA[shBase + 2] = (baseRow + 2 < M) ? ptrA[2] : 0.0f;
-                    tileA[shBase + 3] = (baseRow + 3 < M) ? ptrA[3] : 0.0f;
-                } else {
-                    tileA[shBase + 0] = 0.0f;
-                    tileA[shBase + 1] = 0.0f;
-                    tileA[shBase + 2] = 0.0f;
-                    tileA[shBase + 3] = 0.0f;
-                }
-            }
-            for (unsigned int kk = tx; kk < TILE_K; kk += blockDim.x) {
-                const unsigned int kGlobal = tile * TILE_K + kk;
-                const unsigned int shIdx = kk * TILE_N + ty;
-                tileB[shIdx] = column < N && kGlobal < K ? b[column * K + kGlobal] : 0.0f;;
-            }
-            __syncthreads();
+        unsigned int current = 0, next = 1;
 
+        fillSharedMemory(a, tileA[0], b, tileB[0], M, N, K, 0);
+        auto token = filled[0].arrive();
+
+        for (unsigned int tile = 0; tile <= numTiles; ++tile) {
+            fillSharedMemory(a, tileA[next], b, tileB[next], M, N, K, tile);
+
+            filled[current].arrive_and_wait();
             // Compute accumulations for this tile
             const int rowOffset = tx * ROWS_PER_THREAD;
             #pragma unroll
             for (int kk = 0; kk < TILE_K; ++kk) {
-                const float bval = tileB[kk * TILE_N + ty];
+                const float bval = tileB[current][kk * TILE_N + ty];
                 const int aBase = kk * TILE_M + rowOffset;
-                acc.x += tileA[aBase + 0] * bval;
-                acc.y += tileA[aBase + 1] * bval;
-                acc.z += tileA[aBase + 2] * bval;
-                acc.w += tileA[aBase + 3] * bval;
+                acc.x += tileA[current][aBase + 0] * bval;
+                acc.y += tileA[current][aBase + 1] * bval;
+                acc.z += tileA[current][aBase + 2] * bval;
+                acc.w += tileA[current][aBase + 3] * bval;
             }
-            __syncthreads();
+            current ^= 1;
+            next ^= 1;
         }
         if (column < N) {
             if (baseRow + 0 < M) c[baseRow + 0 + column * M] = acc.x;
@@ -76,7 +112,7 @@ namespace ppb {
 
 
     template <typename FloatType>
-    std::vector<FloatType> ImplCuda<FloatType>::operator()(const std::vector<FloatType> &a,
+    std::vector<FloatType> ImplCudaBuffer<FloatType>::operator()(const std::vector<FloatType> &a,
                                                                 const std::vector<FloatType> &b,
                                                                 const MatrixMultiplicationConfig &config) {
 
@@ -92,7 +128,7 @@ namespace ppb {
         const dim3 gridSize = getIdealGridSize(blockSize, config.m, config.n);
         // Shared memory: TILE_K*(TILE_M + TILE_N) floats
         // TILE_K = blockDim.x, TILE_M = blockDim.x*4, TILE_N = blockDim.y
-        const size_t sharedMemSize = blockSize.x * (4 * blockSize.x + blockSize.y) * sizeof(FloatType);
+        const size_t sharedMemSize = 2 * blockSize.x * (4 * blockSize.x + blockSize.y) * sizeof(FloatType);
 
         cudaMallocAsync(&devA, sizeA, stream);
         cudaMallocAsync(&devB, sizeB, stream);
@@ -103,7 +139,7 @@ namespace ppb {
         cudaMemcpyAsync(devB, b.data(), sizeB, cudaMemcpyHostToDevice, stream);
 
         static_assert(std::is_same_v<FloatType, float>, "This kernel currently supports float only.");
-        matrixMultiplication<<<gridSize, blockSize, sharedMemSize, stream>>>(devA, devB, devC, config.m, config.n, config.k);
+        matrixMultiplicationBuffer<<<gridSize, blockSize, sharedMemSize, stream>>>(devA, devB, devC, config.m, config.n, config.k);
 
         std::vector<FloatType> result(config.m * config.n, 0.0);
         cudaMemcpyAsync(result.data(), devC, sizeC, cudaMemcpyDeviceToHost, stream);
@@ -115,7 +151,7 @@ namespace ppb {
     }
 
     template <typename FloatType>
-    dim3 ImplCuda<FloatType>::getIdealBlockSize(const unsigned int m, const unsigned int n) {
+    dim3 ImplCudaBuffer<FloatType>::getIdealBlockSize(const unsigned int m, const unsigned int n) {
         constexpr unsigned int WRAP_SIZE = 32;
         constexpr unsigned int MAX_THREADS = 1024;
         const int blockSizeLimit = static_cast<int>(m) * static_cast<int>(n);
@@ -129,7 +165,7 @@ namespace ppb {
 
         int blockSize = 0;
         int minGridSize = 0;
-        cudaOccupancyMaxPotentialBlockSize(&minGridSize, &blockSize, reinterpret_cast<void *>(matrixMultiplication), 0, blockSizeLimit);
+        cudaOccupancyMaxPotentialBlockSize(&minGridSize, &blockSize, reinterpret_cast<void *>(matrixMultiplicationBuffer), 0, blockSizeLimit);
 
         // blockSize is most likely either 768 (32x24) or 1024 (32x32) given the current GPUs
         // Number of Resident Threads varies between 1024, 1536 and 2048; maximum block size is always 1024
@@ -138,13 +174,13 @@ namespace ppb {
     }
 
     template <typename FloatType>
-    dim3 ImplCuda<FloatType>::getIdealGridSize(const dim3 &blockSize, const int m, const int n) {
+    dim3 ImplCudaBuffer<FloatType>::getIdealGridSize(const dim3 &blockSize, const int m, const int n) {
         const int rowsPerBlock = static_cast<int>(blockSize.x) * 4;
         return {ceilDiv<unsigned int>(m, rowsPerBlock), ceilDiv<unsigned int>(n, blockSize.y), 1};
     }
 
 
     /* Explicit Instantiation for float and double */
-    template class ImplCuda<float>;
+    template class ImplCudaBuffer<float>;
     //template class ImplCuda<double>;
 } // namespace ppb

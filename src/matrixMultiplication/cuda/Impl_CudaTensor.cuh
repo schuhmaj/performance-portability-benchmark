@@ -1,13 +1,13 @@
 #pragma once
-#include <vector>
 #include <array>
+#include <vector>
 #include "Common.cuh"
 #include "MatrixMultiplication.h"
 
 namespace ppb {
 
     template<typename FloatType>
-    class ImplCuda {
+    class ImplCudaTensor {
 
     public:
 

@@ -7,7 +7,7 @@
 namespace ppb {
 
     template<typename FloatType>
-    class ImplCuda {
+    class ImplCudaBuffer {
 
     public:
 
