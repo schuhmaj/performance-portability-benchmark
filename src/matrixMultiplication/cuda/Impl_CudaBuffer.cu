@@ -59,9 +59,11 @@ namespace ppb {
         const unsigned int TILE_N = blockDim.y;
 
         extern __shared__ float smem[];
-        const unsigned int size = TILE_M * TILE_K;
-        float* __restrict__ tileA[2] = {smem, smem + 2 * size};
-        float* __restrict__ tileB[2] = {smem + size, smem + 3 * size};
+        const unsigned int sizeA = TILE_M * TILE_K;
+        const unsigned int sizeB = TILE_K * TILE_N;
+        float* __restrict__ tileA[2] = { smem, smem + sizeA };
+        float* __restrict__ tileB[2] = { smem + 2 * sizeA, smem + 2 * sizeA + sizeB };
+
         __shared__ barrier filled[2];
         auto block = cooperative_groups::this_thread_block();
         if (block.thread_rank() < 2) {
@@ -79,11 +81,11 @@ namespace ppb {
         float4 acc = make_float4(0.0f, 0.0f, 0.0f, 0.0f);
 
         unsigned int current = 0, next = 1;
-
-        fillSharedMemory(a, tileA[0], b, tileB[0], M, N, K, 0);
-
-        for (unsigned int tile = 0; tile <= numTiles; ++tile) {
-            fillSharedMemory(a, tileA[next], b, tileB[next], M, N, K, tile);
+        fillSharedMemory(a, tileA[current], b, tileB[current], M, N, K, 0);
+        for (unsigned int tile = 0; tile < numTiles; ++tile) {
+            if (tile + 1 < numTiles) {
+                fillSharedMemory(a, tileA[next], b, tileB[next], M, N, K, tile + 1);
+            }
 
             filled[current].arrive_and_wait();
             // Compute accumulations for this tile
