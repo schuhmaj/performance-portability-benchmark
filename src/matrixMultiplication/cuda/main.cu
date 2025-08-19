@@ -1,8 +1,16 @@
 #include "Impl_Cuda.cuh"
 #include "Impl_CudaTensor.cuh"
 #include "Impl_CudaBuffer.cuh"
+#include "Impl_Cublas.cuh"
 #include "MatrixMultiplication.h"
 #include "benchmark/benchmark.h"
+
+BENCHMARK(ppb::MatrixMultiplication<ppb::ImplCublas<float>>::benchmark)
+    ->Name("MatrixMultiplication-Cublas-Float")
+    ->Arg(4096)
+    ->Iterations(10)
+    ->Unit(benchmark::kMillisecond)
+    ->Complexity();
 
 BENCHMARK(ppb::MatrixMultiplication<ppb::ImplCuda<float>>::benchmark)
     ->Name("MatrixMultiplication-Cuda-Float")

@@ -6,6 +6,7 @@
 #include "cuda/Impl_Cuda.cuh"
 #include "cuda/Impl_CudaTensor.cuh"
 #include "cuda/Impl_CudaBuffer.cuh"
+#include "cuda/Impl_Cublas.cuh"
 
 
 class MatrixMultiplicationTest : public ::testing::TestWithParam<size_t> {
@@ -68,6 +69,11 @@ TEST_P(MatrixMultiplicationTest, CudaTensorImplementation_AllSizes) {
 TEST_P(MatrixMultiplicationTest, CudaBufferImplementation_AllSizes) {
     const int size = GetParam();
     this->runTest<ppb::ImplCudaBuffer<float>>(size);
+}
+
+TEST_P(MatrixMultiplicationTest, CublasImplementation_AllSizes) {
+    const int size = GetParam();
+    this->runTest<ppb::ImplCublas<float>>(size);
 }
 
 INSTANTIATE_TEST_SUITE_P(BySize,MatrixMultiplicationTest, ::testing::Values(2, 10, 32, 50, 64, 512));

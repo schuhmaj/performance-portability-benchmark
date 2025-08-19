@@ -7,7 +7,6 @@ target_include_directories(matMul_lib INTERFACE ${MATRIX_MULTIPLICATION_ROOT_DIR
 
 if (CMAKE_CUDA_COMPILER AND PPB_ENABLE_Cuda)
     add_subdirectory(cuda)
-    add_subdirectory(cublas)
 endif ()
 
 if (${PPB_ENABLE_OpenMP})
