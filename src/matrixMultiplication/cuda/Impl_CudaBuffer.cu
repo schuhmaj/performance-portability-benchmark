@@ -1,4 +1,5 @@
 #include "Impl_CudaBuffer.cuh"
+#include <mma.h>
 #include <cuda/barrier>
 #include <cooperative_groups/memcpy_async.h>
 
@@ -8,13 +9,15 @@ namespace ppb {
 
 
     __device__ void fillSharedMemory(const float *__restrict__ a, float *__restrict__ tileA,
-                                    const float *__restrict__ b, float *__restrict__ tileB,
-                                           const int M, const int N, const int K,
-                                            const unsigned int tile) {
+                                     const float *__restrict__ b, float *__restrict__ tileB,
+                                     const int M, const int N, const int K,
+                                     const unsigned int tile) {
         constexpr unsigned int ROWS_PER_THREAD = 4;
         const unsigned int TILE_K = blockDim.x;
         const unsigned int TILE_M = blockDim.x * ROWS_PER_THREAD;
         const unsigned int TILE_N = blockDim.y;
+
+        auto block = cooperative_groups::this_thread_block();
 
         const unsigned int tx = threadIdx.x;
         const unsigned int ty = threadIdx.y;
@@ -25,23 +28,34 @@ namespace ppb {
             const unsigned int kGlobal = tile * TILE_K + kk;
             const unsigned int shBase = kk * TILE_M + tx * ROWS_PER_THREAD;
 
-            if (kGlobal < K) {
-                const float* ptrA = a + kGlobal * M + baseRow;
-                tileA[shBase + 0] = (baseRow + 0 < M) ? ptrA[0] : 0.0f;
-                tileA[shBase + 1] = (baseRow + 1 < M) ? ptrA[1] : 0.0f;
-                tileA[shBase + 2] = (baseRow + 2 < M) ? ptrA[2] : 0.0f;
-                tileA[shBase + 3] = (baseRow + 3 < M) ? ptrA[3] : 0.0f;
+            const bool in_bounds_k = (kGlobal < K);
+            const bool in_bounds_r0 = (baseRow + 0 < M);
+            const bool in_bounds_r1 = (baseRow + 1 < M);
+            const bool in_bounds_r2 = (baseRow + 2 < M);
+            const bool in_bounds_r3 = (baseRow + 3 < M);
+
+            if (in_bounds_k && in_bounds_r0 && in_bounds_r1 && in_bounds_r2 && in_bounds_r3) {
+                // Fully in-bounds: async copy 4 floats at once
+                const float* srcA = a + kGlobal * M + baseRow;
+                cooperative_groups::memcpy_async(block, tileA + shBase, srcA, ROWS_PER_THREAD * sizeof(float));
             } else {
-                tileA[shBase + 0] = 0.0f;
-                tileA[shBase + 1] = 0.0f;
-                tileA[shBase + 2] = 0.0f;
-                tileA[shBase + 3] = 0.0f;
+                // Partially or fully out-of-bounds: zero-fill explicitly (no async)
+                tileA[shBase + 0] = (in_bounds_k && in_bounds_r0) ? a[kGlobal * M + (baseRow + 0)] : 0.0f;
+                tileA[shBase + 1] = (in_bounds_k && in_bounds_r1) ? a[kGlobal * M + (baseRow + 1)] : 0.0f;
+                tileA[shBase + 2] = (in_bounds_k && in_bounds_r2) ? a[kGlobal * M + (baseRow + 2)] : 0.0f;
+                tileA[shBase + 3] = (in_bounds_k && in_bounds_r3) ? a[kGlobal * M + (baseRow + 3)] : 0.0f;
             }
         }
+        // Load B tile: each thread copies one float for its column per kk
         for (unsigned int kk = tx; kk < TILE_K; kk += blockDim.x) {
             const unsigned int kGlobal = tile * TILE_K + kk;
             const unsigned int shIdx = kk * TILE_N + ty;
-            tileB[shIdx] = column < N && kGlobal < K ? b[column * K + kGlobal] : 0.0f;;
+            if (column < N && kGlobal < K) {
+                const float* srcB = b + column * K + kGlobal;
+                cooperative_groups::memcpy_async(block, tileB + shIdx, srcB, sizeof(float));
+            } else {
+                tileB[shIdx] = 0.0f;
+            }
         }
     }
 
