@@ -1,5 +1,4 @@
 #include "Impl_CudaBuffer.cuh"
-#include <mma.h>
 #include <cuda/barrier>
 #include <cooperative_groups/memcpy_async.h>
 
@@ -82,7 +81,6 @@ namespace ppb {
         unsigned int current = 0, next = 1;
 
         fillSharedMemory(a, tileA[0], b, tileB[0], M, N, K, 0);
-        auto token = filled[0].arrive();
 
         for (unsigned int tile = 0; tile <= numTiles; ++tile) {
             fillSharedMemory(a, tileA[next], b, tileB[next], M, N, K, tile);
