@@ -7,34 +7,37 @@ namespace ppb {
 
     __global__ void matrixMultiplicationTensor(const float *__restrict__ a, const float *__restrict__ b, float *__restrict__ c, const int M, const int N,
                                          const int K) {
-        __shared__ float shrA[TILE_SIZE * TILE_SIZE];
-        __shared__ float shrB[TILE_SIZE * TILE_SIZE];
+        using namespace nvcuda;
+        __shared__ half shrA[TILE_SIZE * TILE_SIZE];
+        __shared__ half shrB[TILE_SIZE * TILE_SIZE];
         const unsigned int row = blockIdx.x * blockDim.x + threadIdx.x;
         const unsigned int column = blockIdx.y * blockDim.y + threadIdx.y;
+
+        const unsigned int tileRow = blockIdx.x * TILE_SIZE;
+        const unsigned int tileCol = blockIdx.y * TILE_SIZE;
 
         const unsigned int tx = threadIdx.x;
         const unsigned int ty = threadIdx.y;
 
-        float sum = 0.0;
-        const unsigned int numTiles = (K + blockDim.x - 1) / blockDim.x;
-        #pragma unroll
+        wmma::fragment<wmma::matrix_a, 16, 16, 16, half, wmma::col_major> a_frag;
+        wmma::fragment<wmma::matrix_b, 16, 16, 16, half, wmma::col_major> b_frag;
+        wmma::fragment<wmma::accumulator, 16, 16, 16, float> acc;
+        wmma::fill_fragment(acc, 0.0f);
+        const unsigned int numTiles = (K + TILE_SIZE - 1) / TILE_SIZE;
         for (int i = 0; i < numTiles; ++i) {
-            const unsigned int offset = tx + blockDim.x * ty;
-            const unsigned int kA = i * blockDim.x + ty;
-            const unsigned int kB = i * blockDim.x + tx;
-            shrA[offset] = (row < M && kA < K) ? a[row + M * kA] : 0.0f;
-            shrB[offset] = (column < N && kB < K) ? b[column * K + kB] : 0.0f;
+            const unsigned int offset = tx + TILE_SIZE * ty;
+            const unsigned int kA = i * TILE_SIZE + ty;
+            const unsigned int kB = i * TILE_SIZE + tx;
+            shrA[offset] = __float2half((row < M && kA < K) ? a[row + M * kA] : 0.0f);
+            shrB[offset] = __float2half((column < N && kB < K) ? b[column * K + kB] : 0.0f);
             __syncthreads();
-            #pragma unroll
-            for (int j = 0; j < blockDim.x; ++j) {
-                sum += shrA[tx + j * blockDim.x] * shrB[j + ty * blockDim.x];
-            }
-            __syncthreads();
-        }
-        if (row < N && column < M) {
-            c[row + column * M] = sum;
-        }
+            wmma::load_matrix_sync(a_frag, shrA, 16);
+            wmma::load_matrix_sync(b_frag, shrB, 16);
 
+            wmma::mma_sync(acc, a_frag, b_frag, acc);
+            __syncthreads();
+        }
+        wmma::store_matrix_sync(&c[tileRow + tileCol * M], acc, M, wmma::mem_col_major);
     }
 
     template <typename FloatType>
@@ -69,6 +72,8 @@ namespace ppb {
         cudaFreeAsync(devA, stream);
         cudaFreeAsync(devB, stream);
         cudaFreeAsync(devC, stream);
+
+        cudaStreamSynchronize(stream);
         return result;
     }
 
