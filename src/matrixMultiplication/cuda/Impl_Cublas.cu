@@ -1,19 +1,9 @@
-
-#include <cublas_v2.h>
-#include <cuda_runtime.h>
-#include <memory>
-#include <stdexcept>
 #include "Impl_Cublas.cuh"
 
 namespace ppb {
     template <typename FloatType>
     std::vector<FloatType> ImplCublas<FloatType>::operator()(const std::vector<FloatType> &a,
                                                              const std::vector<FloatType> &b,  const MatrixMultiplicationConfig &config) {
-        cublasHandle_t handle;
-        if (cublasCreate(&handle) != CUBLAS_STATUS_SUCCESS) {
-            throw std::runtime_error("CUBLAS initialization failed");
-        }
-
         // Allocate device memory
         FloatType *devA, *devB, *devC;
         const size_t sizeA = config.m * config.k * sizeof(FloatType);
@@ -59,8 +49,6 @@ namespace ppb {
         cudaFree(devA);
         cudaFree(devB);
         cudaFree(devC);
-
-        cublasDestroy(handle);
         return result;
     }
 
