@@ -2,115 +2,105 @@
 #include <benchmark/benchmark.h>
 #include <iostream>
 
-template <typename FloatType>
-struct ppb::VectorAddition<FloatType>::impl {
+namespace ppb {
 
-    static constexpr size_t NUM_STREAMS = 4;
-    size_t chunkSize;
-
-    FloatType* deviceA[NUM_STREAMS];
-    FloatType* deviceB[NUM_STREAMS];
-    FloatType* deviceC[NUM_STREAMS];
-    cudaStream_t stream[NUM_STREAMS];
-
-    impl(const size_t size, const std::vector<FloatType> &a, const std::vector<FloatType> &b)
-    : deviceA{nullptr},
-      deviceB {nullptr},
-      deviceC {nullptr},
-      stream{} {
-        size_t freeMemory, totalMemory;
-        cudaMemGetInfo(&freeMemory, &totalMemory);
-        size_t usableMemory = static_cast<size_t>(static_cast<double>(freeMemory) * 0.8);
-        chunkSize = usableMemory / (3 * NUM_STREAMS * sizeof(FloatType));
-
-        for (int i = 0; i < NUM_STREAMS; i++) {
-            cudaStreamCreateWithFlags(&stream[i], cudaStreamNonBlocking);
-            cudaMallocAsync(&deviceA[i], chunkSize * sizeof(FloatType), stream[i]);
-            cudaMallocAsync(&deviceB[i], chunkSize * sizeof(FloatType), stream[i]);
-            cudaMallocAsync(&deviceC[i], chunkSize * sizeof(FloatType), stream[i]);
+    // Kernel for vector addition
+    __global__ void kernel_vector_add(int size, float* __restrict__ a, float* __restrict__ b, float* __restrict__ c) {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if (i < size) {
+            c[i] = a[i] + b[i];
         }
     }
 
-    ~impl() {
-        for (int i = 0; i < NUM_STREAMS; i++) {
-            cudaFreeAsync(deviceA[i], stream[i]);
-            cudaFreeAsync(deviceB[i], stream[i]);
-            cudaFreeAsync(deviceC[i], stream[i]);
-            cudaStreamSynchronize(stream[i]);
-            cudaStreamDestroy(stream[i]);
+    template <typename FloatType>
+    struct ImplChunkedCuda {
+
+        using float_type = FloatType;
+
+        static constexpr size_t NUM_STREAMS = 4;
+        size_t chunkSize;
+        cudaStream_t stream[NUM_STREAMS];
+
+        ImplChunkedCuda()
+        : stream{} {
+            size_t freeMemory, totalMemory;
+            cudaMemGetInfo(&freeMemory, &totalMemory);
+            size_t usableMemory = static_cast<size_t>(static_cast<double>(freeMemory) * 0.8);
+            chunkSize = usableMemory / (3 * NUM_STREAMS * sizeof(FloatType));
+            for (int i = 0; i < NUM_STREAMS; i++) {
+                cudaStreamCreateWithFlags(&stream[i], cudaStreamNonBlocking);
+            }
         }
-    }
-};
 
-template<typename FloatType>
-void ppb::VectorAddition<FloatType>::init() {
-    _impl = std::make_unique<impl>(_size, _inA, _inB);
+        ~ImplChunkedCuda() {
+            for (int i = 0; i < NUM_STREAMS; i++) {
+                cudaStreamSynchronize(stream[i]);
+                cudaStreamDestroy(stream[i]);
+            }
+        }
+
+        std::vector<FloatType> operator()(const std::vector<FloatType> &a, const std::vector<FloatType> &b) {
+            const size_t _size = a.size();
+            std::vector<FloatType> result(_size);
+            FloatType* deviceA[NUM_STREAMS];
+            FloatType* deviceB[NUM_STREAMS];
+            FloatType* deviceC[NUM_STREAMS];
+
+            for (int i = 0; i < NUM_STREAMS; i++) {
+                cudaMallocAsync(&deviceA[i], chunkSize * sizeof(FloatType), stream[i]);
+                cudaMallocAsync(&deviceB[i], chunkSize * sizeof(FloatType), stream[i]);
+                cudaMallocAsync(&deviceC[i], chunkSize * sizeof(FloatType), stream[i]);
+            }
+
+            int minGridSize;
+            int blockSize = 256;
+            cudaOccupancyMaxPotentialBlockSize(
+                &minGridSize,
+                &blockSize,
+                kernel_vector_add,
+                0,
+                _size
+            );
+
+            size_t neededChunks = (_size + chunkSize - 1) / chunkSize;
+
+            for (size_t chunk_idx = 0; chunk_idx < neededChunks; ++chunk_idx) {
+                int stream_idx = chunk_idx % NUM_STREAMS;
+                size_t offset = chunk_idx * chunkSize;
+                size_t current_chunk_size = std::min(chunkSize, _size - offset);
+
+                cudaMemcpyAsync(deviceA[stream_idx], &a[offset],
+                               current_chunk_size * sizeof(FloatType),
+                               cudaMemcpyHostToDevice, stream[stream_idx]);
+                cudaMemcpyAsync(deviceB[stream_idx],  &b[offset],
+                               current_chunk_size * sizeof(FloatType),
+                               cudaMemcpyHostToDevice, stream[stream_idx]);
+
+                int gridSize = (current_chunk_size + blockSize - 1) / blockSize;
+                kernel_vector_add<<<gridSize, blockSize, 0, stream[stream_idx]>>>(current_chunk_size,
+                    deviceA[stream_idx], deviceB[stream_idx],deviceC[stream_idx]);
+
+                // Copy result back
+                cudaMemcpyAsync(&result[offset], deviceC[stream_idx],
+                               current_chunk_size * sizeof(FloatType),
+                               cudaMemcpyDeviceToHost, stream[stream_idx]);
+            }
+
+            // Wait for all streams to complete
+            for (int i = 0; i < NUM_STREAMS; ++i) {
+                cudaStreamSynchronize(stream[i]);
+                cudaFreeAsync(deviceA[i], stream[i]);
+                cudaFreeAsync(deviceB[i], stream[i]);
+                cudaFreeAsync(deviceC[i], stream[i]);
+            }
+            return result;
+        }
+    };
+
+
 }
 
-// Kernel for vector addition
-template<typename FloatType>
-__global__ void kernel_vector_add(int size, FloatType* __restrict__ a, FloatType* __restrict__ b, FloatType* __restrict__ c) {
-    int i = blockIdx.x * blockDim.x + threadIdx.x;
-    if (i < size) {
-        c[i] = a[i] + b[i];
-    }
-}
-
-// VectorAddition operator() implementation
-template<typename FloatType>
-std::vector<FloatType> ppb::VectorAddition<FloatType>::operator()() {
-    std::vector<FloatType> result(_size);
-
-    int minGridSize;
-    int blockSize = 256;
-    cudaOccupancyMaxPotentialBlockSize(
-        &minGridSize,
-        &blockSize,
-        (void*)kernel_vector_add<FloatType>,
-        0,
-        _size
-    );
-
-    size_t neededChunks = (_size + _impl->chunkSize - 1) / _impl->chunkSize;
-
-    for (size_t chunk_idx = 0; chunk_idx < neededChunks; ++chunk_idx) {
-        int stream_idx = chunk_idx % _impl->NUM_STREAMS;
-        size_t offset = chunk_idx * _impl->chunkSize;
-        size_t current_chunk_size = std::min(_impl->chunkSize, _size - offset);
-
-        cudaMemcpyAsync(_impl->deviceA[stream_idx], &_inA[offset],
-                       current_chunk_size * sizeof(FloatType),
-                       cudaMemcpyHostToDevice, _impl->stream[stream_idx]);
-        cudaMemcpyAsync(_impl->deviceB[stream_idx],  &_inB[offset],
-                       current_chunk_size * sizeof(FloatType),
-                       cudaMemcpyHostToDevice, _impl->stream[stream_idx]);
-
-        int gridSize = (current_chunk_size + blockSize - 1) / blockSize;
-        kernel_vector_add<<<gridSize, blockSize, 0, _impl->stream[stream_idx]>>>(current_chunk_size,
-            _impl->deviceA[stream_idx], _impl->deviceB[stream_idx],
-            _impl->deviceC[stream_idx]);
-
-        // Copy result back
-        cudaMemcpyAsync(&result[offset], _impl->deviceC[stream_idx],
-                       current_chunk_size * sizeof(FloatType),
-                       cudaMemcpyDeviceToHost, _impl->stream[stream_idx]);
-    }
-
-    // Wait for all streams to complete
-    for (int i = 0; i < _impl->NUM_STREAMS; ++i) {
-        cudaStreamSynchronize(_impl->stream[i]);
-    }
-    return result;
-}
-
-// Explicit instantiation and benchmarking setup
-template __global__ void kernel_vector_add<float>(int, float*, float*, float*);
-template std::vector<float> ppb::VectorAddition<float>::operator()();
-BENCHMARK(ppb::VectorAddition<float>::benchmark)->Name("VecAdd-Cuda-Float")->RangeMultiplier(10)->Range(1e6, 1e9)->Complexity();
-
-// template __global__ void kernel_vector_add<double>(int, double*, double*, double*);
-// template std::vector<double> ppb::VectorAddition<double>::operator()();
-// BENCHMARK(ppb::VectorAddition<double>::benchmark)->Name("VecAdd-Cuda-Double")->RangeMultiplier(10)->Range(1e3, 1e8)->Complexity();
+BENCHMARK(ppb::VectorAddition<ppb::ImplChunkedCuda<float>>::benchmark)->Name("VecAdd-Cuda-Float")->RangeMultiplier(10)->Range(1e6, 1e9)->Complexity();
 
 int main(int argc, char** argv) {
     benchmark::MaybeReenterWithoutASLR(argc, argv);

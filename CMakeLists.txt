@@ -103,12 +103,6 @@ if (${PPB_ENABLE_Raja})
     include(raja)
 endif()
 
-# Thrust Inclusion (requires Cuda)
-if (${PPB_ENABLE_Cuda})
-    include(thrust)
-    thrust_create_target(Thrust HOST CPP DEVICE CUDA)
-endif()
-
 # AdaptiveCPP Inclusion
 if (${PPB_ENABLE_AdaptiveCpp} AND NOT CMAKE_CXX_COMPILER_ID STREQUAL "IntelLLVM")
     include(adaptive_cpp)

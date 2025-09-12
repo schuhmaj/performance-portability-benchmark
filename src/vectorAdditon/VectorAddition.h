@@ -12,12 +12,14 @@
 #include <sstream>
 
 namespace ppb {
+
     /**
      * Simple Class offering a vector addition benchmark
-     * @tparam FloatType
      */
-    template<typename FloatType>
+    template<class Implementation>
     class VectorAddition {
+
+        using FloatType = typename Implementation::float_type;
 
         /** The size of the vector addition */
         size_t _size;
@@ -28,8 +30,7 @@ namespace ppb {
         /** Second input vector to be summed */
         std::vector<FloatType> _inB;
 
-        struct impl;
-        std::unique_ptr<impl> _impl{nullptr};
+        Implementation _impl;
 
     public:
         /**
@@ -41,23 +42,18 @@ namespace ppb {
         explicit VectorAddition(const size_t size) : _size{size}, _inA(size), _inB(size) {
             std::iota(_inA.begin(), _inA.end(), 0);
             std::iota(_inB.begin(), _inB.end(), 0);
-            this->init();
         }
 
         /** Default Destructor */
         ~VectorAddition() = default;
 
         /**
-         * Initializes the internal implementation of the class (the _impl member).
-         * This method is called in the constructor of the class.
-         */
-        void init();
-
-        /**
          * Performs the vector addition and returns the _outC vector.
          * @return results of inA + inB
          */
-        std::vector<FloatType> operator()();
+        std::vector<FloatType> operator()() {
+            return _impl(_inA, _inB);
+        }
 
         /**
          * Static method for benchmarking the vector addition, i.e. the operator() of the VectorAddition class
@@ -68,7 +64,7 @@ namespace ppb {
          */
         static void inline benchmark(benchmark::State& state) {
             const size_t size = state.range(0);
-            VectorAddition<FloatType> vec{size};
+            VectorAddition vec{size};
 
             for (auto _ : state) {
                 const auto start = std::chrono::high_resolution_clock::now();

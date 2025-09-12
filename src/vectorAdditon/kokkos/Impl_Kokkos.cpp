@@ -34,53 +34,45 @@
 //     }
 // };
 
-template <typename FloatType>
-struct ppb::VectorAddition<FloatType>::impl {
-    Kokkos::View<FloatType *> deviceA;
-    Kokkos::View<FloatType *> deviceB;
+namespace ppb {
+    template <typename FloatType>
+    struct KokkosImpl {
+        using float_type = FloatType;
+        std::vector<FloatType> operator()(const std::vector<FloatType> &a, const std::vector<FloatType> &b) {
+            const size_t size = a.size();
+            Kokkos::View<FloatType *> deviceA{"deviceA", size};
+            Kokkos::View<FloatType *> deviceB{"deviceB", size};
 
-    explicit impl(const size_t size, const std::vector<FloatType> &a, const std::vector<FloatType> &b) : deviceA{"deviceA", size}, deviceB {"deviceB", size} {
-        typename Kokkos::View<FloatType *>::HostMirror hostA = Kokkos::create_mirror_view(deviceA);
-        std::copy(a.begin(), a.end(), hostA.data());
-        Kokkos::deep_copy(deviceA, hostA);
-        typename Kokkos::View<FloatType *>::HostMirror hostB = Kokkos::create_mirror_view(deviceB);
-        std::copy(b.begin(), b.end(), hostB.data());
-        Kokkos::deep_copy(deviceB, hostB);
-    }
+            typename Kokkos::View<FloatType *>::HostMirror hostA = Kokkos::create_mirror_view(deviceA);
+            std::copy(a.begin(), a.end(), hostA.data());
+            Kokkos::deep_copy(deviceA, hostA);
+
+            typename Kokkos::View<FloatType *>::HostMirror hostB = Kokkos::create_mirror_view(deviceB);
+            std::copy(b.begin(), b.end(), hostB.data());
+            Kokkos::deep_copy(deviceB, hostB);
+
+            Kokkos::View<FloatType *> result("result", size);
+            Kokkos::parallel_for("VecAdd", size, KOKKOS_LAMBDA(const int i) {
+                result(i) = deviceA(i) + deviceB(i);
+            });
+
+            const auto res_host = Kokkos::create_mirror_view(result);
+            Kokkos::deep_copy(res_host, result);
+            return std::vector<FloatType>(res_host.data(), res_host.data() + res_host.size());
+        }
+    };
+
+    template class KokkosImpl<float>;
+    template class KokkosImpl<double>;
 };
 
-template<typename FloatType>
-void ppb::VectorAddition<FloatType>::init() {
-    _impl = std::make_unique<impl>(_size, _inA, _inB);
-}
-
-template <typename FloatType>
-std::vector<FloatType> ppb::VectorAddition<FloatType>::operator()() {
-    Kokkos::View<FloatType *> result("result",_size);
-    const auto& deviceA = _impl->deviceA;
-    const auto& deviceB = _impl->deviceB;
-
-    Kokkos::parallel_for("VecAdd", _size, KOKKOS_LAMBDA(const int i) {
-        result(i) = deviceA(i) + deviceB(i);
-    });
-
-    const auto res_host = Kokkos::create_mirror_view(result);
-    Kokkos::deep_copy(res_host, result);
-    return std::vector<FloatType>(res_host.data(), res_host.data() + res_host.size());
-}
-
-
-// Instantiate a benchmark using single precision
-template std::vector<float> ppb::VectorAddition<float>::operator()();
-BENCHMARK(ppb::VectorAddition<float>::benchmark)
+BENCHMARK(ppb::VectorAddition<ppb::KokkosImpl<float>>::benchmark)
     ->Name("VecAdd-Kokkos-Float")
     ->RangeMultiplier(10)
     ->Range(1e3, 1e8)
     ->Complexity();
 
-// Instantiate a benchmark using double precision
-template std::vector<double> ppb::VectorAddition<double>::operator()();
-BENCHMARK(ppb::VectorAddition<double>::benchmark)
+BENCHMARK(ppb::VectorAddition<ppb::KokkosImpl<double>>::benchmark)
     ->Name("VecAdd-Kokkos-Double")
     ->RangeMultiplier(10)
     ->Range(1e3, 1e8)

@@ -3,17 +3,24 @@
 #include <execution>
 #include "VectorAddition.h"
 
+namespace ppb {
+    template <typename FloatType>
+    struct ImplNvHpcStd {
+        using float_type = FloatType;
+        std::vector<FloatType> :operator()(const std::vector<FloatType> &a, const std::vector<FloatType> &b) {
+            std::vector<FloatType> result(size);
+            std::transform(std::execution::par_unseq, a.begin(), a.end(), b.begin(), result.begin(),
+                           std::plus<FloatType>());
+            return result;
+        }
 
-template <typename FloatType>
-std::vector<FloatType> ppb::VectorAddition<FloatType>::operator()() {
-    std::transform(std::execution::par_unseq, _inA.begin(), _inA.end(), _inB.begin(), _outC.begin(),
-                   std::plus<FloatType>());
-    checkValidity();
-    return _outC;
+    };
+
+    template class ImplNvHpcStd<float>;
 }
 
-template std::vector<float> ppb::VectorAddition<float>::operator()();
-BENCHMARK(ppb::VectorAddition<float>::benchmark)
+
+BENCHMARK(ppb::VectorAddition<ImplNvHpcStd<float>>::benchmark)
     ->Name("VecAdd-NvhpcCStd-Float")
     ->RangeMultiplier(10)
     ->Range(1e3, 1e8)

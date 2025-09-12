@@ -1,3 +1,3 @@
-add_executable(vec_cstd Impl_StandardCPP.cpp)
-target_compile_features(vec_cstd PUBLIC cxx_std_17)
-target_link_libraries(vec_cstd PUBLIC vec_lib)
+add_executable(vec_cpp Impl_Cpp.cpp)
+target_compile_features(vec_cpp PUBLIC cxx_std_17)
+target_link_libraries(vec_cpp PUBLIC vec_lib)
