@@ -11,7 +11,7 @@ namespace ppb::util {
      * This relative EPSILON is utilized ONLY for testing purposes to compare floating points.
      * It is used in the {@link ppb::util::almostEqualRelative} function.
      */
-    constexpr double EPSILON_ALMOST_EQUAL = 1e-0;
+    constexpr double EPSILON_ALMOST_EQUAL = 1e-4;
 
     /**
      * The maximal allowed ULP distance utilized for FloatingPoint comparisons using the

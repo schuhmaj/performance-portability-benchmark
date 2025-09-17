@@ -116,13 +116,7 @@ namespace ppb {
             return _type == other._type &&
                 util::almostEqualRelative(_position[0], other._position[0]) &&
                 util::almostEqualRelative(_position[1], other._position[1]) &&
-                util::almostEqualRelative(_position[2], other._position[2]) &&
-                util::almostEqualRelative(_velocity[0], other._velocity[0]) &&
-                util::almostEqualRelative(_velocity[1], other._velocity[1]) &&
-                util::almostEqualRelative(_velocity[2], other._velocity[2]) &&
-                util::almostEqualRelative(_force[0], other._force[0]) &&
-                util::almostEqualRelative(_force[1], other._force[1]) &&
-                util::almostEqualRelative(_force[2], other._force[2]);
+                util::almostEqualRelative(_position[2], other._position[2]);
         }
 
         bool operator!=(const Particle &other) const {

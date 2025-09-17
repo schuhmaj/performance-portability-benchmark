@@ -7,17 +7,17 @@
 #include "kokkos/Impl_Kokkos.h"
 
 
-class NBodyKokkosTest : public ::testing::Test {
+class NBodyKokkosTest : public ::testing::TestWithParam<size_t> {
 
 };
 
-TEST_F(NBodyKokkosTest, KokkosImplementation_Size10) {
+TEST_P(NBodyKokkosTest, KokkosImplementation) {
     using namespace testing;
     using namespace ppb;
 
-    constexpr size_t SIZE = 10;
-    NBodySimulation<ImplCpp<float>> nBodyCpp{SIZE};
-    NBodySimulation<ImplKokkos<float>> nBodyKokkos{SIZE};
+    const size_t size = GetParam();
+    NBodySimulation<ImplCpp<float>> nBodyCpp{size};
+    NBodySimulation<ImplKokkos<float>> nBodyKokkos{size};
 
     const auto expectedResult = nBodyCpp();
     const auto actualResult = nBodyKokkos();
@@ -26,17 +26,4 @@ TEST_F(NBodyKokkosTest, KokkosImplementation_Size10) {
     ASSERT_THAT(actualResult, ParticleContainter1D(expectedResult));
 }
 
-TEST_F(NBodyKokkosTest, KokkosImplementation_Size100) {
-    using namespace testing;
-    using namespace ppb;
-
-    constexpr size_t SIZE = 100;
-    NBodySimulation<ImplCpp<float>> nBodyCpp{SIZE};
-    NBodySimulation<ImplKokkos<float>> nBodyKokkos{SIZE};
-
-    const auto expectedResult = nBodyCpp();
-    const auto actualResult = nBodyKokkos();
-
-
-    ASSERT_THAT(actualResult, ParticleContainter1D(expectedResult));
-}
+INSTANTIATE_TEST_SUITE_P(BySize,NBodyKokkosTest, ::testing::Values(10, 100, 1000));

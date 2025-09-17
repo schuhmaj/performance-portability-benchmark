@@ -3,7 +3,7 @@
 
 namespace ppb::util {
 
-    template<typename FloatType>
+    template <typename FloatType>
     bool almostEqualUlps(FloatType lhs, FloatType rhs, int ulpDistance) {
         static_assert(std::is_same<FloatType, float>::value || std::is_same<FloatType, double>::value,
                       "Template argument must be FloatType: Either float or double!");
@@ -17,15 +17,15 @@ namespace ppb::util {
         if (lhs < static_cast<FloatType>(0.0) && rhs > static_cast<FloatType>(0.0) ||
             lhs > static_cast<FloatType>(0.0) && rhs < static_cast<FloatType>(0.0)) {
             return false;
-            }
+        }
 
         if constexpr (std::is_same<FloatType, float>::value) {
             // In case of float, compute ULP distance by interpreting float as 32-bit integer
-            return reinterpret_cast<std::int32_t&>(rhs) - reinterpret_cast<std::int32_t&>(lhs) <= ulpDistance;
+            return reinterpret_cast<std::int32_t &>(rhs) - reinterpret_cast<std::int32_t &>(lhs) <= ulpDistance;
         }
         else if constexpr (std::is_same<FloatType, double>::value) {
             // In case of double, compute ULP distance by interpreting double as 64-bit integer
-            return reinterpret_cast<std::int64_t&>(rhs) - reinterpret_cast<std::int64_t&>(lhs) <= ulpDistance;
+            return reinterpret_cast<std::int64_t &>(rhs) - reinterpret_cast<std::int64_t &>(lhs) <= ulpDistance;
         }
 
         // Due to the static_assert above, this should not happen

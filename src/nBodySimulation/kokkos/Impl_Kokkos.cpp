@@ -11,6 +11,7 @@ namespace ppb {
         , forces{"forcesDevice", particles.size()}
         , forcesHost{Kokkos::create_mirror_view(forces)}
         , oldForces{"oldForcesDevice", particles.size()}
+        , oldForcesHost{Kokkos::create_mirror_view(oldForces)}
         , types{"typesDevice", particles.size()}
         , _ref{particles}
     {
@@ -32,18 +33,22 @@ namespace ppb {
         Kokkos::deep_copy(positionsHost, positions);
         Kokkos::deep_copy(velocitiesHost, velocities);
         Kokkos::deep_copy(forcesHost, forces);
+        Kokkos::deep_copy(oldForcesHost, oldForces);
         for (size_t i = 0; i < particles.size(); ++i) {
             std::array<FloatType, 3> pos{};
             std::array<FloatType, 3> vel{};
             std::array<FloatType, 3> force{};
+            std::array<FloatType, 3> oldForce{};
             for (size_t j = 0; j < 3; ++j) {
                 pos[j] = positionsHost(i, j);
                 vel[j] = velocitiesHost(i, j);
                 force[j] = forcesHost(i, j);
+                oldForce[j] = oldForcesHost(i, j);
             }
             particles[i].setPosition(pos);
             particles[i].setVelocity(vel);
             particles[i].setForce(force);
+            particles[i].setOldForce(oldForce);
         }
         return particles;
     }
@@ -160,7 +165,7 @@ namespace ppb {
     std::vector<Particle<FloatType>> ImplKokkos<FloatType>::simulate(const std::vector<Particle<FloatType>> &particles) {
         _particles.emplace(particles);
 
-        for (double currentT = 0.0; currentT < _config.endT; currentT += _config.deltaT) {
+        for (int i = 0; i < _config.numberTimeSteps; ++i) {
             updatePositionsAndResetForce();
             computeForces();
             updateVelocities();

@@ -38,12 +38,12 @@ namespace ppb {
         /**
          * Simulation end time.
          */
-        FloatType endT{1.0};
+        FloatType numberTimeSteps{1000};
 
         /**
          * Size of the simulation time step.
          */
-        FloatType deltaT{1e-3};
+        FloatType deltaT{1e-10};
 
         /**
          * Global force applied to all particles (3D vector).

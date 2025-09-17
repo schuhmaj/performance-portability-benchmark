@@ -8,7 +8,7 @@ namespace ppb {
     template <typename FloatType>
     std::vector<Particle<FloatType>> ImplCpp<FloatType>::simulate(const std::vector<Particle<FloatType>> &particles) {
         std::vector<Particle<FloatType>> particlesCopy{particles};
-        for (double currentT = 0.0; currentT < _config.endT; currentT += _config.deltaT) {
+        for (int i = 0; i < _config.numberTimeSteps; ++i) {
             updatePositionsAndResetForce(particlesCopy);
             computeForces(particlesCopy);
             updateVelocities(particlesCopy);
