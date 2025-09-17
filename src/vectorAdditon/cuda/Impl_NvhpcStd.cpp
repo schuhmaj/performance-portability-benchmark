@@ -1,4 +1,6 @@
 #include <algorithm>
+#include <chrono>
+#include <utility>
 #include <benchmark/benchmark.h>
 #include <execution>
 #include "VectorAddition.h"
@@ -7,13 +9,15 @@ namespace ppb {
     template <typename FloatType>
     struct ImplNvHpcStd {
         using float_type = FloatType;
-        std::vector<FloatType> :operator()(const std::vector<FloatType> &a, const std::vector<FloatType> &b) {
-            std::vector<FloatType> result(size);
+        std::pair<std::vector<FloatType>, double> operator()(const std::vector<FloatType> &a, const std::vector<FloatType> &b) {
+            std::vector<FloatType> result(a.size());
+            const auto start = std::chrono::high_resolution_clock::now();
             std::transform(std::execution::par_unseq, a.begin(), a.end(), b.begin(), result.begin(),
                            std::plus<FloatType>());
-            return result;
+            const auto end = std::chrono::high_resolution_clock::now();
+            const double elapsed_seconds = std::chrono::duration_cast<std::chrono::duration<double>>(end - start).count();
+            return std::make_pair(result, elapsed_seconds);
         }
-
     };
 
     template class ImplNvHpcStd<float>;
@@ -24,6 +28,9 @@ BENCHMARK(ppb::VectorAddition<ImplNvHpcStd<float>>::benchmark)
     ->Name("VecAdd-NvhpcCStd-Float")
     ->RangeMultiplier(10)
     ->Range(1e3, 1e8)
+#ifdef PPB_MEASURE_ONLY_KERNEL
+    ->UseManualTime()
+#endif
     ->Complexity();
 
 int main(int argc, char **argv) {

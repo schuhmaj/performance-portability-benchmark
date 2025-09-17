@@ -1,5 +1,6 @@
 #include <benchmark/benchmark.h>
 #include <iostream>
+#include <utility>
 #include "VectorAddition.h"
 #include "opencl/util/OpenCLUtility.h"
 
@@ -32,7 +33,7 @@ namespace ppb {
             // 1. Context & queue
             cl_int err;
             context = clCreateContext(0, 1, &device, nullptr, nullptr, &err);
-            queue = clCreateCommandQueue(context, device, 0, &err);
+            queue = clCreateCommandQueue(context, device, CL_QUEUE_PROFILING_ENABLE, &err);
 
             // 3. OpenCL program & kernel
             std::string kernelSource;
@@ -63,7 +64,7 @@ namespace ppb {
             clReleaseContext(context);
         }
 
-        std::vector<FloatType> operator()(const std::vector<FloatType> &a, const std::vector<FloatType> &b) {
+        std::pair<std::vector<FloatType>, double> operator()(const std::vector<FloatType> &a, const std::vector<FloatType> &b) {
             const size_t size = a.size();
             cl_int err = 0;
             cl_mem deviceA = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,  size * sizeof(FloatType), const_cast<FloatType*>(a.data()), &err);
@@ -79,20 +80,28 @@ namespace ppb {
             err = clSetKernelArg(kernel, 2, sizeof(cl_mem), &resultBuffer);
             if (err != CL_SUCCESS) throw std::runtime_error("SetKernelArg 2 failed");
 
-            // 3. Launch kernel
+            // 3. Launch kernel and Measure Time
+            cl_event event;
+            cl_ulong start, end;
             const size_t localWorkSize = 1024;
             const size_t globalWorkSize = roundUp(localWorkSize, size);
-            err = clEnqueueNDRangeKernel(queue, kernel, 1, nullptr, &globalWorkSize, &localWorkSize, 0, nullptr, nullptr);
+            err = clEnqueueNDRangeKernel(queue, kernel, 1, nullptr, &globalWorkSize, &localWorkSize, 0, nullptr, &event);
             if (err != CL_SUCCESS) throw std::runtime_error("EnqueueNDRangeKernel failed");
 
             // 4. Copy result C back
             err = clEnqueueReadBuffer(queue, resultBuffer, CL_TRUE, 0, size * sizeof(FloatType), const_cast<FloatType*>(result.data()), 0, nullptr, nullptr);
             if (err != CL_SUCCESS) throw std::runtime_error("ReadBuffer result failed: ");
             clFinish(queue);
+
+            clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_START, sizeof(start), &start, nullptr);
+            clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_END, sizeof(end), &end, nullptr);
+            double execution_time = static_cast<double>(end - start) * 1e-9;
+
             clReleaseMemObject(deviceA);
             clReleaseMemObject(deviceB);
             clReleaseMemObject(resultBuffer);
-            return result;
+            clReleaseEvent(event);
+            return std::make_pair(result, execution_time);
         }
     };
 
@@ -104,12 +113,16 @@ BENCHMARK(ppb::VectorAddition<ppb::ImplOpenCL<float>>::benchmark)
     ->Name("VecAdd-OpenCL-Float")
     ->RangeMultiplier(10)
     ->Range(1e3, 1e8)
+    ->UseManualTime()
     ->Complexity();
 
 BENCHMARK(ppb::VectorAddition<ppb::ImplOpenCL<double>>::benchmark)
     ->Name("VecAdd-OpenCL-Double")
     ->RangeMultiplier(10)
     ->Range(1e3, 1e8)
+#ifdef PPB_MEASURE_ONLY_KERNEL
+    ->UseManualTime()
+#endif
     ->Complexity();
 
 int main(int argc, char **argv) {

@@ -6,10 +6,12 @@
 #include <algorithm>
 #include <numeric>
 #include <chrono>
+#include <utility>
 #include <exception>
 #include <memory>
 #include <stdexcept>
 #include <sstream>
+#include <sys/stat.h>
 
 namespace ppb {
 
@@ -51,7 +53,7 @@ namespace ppb {
          * Performs the vector addition and returns the _outC vector.
          * @return results of inA + inB
          */
-        std::vector<FloatType> operator()() {
+        std::pair<std::vector<FloatType>, double> operator()() {
             return _impl(_inA, _inB);
         }
 
@@ -66,15 +68,17 @@ namespace ppb {
             const size_t size = state.range(0);
             VectorAddition vec{size};
 
+#ifndef PPB_MEASURE_ONLY_KERNEL
+            double kernelTime = 0;
+#endif
             for (auto _ : state) {
-                const auto start = std::chrono::high_resolution_clock::now();
-
-                auto result = vec();
+                auto [result, time] = vec();
                 benchmark::DoNotOptimize(result);
-
-                const auto end = std::chrono::high_resolution_clock::now();
-                const auto elapsed_seconds = std::chrono::duration_cast<std::chrono::duration<double>>(end - start);
-                state.SetIterationTime(elapsed_seconds.count());
+                // This time is only used when UseManualTime() is enabled for the
+                state.SetIterationTime(time);
+#ifndef PPB_MEASURE_ONLY_KERNEL
+                kernelTime += time;
+#endif
 
                 // Sanity Check that the Vector Addition was actually successful (this is not in the benchmark by design)
                 if (result[1] != vec._inA[1] + vec._inB[1]) {
@@ -83,6 +87,9 @@ namespace ppb {
                     throw std::runtime_error(ss.str());
                 }
             }
+#ifndef PPB_MEASURE_ONLY_KERNEL
+            state.counters["Kernel Time"] = benchmark::Counter(kernelTime, benchmark::Counter::kAvgIterations);
+#endif
             state.SetComplexityN(static_cast<long long>(size));
         }
 

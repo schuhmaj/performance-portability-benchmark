@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <chrono>
 #include <benchmark/benchmark.h>
 #include <execution>
 #include "VectorAddition.h"
@@ -8,11 +9,14 @@ namespace ppb {
     struct ImplCpp {
         using float_type = FloatType;
 
-        std::vector<FloatType> operator()(const std::vector<FloatType> &a, const std::vector<FloatType> &b) {
+        std::pair<std::vector<FloatType>, double> operator()(const std::vector<FloatType> &a, const std::vector<FloatType> &b) {
             std::vector<FloatType> result(a.size());
+            const auto start = std::chrono::high_resolution_clock::now();
             std::transform(a.begin(), a.end(), b.begin(), result.begin(),
                            std::plus<FloatType>());
-            return result;
+            const auto end = std::chrono::high_resolution_clock::now();
+            const double elapsed_seconds = std::chrono::duration_cast<std::chrono::duration<double>>(end - start).count();
+            return std::make_pair(result, elapsed_seconds);
         }
     };
 
@@ -24,12 +28,18 @@ BENCHMARK(ppb::VectorAddition<ppb::ImplCpp<float>>::benchmark)
     ->Name("VecAdd-CStd-Float")
     ->RangeMultiplier(10)
     ->Range(1e3, 1e8)
+#ifdef PPB_MEASURE_ONLY_KERNEL
+    ->UseManualTime()
+#endif
     ->Complexity();
 
 BENCHMARK(ppb::VectorAddition<ppb::ImplCpp<double>>::benchmark)
     ->Name("VecAdd-CStd-Float")
     ->RangeMultiplier(10)
     ->Range(1e3, 1e8)
+#ifdef PPB_MEASURE_ONLY_KERNEL
+    ->UseManualTime()
+#endif
     ->Complexity();
 
 int main(int argc, char **argv) {

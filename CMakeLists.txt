@@ -28,6 +28,8 @@ if (${PPB_LOGGING_LEVEL_INDEX} EQUAL -1)
 endif ()
 add_compile_definitions(SPDLOG_ACTIVE_LEVEL=${PPB_LOGGING_LEVEL_INDEX})
 
+option(PPB_ENABLE_OnlyKernelRuntime "Only measures the actual GPU Kernel runtime, but not memory transfers, etc." OFF)
+
 option(PPB_ENABLE_OpenACC "Enable OpenACC Target" OFF)
 option(PPB_ENABLE_OpenMP "Enable OpenMP Target" OFF)
 option(PPB_ENABLE_AdaptiveCpp "Enable AdaptiveCPP Target" OFF)
@@ -44,6 +46,7 @@ option(PPB_ENABLE_Testing "Enable Testing" ON)
 message(STATUS "####################################################")
 message(STATUS "Build Type                      ${CMAKE_BUILD_TYPE}")
 message(STATUS "Logging Level                   ${PPB_LOGGING_LEVEL}")
+message(STATUS "Only Kernel Runtime             ${PPB_ENABLE_OnlyKernelRuntime}")
 message(STATUS "####################################################")
 message(STATUS "Kokkos                          ${PPB_ENABLE_Kokkos}")
 message(STATUS "AdaptiveCpp                     ${PPB_ENABLE_AdaptiveCpp}")
@@ -62,6 +65,10 @@ message(STATUS "####################################################")
 #######################################################
 # Including dependencies needed across multiple targets
 #######################################################
+
+if (${PPB_ENABLE_OnlyKernelRuntime})
+    add_compile_definitions(PPB_MEASURE_ONLY_KERNEL)
+endif ()
 
 # Appends the the module path to contain additional CMake modules for this project
 # and include everything necessary

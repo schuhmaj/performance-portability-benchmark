@@ -1,5 +1,6 @@
 #include <benchmark/benchmark.h>
 #include <iostream>
+#include <utility>
 #include "Kokkos_Core.hpp"
 #include "VectorAddition.h"
 
@@ -38,7 +39,7 @@ namespace ppb {
     template <typename FloatType>
     struct KokkosImpl {
         using float_type = FloatType;
-        std::vector<FloatType> operator()(const std::vector<FloatType> &a, const std::vector<FloatType> &b) {
+        std::pair<std::vector<FloatType>, double> operator()(const std::vector<FloatType> &a, const std::vector<FloatType> &b) {
             const size_t size = a.size();
             Kokkos::View<FloatType *> deviceA{"deviceA", size};
             Kokkos::View<FloatType *> deviceB{"deviceB", size};
@@ -51,14 +52,18 @@ namespace ppb {
             std::copy(b.begin(), b.end(), hostB.data());
             Kokkos::deep_copy(deviceB, hostB);
 
+            Kokkos::fence();
+            Kokkos::Timer timer;
             Kokkos::View<FloatType *> result("result", size);
             Kokkos::parallel_for("VecAdd", size, KOKKOS_LAMBDA(const int i) {
                 result(i) = deviceA(i) + deviceB(i);
             });
+            Kokkos::fence();
+            const double seconds = timer.seconds();
 
             const auto res_host = Kokkos::create_mirror_view(result);
             Kokkos::deep_copy(res_host, result);
-            return std::vector<FloatType>(res_host.data(), res_host.data() + res_host.size());
+            return std::make_pair(std::vector<FloatType>(res_host.data(), res_host.data() + res_host.size()), seconds);
         }
     };
 
@@ -70,12 +75,18 @@ BENCHMARK(ppb::VectorAddition<ppb::KokkosImpl<float>>::benchmark)
     ->Name("VecAdd-Kokkos-Float")
     ->RangeMultiplier(10)
     ->Range(1e3, 1e8)
+#ifdef PPB_MEASURE_ONLY_KERNEL
+    ->UseManualTime()
+#endif
     ->Complexity();
 
 BENCHMARK(ppb::VectorAddition<ppb::KokkosImpl<double>>::benchmark)
     ->Name("VecAdd-Kokkos-Double")
     ->RangeMultiplier(10)
     ->Range(1e3, 1e8)
+#ifdef PPB_MEASURE_ONLY_KERNEL
+    ->UseManualTime()
+#endif
     ->Complexity();
 
 

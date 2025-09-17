@@ -39,7 +39,11 @@ namespace ppb {
             }
         }
 
-        std::vector<FloatType> operator()(const std::vector<FloatType> &a, const std::vector<FloatType> &b) {
+        std::pair<std::vector<FloatType>, double> operator()(const std::vector<FloatType> &a, const std::vector<FloatType> &b) {
+            float elapsedTime;
+            cudaEvent_t start, stop;
+            cudaEventCreate(&start);
+            cudaEventCreate(&stop);
             const size_t _size = a.size();
             std::vector<FloatType> result(_size);
             FloatType* deviceA[NUM_STREAMS];
@@ -63,7 +67,7 @@ namespace ppb {
             );
 
             size_t neededChunks = (_size + chunkSize - 1) / chunkSize;
-
+            cudaEventRecord(start);
             for (size_t chunk_idx = 0; chunk_idx < neededChunks; ++chunk_idx) {
                 int stream_idx = chunk_idx % NUM_STREAMS;
                 size_t offset = chunk_idx * chunkSize;
@@ -93,14 +97,24 @@ namespace ppb {
                 cudaFreeAsync(deviceB[i], stream[i]);
                 cudaFreeAsync(deviceC[i], stream[i]);
             }
-            return result;
+            cudaEventRecord(stop);
+            cudaEventSynchronize(stop);
+            cudaEventElapsedTime(&elapsedTime, start, stop);
+            return std::make_pair(result, elapsedTime * 1e-3);
         }
     };
 
 
 }
 
-BENCHMARK(ppb::VectorAddition<ppb::ImplChunkedCuda<float>>::benchmark)->Name("VecAdd-Cuda-Float")->RangeMultiplier(10)->Range(1e6, 1e9)->Complexity();
+BENCHMARK(ppb::VectorAddition<ppb::ImplChunkedCuda<float>>::benchmark)
+    ->Name("VecAdd-Cuda-Float")
+    ->RangeMultiplier(10)
+    ->Range(1e6, 1e9)
+#ifdef PPB_MEASURE_ONLY_KERNEL
+    ->UseManualTime()
+#endif
+    ->Complexity();
 
 int main(int argc, char** argv) {
     benchmark::MaybeReenterWithoutASLR(argc, argv);

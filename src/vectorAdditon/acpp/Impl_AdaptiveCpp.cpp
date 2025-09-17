@@ -1,3 +1,4 @@
+#include <utility>
 #include <benchmark/benchmark.h>
 #include <iostream>
 #include <sycl/sycl.hpp>
@@ -14,9 +15,9 @@ namespace ppb {
         using float_type = FloatType;
         static constexpr size_t ALIGNMENT = 64;
 
-        sycl::queue queue{sycl::default_selector_v, {}, sycl::property::queue::in_order{}};
+        sycl::queue queue{sycl::default_selector_v, {}, {sycl::property::queue::in_order(), sycl::property::queue::enable_profiling()}};
 
-        std::vector<FloatType> operator()(const std::vector<FloatType> &a, const std::vector<FloatType> &b) {
+        std::pair<std::vector<FloatType>, double> operator()(const std::vector<FloatType> &a, const std::vector<FloatType> &b) {
             const size_t size = a.size();
             FloatType *deviceA{sycl::aligned_alloc_device<FloatType>(ALIGNMENT, size, queue)};
             FloatType *deviceB{sycl::aligned_alloc_device<FloatType>(ALIGNMENT, size, queue)};
@@ -24,17 +25,22 @@ namespace ppb {
             queue.copy(b.data(), deviceB, size);
 
             auto *result = sycl::aligned_alloc_shared<FloatType>(ALIGNMENT, size, queue);
-            queue.submit([&](sycl::handler &h) {
+
+            auto event = queue.submit([&](sycl::handler &h) {
                 h.parallel_for<VecAddKernel<FloatType>>(sycl::range<1>{size},
                                                         [=](sycl::id<1> i) { result[i] = deviceA[i] + deviceB[i]; });
             });
-            queue.wait_and_throw();
+            event.wait_and_throw();
+            // Get time and return elpased time in seconds
+            auto end = event.template get_profiling_info<sycl::info::event_profiling::command_end>();
+            auto start = event.template get_profiling_info<sycl::info::event_profiling::command_start>();
+            double elapsed_seconds = (end - start) * 1e-9;
 
             std::vector<FloatType> hostResult(result, result + size);
             sycl::free(deviceA, queue);
             sycl::free(deviceB, queue);
             sycl::free(result, queue);
-            return hostResult;
+            return std::make_pair(hostResult, elapsed_seconds);
         }
     };
 
@@ -47,12 +53,18 @@ BENCHMARK(ppb::VectorAddition<ppb::ImplAcpp<float>>::benchmark)
     ->Name("VecAdd-AdaptiveCpp-Float")
     ->RangeMultiplier(10)
     ->Range(1e3, 1e8)
+#ifdef PPB_MEASURE_ONLY_KERNEL
+    ->UseManualTime()
+#endif
     ->Complexity();
 
 BENCHMARK(ppb::VectorAddition<ppb::ImplAcpp<double>>::benchmark)
     ->Name("VecAdd-AdaptiveCpp-Double")
     ->RangeMultiplier(10)
     ->Range(1e3, 1e8)
+#ifdef PPB_MEASURE_ONLY_KERNEL
+    ->UseManualTime()
+#endif
     ->Complexity();
 
 int main(int argc, char **argv) {
