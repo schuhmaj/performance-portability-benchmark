@@ -38,7 +38,7 @@ namespace ppb::util {
      * @see https://randomascii.wordpress.com/2012/02/25/comparing-floating-point-numbers-2012-edition/
      */
     template<typename FloatType>
-    __attribute__((device)) __attribute__((host)) bool almostEqualUlps(FloatType lhs, FloatType rhs, int ulpDistance = MAX_ULP_DISTANCE);
+    bool almostEqualUlps(FloatType lhs, FloatType rhs, int ulpDistance = MAX_ULP_DISTANCE);
 
     /**
      * Function to check if two floating point numbers are relatively equal to each other within a given error range or tolerance.
@@ -54,7 +54,7 @@ namespace ppb::util {
      * @see https://randomascii.wordpress.com/2012/02/25/comparing-floating-point-numbers-2012-edition/
      */
     template<typename FloatType>
-    __attribute__((device)) __attribute__((host)) bool almostEqualRelative(FloatType lhs, FloatType rhs, double epsilon = EPSILON_ALMOST_EQUAL);
+    bool almostEqualRelative(FloatType lhs, FloatType rhs, double epsilon = EPSILON_ALMOST_EQUAL);
 
 
 }

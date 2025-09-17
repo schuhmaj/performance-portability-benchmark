@@ -135,10 +135,11 @@ namespace ppb {
             Kokkos::parallel_for(
                 Kokkos::TeamThreadRange(team, 0, i), [&](const int j) {
                     std::array<FloatType, 3> dr{};
+                    FloatType dr2 = 0;
                     for (int k = 0; k < 3; ++k) {
                         dr[k] = position(i, k) - position(j, k);
+                        dr2 += dr[k] * dr[k];
                     }
-                    const auto dr2 = ppb::util::dot(dr, dr);
                     const auto invdr2 = 1.0 / dr2;
                     auto lj6 = sigmaSquared * invdr2;
                     lj6 = lj6 * lj6 * lj6;

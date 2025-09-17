@@ -4,7 +4,7 @@
 namespace ppb::util {
 
     template<typename FloatType>
-    __attribute__((device)) __attribute__((host)) bool almostEqualUlps(FloatType lhs, FloatType rhs, int ulpDistance) {
+    bool almostEqualUlps(FloatType lhs, FloatType rhs, int ulpDistance) {
         static_assert(std::is_same<FloatType, float>::value || std::is_same<FloatType, double>::value,
                       "Template argument must be FloatType: Either float or double!");
 
@@ -34,18 +34,18 @@ namespace ppb::util {
 
     // Template Instantations for float and double (required since definition is in .cpp file,
     //      also makes the static assert not strictly necessary)
-    template bool __attribute__((device)) __attribute__((host)) almostEqualUlps<float>(float lhs, float rhs, int ulpDistance);
-    template bool __attribute__((device)) __attribute__((host)) almostEqualUlps<double>(double lhs, double rhs, int ulpDistance);
+    template bool almostEqualUlps<float>(float lhs, float rhs, int ulpDistance);
+    template bool almostEqualUlps<double>(double lhs, double rhs, int ulpDistance);
 
 
     template<typename FloatType>
-    __attribute__((device)) __attribute__((host)) bool almostEqualRelative(FloatType lhs, FloatType rhs, double epsilon) {
+    bool almostEqualRelative(FloatType lhs, FloatType rhs, double epsilon) {
         const FloatType diff = std::abs(rhs - lhs);
         const FloatType largerValue = std::max(std::abs(rhs), std::abs(lhs));
         return diff <= largerValue * epsilon;
     }
 
-    template bool __attribute__((device)) __attribute__((host)) almostEqualRelative<float>(float lhs, float rhs, double epsilon);
-    template bool __attribute__((device)) __attribute__((host)) almostEqualRelative<double>(double lhs, double rhs, double epsilon);
+    template bool almostEqualRelative<float>(float lhs, float rhs, double epsilon);
+    template bool almostEqualRelative<double>(double lhs, double rhs, double epsilon);
 
 }
