@@ -1,4 +1,4 @@
-#include "../GoogleTestMatcher.h"
+#include "GoogleTestMatcher.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 

@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "ContainerUtility.h"
+#include "UtilityContainer.h"
 
 namespace ppb {
 
@@ -77,10 +78,10 @@ namespace ppb {
          * @param seed Seed for the random number generator.
          */
         MatrixMultiplication(const int m, const int n, const int k, const unsigned int seed = 42u)
-            : _inputA{ppb::generateUniformVector<std::vector<FloatType>>(m * k, seed)},
-               _inputA_row_major{changeOrdering(_inputA, m)},
-              _inputB{ppb::generateUniformVector<std::vector<FloatType>>(k * n, seed + 1)},
-                _inputB_row_major{changeOrdering(_inputB, k)},
+            : _inputA{ppb::util::generateUniformVector<std::vector<FloatType>>(m * k, seed)},
+               _inputA_row_major{ppb::util::changeOrdering(_inputA, m)},
+              _inputB{ppb::util::generateUniformVector<std::vector<FloatType>>(k * n, seed + 1)},
+                _inputB_row_major{ppb::util::changeOrdering(_inputB, k)},
               _impl{},
               _config{MatrixMultiplicationConfig{m, n, k}} {
             //isFunctional();

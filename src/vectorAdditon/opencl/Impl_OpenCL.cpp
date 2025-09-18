@@ -113,7 +113,9 @@ BENCHMARK(ppb::VectorAddition<ppb::ImplOpenCL<float>>::benchmark)
     ->Name("VecAdd-OpenCL-Float")
     ->RangeMultiplier(10)
     ->Range(1e3, 1e8)
+#ifdef PPB_MEASURE_ONLY_KERNEL
     ->UseManualTime()
+#endif
     ->Complexity();
 
 BENCHMARK(ppb::VectorAddition<ppb::ImplOpenCL<double>>::benchmark)

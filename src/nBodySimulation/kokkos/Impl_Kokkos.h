@@ -12,7 +12,7 @@
 #include <Kokkos_Core.hpp>
 #include "NBodySimulation.h"
 #include "Particle.h"
-#include "UtilityContainer.h"
+#include "../../common/UtilityContainer.h"
 
 namespace ppb {
 

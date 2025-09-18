@@ -5,10 +5,15 @@
 #include <numeric>
 #include <utility>
 #include <algorithm>
+#include <random>
 #include <functional>
 #include <cmath>
 #include <string>
 #include <iostream>
+#include <optional>
+#include <sstream>
+
+#include "TypeDefinitions.h"
 
 namespace ppb::util {
 
@@ -423,48 +428,152 @@ namespace ppb::util {
     }
 
     /**
-     * Operator << for an array of any size.
-     * @tparam T type of the array, must have an << operator overload
-     * @tparam N size of the array
-     * @param os the ostream
-     * @param array the array itself
-     * @return ostream
+     * @brief Overloads the << operator to print the contents of a Container to an output stream.
+     *
+     * @tparam Container The container type, which must satisfy the Container concept.
+     * @param os The output stream to which the container will be written.
+     * @param container The container to be printed.
+     * @return A reference to the output stream to allow for chaining.
+     *
+     * @example
+     *      std::vector<int> vec = {1, 2, 3, 4};
+     *      std::cout << vec << std::endl; // Output: [ 1, 2, 3, 4 ]
      */
-    template<typename T, size_t N>
-    std::ostream &operator<<(std::ostream &os, const std::array<T, N> &array) {
-        os.operator<<('[');
-        os.operator<<(' ');
-        std::for_each(array.cbegin(), array.cend(), [&os](const auto& arg) {
-            os << arg << ' ';
-        });
-        os.operator<<(']');
+#if __cplusplus >= 202002L
+    template <Container Container>
+#else
+    template <
+        typename Container,
+        typename std::enable_if<is_container<Container>::value, int>::type = 0
+    >
+#endif
+    std::ostream &operator<<(std::ostream &os, const Container &container) {
+        os <<("[ ");
+        std::for_each_n(container.begin(), container.size() - 1, [&os](const auto &el) { os << el << ", "; });
+        os << container.back() << " ]";
         return os;
+    }
+
+    /** Internal Members */
+    namespace detail {
+
+        /**
+         * @brief Outputs a container's elements in a formatted matrix layout to an output stream.
+         *
+         * This function outputs the elements of a container in a matrix layout, with each row
+         * containing a fixed number of elements as specified by `dimension0`. The matrix is
+         * formatted as nested lists, and the function handles the insertion of delimiters and
+         * newlines to create the correct visual structure in the stream.
+         *
+         * @tparam Container The type of the container. This is a template parameter that must be
+         * satisfied by any container that supports iteration and has a `.begin()` and a `.end()` method.
+         * @param os The output stream to which the matrix will be written.
+         * @param container The container whose elements are to be formatted and output.
+         * @param dimension0 The number of elements in each row of the matrix.
+         * @return A reference to the output stream `os`.
+         */
+    #if __cplusplus >= 202002L
+        template <Container Container>
+    #else
+        template <typename Container>
+    #endif
+        std::ostream &to_matrix(std::ostream &os, const Container &container, const size_t dimension0) {
+            os << "\n[ ";
+            size_t element = 0;
+            for (auto it = container.begin(); it != container.end() - 1; ++it) {
+                if (element % dimension0 == 0) {
+                    os << "[ ";
+                }
+                os << *it << ", ";
+                if (element % dimension0 == dimension0 - 1) {
+                    os << "],\n";
+                }
+                element += 1;
+            }
+            os << container.back() << "] ]";
+            return os;
+        }
+    } // namespace detail
+
+    /**
+     * @brief Converts a Container to its string representation.
+     *
+     * @tparam Container The container type, which must satisfy the Container concept.
+     * @param container The container to be converted to a string.
+     * @param dimension0 The number of elements in each row of the matrix (optional, otherwise printed as vector)
+     * @return A string representing the contents of the container.
+     *
+     * @example
+     *      std::vector<int> vec = {1, 2, 3, 4};
+     *      std::string str = to_string(vec); // str will be "[ 1, 2, 3, 4 ]"
+     */
+    #if __cplusplus >= 202002L
+        template <Container Container>
+    #else
+        template <typename Container>
+    #endif
+    std::string to_string(const Container &container, std::optional<size_t> dimension0 = std::nullopt) {
+        std::stringstream ss;
+        if (dimension0.has_value()) {
+            detail::to_matrix(ss, container, *dimension0);
+        } else {
+            ss << container;
+        }
+        return ss.str();
     }
 
     /**
-     * Operator << for a set.
-     * @tparam T type of the set, must have an << operator overload
-     * @param os the ostream
-     * @param set the set itself
-     * @return ostream
+     * @brief Generates a vector of uniformly distributed random numbers.
+     *
+     * This function generates a vector containing `n` uniformly distributed random numbers within the range
+     * [-1.0, 1.0]. The type of the vector is determined by the `Vector` concept, ensuring it is a `std::vector` with
+     * arbitrary `value_type` and `allocator_type`.
+     *
+     * @tparam Vector The type of the vector to be returned. It must satisfy the `Vector` concept.
+     * @param n The number of random numbers to generate.
+     * @param seed The seed for the random number generator. Defaults to a value generated by `std::random_device`.
+     * @return A `std::vector` containing `n` uniformly distributed random numbers in the range [-1.0, 1.0].
      */
-    template<typename T>
-    std::ostream &operator<<(std::ostream &os, const std::set<T> &set) {
-        os.operator<<('[');
-        os.operator<<(' ');
-        std::for_each(set.cbegin(), set.cend(), [&os](const auto& arg) {
-            os << arg << ' ';
-        });
-        os.operator<<(']');
-        return os;
+    #if __cplusplus >= 202002L
+        template <Vector Vector>
+    #else
+        template <typename Vector>
+    #endif
+    Vector generateUniformVector(const size_t n, const unsigned int seed = std::random_device()()) {
+        Vector vec{};
+        std::mt19937 gen{seed};
+        std::uniform_real_distribution dis{-1.0, 1.0};
+        vec.reserve(n);
+        std::generate_n(std::back_inserter(vec), n, [&dis, &gen]() { return dis(gen); });
+        return vec;
     }
 
-    template<typename T>
-    struct is_stdarray : std::false_type {
-    };
+    /**
+     * The method takes an 2-dimensional matrix with either left-memory (column-major) or right-memory (row-major)
+     * layout and transforms it into the opposing layout.
+     *
+     * @tparam Container The container type, which must satisfy the Container concept.
+     * @param container The container to change the index scheme
+     * @param The size of the first dimension (i.e. colum-major => number of rows/ length of a column)
+     * @return The container with the changed index scheme
+     */
+#if __cplusplus >= 202002L
+    template <Container Container>
+#else
+    template <typename Container>
+#endif
+    Container changeOrdering(const Container &container, const size_t firstDimSize) {
+        Container result(container.size());
+        const size_t secondDimSize = container.size() / firstDimSize;
+        for (size_t i = 0; i < firstDimSize; ++i) {
+            for (size_t j = 0; j < secondDimSize; ++j) {
+                size_t row_major_idx = j * firstDimSize + i;
+                size_t col_major_idx = i * secondDimSize + j;
+                result[col_major_idx] = container[row_major_idx];
+            }
+        }
+        return result;
+    }
 
-    template<typename T, std::size_t N>
-    struct is_stdarray<std::array<T, N>> : std::true_type {
-    };
 
 }

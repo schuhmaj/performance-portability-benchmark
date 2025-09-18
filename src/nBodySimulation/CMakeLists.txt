@@ -2,18 +2,12 @@ set(NBODY_SIMULATION_ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 set(NBODY_SIMULATION_FILES
     NBodySimulation.h
     Particle.h
-    UtilityContainer.h
     CSVFileHandler.h
-    UtilityFloatArithmetic.h
-    UtilityFloatArithmetic.cpp
 )
 
-add_library(nbody_lib STATIC ${NBODY_SIMULATION_FILES})
-target_include_directories(nbody_lib PUBLIC ${NBODY_SIMULATION_ROOT_DIR})
-target_link_libraries(nbody_lib
-    INTERFACE
-        benchmark::benchmark
-)
+add_library(nbody_lib INTERFACE ${NBODY_SIMULATION_FILES})
+target_include_directories(nbody_lib INTERFACE ${NBODY_SIMULATION_ROOT_DIR})
+target_link_libraries(nbody_lib INTERFACE benchmark::benchmark common_lib)
 
 if (${PPB_ENABLE_Kokkos})
     add_subdirectory(kokkos)

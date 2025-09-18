@@ -1,8 +1,8 @@
 set(MATRIX_MULTIPLICATION_ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR})
-set(MATRIX_MULTIPLICATION_FILES MatrixMultiplication.h AlignedAllocator.h ContainerUtility.h TypeDefinitions.h)
+set(MATRIX_MULTIPLICATION_FILES MatrixMultiplication.h)
 
 add_library(matMul_lib INTERFACE ${MATRIX_MULTIPLICATION_FILES})
-target_link_libraries(matMul_lib INTERFACE benchmark::benchmark)
+target_link_libraries(matMul_lib INTERFACE common_lib benchmark::benchmark )
 target_include_directories(matMul_lib INTERFACE ${MATRIX_MULTIPLICATION_ROOT_DIR})
 
 if (CMAKE_CUDA_COMPILER AND PPB_ENABLE_Cuda)

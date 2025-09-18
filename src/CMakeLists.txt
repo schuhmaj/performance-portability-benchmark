@@ -1,3 +1,4 @@
+add_subdirectory(common)
 if (${PPB_ENABLE_VectorAddition})
     add_subdirectory(vectorAdditon)
 endif ()
