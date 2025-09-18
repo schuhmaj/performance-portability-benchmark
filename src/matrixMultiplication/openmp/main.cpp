@@ -5,7 +5,7 @@
 
 BENCHMARK(ppb::MatrixMultiplication<ppb::ImplOpenMP<float>>::benchmark)
     ->Name("MatrixMultiplication-OpenMP-Float")
-    ->Arg(2048)
+    ->Arg(4096)
     ->Iterations(3)
     ->Unit(benchmark::kMillisecond)
 #ifdef PPB_MEASURE_ONLY_KERNEL
@@ -15,7 +15,7 @@ BENCHMARK(ppb::MatrixMultiplication<ppb::ImplOpenMP<float>>::benchmark)
 
 BENCHMARK(ppb::MatrixMultiplication<ppb::ImplOpenMPDevice<float>>::benchmark)
     ->Name("MatrixMultiplication-OpenMP_Device-Float")
-    ->Arg(2048)
+    ->Arg(4096)
     ->Iterations(3)
     ->Unit(benchmark::kMillisecond)
 #ifdef PPB_MEASURE_ONLY_KERNEL

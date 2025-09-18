@@ -3,10 +3,8 @@
 
 #include "MatrixMultiplication.h"
 #include "cpp/Impl_Cpp.h"
-#include "cuda/Impl_Cuda.cuh"
-#include "cuda/Impl_CudaTensor.cuh"
-#include "cuda/Impl_CudaBuffer.cuh"
-#include "cuda/Impl_Cublas.cuh"
+#include "openmp/Impl_OpenMP.h"
+#include "openmp/Impl_OpenMPDevice.h"
 
 
 class MatrixMultiplicationTest : public ::testing::TestWithParam<int> {
@@ -30,59 +28,42 @@ protected:
         using namespace ppb;
 
         if (size == 2) {
-            Implementation cudaMatMul{};
+            Implementation ompMatMul{};
             ImplCpp<float> cppMatMul{};
             static_assert(Implementation::row_major::value == ImplCpp<float>::row_major::value, "Memory Layout must be the same for both implementations");
             if constexpr (Implementation::row_major::value) {
                 const auto [expectedResult, t1] = cppMatMul(matrixA_rowMajor, matrixB_rowMajor, {size, size, size});
-                const auto [actualResult, t2] = cudaMatMul(matrixA_rowMajor, matrixB_rowMajor, {size, size, size});
+                const auto [actualResult, t2] = ompMatMul(matrixA_rowMajor, matrixB_rowMajor, {size, size, size});
                 ASSERT_THAT(matrixC_rowMajor, Pointwise(FloatEq(), actualResult));
                 ASSERT_THAT(matrixC_rowMajor, Pointwise(FloatEq(), expectedResult));
             } else {
                 const auto [expectedResult, t1] = cppMatMul(matrixA, matrixB, {size, size, size});
-                const auto [actualResult, t2] = cudaMatMul(matrixA, matrixB, {size, size, size});
+                const auto [actualResult, t2] = ompMatMul(matrixA, matrixB, {size, size, size});
                 ASSERT_THAT(matrixC, Pointwise(FloatEq(), actualResult));
                 ASSERT_THAT(matrixC, Pointwise(FloatEq(), expectedResult));
             }
             return;
         }
-        if (std::is_same<Implementation, ImplCudaTensor<float>>::value && (size == 2 || size == 10 || size == 50)) {
-            GTEST_SKIP() << "Skipping test for size " << size;
-            return;
-        }
 
         MatrixMultiplication<ImplCpp<float>> cppMatMul{size};
-        MatrixMultiplication<Implementation> cudaMatMul{size};
+        MatrixMultiplication<Implementation> ompMatMul{size};
         const auto [expectedResult, t1] = cppMatMul();
-        const auto [actualResult, t2] = cudaMatMul();
+        const auto [actualResult, t2] = ompMatMul();
 
-        if (std::is_same<Implementation, ImplCudaTensor<float>>::value) {
-            ASSERT_THAT(actualResult, Pointwise(FloatNear(HALF_EPSILON), expectedResult));
-        } else {
-            ASSERT_THAT(actualResult, Pointwise(FloatNear(EPSILON), expectedResult));
-        }
+        ASSERT_THAT(actualResult, Pointwise(FloatNear(EPSILON), expectedResult));
     }
 
 };
 
-TEST_P(MatrixMultiplicationTest, CudaImplementation_AllSizes) {
+TEST_P(MatrixMultiplicationTest, OpenMP_CPU_Implementation) {
     const int size = GetParam();
-    this->runTest<ppb::ImplCuda<float>>(size);
+    this->runTest<ppb::ImplOpenMP<float>>(size);
 }
 
-TEST_P(MatrixMultiplicationTest, CudaTensorImplementation_AllSizes) {
+TEST_P(MatrixMultiplicationTest, OpenMP_Device_Implementation) {
     const int size = GetParam();
-    this->runTest<ppb::ImplCudaTensor<float>>(size);
+    this->runTest<ppb::ImplOpenMPDevice<float>>(size);
 }
 
-TEST_P(MatrixMultiplicationTest, CudaBufferImplementation_AllSizes) {
-    const int size = GetParam();
-    this->runTest<ppb::ImplCudaBuffer<float>>(size);
-}
-
-TEST_P(MatrixMultiplicationTest, CublasImplementation_AllSizes) {
-    const int size = GetParam();
-    this->runTest<ppb::ImplCublas<float>>(size);
-}
 
 INSTANTIATE_TEST_SUITE_P(BySize,MatrixMultiplicationTest, ::testing::Values(2, 10, 32, 50, 64, 512));

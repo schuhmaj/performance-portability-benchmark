@@ -15,14 +15,17 @@ namespace ppb {
         FloatType *resultPtr = result.data();
 
         const auto start = std::chrono::high_resolution_clock::now();
-#pragma omp target parallel for collapse(2) map(to : aPtr[0 : sizeA], bPtr[0 : sizeB]) map(from : resultPtr[0 : sizeC])
-        for (int i = 0; i < config.m; ++i) {
-            for (int j = 0; j < config.n; ++j) {
+#pragma omp target teams distribute parallel for collapse(2) map(to : aPtr[0 : sizeA], bPtr[0 : sizeB]) map(tofrom : resultPtr[0 : sizeC])
+        for (int j = 0; j < config.n; ++j) {
+            for (int i = 0; i < config.m; ++i) {
+                FloatType sum = 0.0;
                 for (int entry = 0; entry < config.k; ++entry) {
-                    resultPtr[i + j * config.m] += aPtr[i + entry * config.m] * bPtr[entry + j * config.k];
+                    sum += aPtr[i + entry * config.m] * bPtr[entry + j * config.k];
                 }
+                resultPtr[i + j * config.m] = sum;
             }
         }
+
         const auto end = std::chrono::high_resolution_clock::now();
         const double elapsed_seconds = std::chrono::duration_cast<std::chrono::duration<double>>(end - start).count();
         return std::make_pair(result, elapsed_seconds);

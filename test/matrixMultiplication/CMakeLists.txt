@@ -21,3 +21,7 @@ add_subdirectory(cpp)
 if (CMAKE_CUDA_COMPILER AND PPB_ENABLE_Cuda)
     add_subdirectory(cuda)
 endif ()
+
+if (PPB_ENABLE_OpenMP)
+    add_subdirectory(omp)
+endif ()
