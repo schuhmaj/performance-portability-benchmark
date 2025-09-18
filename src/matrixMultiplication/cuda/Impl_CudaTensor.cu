@@ -41,10 +41,13 @@ namespace ppb {
     }
 
     template <typename FloatType>
-    std::vector<FloatType> ImplCudaTensor<FloatType>::operator()(const std::vector<FloatType> &a,
+    std::pair<std::vector<FloatType>, double> ImplCudaTensor<FloatType>::operator()(const std::vector<FloatType> &a,
                                                                 const std::vector<FloatType> &b,
                                                                 const MatrixMultiplicationConfig &config) {
-
+        float elapsedTime;
+        cudaEvent_t start, stop;
+        cudaEventCreate(&start);
+        cudaEventCreate(&stop);
         cudaStream_t stream = cudaStreamPerThread;
 
         // Allocate device memory
@@ -64,7 +67,9 @@ namespace ppb {
         cudaMemcpyAsync(devA, a.data(), sizeA, cudaMemcpyHostToDevice, stream);
         cudaMemcpyAsync(devB, b.data(), sizeB, cudaMemcpyHostToDevice, stream);
 
+        cudaEventRecord(start, stream);
         matrixMultiplicationTensor<<<gridSize, blockSize, 0, stream>>>(devA, devB, devC, config.m, config.n, config.k);
+        cudaEventRecord(stop, stream);
 
         std::vector<FloatType> result(config.m * config.n, 0.0);
         cudaMemcpyAsync(result.data(), devC, sizeC, cudaMemcpyDeviceToHost, stream);
@@ -72,9 +77,10 @@ namespace ppb {
         cudaFreeAsync(devA, stream);
         cudaFreeAsync(devB, stream);
         cudaFreeAsync(devC, stream);
-
         cudaStreamSynchronize(stream);
-        return result;
+        cudaEventSynchronize(stop);
+        cudaEventElapsedTime(&elapsedTime, start, stop);
+        return std::make_pair(result, elapsedTime * 1e-3);
     }
 
     template <typename FloatType>

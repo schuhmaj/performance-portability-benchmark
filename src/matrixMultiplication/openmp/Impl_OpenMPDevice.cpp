@@ -3,7 +3,7 @@
 namespace ppb {
 
     template <typename FloatType>
-    std::vector<FloatType> ppb::ImplOpenMPDevice<FloatType>::operator()(const std::vector<FloatType> &a,
+    std::pair<std::vector<FloatType>, double> ppb::ImplOpenMPDevice<FloatType>::operator()(const std::vector<FloatType> &a,
                                                                const std::vector<FloatType> &b, const MatrixMultiplicationConfig &config) {
         const size_t sizeA = a.size();
         const size_t sizeB = b.size();
@@ -14,6 +14,7 @@ namespace ppb {
         const FloatType *bPtr = b.data();
         FloatType *resultPtr = result.data();
 
+        const auto start = std::chrono::high_resolution_clock::now();
 #pragma omp target parallel for collapse(2) map(to : aPtr[0 : sizeA], bPtr[0 : sizeB]) map(from : resultPtr[0 : sizeC])
         for (int i = 0; i < config.m; ++i) {
             for (int j = 0; j < config.n; ++j) {
@@ -22,7 +23,9 @@ namespace ppb {
                 }
             }
         }
-        return result;
+        const auto end = std::chrono::high_resolution_clock::now();
+        const double elapsed_seconds = std::chrono::duration_cast<std::chrono::duration<double>>(end - start).count();
+        return std::make_pair(result, elapsed_seconds);
     }
 
     /* Explicit Instantiation for float and double */

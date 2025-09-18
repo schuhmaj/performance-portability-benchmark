@@ -2,10 +2,11 @@
 
 namespace ppb {
     template <typename FloatType>
-    std::vector<FloatType> ImplCpp<FloatType>::operator()(const std::vector<FloatType> &a,
+    std::pair<std::vector<FloatType>, double> ImplCpp<FloatType>::operator()(const std::vector<FloatType> &a,
                                                                const std::vector<FloatType> &b, const MatrixMultiplicationConfig &config) {
         std::vector<FloatType> result(config.m * config.n, 0.0);
         constexpr int TILE_SIZE = 64;
+        const auto start = std::chrono::high_resolution_clock::now();
         if constexpr (row_major::value) {
             for (int tile = 0; tile < config.k; tile += TILE_SIZE) {
                 const int endK = std::min(tile + TILE_SIZE, config.k);
@@ -29,7 +30,9 @@ namespace ppb {
                 }
             }
         }
-        return result;
+        const auto end = std::chrono::high_resolution_clock::now();
+        const double elapsed_seconds = std::chrono::duration_cast<std::chrono::duration<double>>(end - start).count();
+        return std::make_pair(result, elapsed_seconds);
     }
 
     /* Explicit Instantiation for float and double */

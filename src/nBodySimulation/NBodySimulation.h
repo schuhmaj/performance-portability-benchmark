@@ -149,14 +149,8 @@ namespace ppb {
             NBodySimulation nbodySimulation{size};
 
             for (auto _ : state) {
-                const auto start = std::chrono::high_resolution_clock::now();
-
                 auto result = nbodySimulation();
                 benchmark::DoNotOptimize(result);
-
-                const auto end = std::chrono::high_resolution_clock::now();
-                const auto elapsed_seconds = std::chrono::duration_cast<std::chrono::duration<double>>(end - start);
-                state.SetIterationTime(elapsed_seconds.count());
             }
             state.SetComplexityN(static_cast<long long>(size));
         }

@@ -1,6 +1,7 @@
 #pragma once
 #include <array>
 #include <vector>
+#include <utility>
 #include "Common.cuh"
 #include "MatrixMultiplication.h"
 
@@ -14,7 +15,7 @@ namespace ppb {
         using float_type = FloatType;
         using row_major = std::false_type;
 
-        std::vector<FloatType> operator()(const std::vector<FloatType> &a, const std::vector<FloatType> &b, const MatrixMultiplicationConfig &config);
+        std::pair<std::vector<FloatType>, double> operator()(const std::vector<FloatType> &a, const std::vector<FloatType> &b, const MatrixMultiplicationConfig &config);
 
         static dim3 getIdealBlockSize(unsigned int m, unsigned int n);
 

@@ -54,15 +54,14 @@ namespace ppb {
             cudaEventRecord(start, stream);
             kernel_vector_add<<<gridSize, blockSize, 0, stream>>>(size, deviceA, deviceC);
             cudaEventRecord(stop, stream);
-            cudaEventSynchronize(stop);
-            cudaEventElapsedTime(&elapsedTime, start, stop);
 
             std::vector<FloatType> result(size);
             cudaMemcpyAsync(result.data(), deviceC, size * sizeof(FloatType), cudaMemcpyDeviceToHost, stream);
+            cudaFreeAsync(deviceA, stream);
+            cudaFreeAsync(deviceC, stream);
             cudaStreamSynchronize(stream);
-
-            cudaFree(deviceA);
-            cudaFree(deviceC);
+            cudaEventSynchronize(stop);
+            cudaEventElapsedTime(&elapsedTime, start, stop);
             return std::make_pair(result, elapsedTime * 1e-3);
         }
     };

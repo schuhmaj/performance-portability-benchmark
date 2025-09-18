@@ -3,9 +3,8 @@
 #include "benchmark/benchmark.h"
 
 #include <algorithm>
-#include <chrono>
 #include <iostream>
-#include <random>
+#include <utility>
 #include <vector>
 
 #include "ContainerUtility.h"
@@ -98,7 +97,7 @@ namespace ppb {
          *
          * @return The resulting matrix C.
          */
-        std::vector<FloatType> operator()() {
+        std::pair<std::vector<FloatType>, double> operator()() {
             if constexpr (std::is_same_v<is_row_major, std::true_type>) {
                 return _impl(_inputA_row_major, _inputB_row_major, _config);
             } else {
@@ -146,16 +145,20 @@ namespace ppb {
         static void inline benchmark(benchmark::State& state) {
             const size_t size = state.range(0);
             MatrixMultiplication matrixMultiplication{static_cast<int>(size)};
+#ifndef PPB_MEASURE_ONLY_KERNEL
+            double kernelTime = 0;
+#endif
             for (auto _ : state) {
-                const auto start = std::chrono::high_resolution_clock::now();
-
-                auto result = matrixMultiplication();
+                auto [result, time] = matrixMultiplication();
                 benchmark::DoNotOptimize(result);
-
-                const auto end = std::chrono::high_resolution_clock::now();
-                const auto elapsed_seconds = std::chrono::duration_cast<std::chrono::duration<double>>(end - start);
-                state.SetIterationTime(elapsed_seconds.count());
+#ifndef PPB_MEASURE_ONLY_KERNEL
+                kernelTime += time;
+#endif
+                state.SetIterationTime(time);
             }
+#ifndef PPB_MEASURE_ONLY_KERNEL
+            state.counters["Kernel Time"] = benchmark::Counter(kernelTime, benchmark::Counter::kAvgIterations);
+#endif
             state.SetComplexityN(static_cast<long long>(size));
         }
 

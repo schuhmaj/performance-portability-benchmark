@@ -10,6 +10,9 @@ BENCHMARK(ppb::MatrixMultiplication<ppb::ImplCublas<float>>::benchmark)
     ->Arg(4096)
     ->Iterations(10)
     ->Unit(benchmark::kMillisecond)
+#ifdef PPB_MEASURE_ONLY_KERNEL
+    ->UseManualTime()
+#endif
     ->Complexity();
 
 BENCHMARK(ppb::MatrixMultiplication<ppb::ImplCuda<float>>::benchmark)
@@ -17,6 +20,9 @@ BENCHMARK(ppb::MatrixMultiplication<ppb::ImplCuda<float>>::benchmark)
     ->Arg(4096)
     ->Iterations(10)
     ->Unit(benchmark::kMillisecond)
+#ifdef PPB_MEASURE_ONLY_KERNEL
+    ->UseManualTime()
+#endif
     ->Complexity();
 
 BENCHMARK(ppb::MatrixMultiplication<ppb::ImplCudaBuffer<float>>::benchmark)
@@ -24,6 +30,9 @@ BENCHMARK(ppb::MatrixMultiplication<ppb::ImplCudaBuffer<float>>::benchmark)
     ->Arg(4096)
     ->Iterations(10)
     ->Unit(benchmark::kMillisecond)
+#ifdef PPB_MEASURE_ONLY_KERNEL
+    ->UseManualTime()
+#endif
     ->Complexity();
 
 BENCHMARK(ppb::MatrixMultiplication<ppb::ImplCudaTensor<float>>::benchmark)
@@ -31,6 +40,9 @@ BENCHMARK(ppb::MatrixMultiplication<ppb::ImplCudaTensor<float>>::benchmark)
     ->Arg(4096)
     ->Iterations(10)
     ->Unit(benchmark::kMillisecond)
+#ifdef PPB_MEASURE_ONLY_KERNEL
+    ->UseManualTime()
+#endif
     ->Complexity();
 
 int main(int argc, char** argv) {

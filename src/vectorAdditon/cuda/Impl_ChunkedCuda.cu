@@ -40,10 +40,13 @@ namespace ppb {
         }
 
         std::pair<std::vector<FloatType>, double> operator()(const std::vector<FloatType> &a, const std::vector<FloatType> &b) {
-            float elapsedTime;
-            cudaEvent_t start, stop;
-            cudaEventCreate(&start);
-            cudaEventCreate(&stop);
+            float elapsedTime = 0.0;
+            float totalElapsedTime = 0.0;
+            std::array<cudaEvent_t, 4> start, stop{};
+            for (int i = 0; i < 4; i++) {
+                cudaEventCreate(&start[i]);
+                cudaEventCreate(&stop[i]);
+            }
             const size_t _size = a.size();
             std::vector<FloatType> result(_size);
             FloatType* deviceA[NUM_STREAMS];
@@ -67,7 +70,6 @@ namespace ppb {
             );
 
             size_t neededChunks = (_size + chunkSize - 1) / chunkSize;
-            cudaEventRecord(start);
             for (size_t chunk_idx = 0; chunk_idx < neededChunks; ++chunk_idx) {
                 int stream_idx = chunk_idx % NUM_STREAMS;
                 size_t offset = chunk_idx * chunkSize;
@@ -81,8 +83,15 @@ namespace ppb {
                                cudaMemcpyHostToDevice, stream[stream_idx]);
 
                 int gridSize = (current_chunk_size + blockSize - 1) / blockSize;
+                if (chunk_idx > NUM_STREAMS) {
+                    cudaEventSynchronize(stop[stream_idx]);
+                    cudaEventElapsedTime(&elapsedTime, start[stream_idx], stop[stream_idx]);
+                    totalElapsedTime += elapsedTime;
+                }
+                cudaEventRecord(start[stream_idx]);
                 kernel_vector_add<<<gridSize, blockSize, 0, stream[stream_idx]>>>(current_chunk_size,
                     deviceA[stream_idx], deviceB[stream_idx],deviceC[stream_idx]);
+                cudaEventRecord(stop[stream_idx]);
 
                 // Copy result back
                 cudaMemcpyAsync(&result[offset], deviceC[stream_idx],
@@ -96,11 +105,11 @@ namespace ppb {
                 cudaFreeAsync(deviceA[i], stream[i]);
                 cudaFreeAsync(deviceB[i], stream[i]);
                 cudaFreeAsync(deviceC[i], stream[i]);
+                cudaEventSynchronize(stop[i]);
+                cudaEventElapsedTime(&elapsedTime, start[i], stop[i]);
+                totalElapsedTime += elapsedTime;
             }
-            cudaEventRecord(stop);
-            cudaEventSynchronize(stop);
-            cudaEventElapsedTime(&elapsedTime, start, stop);
-            return std::make_pair(result, elapsedTime * 1e-3);
+            return std::make_pair(result, totalElapsedTime * 1e-3);
         }
     };
 

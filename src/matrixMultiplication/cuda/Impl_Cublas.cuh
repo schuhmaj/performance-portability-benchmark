@@ -1,6 +1,7 @@
 #pragma once
 #include <vector>
 #include <array>
+#include <utility>
 #include <cublas_v2.h>
 #include <cuda_runtime.h>
 #include <memory>
@@ -29,7 +30,7 @@ namespace ppb {
             cublasDestroy(handle);
         }
 
-        std::vector<FloatType> operator()(const std::vector<FloatType> &a, const std::vector<FloatType> &b,  const MatrixMultiplicationConfig &config);
+        std::pair<std::vector<FloatType>, double> operator()(const std::vector<FloatType> &a, const std::vector<FloatType> &b,  const MatrixMultiplicationConfig &config);
 
     };
 

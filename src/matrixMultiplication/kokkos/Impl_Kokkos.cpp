@@ -3,7 +3,7 @@
 
 namespace ppb {
     template <typename FloatType>
-    std::vector<FloatType> ImplKokkos<FloatType>::operator()(const std::vector<FloatType> &a,
+    std::pair<std::vector<FloatType>, double> ImplKokkos<FloatType>::operator()(const std::vector<FloatType> &a,
                                                              const std::vector<FloatType> &b,
                                                              const MatrixMultiplicationConfig &config) {
         using ExecutionSpace = Kokkos::DefaultExecutionSpace;
@@ -30,6 +30,8 @@ namespace ppb {
 
         Kokkos::MDRangePolicy<Kokkos::Rank<2>, ExecutionSpace> policy(exec, {0, 0}, {m, n}, {32, 32});
 
+        exec.fence();
+        Kokkos::Timer timer;
         Kokkos::parallel_for("matrixMultiplication", policy, KOKKOS_LAMBDA(const int i, const int j) {
             FloatType sum = 0;
             for (int entry = 0; entry < k; ++entry) {
@@ -37,9 +39,12 @@ namespace ppb {
             }
             devC(i, j) = sum;
         });
+        exec.fence();
+        double seconds = timer.seconds();
+
 
         Kokkos::deep_copy(exec, hostC, devC);
-        return result;
+        return std::make_pair(result, seconds);
     }
 
     /* Explicit Instantiation for float and double */

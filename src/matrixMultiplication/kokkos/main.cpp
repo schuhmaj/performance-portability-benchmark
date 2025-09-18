@@ -8,6 +8,9 @@ BENCHMARK(ppb::MatrixMultiplication<ppb::ImplKokkos<float>>::benchmark)
     ->Arg(8096)
     ->Iterations(3)
     ->Unit(benchmark::kMillisecond)
+#ifdef PPB_MEASURE_ONLY_KERNEL
+    ->UseManualTime()
+#endif
     ->Complexity();
 
 int main(int argc, char** argv) {
