@@ -29,7 +29,6 @@ endif ()
 
 if(CMAKE_CUDA_COMPILER AND PPB_ENABLE_Cuda)
     add_subdirectory(cuda)
-    add_subdirectory(thrust)
 endif ()
 
 if (${PPB_ENABLE_MetalCpp})
