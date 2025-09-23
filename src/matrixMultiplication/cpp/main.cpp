@@ -1,6 +1,6 @@
 #include "benchmark/benchmark.h"
 #include "Impl_Cpp.h"
-#include "MatrixMultiplication.h"
+#include "matrixMultiplication/MatrixMultiplication.h"
 
 BENCHMARK(ppb::MatrixMultiplication<ppb::ImplCpp<float>>::benchmark)
     ->Name("MatrixMultiplication-CStd-Float")

@@ -2,7 +2,7 @@
 #include <iostream>
 #include <utility>
 #include "Kokkos_Core.hpp"
-#include "VectorAddition.h"
+#include "vectorAdditon/VectorAddition.h"
 
 // This neat code using SharedMemory performs better for smaller vector sizes N
 // However, the larger the vector becomes, the better a "pure" GPU version becomes

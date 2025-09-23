@@ -4,7 +4,7 @@
 #include "alpaka/alpaka.hpp"
 #include "alpaka/example/ExecuteForEachAccTag.hpp"
 #include "alpaka/example/ExampleDefaultAcc.hpp"
-#include "VectorAddition.h"
+#include "vectorAdditon/VectorAddition.h"
 
 namespace ppb {
 

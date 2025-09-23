@@ -1,7 +1,7 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
-#include "cpp/Impl_Cpp.h"
+#include "matrixMultiplication/cpp/Impl_Cpp.h"
 
 
 class MatrixMultiplicationTest : public ::testing::Test {
@@ -19,7 +19,7 @@ TEST_F(MatrixMultiplicationTest, CppImplementation_Size2x2) {
 
     constexpr size_t SIZE = 10;
     ImplCpp<float> matMul{};
-    auto actualResult = matMul(matrixA, matrixB, {2, 2, 2});
+    const auto [actualResult, timeMeasurement] = matMul(matrixA, matrixB, {2, 2, 2});
 
     ASSERT_THAT(actualResult, Pointwise(FloatEq(), matrixC));
 }

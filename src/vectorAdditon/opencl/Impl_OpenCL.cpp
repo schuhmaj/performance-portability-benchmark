@@ -1,7 +1,7 @@
 #include <benchmark/benchmark.h>
 #include <iostream>
 #include <utility>
-#include "VectorAddition.h"
+#include "vectorAdditon/VectorAddition.h"
 #include "OpenCLUtility.h"
 
 #ifdef __APPLE__

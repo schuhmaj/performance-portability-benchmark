@@ -1,6 +1,6 @@
 #include "Impl_OpenMP.h"
 #include "Impl_OpenMPDevice.h"
-#include "MatrixMultiplication.h"
+#include "matrixMultiplication/MatrixMultiplication.h"
 #include "benchmark/benchmark.h"
 
 BENCHMARK(ppb::MatrixMultiplication<ppb::ImplOpenMP<float>>::benchmark)

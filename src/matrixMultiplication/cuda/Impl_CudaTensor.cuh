@@ -3,7 +3,7 @@
 #include <vector>
 #include <utility>
 #include "Common.cuh"
-#include "MatrixMultiplication.h"
+#include "matrixMultiplication/MatrixMultiplication.h"
 
 namespace ppb {
 

@@ -1,6 +1,6 @@
-#include "Implementations.cuh"
+#include "vectorAdditon/cuda/Implementations.cuh"
 
-#include "VectorAddition.h"
+#include "vectorAdditon/VectorAddition.h"
 #include <benchmark/benchmark.h>
 #include <iostream>
 

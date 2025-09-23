@@ -1,6 +1,6 @@
 #include <benchmark/benchmark.h>
 #include "Impl_Kokkos.h"
-#include "NBodySimulation.h"
+#include "nBodySimulation/NBodySimulation.h"
 
 BENCHMARK(ppb::NBodySimulation<ppb::ImplKokkos<float>>::benchmark)
     ->Name("NBody-Kokkos_SoA_2D_Kernel_TeamPolicy-Float")

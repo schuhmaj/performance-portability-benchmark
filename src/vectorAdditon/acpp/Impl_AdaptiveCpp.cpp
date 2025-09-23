@@ -2,7 +2,7 @@
 #include <benchmark/benchmark.h>
 #include <iostream>
 #include <sycl/sycl.hpp>
-#include "VectorAddition.h"
+#include "vectorAdditon/VectorAddition.h"
 
 namespace ppb {
 

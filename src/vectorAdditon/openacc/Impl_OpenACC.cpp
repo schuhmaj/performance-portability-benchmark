@@ -1,9 +1,9 @@
 #include <algorithm>
 #include <chrono>
 #include <utility>
-#include <benchmark/benchmark.h>
+#include "benchmark/benchmark.h"
 #include <openacc.h>
-#include "VectorAddition.h"
+#include "vectorAdditon/VectorAddition.h"
 
 namespace ppb {
     template <typename FloatType>
@@ -22,7 +22,7 @@ namespace ppb {
                 c[i] = as[i] + bs[i];
             }
             const auto end = std::chrono::high_resolution_clock::now();
-            const auto elapsed_seconds = std::chrono::duration_cast<std::chrono::duration<double>>(end - start).count()
+            const auto elapsed_seconds = std::chrono::duration_cast<std::chrono::duration<double>>(end - start).count();
             return std::make_pair(result, elapsed_seconds);
         }
     };

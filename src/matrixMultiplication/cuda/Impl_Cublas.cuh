@@ -6,7 +6,7 @@
 #include <cuda_runtime.h>
 #include <memory>
 #include <stdexcept>
-#include "MatrixMultiplication.h"
+#include "matrixMultiplication/MatrixMultiplication.h"
 
 namespace ppb {
 

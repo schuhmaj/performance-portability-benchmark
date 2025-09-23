@@ -1,12 +1,12 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
-#include "MatrixMultiplication.h"
-#include "cpp/Impl_Cpp.h"
-#include "cuda/Impl_Cuda.cuh"
-#include "cuda/Impl_CudaTensor.cuh"
-#include "cuda/Impl_CudaBuffer.cuh"
-#include "cuda/Impl_Cublas.cuh"
+#include "matrixMultiplication/MatrixMultiplication.h"
+#include "matrixMultiplication/cpp/Impl_Cpp.h"
+#include "matrixMultiplication/cuda/Impl_Cuda.cuh"
+#include "matrixMultiplication/cuda/Impl_CudaTensor.cuh"
+#include "matrixMultiplication/cuda/Impl_CudaBuffer.cuh"
+#include "matrixMultiplication/cuda/Impl_Cublas.cuh"
 
 
 class MatrixMultiplicationTest : public ::testing::TestWithParam<int> {

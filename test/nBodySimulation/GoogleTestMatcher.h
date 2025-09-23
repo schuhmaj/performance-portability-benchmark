@@ -1,7 +1,7 @@
 #pragma once
 
 #include "UtilityFloatArithmetic.h"
-#include "Particle.h"
+#include "nBodySimulation/Particle.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 

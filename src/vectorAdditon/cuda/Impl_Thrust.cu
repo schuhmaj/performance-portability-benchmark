@@ -1,10 +1,10 @@
-#include "Implementations.cuh"
+#include "vectorAdditon/cuda/Implementations.cuh"
 
 #include <benchmark/benchmark.h>
 #include <chrono>
 #include <utility>
 #include <vector>
-#include "VectorAddition.h"
+#include "vectorAdditon/VectorAddition.h"
 #include "thrust/device_vector.h"
 #include "thrust/execution_policy.h"
 #include "thrust/host_vector.h"

@@ -10,9 +10,9 @@
 #pragma once
 
 #include <Kokkos_Core.hpp>
-#include "NBodySimulation.h"
-#include "Particle.h"
-#include "../../common/UtilityContainer.h"
+#include "nBodySimulation/NBodySimulation.h"
+#include "nBodySimulation/Particle.h"
+#include "common/UtilityContainer.h"
 
 namespace ppb {
 

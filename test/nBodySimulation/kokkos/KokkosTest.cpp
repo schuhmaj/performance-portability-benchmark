@@ -2,9 +2,9 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
-#include "NBodySimulation.h"
-#include "cpp/Impl_Cpp.h"
-#include "kokkos/Impl_Kokkos.h"
+#include "nBodySimulation/NBodySimulation.h"
+#include "nBodySimulation/cpp/Impl_Cpp.h"
+#include "nBodySimulation/kokkos/Impl_Kokkos.h"
 
 
 class NBodyKokkosTest : public ::testing::TestWithParam<size_t> {

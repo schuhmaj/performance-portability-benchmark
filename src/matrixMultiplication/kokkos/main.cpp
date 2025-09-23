@@ -1,7 +1,7 @@
 #include "benchmark/benchmark.h"
 #include "Impl_Kokkos.h"
 #include "Kokkos_Core.hpp"
-#include "MatrixMultiplication.h"
+#include "matrixMultiplication/MatrixMultiplication.h"
 
 BENCHMARK(ppb::MatrixMultiplication<ppb::ImplKokkos<float>>::benchmark)
     ->Name("MatrixMultiplication-Kokkos-Float")

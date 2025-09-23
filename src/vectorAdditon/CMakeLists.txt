@@ -4,7 +4,7 @@ set(VECTOR_ADDITION_FILES VectorAddition.h
 
 add_library(vec_lib INTERFACE ${VECTOR_ADDITION_FILES})
 target_link_libraries(vec_lib INTERFACE benchmark::benchmark common_lib)
-target_include_directories(vec_lib INTERFACE ${VECTOR_ADDITION_ROOT_DIR})
+target_include_directories(vec_lib INTERFACE ${PPB_SRC_SOURCE_DIRECTORY})
 
 
 if (${PPB_ENABLE_Kokkos})

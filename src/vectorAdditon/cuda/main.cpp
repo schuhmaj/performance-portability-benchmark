@@ -1,8 +1,8 @@
 #include <benchmark/benchmark.h>
 
-#include "Implementations.cuh"
-#include "VectorAddition.h"
-#include "Implementations.cuh"
+#include "vectorAdditon/cuda/Implementations.cuh"
+#include "vectorAdditon/VectorAddition.h"
+#include "vectorAdditon/cuda/Implementations.cuh"
 #include "benchmark/benchmark.h"
 
 BENCHMARK(ppb::VectorAddition<ppb::ImplCuda<float>>::benchmark)

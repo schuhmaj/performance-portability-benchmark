@@ -1,10 +1,10 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
-#include "MatrixMultiplication.h"
-#include "cpp/Impl_Cpp.h"
-#include "openmp/Impl_OpenMP.h"
-#include "openmp/Impl_OpenMPDevice.h"
+#include "matrixMultiplication/MatrixMultiplication.h"
+#include "matrixMultiplication/cpp/Impl_Cpp.h"
+#include "matrixMultiplication/openmp/Impl_OpenMP.h"
+#include "matrixMultiplication/openmp/Impl_OpenMPDevice.h"
 
 
 class MatrixMultiplicationTest : public ::testing::TestWithParam<int> {

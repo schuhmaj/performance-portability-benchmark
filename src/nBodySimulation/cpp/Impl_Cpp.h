@@ -7,9 +7,9 @@
  */
 
 #pragma once
-#include "NBodySimulation.h"
-#include "Particle.h"
-#include "../../common/UtilityContainer.h"
+#include "nBodySimulation/NBodySimulation.h"
+#include "nBodySimulation/Particle.h"
+#include "common/UtilityContainer.h"
 #include <iostream>
 
 namespace ppb {

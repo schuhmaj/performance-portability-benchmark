@@ -1,6 +1,6 @@
 #include <benchmark/benchmark.h>
 #include "Impl_Cpp.h"
-#include "NBodySimulation.h"
+#include "nBodySimulation/NBodySimulation.h"
 
 BENCHMARK(ppb::NBodySimulation<ppb::ImplCpp<float>>::benchmark)
     ->Name("NBody-CStd-Float")

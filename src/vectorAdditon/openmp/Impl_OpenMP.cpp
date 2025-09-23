@@ -2,7 +2,7 @@
 #include <chrono>
 #include <utility>
 #include <benchmark/benchmark.h>
-#include "VectorAddition.h"
+#include "vectorAdditon/VectorAddition.h"
 #include "omp.h"
 
 namespace ppb {
