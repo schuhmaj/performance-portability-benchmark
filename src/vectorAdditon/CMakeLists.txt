@@ -1,5 +1,6 @@
 set(VECTOR_ADDITION_ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR})
-set(VECTOR_ADDITION_FILES VectorAddition.h)
+set(VECTOR_ADDITION_FILES VectorAddition.h
+        alpaka/Impl_Alpaka.cpp)
 
 add_library(vec_lib INTERFACE ${VECTOR_ADDITION_FILES})
 target_link_libraries(vec_lib INTERFACE benchmark::benchmark common_lib)
@@ -33,6 +34,10 @@ endif ()
 
 if (${PPB_ENABLE_MetalCpp})
     add_subdirectory(metal)
+endif ()
+
+if (${PPB_ENABLE_Alpaka})
+    add_subdirectory(alpaka)
 endif ()
 
 add_subdirectory(cpp)

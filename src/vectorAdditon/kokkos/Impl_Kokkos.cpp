@@ -91,9 +91,10 @@ BENCHMARK(ppb::VectorAddition<ppb::KokkosImpl<double>>::benchmark)
 
 
 int main(int argc, char **argv) {
+    benchmark::MaybeReenterWithoutASLR(argc, argv);
+
     Kokkos::ScopeGuard guard{argc, argv};
     // std::cout << "Default Execution Space: " << Kokkos::DefaultExecutionSpace::name() << std::endl;
-    benchmark::MaybeReenterWithoutASLR(argc, argv);
     benchmark::Initialize(&argc, argv);
     benchmark::RunSpecifiedBenchmarks();
     benchmark::Shutdown();

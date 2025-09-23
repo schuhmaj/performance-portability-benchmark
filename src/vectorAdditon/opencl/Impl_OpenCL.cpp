@@ -128,10 +128,11 @@ BENCHMARK(ppb::VectorAddition<ppb::ImplOpenCL<double>>::benchmark)
     ->Complexity();
 
 int main(int argc, char **argv) {
+    benchmark::MaybeReenterWithoutASLR(argc, argv);
+    
     auto gpu = util::getFirstGPU();
     std::cout << "GPU Name: " << util::getDeviceName(gpu) << '\n';
 
-    benchmark::MaybeReenterWithoutASLR(argc, argv);
     benchmark::Initialize(&argc, argv);
     benchmark::RunSpecifiedBenchmarks();
     benchmark::Shutdown();
