@@ -2,7 +2,7 @@
 #include <iostream>
 #include <utility>
 #include "VectorAddition.h"
-#include "OpenCLUtility.h"
+#include "opencl/util/OpenCLUtility.h"
 
 #ifdef __APPLE__
 #include <OpenCL/opencl.h>

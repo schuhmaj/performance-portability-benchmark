@@ -13,6 +13,9 @@ endif ()
 
 if (${PPB_ENABLE_OpenCL})
     add_subdirectory(opencl)
+endif()
+
+if (${PPB_ENABLE_Boost})
     add_subdirectory(boost)
 endif()
 

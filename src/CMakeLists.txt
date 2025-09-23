@@ -1,3 +1,4 @@
+set(PPB_SRC_SOURCE_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 add_subdirectory(common)
 if (${PPB_ENABLE_VectorAddition})
     add_subdirectory(vectorAdditon)

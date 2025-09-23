@@ -9,3 +9,7 @@ set(COMMON_FILES
 
 add_library(common_lib STATIC ${COMMON_FILES})
 target_include_directories(common_lib PUBLIC ${COMMON_ROOT_DIR})
+
+if (${PPB_ENABLE_OpenCL})
+    add_subdirectory(opencl)
+endif()
