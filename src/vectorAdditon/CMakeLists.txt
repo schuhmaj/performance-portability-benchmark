@@ -43,4 +43,8 @@ if (${PPB_ENABLE_Alpaka})
     add_subdirectory(alpaka)
 endif ()
 
+if (${PPB_ENABLE_Vulkan})
+    add_subdirectory(vulkan)
+endif ()
+
 add_subdirectory(cpp)

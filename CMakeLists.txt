@@ -35,6 +35,7 @@ option(PPB_ENABLE_OnlyKernelRuntime "Only measures the actual GPU Kernel runtime
 option(PPB_ENABLE_OpenACC "Enable OpenACC Target" OFF)
 option(PPB_ENABLE_OpenMP "Enable OpenMP Target" OFF)
 option(PPB_ENABLE_AdaptiveCpp "Enable AdaptiveCPP Target" OFF)
+option(PPB_ENABLE_Vulkan "Enable Vulkan Kompute Target" OFF)
 option(PPB_ENABLE_OpenCL "Enable OpenCL Targets" OFF)
 cmake_dependent_option(PPB_ENABLE_Boost "Enable Boost::Compute Target (requires OpenCL)" OFF "PPB_ENABLE_OpenCL" OFF)
 option(PPB_ENABLE_Kokkos "Enable Kokkos Target" OFF)
@@ -54,6 +55,7 @@ message(STATUS "Only Kernel Runtime             ${PPB_ENABLE_OnlyKernelRuntime}"
 message(STATUS "####################################################")
 message(STATUS "Kokkos                          ${PPB_ENABLE_Kokkos}")
 message(STATUS "AdaptiveCpp (needs Boost)       ${PPB_ENABLE_AdaptiveCpp}")
+message(STATUS "Vulkan-Kompute                  ${PPB_ENABLE_Vulkan}")
 message(STATUS "OpenACC                         ${PPB_ENABLE_OpenACC}")
 message(STATUS "OpenMP                          ${PPB_ENABLE_OpenMP}")
 message(STATUS "OpenCL                          ${PPB_ENABLE_OpenCL}")
@@ -128,6 +130,10 @@ endif ()
 
 if (${PPB_ENABLE_Alpaka})
     include(alpaka)
+endif ()
+
+if (${PPB_ENABLE_Vulkan})
+    include(vulkan)
 endif ()
 
 #######################################################
