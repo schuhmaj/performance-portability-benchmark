@@ -1,25 +1,25 @@
 #include "OpenCLUtility.h"
 
-namespace util {
+namespace opencl_utilities {
 
-    std::vector<cl_platform_id> getOpenCLPlattforms() {
+    std::vector<cl_platform_id> getPlatforms() {
         // Get number of platforms
         cl_uint numPlatforms;
         cl_int err = clGetPlatformIDs(0, nullptr, &numPlatforms);
         if (err != CL_SUCCESS) {
-            throw std::runtime_error("Failed to find any OpenCL platforms.");
+            throw std::runtime_error("Failed to find any opencl_utilities platforms.");
         }
 
         // Get platform IDs
         std::vector<cl_platform_id> platforms{numPlatforms};
         err = clGetPlatformIDs(numPlatforms, platforms.data(), nullptr);
         if (err != CL_SUCCESS) {
-            throw std::runtime_error("Failed to get OpenCL platform IDs.");
+            throw std::runtime_error("Failed to get opencl_utilities platform IDs.");
         }
         return platforms;
     }
 
-    std::vector<cl_device_id> getOpenCLDevices(const cl_platform_id &platformId, const cl_device_type &type) {
+    std::vector<cl_device_id> getDevices(const cl_platform_id &platformId, const cl_device_type &type) {
         // Get number of devices in the platform
         cl_uint numDevices;
         cl_int err = clGetDeviceIDs(platformId, type, 0, nullptr, &numDevices);
@@ -46,7 +46,7 @@ namespace util {
     }
 
     cl_device_id getFirstGPU() {
-        return getOpenCLDevices(getOpenCLPlattforms()[0], CL_DEVICE_TYPE_GPU)[0];
+        return getDevices(getPlatforms()[0], CL_DEVICE_TYPE_GPU)[0];
     }
 
-} // namespace util
+} // namespace opencl_utilities

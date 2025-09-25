@@ -28,14 +28,14 @@ namespace ppb {
 
         ImplOpenCL() {
             // 0. Get device
-            device = util::getFirstGPU();
+            device = opencl_utilities::getFirstGPU();
 
             // 1. Context & queue
             cl_int err;
             context = clCreateContext(0, 1, &device, nullptr, nullptr, &err);
             queue = clCreateCommandQueue(context, device, CL_QUEUE_PROFILING_ENABLE, &err);
 
-            // 3. OpenCL program & kernel
+            // 3. opencl_utilities program & kernel
             std::string kernelSource;
             if constexpr (std::is_same_v<FloatType, float>) {
                 kernelSource = "__kernel void add_vector(__global const float* a, __global const float* b, __global float* c) {"
@@ -110,7 +110,7 @@ namespace ppb {
 }
 
 BENCHMARK(ppb::VectorAddition<ppb::ImplOpenCL<float>>::benchmark)
-    ->Name("VecAdd-OpenCL-Float")
+    ->Name("VecAdd-opencl_utilities-Float")
     ->RangeMultiplier(10)
     ->Range(1e3, 1e8)
 #ifdef PPB_MEASURE_ONLY_KERNEL
@@ -119,7 +119,7 @@ BENCHMARK(ppb::VectorAddition<ppb::ImplOpenCL<float>>::benchmark)
     ->Complexity();
 
 BENCHMARK(ppb::VectorAddition<ppb::ImplOpenCL<double>>::benchmark)
-    ->Name("VecAdd-OpenCL-Double")
+    ->Name("VecAdd-opencl_utilities-Double")
     ->RangeMultiplier(10)
     ->Range(1e3, 1e8)
 #ifdef PPB_MEASURE_ONLY_KERNEL
@@ -130,8 +130,8 @@ BENCHMARK(ppb::VectorAddition<ppb::ImplOpenCL<double>>::benchmark)
 int main(int argc, char **argv) {
     benchmark::MaybeReenterWithoutASLR(argc, argv);
     
-    auto gpu = util::getFirstGPU();
-    std::cout << "GPU Name: " << util::getDeviceName(gpu) << '\n';
+    auto gpu = opencl_utilities::getFirstGPU();
+    std::cout << "GPU Name: " << opencl_utilities::getDeviceName(gpu) << '\n';
 
     benchmark::Initialize(&argc, argv);
     benchmark::RunSpecifiedBenchmarks();
