@@ -66,6 +66,7 @@ BENCHMARK(ppb::VectorAddition<ppb::ImplVulkan<float>>::benchmark)
     ->Complexity();
 
 int main(int argc, char **argv) {
+    benchmark::MaybeReenterWithoutASLR(argc, argv);
     benchmark::Initialize(&argc, argv);
     benchmark::RunSpecifiedBenchmarks();
     benchmark::Shutdown();
