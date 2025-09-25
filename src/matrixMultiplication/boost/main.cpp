@@ -1,0 +1,22 @@
+#include "benchmark/benchmark.h"
+#include "Impl_Boost.h"
+#include "Kokkos_Core.hpp"
+#include "matrixMultiplication/MatrixMultiplication.h"
+
+BENCHMARK(ppb::MatrixMultiplication<ppb::ImplBoost<float>>::benchmark)
+    ->Name("MatrixMultiplication-Boost-Float")
+    ->Arg(8096)
+    ->Iterations(3)
+    ->Unit(benchmark::kMillisecond)
+#ifdef PPB_MEASURE_ONLY_KERNEL
+    ->UseManualTime()
+#endif
+    ->Complexity();
+
+int main(int argc, char** argv) {
+    Kokkos::ScopeGuard guard{argc, argv};
+    benchmark::MaybeReenterWithoutASLR(argc, argv);
+    benchmark::Initialize(&argc, argv);
+    benchmark::RunSpecifiedBenchmarks();
+    benchmark::Shutdown();
+}

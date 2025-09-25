@@ -1,7 +1,7 @@
 #include <chrono>
 #include <utility>
 #include <benchmark/benchmark.h>
-#include "VectorAddition.h"
+#include "matrixMultiplication/MatrixMultiplication.h"
 #include "boost/compute.hpp"
 
 namespace ppb {
@@ -42,33 +42,4 @@ namespace ppb {
 
     template class ImplBoost<float>;
     template class ImplBoost<double>;
-}
-
-BENCHMARK(ppb::VectorAddition<ppb::ImplBoost<float>>::benchmark)
-    ->Name("VecAdd-BoostCL-Float")
-    ->RangeMultiplier(10)
-    ->Range(1e3, 1e8)
-#ifdef PPB_MEASURE_ONLY_KERNEL
-    ->UseManualTime()
-#endif
-    ->Complexity();
-
-BENCHMARK(ppb::VectorAddition<ppb::ImplBoost<double>>::benchmark)
-    ->Name("VecAdd-BoostCL-Double")
-    ->RangeMultiplier(10)
-    ->Range(1e3, 1e8)
-#ifdef PPB_MEASURE_ONLY_KERNEL
-    ->UseManualTime()
-#endif
-    ->Complexity();
-
-int main(int argc, char** argv) {
-    namespace compute = boost::compute;
-    compute::device gpu = compute::system::default_device();
-    std::cout << "GPU Name: " << gpu.name() << '\n';
-
-    benchmark::MaybeReenterWithoutASLR(argc, argv);
-    benchmark::Initialize(&argc, argv);
-    benchmark::RunSpecifiedBenchmarks();
-    benchmark::Shutdown();
 }
