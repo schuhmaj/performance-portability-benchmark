@@ -44,9 +44,9 @@ namespace ppb {
                 appInfo.apiVersion = VK_API_VERSION_1_1;
 
                 std::vector<const char*> layers;
-                if (enableValidation) {
-                    layers.push_back(kValidationLayer);
-                }
+                // if (enableValidation) {
+                //     layers.push_back(kValidationLayer);
+                // }
 
                 // Instance extensions (handle portability on macOS/MoltenVK)
                 std::vector<vk::ExtensionProperties> instExtProps = vk::enumerateInstanceExtensionProperties();

@@ -14,7 +14,18 @@ else ()
             Kompute
             URL https://github.com/KomputeProject/kompute/archive/refs/tags/v${Kompute_VERSION}.tar.gz
     )
+
+    set(KOMPUTE_OPT_LOG_LEVEL "Off" CACHE STRING "Kompute log level" FORCE)
+
     FetchContent_MakeAvailable(Kompute)
+    target_compile_options(kompute PRIVATE
+            -Wno-error
+            -Wno-deprecated-literal-operator
+            -Wno-deprecated
+            -Wno-unused-parameter
+            -Wno-unused-variable
+            -Wno-sign-compare
+    )
 endif ()
 
 list(APPEND CMAKE_PREFIX_PATH "${kompute_SOURCE_DIR}/cmake")
