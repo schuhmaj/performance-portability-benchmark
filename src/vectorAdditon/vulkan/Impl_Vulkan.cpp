@@ -17,22 +17,28 @@ namespace ppb {
     struct ImplVulkan {
         using float_type = FloatType;
 
+        vulkan_utility::VulkanManager manager;
+        std::vector<uint32_t> shader;
+        std::shared_ptr<kp::Sequence> sequence;
+
+        ImplVulkan() : manager{}, shader{VECTORADDITIONSHADER_COMP_SPV.begin(), VECTORADDITIONSHADER_COMP_SPV.end()}, sequence{manager.sequence()}{}
+
         std::pair<std::vector<FloatType>, double> operator()(const std::vector<FloatType> &a, const std::vector<FloatType> &b) {
             const unsigned int size = a.size();
             std::vector<FloatType> result(size, 0.0);
             try {
-                vulkan_utility::VulkanManager manager{};
-
                 auto tensorA = manager.tensor(a);
                 auto tensorB = manager.tensor(b);
                 auto tensorC = manager.tensor(result);
 
                 std::vector<std::shared_ptr<kp::Tensor>> params = {tensorA, tensorB, tensorC};
-                std::vector<uint32_t> shader(VECTORADDITIONSHADER_COMP_SPV.begin(), VECTORADDITIONSHADER_COMP_SPV.end());
-                kp::Workgroup workgroup{{size, 1, 1}};
+                constexpr uint32_t local_size_x = 256;
+                constexpr uint32_t elements_per_vec4 = 4;
+                uint32_t vec4_count = (size + elements_per_vec4 - 1) / elements_per_vec4;
+                uint32_t num_workgroups = (vec4_count + local_size_x - 1) / local_size_x;
+                kp::Workgroup workgroup{{num_workgroups, 1, 1}};
 
                 auto algorithm = manager.algorithm(params, shader, workgroup);
-                auto sequence = manager.sequence();
 
                 sequence->template record<kp::OpTensorSyncDevice>(params)->eval();
 

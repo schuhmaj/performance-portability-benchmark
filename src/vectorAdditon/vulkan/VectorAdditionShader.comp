@@ -1,10 +1,10 @@
 #version 450
 
-layout (local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
+layout (local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
 
-layout (set = 0, binding = 0) buffer buf_in_a {float in_a[]; };
-layout (set = 0, binding = 1) buffer buf_in_b {float in_b[]; };
-layout (set = 0, binding = 2) buffer buf_out_c {float out_c[]; };
+layout (std430, set = 0, binding = 0) readonly buffer buf_in_a {vec4 in_a[]; };
+layout (std430, set = 0, binding = 1) readonly buffer buf_in_b {vec4 in_b[]; };
+layout (std430, set = 0, binding = 2) writeonly buffer buf_out_c {vec4 out_c[]; };
 
 void main() {
     uint index = gl_GlobalInvocationID.x;
