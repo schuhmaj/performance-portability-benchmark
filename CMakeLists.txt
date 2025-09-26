@@ -40,7 +40,7 @@ option(PPB_ENABLE_OpenCL "Enable OpenCL Targets" OFF)
 cmake_dependent_option(PPB_ENABLE_Boost "Enable Boost::Compute Target (requires OpenCL)" OFF "PPB_ENABLE_OpenCL" OFF)
 option(PPB_ENABLE_Kokkos "Enable Kokkos Target" OFF)
 option(PPB_ENABLE_Cuda "Enable Cuda and Thrust Targets" OFF)
-option(PPB_ENABLE_MetalCpp "Enable MetalCpp (Only on macOS!)" OFF)
+option(PPB_ENABLE_Metal "Enable MetalCpp (Only on macOS!)" OFF)
 option(PPB_ENABLE_Alpaka "Enable Alpaka" OFF)
 
 option(PPB_ENABLE_VectorAddition "Enable VectorAddition Benchmarks" ON)
@@ -62,7 +62,7 @@ message(STATUS "OpenCL                          ${PPB_ENABLE_OpenCL}")
 message(STATUS "Boost::Compute (needs OpenCL)   ${PPB_ENABLE_Boost}")
 message(STATUS "Cuda                            ${PPB_ENABLE_Cuda}")
 message(STATUS "Alpaka                          ${PPB_ENABLE_Alpaka}")
-message(STATUS "MetalCpp                        ${PPB_ENABLE_MetalCpp}")
+message(STATUS "Metal (Apple)                   ${PPB_ENABLE_Metal}")
 message(STATUS "####################################################")
 message(STATUS "VectorAddition                  ${PPB_ENABLE_VectorAddition}")
 message(STATUS "MatrixMultiplication            ${PPB_ENABLE_MatrixMultiplication}")
@@ -124,7 +124,7 @@ if (${PPB_ENABLE_AdaptiveCpp} AND NOT CMAKE_CXX_COMPILER_ID STREQUAL "IntelLLVM"
 endif ()
 
 # AdaptiveCPP Inclusion
-if (${PPB_ENABLE_MetalCpp})
+if (${PPB_ENABLE_Metal})
     include(metal)
 endif ()
 
