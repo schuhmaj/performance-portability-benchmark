@@ -2,12 +2,14 @@
 #include <iostream>
 #include <utility>
 #include "vectorAdditon/VectorAddition.h"
-#include "OpenCLUtility.h"
+#include "common/opencl/OpenCLUtility.h"
 
 #ifdef __APPLE__
 #include <OpenCL/opencl.h>
+constexpr size_t WORKGROUP_SIZE = 32;
 #else
 #include <CL/cl.h>
+constexpr size_t WORKGROUP_SIZE = 1024;
 #endif
 
 namespace ppb {
@@ -83,7 +85,7 @@ namespace ppb {
             // 3. Launch kernel and Measure Time
             cl_event event;
             cl_ulong start, end;
-            const size_t localWorkSize = 1024;
+            const size_t localWorkSize = WORKGROUP_SIZE;
             const size_t globalWorkSize = roundUp(localWorkSize, size);
             err = clEnqueueNDRangeKernel(queue, kernel, 1, nullptr, &globalWorkSize, &localWorkSize, 0, nullptr, &event);
             if (err != CL_SUCCESS) throw std::runtime_error("EnqueueNDRangeKernel failed");
@@ -130,8 +132,8 @@ BENCHMARK(ppb::VectorAddition<ppb::ImplOpenCL<double>>::benchmark)
 int main(int argc, char **argv) {
     benchmark::MaybeReenterWithoutASLR(argc, argv);
     
-    auto gpu = opencl_utilities::getFirstGPU();
-    std::cout << "GPU Name: " << opencl_utilities::getDeviceName(gpu) << '\n';
+    const auto gpu = opencl_utilities::getFirstGPU();
+    std::cout << "GPU Name: " << opencl_utilities::getDeviceName(gpu) << std::endl;
 
     benchmark::Initialize(&argc, argv);
     benchmark::RunSpecifiedBenchmarks();
