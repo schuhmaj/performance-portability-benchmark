@@ -1,9 +1,9 @@
+#include "Impl_OpenCL.h"
 #include "benchmark/benchmark.h"
-#include "Impl_Boost.h"
 #include "matrixMultiplication/MatrixMultiplication.h"
 
-BENCHMARK(ppb::MatrixMultiplication<ppb::ImplBoost<float>>::benchmark)
-    ->Name("MatrixMultiplication-Boost-Float")
+BENCHMARK(ppb::MatrixMultiplication<ppb::ImplOpenCL<float>>::benchmark)
+    ->Name("MatrixMultiplication-ImplOpenCL-Float")
     ->Arg(4096)
     ->Iterations(3)
     ->Unit(benchmark::kMillisecond)

@@ -11,15 +11,15 @@
 #include <string>
 #include <vector>
 
-namespace opencl_utilities {
+namespace opencl_utility {
     /**
-     * Returns all available opencl_utilities platforms of the computer.
+     * Returns all available OpenCL platforms of the computer.
      * @return vector of platform ids
      */
     std::vector<cl_platform_id> getPlatforms();
 
     /**
-     * Returns all available opencl_utilities devices for a given platform of the computer. Further, this method allows
+     * Returns all available OpenCL devices for a given platform of the computer. Further, this method allows
      * to specify the type of the returned devices
      * @param platformId the platform id for which to return devices
      * @param type the type of the devices to return, e.g. CL_DEVICE_TYPE_ALL or CL_DEVICE_TYPE_GPU

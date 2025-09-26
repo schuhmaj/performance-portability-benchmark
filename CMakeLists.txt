@@ -84,8 +84,12 @@ list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 
 # We always requires Google Benchmark
 include(gbench)
+include(opencl_compiling)
 
 if (${PPB_ENABLE_Boost} OR ${PPB_ENABLE_AdaptiveCpp})
+    # std::random_shuffle was removed in C++17 and deprecated in C++14 - Boost uses it if we don't enable
+    # this macro for C++11 usage. Then, Boost uses the modern approach rom the header <random> (compliant with C++17)
+    add_compile_definitions(BOOST_COMPUTE_USE_CPP11)
     include(boost)
 endif ()
 

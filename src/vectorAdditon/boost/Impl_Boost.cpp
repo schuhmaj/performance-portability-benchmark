@@ -11,17 +11,17 @@ namespace ppb {
         using float_type = FloatType;
 
         boost::compute::device gpu = boost::compute::system::default_device();
-        boost::compute::context ctx{gpu};
-        boost::compute::command_queue queue{ctx, gpu};
+        boost::compute::context context{gpu};
+        boost::compute::command_queue queue{context, gpu};
 
         std::pair<std::vector<FloatType>, double> operator()(const std::vector<FloatType> &a, const std::vector<FloatType> &b) {
             const size_t size = a.size();
-            boost::compute::vector<FloatType> deviceA{size, ctx};
-            boost::compute::vector<FloatType> deviceB{size, ctx};
+            boost::compute::vector<FloatType> deviceA{size, context};
+            boost::compute::vector<FloatType> deviceB{size, context};
             boost::compute::copy(a.begin(), a.end(), deviceA.begin(), queue);
             boost::compute::copy(b.begin(), b.end(), deviceB.begin(), queue);
 
-            boost::compute::vector<FloatType> resultBuffer(size, ctx);
+            boost::compute::vector<FloatType> resultBuffer(size, context);
 
             BOOST_COMPUTE_FUNCTION(FloatType, add_numbers, (FloatType a, FloatType b), { return a + b; });
             const auto start = std::chrono::high_resolution_clock::now();

@@ -5,7 +5,7 @@
 
 BENCHMARK(ppb::MatrixMultiplication<ppb::ImplKokkos<float>>::benchmark)
     ->Name("MatrixMultiplication-Kokkos-Float")
-    ->Arg(8096)
+    ->Arg(4096)
     ->Iterations(3)
     ->Unit(benchmark::kMillisecond)
 #ifdef PPB_MEASURE_ONLY_KERNEL

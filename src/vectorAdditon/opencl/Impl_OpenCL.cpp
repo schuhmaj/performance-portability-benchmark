@@ -3,6 +3,7 @@
 #include <utility>
 #include "vectorAdditon/VectorAddition.h"
 #include "common/opencl/OpenCLUtility.h"
+#include "VectorAdditionKernel.h"
 
 #ifdef __APPLE__
 #include <OpenCL/opencl.h>
@@ -30,33 +31,25 @@ namespace ppb {
 
         ImplOpenCL() {
             // 0. Get device
-            device = opencl_utilities::getFirstGPU();
+            device = opencl_utility::getFirstGPU();
 
             // 1. Context & queue
             cl_int err;
             context = clCreateContext(0, 1, &device, nullptr, nullptr, &err);
             queue = clCreateCommandQueue(context, device, CL_QUEUE_PROFILING_ENABLE, &err);
 
-            // 3. opencl_utilities program & kernel
-            std::string kernelSource;
+            // 3. opencl_utility program & kernel
+            const char* kernelProg = KERNEL_SOURCE;
+            program = clCreateProgramWithSource(context, 1, &kernelProg, nullptr, &err);
+            err = clBuildProgram(program, 0, nullptr, nullptr, nullptr, nullptr);
+
             if constexpr (std::is_same_v<FloatType, float>) {
-                kernelSource = "__kernel void add_vector(__global const float* a, __global const float* b, __global float* c) {"
-                " int gid = get_global_id(0);"
-                " c[gid] = a[gid] + b[gid];"
-                " }";
+                kernel = clCreateKernel(program, "add_vector_float", &err);
             } else if constexpr (std::is_same_v<FloatType, double>) {
-                kernelSource = "__kernel void add_vector(__global const double* a, __global const double* b, __global double* c) {"
-                " int gid = get_global_id(0);"
-                " c[gid] = a[gid] + b[gid];"
-                " }";
+                kernel = clCreateKernel(program, "add_vector_double", &err);
             } else {
                 static_assert(std::is_same_v<FloatType, float> || std::is_same_v<FloatType, double>, "Unsupported type");
             }
-            const char* kernelProg = kernelSource.c_str();
-            program = clCreateProgramWithSource(context, 1, &kernelProg, nullptr, &err);
-
-            err = clBuildProgram(program, 0, nullptr, nullptr, nullptr, nullptr);
-            kernel = clCreateKernel(program, "add_vector", &err);
         }
 
         ~ImplOpenCL() {
@@ -112,29 +105,29 @@ namespace ppb {
 }
 
 BENCHMARK(ppb::VectorAddition<ppb::ImplOpenCL<float>>::benchmark)
-    ->Name("VecAdd-opencl_utilities-Float")
+    ->Name("VecAdd-opencl_utility-Float")
     ->RangeMultiplier(10)
-    ->Range(1e3, 1e8)
+    ->Range(1e3, 1e4)
 #ifdef PPB_MEASURE_ONLY_KERNEL
     ->UseManualTime()
 #endif
     ->Complexity();
 
+// Apple Metal Devices don't support Double Precision (as of 29.09.2025 - tested with M1 Pro)
+// Hence, building the Kernel will fail on an Apple Chip
+#ifndef __APPLE__
 BENCHMARK(ppb::VectorAddition<ppb::ImplOpenCL<double>>::benchmark)
-    ->Name("VecAdd-opencl_utilities-Double")
+    ->Name("VecAdd-opencl_utility-Double")
     ->RangeMultiplier(10)
-    ->Range(1e3, 1e8)
+    ->Range(1e3, 1e4)
 #ifdef PPB_MEASURE_ONLY_KERNEL
     ->UseManualTime()
 #endif
     ->Complexity();
+#endif
 
 int main(int argc, char **argv) {
     benchmark::MaybeReenterWithoutASLR(argc, argv);
-    
-    const auto gpu = opencl_utilities::getFirstGPU();
-    std::cout << "GPU Name: " << opencl_utilities::getDeviceName(gpu) << std::endl;
-
     benchmark::Initialize(&argc, argv);
     benchmark::RunSpecifiedBenchmarks();
     benchmark::Shutdown();

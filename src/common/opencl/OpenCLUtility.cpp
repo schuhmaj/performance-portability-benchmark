@@ -1,20 +1,20 @@
 #include "OpenCLUtility.h"
 
-namespace opencl_utilities {
+namespace opencl_utility {
 
     std::vector<cl_platform_id> getPlatforms() {
         // Get number of platforms
         cl_uint numPlatforms;
         cl_int err = clGetPlatformIDs(0, nullptr, &numPlatforms);
         if (err != CL_SUCCESS) {
-            throw std::runtime_error("Failed to find any opencl_utilities platforms.");
+            throw std::runtime_error("Failed to find any OpenCL platforms.");
         }
 
         // Get platform IDs
         std::vector<cl_platform_id> platforms{numPlatforms};
         err = clGetPlatformIDs(numPlatforms, platforms.data(), nullptr);
         if (err != CL_SUCCESS) {
-            throw std::runtime_error("Failed to get opencl_utilities platform IDs.");
+            throw std::runtime_error("Failed to get OpenCL platform IDs.");
         }
         return platforms;
     }
@@ -49,4 +49,4 @@ namespace opencl_utilities {
         return getDevices(getPlatforms()[0], CL_DEVICE_TYPE_GPU)[0];
     }
 
-} // namespace opencl_utilities
+} // namespace opencl_utility
