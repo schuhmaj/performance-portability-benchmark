@@ -25,4 +25,9 @@ if (${PPB_ENABLE_OpenCL})
     add_subdirectory(opencl)
 endif()
 
+if (${PPB_ENABLE_AdaptiveCpp})
+    add_subdirectory(acpp)
+endif()
+
+
 add_subdirectory(cpp)
