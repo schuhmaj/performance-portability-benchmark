@@ -57,4 +57,40 @@ namespace ppb::util {
     bool almostEqualRelative(FloatType lhs, FloatType rhs, double epsilon = EPSILON_ALMOST_EQUAL);
 
 
+    /**
+     * Computes the ceiling of the division of two numbers.
+     * This function ensures that division rounds up to the nearest integer if there is any remainder.
+     *
+     * @tparam T The type of the input operands, typically an integral type.
+     * @param a The dividend.
+     * @param b The divisor. It is expected that `b` is non-zero.
+     * @return The smallest integer value not less than `a / b`.
+     *
+     * @note This function is decorated with both __host__ and __device__ attributes, making it
+     *       callable on both the host (CPU) and device (GPU) in CUDA programming.
+     */
+    template<typename T>
+    __attribute__((host)) __attribute__((device)) inline T ceilDiv(const T &a, const T &b) {
+        return (a + b - 1) / b;
+    }
+
+
+    /**
+     * Rounds up a value to the nearest multiple of a specified group size.
+     * This function ensures that the computed result is a multiple of `b`,
+     * either equal to or greater than `a`.
+     *
+     * @tparam T The type of the input operands, typically an integral type.
+     * @param a The value to be rounded up.
+     * @param b The size of the group to which `a` will be rounded up. Must be non-zero.
+     * @return The smallest multiple of `b` that is greater than or equal to `a`.
+     *
+     * @note If `a` is already a multiple of `b`, it remains unchanged.
+     */
+    template<typename T>
+    inline T roundUp(const T &a, const T &b) {
+        int r = a % b;
+        return r == 0 ? a : a + b - r;
+    }
+
 }

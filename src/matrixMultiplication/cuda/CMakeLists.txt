@@ -1,5 +1,4 @@
 add_library(matMul_cuda_lib STATIC
-        Common.cuh
         Impl_Cuda.cu Impl_Cuda.cuh
         Impl_CudaTensor.cu Impl_CudaTensor.cuh
         Impl_CudaBuffer.cu Impl_CudaBuffer.cuh

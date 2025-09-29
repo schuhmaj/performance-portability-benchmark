@@ -85,7 +85,7 @@ namespace ppb {
 
     template <typename FloatType>
     dim3 ImplCudaTensor<FloatType>::getIdealGridSize(const dim3 &blockSize, const int m, const int n) {
-        return {ceilDiv<unsigned int>(m, blockSize.x), ceilDiv<unsigned int>(n, blockSize.y), 1};
+        return {util::ceilDiv<unsigned int>(m, blockSize.x), util::ceilDiv<unsigned int>(n, blockSize.y), 1};
     }
 
 

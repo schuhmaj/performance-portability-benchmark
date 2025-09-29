@@ -1,13 +1,8 @@
 #include "Impl_OpenCL.h"
+#include "common/UtilityFloatArithmetic.h"
 #include <benchmark/benchmark.h>
 #include <iostream>
 #include <utility>
-
-
-static size_t roundUp(int group_size, int global_size) {
-    int r = global_size % group_size;
-    return r == 0 ? global_size : global_size + group_size - r;
-}
 
 template <typename FloatType>
 ppb::ImplOpenCL<FloatType>::ImplOpenCL() {
@@ -80,10 +75,10 @@ ppb::ImplOpenCL<FloatType>::operator()(const std::vector<FloatType> &a, const st
         throw std::runtime_error("SetKernelArg Integer K failed");
 
     // 2D launch configuration
-    const size_t localSize[2] = {16, 16};
+    const size_t localSize[2] = {32, 32};
     const size_t globalSize[2] = {
-        roundUp(static_cast<int>(localSize[0]), config.m),
-        roundUp(static_cast<int>(localSize[1]), config.n)
+        util::roundUp<size_t>(config.m, localSize[0]),
+        util::roundUp<size_t>(config.n, localSize[1])
     };
 
     // Launch and time

@@ -3,6 +3,7 @@
 #include <utility>
 #include "vectorAdditon/VectorAddition.h"
 #include "common/opencl/OpenCLUtility.h"
+#include "common/UtilityFloatArithmetic.h"
 #include "VectorAdditionKernel.h"
 
 #ifdef __APPLE__
@@ -23,11 +24,6 @@ namespace ppb {
         cl_device_id device = nullptr;
         cl_program program = nullptr;
         cl_kernel kernel = nullptr;
-
-        static size_t roundUp(int group_size, int global_size) {
-            int r = global_size % group_size;
-            return r == 0 ? global_size : global_size + group_size - r;
-        }
 
         ImplOpenCL() {
             // 0. Get device
@@ -79,7 +75,7 @@ namespace ppb {
             cl_event event;
             cl_ulong start, end;
             const size_t localWorkSize = WORKGROUP_SIZE;
-            const size_t globalWorkSize = roundUp(localWorkSize, size);
+            const size_t globalWorkSize = util::roundUp(size, localWorkSize);
             err = clEnqueueNDRangeKernel(queue, kernel, 1, nullptr, &globalWorkSize, &localWorkSize, 0, nullptr, &event);
             if (err != CL_SUCCESS) throw std::runtime_error("EnqueueNDRangeKernel failed");
 

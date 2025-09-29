@@ -2,7 +2,7 @@
 #include <array>
 #include <vector>
 #include <utility>
-#include "Common.cuh"
+#include "common/UtilityFloatArithmetic.h"
 #include "matrixMultiplication/MatrixMultiplication.h"
 
 namespace ppb {

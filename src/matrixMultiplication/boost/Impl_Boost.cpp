@@ -3,6 +3,7 @@
 #include <utility>
 #include "boost/compute.hpp"
 #include "matrixMultiplication/MatrixMultiplication.h"
+#include "common/UtilityFloatArithmetic.h"
 
 namespace ppb {
 
@@ -36,14 +37,14 @@ namespace ppb {
         kernel.set_arg(4, config.n);
         kernel.set_arg(5, config.k);
 
-        const size_t global[2] = {
-            static_cast<size_t>(config.m),
-            static_cast<size_t>(config.n)
+        const size_t localSize[2] = {32, 32};
+        const size_t globalSize[2] = {
+            util::roundUp<size_t>(config.m, localSize[0]),
+            util::roundUp<size_t>(config.n, localSize[1])
         };
-        const size_t* local = nullptr;
         const auto start = std::chrono::high_resolution_clock::now();
 
-        queue.enqueue_nd_range_kernel(kernel, 2, nullptr, global, local);
+        queue.enqueue_nd_range_kernel(kernel, 2, nullptr, globalSize, localSize);
         queue.finish();
 
         const auto end = std::chrono::high_resolution_clock::now();
