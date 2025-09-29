@@ -3,6 +3,7 @@ add_library(matMul_cuda_lib STATIC
         Impl_CudaTensor.cu Impl_CudaTensor.cuh
         Impl_CudaBuffer.cu Impl_CudaBuffer.cuh
         Impl_Cublas.cu Impl_Cublas.cuh
+        Impl_CudaNaive.cu Impl_CudaNaive.cuh
 )
 target_compile_features(matMul_cuda_lib PUBLIC cxx_std_17)
 target_link_libraries(matMul_cuda_lib PUBLIC matMul_lib CUDA::cublas)

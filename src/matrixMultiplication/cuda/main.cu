@@ -2,11 +2,22 @@
 #include "matrixMultiplication/cuda/Impl_CudaTensor.cuh"
 #include "matrixMultiplication/cuda/Impl_CudaBuffer.cuh"
 #include "matrixMultiplication/cuda/Impl_Cublas.cuh"
+#include "matrixMultiplication/cuda/Impl_CudaNaive.cuh"
 #include "matrixMultiplication/MatrixMultiplication.h"
 #include "benchmark/benchmark.h"
 
 BENCHMARK(ppb::MatrixMultiplication<ppb::ImplCublas<float>>::benchmark)
     ->Name("MatrixMultiplication-Cublas-Float")
+    ->Arg(4096)
+    ->Iterations(10)
+    ->Unit(benchmark::kMillisecond)
+#ifdef PPB_MEASURE_ONLY_KERNEL
+    ->UseManualTime()
+#endif
+    ->Complexity();
+
+BENCHMARK(ppb::MatrixMultiplication<ppb::ImplCudaNaive<float>>::benchmark)
+    ->Name("MatrixMultiplication-CudaNaive-Float")
     ->Arg(4096)
     ->Iterations(10)
     ->Unit(benchmark::kMillisecond)
