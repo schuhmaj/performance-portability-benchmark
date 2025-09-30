@@ -4,8 +4,8 @@
 
 BENCHMARK(ppb::MatrixMultiplication<ppb::ImplOpenCL<float>>::benchmark)
     ->Name("MatrixMultiplication-Float-ImplOpenCL")
-    ->Arg(4096)
-    ->Iterations(3)
+    ->RangeMultiplier(2)
+    ->Range(32, 8192)
 #ifdef PPB_MEASURE_ONLY_KERNEL
     ->UseManualTime()
 #endif
