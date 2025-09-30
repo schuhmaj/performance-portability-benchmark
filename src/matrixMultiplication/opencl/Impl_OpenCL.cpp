@@ -96,13 +96,13 @@ ppb::ImplOpenCL<FloatType>::operator()(const std::vector<FloatType> &a, const st
 
     clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_START, sizeof(start), &start, nullptr);
     clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_END, sizeof(end), &end, nullptr);
-    double execution_time = static_cast<double>(end - start) * 1e-9;
+    double elapsed_nanoseconds = end - start;
 
     clReleaseMemObject(deviceA);
     clReleaseMemObject(deviceB);
     clReleaseMemObject(resultBuffer);
     clReleaseEvent(event);
-    return std::make_pair(std::move(result), execution_time);
+    return std::make_pair(std::move(result), elapsed_nanoseconds);
 }
 
 template class ppb::ImplOpenCL<float>;

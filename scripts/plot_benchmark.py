@@ -33,8 +33,10 @@ Arguments:
 import argparse
 import json
 import subprocess
+import sys
 from datetime import datetime
 from pathlib import Path
+from typing import Literal
 
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -57,6 +59,7 @@ def find_files(search_dir: list[Path] | Path, pattern: str) -> list[Path]:
         for file in directory.rglob(pattern):
             if file.is_file():
                 cmake_targets.append(file.resolve())
+                logger.debug(f"Append file {file}")
     logger.info(f"Found {len(cmake_targets)} files")
     return cmake_targets
 
@@ -89,9 +92,9 @@ def run_benchmarks(executable_targets: list[Path]) -> list[Path]:
 
 
 def load_reports(report_files: list[Path]) -> pd.DataFrame:
-    """Gets a list of paths pointing to json benchmarking reports. Every report
-    is read and normalized using the json library before being transferred to a
-    pandas DataFrame.
+    """Gets a list of paths pointing to JSON benchmarking reports. Every report
+    is read and normalized using the JSON library before being transferred to a
+    `pandas.DataFrame`.
 
     Args:
         report_files: List of Path objects pointing to JSON report files to be loaded.
@@ -102,6 +105,7 @@ def load_reports(report_files: list[Path]) -> pd.DataFrame:
     data = []
     logger.info("Loading all report json files")
     for file in report_files:
+        logger.debug(f"Loading report file {file}")
         with open(file, "r") as file:
             json_data = json.load(file)
         df = pd.DataFrame(json_data["benchmarks"])
@@ -110,51 +114,66 @@ def load_reports(report_files: list[Path]) -> pd.DataFrame:
         df = df.dropna(subset=["iterations"])
 
         # 2. Select specific columns
-        df = df[["name", "iterations", "real_time", "cpu_time", "time_unit"]]
+        df = df[["name", "iterations", "real_time", "cpu_time", "time_unit", "kernel_time"]]
 
         # 3. Split the `name` column into `type`, `framework`, `precision`, and `size`
-        # Assuming the format is consistent as 'VecAdd-Kokkos-Float/1000'
+        # Assuming the format is consistent as 'VecAdd-Float-Kokkos-Version/1000'
         # Separate by '/' first, then '-'
-        name_split = df["name"].str.split("/", expand=True)
-        details_split = name_split[0].str.split("-", expand=True)
+        name_size_split = df["name"].str.split("/", expand=True)
+        details_split = name_size_split[0].str.split("-", expand=True)
+
 
         # Create new columns from the splits
-        df["Problem"] = details_split[0]
-        df["Framework"] = details_split[1].str.lower()
-        df["Data Type"] = details_split[2].str.lower()
-        df["Problem Size"] = name_split[1].astype(int)
+        df["Problem Size"] = name_size_split[1].astype(int)
+        df["Name"] = details_split[0].astype(str)
+        df["Precision"] = details_split[1].str.lower()
+        df["Framework"] = details_split[2].astype(str)
+        if len(details_split.columns) > 3:
+            df["Version"] = details_split[3].astype(str)
+            df["Framework[Version]"] = df["Framework"] + "[" + df["Version"] + "]"
 
-        df.rename(columns={"real_time": "Runtime", "cpu_time": "CPU Time", "time_unit": "Time Unit",
-            "iterations": "Iterations", }, inplace=True, )
+
+        df.rename(
+            columns={
+                "real_time": "Wall Clock Time",
+                "cpu_time": "CPU Time",
+                "time_unit": "Time Unit",
+                "iterations": "Iterations",
+                "kernel_time" : "Kernel Time"
+            },
+            inplace=True
+        )
 
         # Rearrange the columns as needed
-        df = df[
-            ["Problem", "Framework", "Data Type", "Problem Size", "Iterations", "Runtime", "CPU Time", "Time Unit", ]]
+        df = df[["Name", "Framework", "Precision", "Problem Size", "Iterations", "Wall Clock Time", "CPU Time", "Kernel Time", "Time Unit"]]
         data.append(df)
     logger.info(f"Loaded {len(data)} report json files")
     return pd.concat(data)
 
 
-def plot_benchmarks(benchmark_df: pd.DataFrame, save_path: Path | None = None, time_unit: str = "nanoseconds") -> tuple[plt.Figure, plt.Axes]:
+def plot_linechart(benchmark_df: pd.DataFrame, save_path: Path | None = None, time_unit: str = "nanoseconds", selected_runtime: Literal["kernel_time", "wall_time", "cpu_time"] = "wall_time") -> tuple[plt.Figure, plt.Axes]:
     """Generates a log-log plot from the given benchmark DataFrame. and stores the result
     into a file if one is specified
 
     Args:
-        benchmark_df: Aapandas DataFrame containing benchmark data with columns for 'Problem Size', 'Runtime', 'Framework', 'Data Type', and 'Problem'.
+        benchmark_df: Aapandas DataFrame containing benchmark data with columns for 'Problem Size', 'Wall Runtime', 'Framework', 'Precision', and 'Name'.
         save_path (Optional): a Path object specifying the location to save the resultant plot PDF.
+        time_unit (Optional): a string specifying the unit of time to use for the y-axis. Defaults to "nanoseconds".
+        selected_runtime (Optional): a string specifying the time to use for the plot. Defaults to "wall_time".
 
     Returns:
         A tuple containing the matplotlib Figure and Axes objects for the generated plot.
     """
-    # benchmark_df = benchmark_df[benchmark_df["Data Type"] == "float"]
+    runtime = {"wall_time": "Wall Clock Time", "cpu_time": "CPU Time", "kernel_time": "Kernel Time"}[selected_runtime]
+    name = "Framework[Version]" if "Version" in benchmark_df.columns else "Framework"
     fig, ax = plt.subplots(figsize=(10, 6))
-    sns.lineplot(x="Problem Size", y="Runtime", hue="Framework", hue_order=benchmark_df["Framework"].unique().sort(), data=benchmark_df,
-                 marker="o", ax=ax, palette="tab20", style="Data Type",)
+    sns.lineplot(x="Problem Size", y=runtime, hue=name, hue_order=benchmark_df[name].unique().sort(), data=benchmark_df,
+                 marker="o", ax=ax, palette="tab20", style="Precision")
     ax.set_xscale("log")
     ax.set_yscale("log")
-    ax.set_ylabel(f"Runtime [{time_unit}]")
+    ax.set_ylabel(f"{runtime} [{time_unit}]")
     ax.set_xlabel("Problem Size [1]")
-    ax.set_title(f'Runtime in {time_unit} vs. Problem Size $N$ for {benchmark_df["Problem"].unique()[0]}')
+    ax.set_title(f'Runtime in {time_unit} vs. Problem Size $N$ for {benchmark_df["Name"].unique()[0]}')
     ax.grid(True, which="both", linestyle="--", alpha=0.7)
     fig.tight_layout()
     if save_path is not None:
@@ -162,26 +181,36 @@ def plot_benchmarks(benchmark_df: pd.DataFrame, save_path: Path | None = None, t
         logger.info(f"Saved results to file {save_path}")
     return fig, ax
 
+def plot_barchart(benchmark_df: pd.DataFrame, save_path: Path | None = None, time_unit: str = "nanoseconds", selected_runtime: list[Literal["kernel_time", "wall_time", "cpu_time"]] = ["wall_time", "kernel_time"]) -> tuple[plt.Figure, plt.Axes]:
+    """Generates a bar plot from the given benchmark DataFrame. and stores the result
+    into a file if one is specified
+    """
+    pass
+
 
 if __name__ == "__main__":
-    """
-    """
     parser = argparse.ArgumentParser(description="Benchmarking Command Line Interface")
     parser.add_argument("--report", action="store_false", default=True,
         help="If set, the regex and path are used to directly search for the report files instead of benchmarking targets", )
     parser.add_argument("-p", "--path", nargs='+', type=Path, default=[Path.cwd()], help="Path to search for files")
     parser.add_argument("-r", "--regex", type=str, required=True, help="Regex Pattern for files to search")
-    parser.add_argument("-t", "--time-unit",type=str, default="nanoseconds", help="Time unit for the plots",)
+    parser.add_argument("-u", "--time-unit",type=str, default="nanoseconds", help="Time unit for the plots",)
     default_output = datetime.now().strftime("%Y-%m-%d_%H-%M_Benchmark_Result.pdf")
     parser.add_argument("-o", "--output", type=Path, default=Path(default_output),
         help="Output file name for the plots", )
+    parser.add_argument("-v", "--verbose", action="count", default=0, help="Verbosity level (Enable Debug & Trace Logs)")
+    parser.add_argument("-t", "--time", type=str, default="wall_time", help="Time to use for the plot", choices=["wall_time", "cpu_time", "kernel_time"])
 
     args = parser.parse_args()
+
+    # Set loguru log level to INFO, DEBUG, TRACE depending on the verbosity level
+    logger.remove()
+    logger.add(sys.stdout, level=["INFO", "DEBUG", "TRACE"][args.verbose])
 
     # Run the benchmark pipeline
     files = find_files(args.path, args.regex)
     if args.report:
         files = run_benchmarks(files)
     df = load_reports(files)
-    plot_benchmarks(df, args.output, args.time_unit)
+    plot_linechart(df, args.output, args.time_unit, args.time)
     df.to_csv(args.output.with_suffix(".csv"), index=False)

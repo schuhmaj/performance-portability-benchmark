@@ -4,10 +4,9 @@
 #include "matrixMultiplication/MatrixMultiplication.h"
 
 BENCHMARK(ppb::MatrixMultiplication<ppb::ImplKokkos<float>>::benchmark)
-    ->Name("MatrixMultiplication-Kokkos-Float")
+    ->Name("MatrixMultiplication-Float-Kokkos")
     ->Arg(4096)
     ->Iterations(3)
-    ->Unit(benchmark::kMillisecond)
 #ifdef PPB_MEASURE_ONLY_KERNEL
     ->UseManualTime()
 #endif

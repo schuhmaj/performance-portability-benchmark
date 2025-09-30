@@ -86,13 +86,13 @@ namespace ppb {
 
             clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_START, sizeof(start), &start, nullptr);
             clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_END, sizeof(end), &end, nullptr);
-            double execution_time = static_cast<double>(end - start) * 1e-9;
+            double elapsed_nanoseconds = static_cast<double>(end - start);
 
             clReleaseMemObject(deviceA);
             clReleaseMemObject(deviceB);
             clReleaseMemObject(resultBuffer);
             clReleaseEvent(event);
-            return std::make_pair(result, execution_time);
+            return std::make_pair(result, elapsed_nanoseconds);
         }
     };
 
@@ -101,7 +101,7 @@ namespace ppb {
 }
 
 BENCHMARK(ppb::VectorAddition<ppb::ImplOpenCL<float>>::benchmark)
-    ->Name("VecAdd-opencl_utility-Float")
+    ->Name("VecAdd-Float-OpenCL")
     ->RangeMultiplier(10)
     ->Range(1e3, 1e4)
 #ifdef PPB_MEASURE_ONLY_KERNEL
@@ -113,7 +113,7 @@ BENCHMARK(ppb::VectorAddition<ppb::ImplOpenCL<float>>::benchmark)
 // Hence, building the Kernel will fail on an Apple Chip
 #ifndef __APPLE__
 BENCHMARK(ppb::VectorAddition<ppb::ImplOpenCL<double>>::benchmark)
-    ->Name("VecAdd-opencl_utility-Double")
+    ->Name("VecAdd-Double-OpenCL")
     ->RangeMultiplier(10)
     ->Range(1e3, 1e4)
 #ifdef PPB_MEASURE_ONLY_KERNEL

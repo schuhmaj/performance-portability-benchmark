@@ -4,20 +4,18 @@
 #include "benchmark/benchmark.h"
 
 BENCHMARK(ppb::MatrixMultiplication<ppb::ImplOpenMP<float>>::benchmark)
-    ->Name("MatrixMultiplication-OpenMP-Float")
+    ->Name("MatrixMultiplication-Float-OpenMP-CPU")
     ->Arg(4096)
     ->Iterations(3)
-    ->Unit(benchmark::kMillisecond)
 #ifdef PPB_MEASURE_ONLY_KERNEL
     ->UseManualTime()
 #endif
     ->Complexity();
 
 BENCHMARK(ppb::MatrixMultiplication<ppb::ImplOpenMPDevice<float>>::benchmark)
-    ->Name("MatrixMultiplication-OpenMP_Device-Float")
+    ->Name("MatrixMultiplication-Float-OpenMP-Device")
     ->Arg(4096)
     ->Iterations(3)
-    ->Unit(benchmark::kMillisecond)
 #ifdef PPB_MEASURE_ONLY_KERNEL
     ->UseManualTime()
 #endif

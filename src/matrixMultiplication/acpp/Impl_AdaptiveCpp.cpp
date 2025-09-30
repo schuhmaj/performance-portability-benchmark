@@ -90,10 +90,10 @@ std::pair<std::vector<FloatType>, double> ppb::ImplAdaptiveCpp<FloatType>::opera
     event.wait_and_throw();
     auto end = event.template get_profiling_info<sycl::info::event_profiling::command_end>();
     auto start = event.template get_profiling_info<sycl::info::event_profiling::command_start>();
-    double elapsed_seconds = (end - start) * 1e-9;
+    double elapsed_nanoseconds = end - start;
 
     std::vector<FloatType> result(deviceResult, deviceResult + resultSize);
-    return std::make_pair(result, elapsed_seconds);
+    return std::make_pair(result, elapsed_nanoseconds);
 }
 
 /* Explicit Instantiation for float and double */

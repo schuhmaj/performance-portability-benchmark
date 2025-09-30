@@ -7,50 +7,45 @@
 #include "benchmark/benchmark.h"
 
 BENCHMARK(ppb::MatrixMultiplication<ppb::ImplCublas<float>>::benchmark)
-    ->Name("MatrixMultiplication-Cublas-Float")
+    ->Name("MatrixMultiplication-Float-Cublas")
     ->Arg(4096)
     ->Iterations(10)
-    ->Unit(benchmark::kMillisecond)
 #ifdef PPB_MEASURE_ONLY_KERNEL
     ->UseManualTime()
 #endif
     ->Complexity();
 
 BENCHMARK(ppb::MatrixMultiplication<ppb::ImplCudaNaive<float>>::benchmark)
-    ->Name("MatrixMultiplication-CudaNaive-Float")
+    ->Name("MatrixMultiplication-Float-Cuda-Naive")
     ->Arg(4096)
     ->Iterations(10)
-    ->Unit(benchmark::kMillisecond)
 #ifdef PPB_MEASURE_ONLY_KERNEL
     ->UseManualTime()
 #endif
     ->Complexity();
 
 BENCHMARK(ppb::MatrixMultiplication<ppb::ImplCuda<float>>::benchmark)
-    ->Name("MatrixMultiplication-Cuda-Float")
+    ->Name("MatrixMultiplication-Float-Cuda-SharedMemory")
     ->Arg(4096)
     ->Iterations(10)
-    ->Unit(benchmark::kMillisecond)
 #ifdef PPB_MEASURE_ONLY_KERNEL
     ->UseManualTime()
 #endif
     ->Complexity();
 
 BENCHMARK(ppb::MatrixMultiplication<ppb::ImplCudaBuffer<float>>::benchmark)
-    ->Name("MatrixMultiplication-CudaBuffer-Float")
+    ->Name("MatrixMultiplication-Float-Cuda-Buffer")
     ->Arg(4096)
     ->Iterations(10)
-    ->Unit(benchmark::kMillisecond)
 #ifdef PPB_MEASURE_ONLY_KERNEL
     ->UseManualTime()
 #endif
     ->Complexity();
 
 BENCHMARK(ppb::MatrixMultiplication<ppb::ImplCudaTensor<float>>::benchmark)
-    ->Name("MatrixMultiplication-CudaTensor-Float")
+    ->Name("MatrixMultiplication-Float-Cuda-Tensor")
     ->Arg(4096)
     ->Iterations(10)
-    ->Unit(benchmark::kMillisecond)
 #ifdef PPB_MEASURE_ONLY_KERNEL
     ->UseManualTime()
 #endif

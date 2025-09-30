@@ -3,16 +3,14 @@
 #include "nBodySimulation/NBodySimulation.h"
 
 BENCHMARK(ppb::NBodySimulation<ppb::ImplCpp<float>>::benchmark)
-    ->Name("NBody-CStd-Float")
+    ->Name("NBody-Float-CStd")
     ->RangeMultiplier(10)
     ->Range(1e1, 1e4)
-    ->Unit(benchmark::kMillisecond)
     ->Complexity();
 BENCHMARK(ppb::NBodySimulation<ppb::ImplCpp<double>>::benchmark)
-    ->Name("NBody-CStd-Double")
+    ->Name("NBody-Double-CStd")
     ->RangeMultiplier(10)
     ->Range(1e1, 1e4)
-    ->Unit(benchmark::kMillisecond)
     ->Complexity();
 
 int main(int argc, char** argv) {

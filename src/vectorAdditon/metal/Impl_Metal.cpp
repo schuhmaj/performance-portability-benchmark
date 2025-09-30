@@ -143,13 +143,13 @@ namespace ppb {
             bufferA->release();
             bufferB->release();
             bufferResult->release();
-            return std::make_pair(result, gpuTimeSeconds);
+            return std::make_pair(result, gpuTimeSeconds * 1e9);
         }
     };
 } // namespace ppb
 
 BENCHMARK(ppb::VectorAddition<ppb::ImplMetal>::benchmark)
-    ->Name("VecAdd-Metal-Float")
+    ->Name("VecAdd-Float-Metal")
 #ifdef PPB_MEASURE_ONLY_KERNEL
     ->UseManualTime()
 #endif

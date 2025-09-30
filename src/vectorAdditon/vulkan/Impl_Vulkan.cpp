@@ -47,11 +47,12 @@ namespace ppb {
                 sequence->template record<kp::OpAlgoDispatch>(algorithm)->eval();
 
                 const auto end = std::chrono::high_resolution_clock::now();
-                const double elapsed_seconds = std::chrono::duration_cast<std::chrono::duration<double>>(end - start).count();
+                const double elapsed_nanoseconds =
+                    static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count());
 
                 sequence->template record<kp::OpTensorSyncLocal>(params)->eval();
                 result = tensorC->vector();
-                return std::make_pair(result, elapsed_seconds);
+                return std::make_pair(result, elapsed_nanoseconds);
             } catch (const std::exception &ex) {
                 std::cerr << "Vulkan/Kompute initialization or execution failed: " << ex.what() << std::endl;
                 return std::make_pair(result, 0.0);
@@ -63,7 +64,7 @@ namespace ppb {
 };
 
 BENCHMARK(ppb::VectorAddition<ppb::ImplVulkan<float>>::benchmark)
-    ->Name("VecAdd-Vulkan-Float")
+    ->Name("VecAdd-Float-Vulkan")
     ->RangeMultiplier(10)
     ->Range(1e3, 1e8)
 #ifdef PPB_MEASURE_ONLY_KERNEL

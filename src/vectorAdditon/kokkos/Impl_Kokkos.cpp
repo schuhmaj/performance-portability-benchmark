@@ -63,7 +63,7 @@ namespace ppb {
 
             const auto res_host = Kokkos::create_mirror_view(result);
             Kokkos::deep_copy(res_host, result);
-            return std::make_pair(std::vector<FloatType>(res_host.data(), res_host.data() + res_host.size()), seconds);
+            return std::make_pair(std::vector<FloatType>(res_host.data(), res_host.data() + res_host.size()), seconds * 1e9);
         }
     };
 
@@ -72,7 +72,7 @@ namespace ppb {
 };
 
 BENCHMARK(ppb::VectorAddition<ppb::KokkosImpl<float>>::benchmark)
-    ->Name("VecAdd-Kokkos-Float")
+    ->Name("VecAdd-Float-Kokkos")
     ->RangeMultiplier(10)
     ->Range(1e3, 1e8)
 #ifdef PPB_MEASURE_ONLY_KERNEL
@@ -81,7 +81,7 @@ BENCHMARK(ppb::VectorAddition<ppb::KokkosImpl<float>>::benchmark)
     ->Complexity();
 
 BENCHMARK(ppb::VectorAddition<ppb::KokkosImpl<double>>::benchmark)
-    ->Name("VecAdd-Kokkos-Double")
+    ->Name("VecAdd-Double-Kokkos")
     ->RangeMultiplier(10)
     ->Range(1e3, 1e8)
 #ifdef PPB_MEASURE_ONLY_KERNEL

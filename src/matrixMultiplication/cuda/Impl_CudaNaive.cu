@@ -57,7 +57,7 @@ namespace ppb {
         cudaStreamSynchronize(stream);
         cudaEventSynchronize(stop);
         cudaEventElapsedTime(&elapsedTime, start, stop);
-        return std::make_pair(result, elapsedTime * 1e-3);
+        return std::make_pair(result, elapsedTime * 1e6);
     }
 
     template <typename FloatType>

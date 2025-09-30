@@ -3,16 +3,14 @@
 #include "nBodySimulation/NBodySimulation.h"
 
 BENCHMARK(ppb::NBodySimulation<ppb::ImplKokkos<float>>::benchmark)
-    ->Name("NBody-Kokkos_SoA_2D_Kernel_TeamPolicy-Float")
+    ->Name("NBody-Float-Kokkos-SoA_2D_Kernel_TeamPolicy")
     ->RangeMultiplier(10)
     ->Range(1e1, 1e4)
-    ->Unit(benchmark::kMillisecond)
     ->Complexity();
 BENCHMARK(ppb::NBodySimulation<ppb::ImplKokkos<double>>::benchmark)
-    ->Name("NBody-Kokkos_SoA_2D_Kernel_TeamPolicy-Double")
+    ->Name("NBody-Double-Kokkos-SoA_2D_Kernel_TeamPolicy")
     ->RangeMultiplier(10)
     ->Range(1e1, 1e4)
-    ->Unit(benchmark::kMillisecond)
     ->Complexity();
 
 int main(int argc, char** argv) {

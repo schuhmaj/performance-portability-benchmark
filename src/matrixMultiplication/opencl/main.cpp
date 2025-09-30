@@ -3,10 +3,9 @@
 #include "matrixMultiplication/MatrixMultiplication.h"
 
 BENCHMARK(ppb::MatrixMultiplication<ppb::ImplOpenCL<float>>::benchmark)
-    ->Name("MatrixMultiplication-ImplOpenCL-Float")
+    ->Name("MatrixMultiplication-Float-ImplOpenCL")
     ->Arg(4096)
     ->Iterations(3)
-    ->Unit(benchmark::kMillisecond)
 #ifdef PPB_MEASURE_ONLY_KERNEL
     ->UseManualTime()
 #endif

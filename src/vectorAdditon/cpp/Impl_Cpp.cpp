@@ -15,8 +15,8 @@ namespace ppb {
             std::transform(a.begin(), a.end(), b.begin(), result.begin(),
                            std::plus<FloatType>());
             const auto end = std::chrono::high_resolution_clock::now();
-            const double elapsed_seconds = std::chrono::duration_cast<std::chrono::duration<double>>(end - start).count();
-            return std::make_pair(result, elapsed_seconds);
+            const double elapsed_nanoseconds = static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count());
+            return std::make_pair(result, elapsed_nanoseconds);
         }
     };
 
@@ -25,7 +25,7 @@ namespace ppb {
 };
 
 BENCHMARK(ppb::VectorAddition<ppb::ImplCpp<float>>::benchmark)
-    ->Name("VecAdd-CStd-Float")
+    ->Name("VecAdd-Float-cpp")
     ->RangeMultiplier(10)
     ->Range(1e3, 1e8)
 #ifdef PPB_MEASURE_ONLY_KERNEL
@@ -34,7 +34,7 @@ BENCHMARK(ppb::VectorAddition<ppb::ImplCpp<float>>::benchmark)
     ->Complexity();
 
 BENCHMARK(ppb::VectorAddition<ppb::ImplCpp<double>>::benchmark)
-    ->Name("VecAdd-CStd-Float")
+    ->Name("VecAdd-Double-cpp")
     ->RangeMultiplier(10)
     ->Range(1e3, 1e8)
 #ifdef PPB_MEASURE_ONLY_KERNEL

@@ -3,10 +3,9 @@
 #include "matrixMultiplication/MatrixMultiplication.h"
 
 BENCHMARK(ppb::MatrixMultiplication<ppb::ImplAdaptiveCpp<float>>::benchmark)
-    ->Name("MatrixMultiplication-AdaptiveCpp-Float")
+    ->Name("MatrixMultiplication-Float-AdaptiveCpp")
     ->Arg(4096)
     ->Iterations(3)
-    ->Unit(benchmark::kMillisecond)
 #ifdef PPB_MEASURE_ONLY_KERNEL
     ->UseManualTime()
 #endif

@@ -6,7 +6,7 @@
 #include "benchmark/benchmark.h"
 
 BENCHMARK(ppb::VectorAddition<ppb::ImplCuda<float>>::benchmark)
-->Name("VecAdd-Cuda-Float")
+->Name("VecAdd-Float-Cuda")
 ->RangeMultiplier(10)
 ->Range(1e6, 1e8)
 #ifdef PPB_MEASURE_ONLY_KERNEL
@@ -16,7 +16,7 @@ BENCHMARK(ppb::VectorAddition<ppb::ImplCuda<float>>::benchmark)
 
 
 BENCHMARK(ppb::VectorAddition<ppb::ImplCublas<float>>::benchmark)
-    ->Name("VecAdd-Cublas-Float")
+    ->Name("VecAdd-Float-Cublas")
     ->RangeMultiplier(10)
     ->Range(1e6, 1e8)
 #ifdef PPB_MEASURE_ONLY_KERNEL
@@ -25,7 +25,7 @@ BENCHMARK(ppb::VectorAddition<ppb::ImplCublas<float>>::benchmark)
     ->Complexity();
 
 BENCHMARK(ppb::VectorAddition<ppb::ImplChunkedCuda<float>>::benchmark)
-    ->Name("VecAdd-Cuda-Float")
+    ->Name("VecAdd-Float-Cuda")
     ->RangeMultiplier(10)
     ->Range(1e6, 1e9)
 #ifdef PPB_MEASURE_ONLY_KERNEL
@@ -34,7 +34,7 @@ BENCHMARK(ppb::VectorAddition<ppb::ImplChunkedCuda<float>>::benchmark)
     ->Complexity();
 
 BENCHMARK(ppb::VectorAddition<ppb::ImplThrust<float>>::benchmark)
-    ->Name("VecAdd-Thrust-Float")
+    ->Name("VecAdd-Float-Thrust")
     ->RangeMultiplier(10)
     ->Range(1e3, 1e8)
 #ifdef PPB_MEASURE_ONLY_KERNEL
@@ -43,7 +43,7 @@ BENCHMARK(ppb::VectorAddition<ppb::ImplThrust<float>>::benchmark)
     ->Complexity();
 
 BENCHMARK(ppb::VectorAddition<ppb::ImplThrust<double>>::benchmark)
-    ->Name("VecAdd-Thrust-Double")
+    ->Name("VecAdd-Double-Thrust")
     ->RangeMultiplier(10)
     ->Range(1e3, 1e7)
 #ifdef PPB_MEASURE_ONLY_KERNEL

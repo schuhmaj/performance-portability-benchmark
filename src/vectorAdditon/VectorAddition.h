@@ -88,7 +88,7 @@ namespace ppb {
                 }
             }
 #ifndef PPB_MEASURE_ONLY_KERNEL
-            state.counters["Kernel Time"] = benchmark::Counter(kernelTime, benchmark::Counter::kAvgIterations);
+            state.counters["kernel_time"] = benchmark::Counter(kernelTime, benchmark::Counter::kAvgIterations);
 #endif
             state.SetComplexityN(static_cast<long long>(size));
         }

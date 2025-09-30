@@ -48,10 +48,10 @@ namespace ppb {
         queue.finish();
 
         const auto end = std::chrono::high_resolution_clock::now();
-        const double elapsed_seconds = std::chrono::duration_cast<std::chrono::duration<double>>(end - start).count();
+        const double elapsed_nanoseconds = static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count());
         boost::compute::copy(resultBuffer.begin(), resultBuffer.end(), result.begin(), queue);
         queue.finish();
-        return std::make_pair(std::move(result), elapsed_seconds);
+        return std::make_pair(std::move(result), elapsed_nanoseconds);
     }
 
     template class ImplBoost<float>;
