@@ -3,7 +3,7 @@
 #include "matrixMultiplication/MatrixMultiplication.h"
 
 BENCHMARK(ppb::MatrixMultiplication<ppb::ImplCpp<float>>::benchmark)
-    ->Name("MatrixMultiplication-Float-CStd")
+    ->Name("MatrixMultiplication-Float-cpp")
     ->Arg(4096)
 #ifdef PPB_MEASURE_ONLY_KERNEL
     ->UseManualTime()

@@ -8,7 +8,7 @@
 
 BENCHMARK(ppb::MatrixMultiplication<ppb::ImplCublas<float>>::benchmark)
     ->Name("MatrixMultiplication-Float-Cublas")
-    ->Arg(4096)
+->Arg(4096)->Arg(512)
     ->Iterations(10)
 #ifdef PPB_MEASURE_ONLY_KERNEL
     ->UseManualTime()
@@ -17,7 +17,7 @@ BENCHMARK(ppb::MatrixMultiplication<ppb::ImplCublas<float>>::benchmark)
 
 BENCHMARK(ppb::MatrixMultiplication<ppb::ImplCudaNaive<float>>::benchmark)
     ->Name("MatrixMultiplication-Float-Cuda-Naive")
-    ->Arg(4096)
+    ->Arg(4096)->Arg(512)
     ->Iterations(10)
 #ifdef PPB_MEASURE_ONLY_KERNEL
     ->UseManualTime()
@@ -26,7 +26,7 @@ BENCHMARK(ppb::MatrixMultiplication<ppb::ImplCudaNaive<float>>::benchmark)
 
 BENCHMARK(ppb::MatrixMultiplication<ppb::ImplCuda<float>>::benchmark)
     ->Name("MatrixMultiplication-Float-Cuda-SharedMemory")
-    ->Arg(4096)
+->Arg(4096)->Arg(512)
     ->Iterations(10)
 #ifdef PPB_MEASURE_ONLY_KERNEL
     ->UseManualTime()
@@ -35,7 +35,7 @@ BENCHMARK(ppb::MatrixMultiplication<ppb::ImplCuda<float>>::benchmark)
 
 BENCHMARK(ppb::MatrixMultiplication<ppb::ImplCudaBuffer<float>>::benchmark)
     ->Name("MatrixMultiplication-Float-Cuda-Buffer")
-    ->Arg(4096)
+->Arg(4096)->Arg(512)
     ->Iterations(10)
 #ifdef PPB_MEASURE_ONLY_KERNEL
     ->UseManualTime()

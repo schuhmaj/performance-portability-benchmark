@@ -25,7 +25,7 @@ BENCHMARK(ppb::VectorAddition<ppb::ImplCublas<float>>::benchmark)
     ->Complexity();
 
 BENCHMARK(ppb::VectorAddition<ppb::ImplChunkedCuda<float>>::benchmark)
-    ->Name("VecAdd-Float-Cuda")
+    ->Name("VecAdd-Float-Cuda-Chunked")
     ->RangeMultiplier(10)
     ->Range(1e6, 1e9)
 #ifdef PPB_MEASURE_ONLY_KERNEL
