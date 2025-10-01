@@ -11,6 +11,7 @@
 #include "Particle.h"
 #include "../../common/UtilityContainer.h"
 #include <iostream>
+#include <sycl/sycl.hpp>
 
 namespace ppb {
 
@@ -56,24 +57,29 @@ namespace ppb {
          * Updates positions of all particles using velocity Verlet integration and resets their forces
          * with the configured global force.
          *
-         * @param particles Vector of particles whose positions and forces are modified in-place.
+         * @param queue Sycl device queue, accessor of execution target
+         * @param particlesUSM Array of particles in shared memory whose positions and forces are modified in-place.
+         * @param size size of particleusm, amount of particles
          */
-        void updatePositionsAndResetForce(std::vector<Particle<FloatType>> &particles);
+        void updatePositionsAndResetForce(sycl::queue &queue, Particle<FloatType> *particlesUSM, const size_t &size);
 
         /**
          * Updates velocities of all particles using the forces computed before and after the integration step.
          *
-         * @param particles Vector of particles whose velocities are modified in-place.
+         * @param queue Sycl device queue, accessor of execution target
+         * @param particlesUSM Array of particles in shared memory whose positions and forces are modified in-place.
+         * @param particles Vector of particles for which the forces will be calculated and accumulated.
          */
-        void updateVelocities(std::vector<Particle<FloatType>> &particles);
+        void updateVelocities(sycl::queue &queue, Particle<FloatType> *particlesUSM, const size_t &size);
 
         /**
          * Computes the inter-particle forces for all particles using the Lennard-Jones potential.
          *
+         * @param queue Sycl device queue, accessor of execution target
+         * @param particlesUSM Array of particles in shared memory whose positions and forces are modified in-place.
          * @param particles Vector of particles for which the forces will be calculated and accumulated.
          */
-        void computeForces(std::vector<Particle<FloatType>> &particles);
-
+        void computeForces_atomic(sycl::queue &queue, Particle<FloatType> *particlesUSM, const size_t &size);
 
     };
 } // namespace ppb
