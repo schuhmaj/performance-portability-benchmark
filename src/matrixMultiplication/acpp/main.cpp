@@ -1,9 +1,19 @@
 #include "benchmark/benchmark.h"
 #include "Impl_AdaptiveCpp.h"
+#include "Impl_AdaptiveCppShr.h"
 #include "matrixMultiplication/MatrixMultiplication.h"
 
 BENCHMARK(ppb::MatrixMultiplication<ppb::ImplAdaptiveCpp<float>>::benchmark)
-    ->Name("MatrixMultiplication-Float-AdaptiveCpp")
+    ->Name("MatrixMultiplication-Float-AdaptiveCpp-Naive")
+    ->RangeMultiplier(2)
+    ->Range(32, 8192)
+#ifdef PPB_MEASURE_ONLY_KERNEL
+    ->UseManualTime()
+#endif
+    ->Complexity();
+
+BENCHMARK(ppb::MatrixMultiplication<ppb::ImplAdaptiveCppShr<float>>::benchmark)
+    ->Name("MatrixMultiplication-Float-AdaptiveCpp-SharedMemory")
     ->RangeMultiplier(2)
     ->Range(32, 8192)
 #ifdef PPB_MEASURE_ONLY_KERNEL

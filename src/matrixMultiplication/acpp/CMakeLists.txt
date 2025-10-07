@@ -1,4 +1,4 @@
-add_library(matMul_acpp_lib STATIC Impl_AdaptiveCpp.h Impl_AdaptiveCpp.cpp)
+add_library(matMul_acpp_lib STATIC Impl_AdaptiveCpp.h Impl_AdaptiveCpp.cpp Impl_AdaptiveCppShr.cpp Impl_AdaptiveCppShr.h)
 target_compile_features(matMul_acpp_lib PUBLIC cxx_std_17)
 if (CMAKE_CXX_COMPILER_ID STREQUAL "IntelLLVM")
     target_compile_options(matMul_acpp_lib PUBLIC -fsycl -fsycl-targets=nvptx64-nvidia-cuda)
