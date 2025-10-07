@@ -41,3 +41,7 @@ endif()
 if (${PPB_ENABLE_OpenCL})
     add_subdirectory(opencl)
 endif()
+
+if (${PPB_ENABLE_Alpaka})
+    add_subdirectory(alpaka)
+endif ()
