@@ -54,9 +54,15 @@ namespace vulkan_utility {
          * @param params list of tensor parameters
          * @param shader SPIR-V shader binary as a uint32_t vector
          * @param workgroup workgroup configuration (x, y, z)
+         * @param specializationConstants set specialization constants which cannot be changed after init
+         * @param pushConstants initializing the pipeline, with a fist set of push constants -
+         * these can be modified but all new values must have the same data type and length as otherwise it will result in errors.
          * @return shared pointer to a Kompute algorithm
          */
-        std::shared_ptr<kp::Algorithm> algorithm(const std::vector<std::shared_ptr<kp::Tensor>> &params, const std::vector<uint32_t> &shader, const kp::Workgroup &workgroup);
+        template<typename S = float, typename P = float>
+        std::shared_ptr<kp::Algorithm> algorithm(const std::vector<std::shared_ptr<kp::Tensor>> &params, const std::vector<uint32_t> &shader, const kp::Workgroup &workgroup, const std::vector<S> &specializationConstants = {}, const std::vector<P> &pushConstants = {}) {
+            return std::make_shared<kp::Algorithm>(devicePtr, params, shader, workgroup, specializationConstants, pushConstants);
+        }
 
         /**
          * Creates an empty Kompute sequence that can record and run operations.

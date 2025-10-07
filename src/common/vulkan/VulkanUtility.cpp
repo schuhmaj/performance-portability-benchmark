@@ -8,12 +8,6 @@ vulkan_utility::VulkanManager::VulkanManager(bool enableValidationLayers) :
     computeQueueFamilyIndex{findComputeQueueFamilyIndex(*physicalDevicePtr).value()},
     devicePtr{createLogicalDevice(physicalDevicePtr, computeQueueFamilyIndex)} {}
 
-std::shared_ptr<kp::Algorithm>
-vulkan_utility::VulkanManager::algorithm(const std::vector<std::shared_ptr<kp::Tensor>> &params,
-                                         const std::vector<uint32_t> &shader, const kp::Workgroup &workgroup) {
-    return std::make_shared<kp::Algorithm>(devicePtr, params, shader, workgroup);
-}
-
 std::shared_ptr<kp::Sequence> vulkan_utility::VulkanManager::sequence() {
     return std::make_shared<kp::Sequence>(
         physicalDevicePtr, devicePtr, createComputeQueue(devicePtr, computeQueueFamilyIndex), computeQueueFamilyIndex);
