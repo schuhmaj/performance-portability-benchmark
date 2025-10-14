@@ -9,6 +9,7 @@
 #pragma once
 #include "NBodySimulation.h"
 #include "Particle.h"
+#include "ParticleContainer.h"
 #include "../../common/UtilityContainer.h"
 #include <iostream>
 #include <sycl/sycl.hpp>
@@ -61,7 +62,7 @@ namespace ppb {
          * @param particlesUSM Array of particles in shared memory whose positions and forces are modified in-place.
          * @param size size of particleusm, amount of particles
          */
-        void updatePositionsAndResetForce(sycl::queue &queue, Particle<FloatType> *particlesUSM, const size_t &size);
+        void updatePositionsAndResetForce(sycl::queue &queue, FloatType *positionsUSM, FloatType *velocitiesUSM, FloatType *forcesUSM, FloatType *oldForcesUSM, const size_t &size);
 
         /**
          * Updates velocities of all particles using the forces computed before and after the integration step.
@@ -70,7 +71,7 @@ namespace ppb {
          * @param particlesUSM Array of particles in shared memory whose positions and forces are modified in-place.
          * @param particles Vector of particles for which the forces will be calculated and accumulated.
          */
-        void updateVelocities(sycl::queue &queue, Particle<FloatType> *particlesUSM, const size_t &size);
+        void updateVelocities(sycl::queue &queue, FloatType *velocitiesUSM, FloatType *forcesUSM, FloatType *oldForcesUSM, const size_t &size);
 
         /**
          * Computes the inter-particle forces for all particles using the Lennard-Jones potential.
@@ -79,7 +80,7 @@ namespace ppb {
          * @param particlesUSM Array of particles in shared memory whose positions and forces are modified in-place.
          * @param particles Vector of particles for which the forces will be calculated and accumulated.
          */
-        void computeForces_atomic(sycl::queue &queue, Particle<FloatType> *particlesUSM, const size_t &size);
+        void computeForces_atomic(sycl::queue &queue, FloatType *positionsUSM, FloatType *forcesUSM, const size_t &size);
 
     };
 } // namespace ppb
