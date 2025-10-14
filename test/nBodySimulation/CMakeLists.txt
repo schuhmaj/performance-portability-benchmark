@@ -22,3 +22,7 @@ include(GoogleTest)
 if (${PPB_ENABLE_Kokkos})
     add_subdirectory(kokkos)
 endif ()
+
+if (${PPB_ENABLE_AdaptiveCpp})
+    add_subdirectory(acpp)
+endif ()
