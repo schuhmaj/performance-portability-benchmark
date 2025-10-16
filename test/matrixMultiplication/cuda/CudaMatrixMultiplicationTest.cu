@@ -21,6 +21,7 @@ TEST_P(MatrixMultiplicationTest, CudaNaiveImplementation_AllSizes) {
 TEST_P(MatrixMultiplicationTest, CudaTensorImplementation_AllSizes) {
     const int size = GetParam();
     if (size == 2 || size == 10 || size == 50) {
+        // The tensor implementation is only suitable for 2^X sizes
         GTEST_SKIP() << "Skipping test for size " << size;
         return;
     }

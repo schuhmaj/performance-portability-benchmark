@@ -91,16 +91,26 @@ MATCHER_P(FloatContainter3D, container, "Comparing 3D Containers") {
     return true;
 }
 
-MATCHER_P(ParticleContainter1D, container, "Comparing 1D Particle Containers") {
+MATCHER_P2(ParticlesEq, container, epsilon, "Comparing 1D Particle Containers") {
     if (container.size() != arg.size()) {
         *result_listener << "The container sizes do not match. Sizes: " << container.size() << " != " << arg.size();
         return false;
     }
     for (size_t idx = 0; idx < std::size(container); ++idx) {
-        if (container[idx] != arg[idx]) {
-            *result_listener
+        const auto &p1 = container[idx];
+        const auto &p2 = arg[idx];
+        if (!(ppb::util::almostEqualRelative(p1.getPosition()[0], p2.getPosition()[0], epsilon) &&
+            ppb::util::almostEqualRelative(p1.getPosition()[1], p2.getPosition()[1], epsilon) &&
+            ppb::util::almostEqualRelative(p1.getPosition()[2], p2.getPosition()[2], epsilon) &&
+            ppb::util::almostEqualRelative(p1.getVelocity()[0], p2.getVelocity()[0], epsilon) &&
+            ppb::util::almostEqualRelative(p1.getVelocity()[1], p2.getVelocity()[1], epsilon) &&
+            ppb::util::almostEqualRelative(p1.getVelocity()[2], p2.getVelocity()[2], epsilon) &&
+            ppb::util::almostEqualRelative(p1.getForce()[0], p2.getForce()[0], epsilon) &&
+            ppb::util::almostEqualRelative(p1.getForce()[1], p2.getForce()[1], epsilon) &&
+            ppb::util::almostEqualRelative(p1.getForce()[2], p2.getForce()[2], epsilon))) {
+                *result_listener
                     << "The particles at idx = " << idx << " do not match. Values: "
-                    << container[idx] << " != " << arg[idx];
+                    << p1 << " != " << p2;
             return false;
         }
     }

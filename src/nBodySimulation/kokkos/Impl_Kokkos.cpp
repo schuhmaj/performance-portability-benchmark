@@ -81,6 +81,7 @@ namespace ppb {
         auto &position = _particles->positions;
 
         Kokkos::MDRangePolicy<Kokkos::Rank<2>> policy({0, 0}, {size, dim});
+        const Kokkos::Timer timer;
         Kokkos::parallel_for("update_positions", policy, KOKKOS_LAMBDA(const int i, const int j) {
             using namespace ppb::util;
             const auto m = 1.0;
@@ -95,6 +96,7 @@ namespace ppb {
             const auto displacement = v + f;
             position(i, j) = position(i, j) + displacement;
         });
+        _timings.positionUpdateForceResetTime += (timer.seconds() * 1e9);
     }
 
     template<typename FloatType>
@@ -107,12 +109,15 @@ namespace ppb {
         auto &velocity = _particles->velocities;
 
         Kokkos::MDRangePolicy<Kokkos::Rank<2>> policy({0, 0}, {size, dim});
+        const Kokkos::Timer timer;
         Kokkos::parallel_for("update_velocities", policy, KOKKOS_LAMBDA(const int i, const int j) {
             using namespace ppb::util;
             constexpr auto m = 1.0;
             const auto changeInVel = (force(i, j) + oldForce(i, j)) * (dt / (2 * m));
             velocity(i, j) = velocity(i, j) + changeInVel;
         });
+        Kokkos::fence();
+        _timings.velocityUpdateTime += (timer.seconds() * 1e9);
     }
 
     template<typename FloatType>
@@ -126,13 +131,14 @@ namespace ppb {
 
         TeamPolicy policy(size, Kokkos::AUTO);
 
+        const Kokkos::Timer timer;
         Kokkos::parallel_for("compute_forces_team", policy, KOKKOS_LAMBDA(const MemberType& team) {
             const int i = team.league_rank();
 
             constexpr auto sigmaSrc = 1.0;
-            constexpr auto epsilonSrc = 5.0;
+            constexpr auto epsilonSrc = 1.0;
 
-            constexpr auto sigma = sigmaSrc * sigmaSrc * 0.5;
+            constexpr auto sigma = (sigmaSrc + sigmaSrc) * 0.5;
             const auto sigmaSquared = sigma * sigma;
             const auto epsilon24 = Kokkos::sqrt(epsilonSrc * epsilonSrc) * 24.0;
 
@@ -159,10 +165,13 @@ namespace ppb {
                 }
             );
         });
+        Kokkos::fence();
+        _timings.forceUpdateTime += (timer.seconds() * 1e9);
     }
 
     template<typename FloatType>
-    std::vector<Particle<FloatType>> ImplKokkos<FloatType>::simulate(const std::vector<Particle<FloatType>> &particles) {
+    std::pair<std::vector<Particle<FloatType>>, ParticleSimulationTimings> ImplKokkos<FloatType>::simulate(const std::vector<Particle<FloatType>> &particles) {
+        _timings.reset();
         _particles.emplace(particles);
 
         for (int i = 0; i < _config.numberTimeSteps; ++i) {
@@ -172,7 +181,7 @@ namespace ppb {
         }
 
         Kokkos::fence();
-        return _particles->toParticles();
+        return std::make_pair(_particles->toParticles(), _timings);
     }
 
     /* Explicit Instantiation for float and double */

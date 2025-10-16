@@ -5,7 +5,6 @@
 #include <map>
 #include <random>
 #include <vector>
-#include "../../../../../../Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/c++/v1/algorithm"
 #include "UtilityContainer.h"
 #include "UtilityFloatArithmetic.h"
 
@@ -50,7 +49,7 @@ namespace ppb {
             return 1.0;
         }
         FloatType getEpsilon() const {
-            return 5.0;
+            return 1.0;
         }
 
         int getType() const {
@@ -128,8 +127,8 @@ namespace ppb {
             std::vector<Particle<FloatType>> particles;
             particles.reserve(numParticles);
             std::mt19937 generator(seed);
-            std::generate_n(std::back_inserter(particles), numParticles, [&]() {
-                return util::generatePosition<FloatType>(generator, boxMin, boxMax);
+            std::generate_n(std::back_inserter(particles), numParticles, [&]() -> Particle<FloatType> {
+                return Particle<FloatType> {util::generatePosition<FloatType>(generator, boxMin, boxMax)};
             });
             return particles;
         }

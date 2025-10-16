@@ -1,5 +1,6 @@
 set(COMMON_NBODY_TEST_SRC
     GoogleTestMatcher.h
+    NBodyTest.h
 )
 # Creates the Test Target
 add_library(nbody_test_lib INTERFACE ${COMMON_NBODY_TEST_SRC})
@@ -18,6 +19,8 @@ file(COPY "${PPB_TEST_RESOURCES_DIRECTORY}" DESTINATION "${CMAKE_CURRENT_BINARY_
 
 # Adds the Tests to CTest by querying the test target executable
 include(GoogleTest)
+
+add_subdirectory(cpp)
 
 if (${PPB_ENABLE_Kokkos})
     add_subdirectory(kokkos)

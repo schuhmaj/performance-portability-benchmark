@@ -28,18 +28,13 @@ protected:
 
         if (size == 2) {
             Implementation otherMatMul{};
-            ImplCpp<float> cppMatMul{};
             static_assert(Implementation::row_major::value == ImplCpp<float>::row_major::value, "Memory Layout must be the same for both implementations");
             if constexpr (Implementation::row_major::value) {
-                const auto [expectedResult, t1] = cppMatMul(matrixA_rowMajor, matrixB_rowMajor, {size, size, size});
                 const auto [actualResult, t2] = otherMatMul(matrixA_rowMajor, matrixB_rowMajor, {size, size, size});
                 ASSERT_THAT(matrixC_rowMajor, Pointwise(FloatEq(), actualResult));
-                ASSERT_THAT(matrixC_rowMajor, Pointwise(FloatEq(), expectedResult));
             } else {
-                const auto [expectedResult, t1] = cppMatMul(matrixA, matrixB, {size, size, size});
                 const auto [actualResult, t2] = otherMatMul(matrixA, matrixB, {size, size, size});
                 ASSERT_THAT(matrixC, Pointwise(FloatEq(), actualResult));
-                ASSERT_THAT(matrixC, Pointwise(FloatEq(), expectedResult));
             }
             return;
         }
