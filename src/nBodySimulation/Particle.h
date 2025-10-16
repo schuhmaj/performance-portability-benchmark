@@ -2,8 +2,10 @@
 
 #include <array>
 #include <cmath>
-#include <vector>
 #include <map>
+#include <random>
+#include <vector>
+#include "../../../../../../Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/c++/v1/algorithm"
 #include "UtilityContainer.h"
 #include "UtilityFloatArithmetic.h"
 
@@ -18,7 +20,6 @@ namespace ppb {
 
     template <typename FloatType>
     class Particle {
-
         std::array<FloatType, 3> _position{};
         std::array<FloatType, 3> _velocity{};
         std::array<FloatType, 3> _force{};
@@ -123,53 +124,16 @@ namespace ppb {
             return !this->operator==(other);
         }
 
-        static std::vector<Particle<FloatType>> generateCuboid(const std::array<FloatType, 3> &boxMin, const std::array<FloatType, 3> &boxMax, size_t numParticles) {
+        static std::vector<Particle<FloatType>> generateUniform(const std::array<FloatType, 3> &boxMin, const std::array<FloatType, 3> &boxMax, size_t numParticles, const unsigned int seed = 42u) {
             std::vector<Particle<FloatType>> particles;
-            if (numParticles == 0) return particles;
-
-            // Calculate lengths in each dimension
-            FloatType xLen = boxMax[0] - boxMin[0];
-            FloatType yLen = boxMax[1] - boxMin[1];
-            FloatType zLen = boxMax[2] - boxMin[2];
-
-            // Find number of particles in x, y, z directions to fill the box as uniformly as possible
-            size_t nX = std::max<size_t>(1, std::round(std::pow(numParticles * xLen * xLen / (yLen * zLen), 1.0/3)));
-            size_t nY = std::max<size_t>(1, std::round(std::pow(numParticles * yLen * yLen / (xLen * zLen), 1.0/3)));
-            size_t nZ = std::max<size_t>(1, numParticles / (nX * nY));
-            if (nX * nY * nZ < numParticles) ++nZ;
-
-            // Adjust counts to ensure we have at least numParticles, and min dimensions > 0
-            while (nX * nY * nZ < numParticles) {
-                if (nX <= nY && nX <= nZ) ++nX;
-                else if (nY <= nZ) ++nY;
-                else ++nZ;
-            }
-
-            // Compute grid spacings
-            FloatType dx = (nX > 1) ? xLen / (nX - 1) : 0.0;
-            FloatType dy = (nY > 1) ? yLen / (nY - 1) : 0.0;
-            FloatType dz = (nZ > 1) ? zLen / (nZ - 1) : 0.0;
-
-            size_t count = 0;
-            for (size_t ix = 0; ix < nX; ++ix) {
-                for (size_t iy = 0; iy < nY; ++iy) {
-                    for (size_t iz = 0; iz < nZ; ++iz) {
-                        if (count >= numParticles) break;
-
-                        std::array<FloatType, 3> pos = {
-                            static_cast<FloatType>(boxMin[0] + ix * dx),
-                            static_cast<FloatType>(boxMin[1] + iy * dy),
-                            static_cast<FloatType>(boxMin[2] + iz * dz)
-                        };
-                        particles.emplace_back(pos, static_cast<FloatType>(1.0));
-                        ++count;
-                    }
-                    if (count >= numParticles) break;
-                }
-                if (count >= numParticles) break;
-            }
+            particles.reserve(numParticles);
+            std::mt19937 generator(seed);
+            std::generate_n(std::back_inserter(particles), numParticles, [&]() {
+                return util::generatePosition<FloatType>(generator, boxMin, boxMax);
+            });
             return particles;
         }
+
     };
 
     template<typename FloatType>

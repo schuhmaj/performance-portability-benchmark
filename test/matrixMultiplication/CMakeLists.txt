@@ -45,3 +45,7 @@ endif()
 if (${PPB_ENABLE_Alpaka})
     add_subdirectory(alpaka)
 endif ()
+
+if (${PPB_ENABLE_Kokkos})
+    add_subdirectory(kokkos)
+endif ()

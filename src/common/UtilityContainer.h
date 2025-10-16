@@ -576,4 +576,25 @@ namespace ppb::util {
     }
 
 
+    /**
+     * Generates a random 3D position within a specified bounding box.
+     *
+     * @tparam FloatType The floating-point type to use for coordinates (e.g., float, double)
+     * @tparam Generator The type of random number generator to use
+     * @param generator A reference to the random number generator
+     * @param boxMin The minimum coordinates of the bounding box (lower-left corner)
+     * @param boxMax The maximum coordinates of the bounding box (upper-right corner)
+     * @return A 3D position as std::array<FloatType, 3> with random coordinates within the bounding box
+     */
+    template <typename FloatType, typename Generator>
+    std::array<FloatType, 3> generatePosition(Generator &generator, const std::array<FloatType, 3> &boxMin, const std::array<FloatType, 3> &boxMax) {
+        std::array<std::uniform_real_distribution<FloatType>, 3> distributions = {
+            std::uniform_real_distribution<FloatType>{boxMin[0], boxMax[0]},
+            std::uniform_real_distribution<FloatType>{boxMin[1], boxMax[1]},
+            std::uniform_real_distribution<FloatType>{boxMin[2], boxMax[2]},
+        };
+        return {distributions[0](generator), distributions[1](generator), distributions[2](generator)};
+    }
+
+
 }
