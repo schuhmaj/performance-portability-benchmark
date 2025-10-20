@@ -14,8 +14,11 @@ if (${PPB_ENABLE_Kokkos})
 endif ()
 
 if (${PPB_ENABLE_OpenCL})
-    # add_subdirectory(opencl)
-    # add_subdirectory(boost)
+    add_subdirectory(opencl)
+endif()
+
+if (${PPB_ENABLE_Boost})
+    add_subdirectory(boost)
 endif()
 
 if (${PPB_ENABLE_AdaptiveCpp})
