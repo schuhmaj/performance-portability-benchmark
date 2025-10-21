@@ -5,39 +5,52 @@
 namespace ppb {
     template <typename FloatType>
     class ParticleContainer {
-        std::vector<FloatType> positions;
-        std::vector<FloatType> velocities;
-        std::vector<FloatType> forces;
-        std::vector<FloatType> oldForces;
+        FloatType *positions;
+        FloatType *velocities;
+        FloatType *forces;
+        FloatType *oldForces;
+
+        size_t size;
 
     public:
-        ParticleContainer() = default;
-    
+
+        // build SoA from AoO
         explicit ParticleContainer(const std::vector<Particle<FloatType>> &particles) {
-            positions.resize(particles.size() * 3);
-            velocities.resize(particles.size() * 3);
-            forces.resize(particles.size() * 3);
-            oldForces.resize(particles.size() * 3);
-            for (size_t i = 0; i < particles.size(); ++i) {
-                std::copy(particles[i].getPosition().begin(), particles[i].getPosition().end(), positions.begin() + 3 * i);
-                std::copy(particles[i].getVelocity().begin(), particles[i].getVelocity().end(), velocities.begin() + 3 * i);
-                std::copy(particles[i].getForce().begin(), particles[i].getForce().end(), forces.begin() + 3 * i);
-                std::copy(particles[i].getOldForce().begin(), particles[i].getOldForce().end(), oldForces.begin() + 3 * i);
+            size = particles.size();
+
+            positions = static_cast<FloatType *>(std::aligned_alloc(4 * sizeof(FloatType), 4 * sizeof(FloatType) * size));
+            velocities = static_cast<FloatType *>(std::aligned_alloc(4 * sizeof(FloatType), 4 * sizeof(FloatType) * size));
+            forces = static_cast<FloatType *>(std::aligned_alloc(4 * sizeof(FloatType), 4 * sizeof(FloatType) * size));
+            oldForces = static_cast<FloatType *>(std::aligned_alloc(4 * sizeof(FloatType), 4 * sizeof(FloatType) * size));
+
+            for (size_t i = 0; i < size; ++i) {
+                std::copy_n(particles[i].getPosition().begin(), 3, positions + 4 * i);
+                std::copy_n(particles[i].getVelocity().begin(), 3, velocities + 4 * i);
+                std::copy_n(particles[i].getForce().begin(), 3, forces + 4 * i);
+                std::copy_n(particles[i].getOldForce().begin(), 3, oldForces + 4 * i);
             }
         }
 
+        ~ParticleContainer() {
+            std::free(positions);
+            std::free(velocities);
+            std::free(forces);
+            std::free(oldForces);
+        }
+
+        // convert SoA to AoO
         void extractParticleData(std::vector<Particle<FloatType>> &particles) {
-            for (size_t i = 0; i < particles.size(); ++i) {
-                std::copy(positions.begin() + 3 * i, positions.begin() + 3 * i + 3, particles[i].getPosition().begin());
-                std::copy(velocities.begin() + 3 * i, velocities.begin() + 3 * i + 3, particles[i].getVelocity().begin());
-                std::copy(forces.begin() + 3 * i, forces.begin() + 3 * i + 3, particles[i].getForce().begin());
-                std::copy(oldForces.begin() + 3 * i, oldForces.begin() + 3 * i + 3, particles[i].getOldForce().begin());
+            for (size_t i = 0; i < size; ++i) {
+                particles[i].setPosition({positions[4 * i], positions[4 * i + 1], positions[4 * i + 2]});
+                particles[i].setVelocity({velocities[4 * i], velocities[4 * i + 1], velocities[4 * i + 2]});
+                particles[i].setForce({forces[4 * i], forces[4 * i + 1], forces[4 * i + 2]});
+                particles[i].setOldForce({oldForces[4 * i], oldForces[4 * i + 1], oldForces[4 * i + 2]});
             }
         }
 
-        std::vector<FloatType> *getPositions() { return &positions; }
-        std::vector<FloatType> *getVelocities() { return &velocities; }
-        std::vector<FloatType> *getForces() { return &forces; }
-        std::vector<FloatType> *getOldForces() { return &oldForces; }
+        FloatType *getPositions() { return positions; }
+        FloatType *getVelocities() { return velocities; }
+        FloatType *getForces() { return forces; }
+        FloatType *getOldForces() { return oldForces; }
     };
 }

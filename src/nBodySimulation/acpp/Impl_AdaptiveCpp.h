@@ -10,7 +10,7 @@
 #include "NBodySimulation.h"
 #include "Particle.h"
 #include "ParticleContainer.h"
-#include "../../common/UtilityContainer.h"
+#include "UtilityContainer.h"
 #include <iostream>
 #include <sycl/sycl.hpp>
 
