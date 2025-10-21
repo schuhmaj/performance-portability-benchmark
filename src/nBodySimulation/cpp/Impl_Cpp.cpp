@@ -82,7 +82,7 @@ namespace ppb {
             }
         }
         const auto end = std::chrono::high_resolution_clock::now();
-        _timings.forceUpdateTime += static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::operator-(start, end)).count());
+        _timings.forceUpdateTime += static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::operator-(end, start)).count());
     }
 
     /* Explicit Instantiation for float and double */
