@@ -1,4 +1,5 @@
 #include "Impl_Boost.h"
+#include "common/UtilityFloatArithmetic.h"
 
 namespace ppb {
 
@@ -50,21 +51,47 @@ namespace ppb {
 
 
     template <typename FloatType>
-    ImpBoost<FloatType>::ImpBoost(const ParticleSimulationConfig<FloatType> &config)
+    ImplBoost<FloatType>::ImplBoost(const ParticleSimulationConfig<FloatType> &config)
         : _config{config}
+        , _numParticles{static_cast<unsigned int>(config.size)}
+        , _deltaT{config.deltaT}
+        , _globalForce{_config.globalForce[0], _config.globalForce[1], _config.globalForce[2], 0.0f}
         , gpu{boost::compute::system::default_device()}
         , context{gpu}
         , queue{context, gpu, boost::compute::command_queue::enable_profiling}
         , program{boost::compute::program::build_with_source(std::string(KERNEL_SOURCE), context)}
         , kernelPositionUpdate{program, std::string("update_positions_reset_forces")}
-        // , kerneVelocityUpdate{program, std::string("update_velocities")}
-        // , kernelForceUpdate{program, std::string("compute_forces")}
+        , kerneVelocityUpdate{program, std::string("update_velocities")}
+        , kernelForceUpdate{program, std::string("compute_forces")}
     {}
 
     template <typename FloatType>
-    std::pair<std::vector<Particle<FloatType>>, ParticleSimulationTimings> ImpBoost<FloatType>::simulate(const std::vector<Particle<FloatType>> &particles) {
+    void ImplBoost<FloatType>::init(const std::vector<Particle<FloatType>> &particles) {
         _timings.reset();
         _particles.emplace(particles, context, queue);
+        kernelPositionUpdate.set_arg(0, _particles->positions);
+        kernelPositionUpdate.set_arg(1, _particles->velocities);
+        kernelPositionUpdate.set_arg(2, _particles->forces);
+        kernelPositionUpdate.set_arg(3, _particles->oldForces);
+        kernelPositionUpdate.set_arg(4, _globalForce);
+        kernelPositionUpdate.set_arg(5, _deltaT);
+        kernelPositionUpdate.set_arg(6, _numParticles);
+
+        kerneVelocityUpdate.set_arg(0, _particles->velocities);
+        kerneVelocityUpdate.set_arg(1, _particles->forces);
+        kerneVelocityUpdate.set_arg(2, _particles->oldForces);
+        kerneVelocityUpdate.set_arg(3, _deltaT);
+        kerneVelocityUpdate.set_arg(4, _numParticles);
+
+        kernelForceUpdate.set_arg(0, _particles->positions);
+        kernelForceUpdate.set_arg(1, _particles->forces);
+        kernelForceUpdate.set_arg(2, _numParticles);
+    }
+
+
+    template <typename FloatType>
+    std::pair<std::vector<Particle<FloatType>>, ParticleSimulationTimings> ImplBoost<FloatType>::simulate(const std::vector<Particle<FloatType>> &particles) {
+        init(particles);
         for (int i = 0; i < _config.numberTimeSteps; ++i) {
             updatePositionsAndResetForce();
             computeForces();
@@ -74,25 +101,9 @@ namespace ppb {
     }
 
     template <typename FloatType>
-    void ImpBoost<FloatType>::updatePositionsAndResetForce() {
-        const int numParticles = _config.size;
-        boost::compute::float4_ globalForce(
-            _config.globalForce[0],
-            _config.globalForce[1],
-            _config.globalForce[2],
-            0.0f
-        );
-
-        kernelPositionUpdate.set_arg(0, _particles->positions);
-        kernelPositionUpdate.set_arg(1, _particles->velocities);
-        kernelPositionUpdate.set_arg(2, _particles->forces);
-        kernelPositionUpdate.set_arg(3, _particles->oldForces);
-        kernelPositionUpdate.set_arg(4, globalForce);
-        kernelPositionUpdate.set_arg(5, static_cast<float>(_config.deltaT));
-        kernelPositionUpdate.set_arg(6, numParticles);
-
-        const size_t globalSize = ((numParticles + 63) / 64) * 64;
-        const size_t localSize = 64;
+    void ImplBoost<FloatType>::updatePositionsAndResetForce() {
+        const size_t localSize = 32;
+        const size_t globalSize = util::roundUp<size_t>(_numParticles, localSize);
 
         const auto event = queue.enqueue_nd_range_kernel(
             kernelPositionUpdate, 1, nullptr, &globalSize, &localSize
@@ -102,16 +113,31 @@ namespace ppb {
     }
 
     template <typename FloatType>
-    void ImpBoost<FloatType>::updateVelocities() {
+    void ImplBoost<FloatType>::updateVelocities() {
+        const size_t localSize = 32;
+        const size_t globalSize = util::roundUp<size_t>(_numParticles, localSize);
 
+        const auto event = queue.enqueue_nd_range_kernel(
+            kerneVelocityUpdate, 1, nullptr, &globalSize, &localSize
+        );
+        event.wait();
+        _timings.velocityUpdateTime += event.duration<std::chrono::nanoseconds>().count();
     }
 
     template <typename FloatType>
-    void ImpBoost<FloatType>::computeForces() {
+    void ImplBoost<FloatType>::computeForces() {
+        const size_t localSize[2] = {32, 32};
+        const size_t globalSize[2] = {
+            util::roundUp<size_t>(_numParticles, localSize[0]),
+            util::roundUp<size_t>(_numParticles, localSize[1])
+        };
 
+        const auto event = queue.enqueue_nd_range_kernel(kernelForceUpdate, 1, nullptr, globalSize, localSize);
+        event.wait();
+        _timings.forceUpdateTime += event.duration<std::chrono::nanoseconds>().count();
     }
 
-    template class ImpBoost<float>;
+    template class ImplBoost<float>;
     template class BoostParticleSoA<float>;
 
 } // namespace ppb

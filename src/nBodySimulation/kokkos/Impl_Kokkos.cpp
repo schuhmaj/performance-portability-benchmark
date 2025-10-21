@@ -139,12 +139,14 @@ namespace ppb {
             constexpr auto epsilonSrc = 1.0;
 
             constexpr auto sigma = (sigmaSrc + sigmaSrc) * 0.5;
-            const auto sigmaSquared = sigma * sigma;
+            constexpr auto sigmaSquared = sigma * sigma;
             const auto epsilon24 = Kokkos::sqrt(epsilonSrc * epsilonSrc) * 24.0;
 
-            // Loop over j < i; split among team's threads if needed
             Kokkos::parallel_for(
                 Kokkos::TeamThreadRange(team, 0, i), [&](const int j) {
+                    if (j == i) {
+                        return;
+                    }
                     std::array<FloatType, 3> dr{};
                     FloatType dr2 = 0;
                     for (int k = 0; k < 3; ++k) {

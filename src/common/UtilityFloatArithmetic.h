@@ -88,7 +88,7 @@ namespace ppb::util {
      * @note If `a` is already a multiple of `b`, it remains unchanged.
      */
     template<typename T>
-    inline T roundUp(const T &a, const T &b) {
+    constexpr inline T roundUp(const T &a, const T &b) {
         int r = a % b;
         return r == 0 ? a : a + b - r;
     }

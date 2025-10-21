@@ -9,4 +9,4 @@ TEST_P(NBodyTest, ImplKokkos_Implementation) {
     this->runTest<ppb::ImplKokkos<float>>(size);
 }
 
-INSTANTIATE_TEST_SUITE_P(BySize, NBodyTest, ::testing::Values(10, 100));
+INSTANTIATE_TEST_SUITE_P(BySize, NBodyTest, ::testing::Values(10, 100, 1000));

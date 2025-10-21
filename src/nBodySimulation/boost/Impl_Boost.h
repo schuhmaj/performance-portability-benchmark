@@ -47,13 +47,13 @@ namespace ppb {
     };
 
     /**
-     * @class ImpBoost
+     * @class ImplBoost
      * Template for a classical n-body simulation using the Lennard-Jones potential and velocity Verlet integration.
      *
      * @tparam FloatType Floating-point type for simulation (float or double).
      */
     template<typename FloatType>
-    class ImpBoost {
+    class ImplBoost {
 
         /**
          * Simulation configuration with parameters such as particle count, force, time step, and bounds.
@@ -69,14 +69,17 @@ namespace ppb {
          * The SoA GPU structure. It is initialized each time the simulate() functions is called
          */
         std::optional<BoostParticleSoA<FloatType>> _particles{std::nullopt};
+        const unsigned int _numParticles;
+        const float _deltaT;
+        const boost::compute::float4_ _globalForce;
 
         boost::compute::device gpu;
         boost::compute::context context;
         boost::compute::command_queue queue;
         boost::compute::program program;
         boost::compute::kernel kernelPositionUpdate;
-        // boost::compute::kernel kerneVelocityUpdate;
-        // boost::compute::kernel kernelForceUpdate;
+        boost::compute::kernel kerneVelocityUpdate;
+        boost::compute::kernel kernelForceUpdate;
 
     public:
 
@@ -89,7 +92,7 @@ namespace ppb {
          * Constructs the simulation implementation.
          * @param config Simulation configuration with all necessary simulation parameters.
          */
-        explicit ImpBoost(const ParticleSimulationConfig<FloatType> &config);
+        explicit ImplBoost(const ParticleSimulationConfig<FloatType> &config);
 
         /**
          * Runs the simulation for the configured total simulation time, performing position, force,
@@ -101,6 +104,12 @@ namespace ppb {
         std::pair<std::vector<Particle<FloatType>>, ParticleSimulationTimings> simulate(const std::vector<Particle<FloatType>> &particles);
 
     private:
+        /**
+         * Sets up the GPU datastructures and the Kernel Arguments.
+         * This is called once before the simulation starts by simulate()
+         * @param particles the particles to be transfered to the GPU-SoA
+         */
+        void init(const std::vector<Particle<FloatType>> &particles);
 
         /**
          * Updates positions of all particles using velocity Verlet integration and resets their forces

@@ -57,7 +57,7 @@ namespace ppb {
 
         const auto start = std::chrono::high_resolution_clock::now();
         for (size_t i = 0; i < size; ++i) {
-            for (size_t j = 0; j < size; ++j) {
+            for (size_t j = 0; j < i; ++j) {
                 if (i == j) {
                     continue;
                 }
@@ -79,6 +79,7 @@ namespace ppb {
                 const auto fac = epsilon24 * (lj12 + lj12m6) * invdr2;
                 const auto f = dr * fac;
                 pi.addForce(f);
+                pj.subtractForce(f);
             }
         }
         const auto end = std::chrono::high_resolution_clock::now();

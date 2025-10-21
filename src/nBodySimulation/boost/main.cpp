@@ -2,10 +2,10 @@
 #include "Impl_Boost.h"
 #include "nBodySimulation/NBodySimulation.h"
 
-BENCHMARK(ppb::NBodySimulation<ppb::ImpBoost<float>>::benchmark)
+BENCHMARK(ppb::NBodySimulation<ppb::ImplBoost<float>>::benchmark)
     ->Name("NBody-Float-Boost")
     ->RangeMultiplier(10)
-    ->Range(1e1, 1e4)
+    ->Range(1e1, 1e3)
     ->Complexity();
 
 int main(int argc, char** argv) {
