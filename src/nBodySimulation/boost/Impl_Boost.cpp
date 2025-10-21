@@ -56,7 +56,9 @@ namespace ppb {
         , context{gpu}
         , queue{context, gpu, boost::compute::command_queue::enable_profiling}
         , program{boost::compute::program::build_with_source(std::string(KERNEL_SOURCE), context)}
-        , kernel{program, std::string("force_kernel")}
+        , kernelPositionUpdate{program, std::string("update_positions_reset_forces")}
+        // , kerneVelocityUpdate{program, std::string("update_velocities")}
+        // , kernelForceUpdate{program, std::string("compute_forces")}
     {}
 
     template <typename FloatType>
@@ -73,7 +75,30 @@ namespace ppb {
 
     template <typename FloatType>
     void ImpBoost<FloatType>::updatePositionsAndResetForce() {
+        const int numParticles = _config.size;
+        boost::compute::float4_ globalForce(
+            _config.globalForce[0],
+            _config.globalForce[1],
+            _config.globalForce[2],
+            0.0f
+        );
 
+        kernelPositionUpdate.set_arg(0, _particles->positions);
+        kernelPositionUpdate.set_arg(1, _particles->velocities);
+        kernelPositionUpdate.set_arg(2, _particles->forces);
+        kernelPositionUpdate.set_arg(3, _particles->oldForces);
+        kernelPositionUpdate.set_arg(4, globalForce);
+        kernelPositionUpdate.set_arg(5, static_cast<float>(_config.deltaT));
+        kernelPositionUpdate.set_arg(6, numParticles);
+
+        const size_t globalSize = ((numParticles + 63) / 64) * 64;
+        const size_t localSize = 64;
+
+        const auto event = queue.enqueue_nd_range_kernel(
+            kernelPositionUpdate, 1, nullptr, &globalSize, &localSize
+        );
+        event.wait();
+        _timings.positionUpdateForceResetTime += event.duration<std::chrono::nanoseconds>().count();
     }
 
     template <typename FloatType>
@@ -87,6 +112,7 @@ namespace ppb {
     }
 
     template class ImpBoost<float>;
+    template class BoostParticleSoA<float>;
 
 } // namespace ppb
 

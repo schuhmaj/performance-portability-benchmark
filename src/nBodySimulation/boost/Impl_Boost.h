@@ -74,7 +74,9 @@ namespace ppb {
         boost::compute::context context;
         boost::compute::command_queue queue;
         boost::compute::program program;
-        boost::compute::kernel kernel;
+        boost::compute::kernel kernelPositionUpdate;
+        // boost::compute::kernel kerneVelocityUpdate;
+        // boost::compute::kernel kernelForceUpdate;
 
     public:
 

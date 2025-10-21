@@ -36,25 +36,29 @@ function(compile_opencl)
         set(COMPILE_OCL_NAMESPACE "ppb")
     endif ()
 
-    # Read input file as a single string
-    file(READ "${COMPILE_OCL_INFILE}" FILE_CONTENTS)
-
-    set(RAW_DELIM "myDelimiter")
-    file(MAKE_DIRECTORY "${COMPILE_OCL_PATH}")
     set(OUTPUT_PATH "${COMPILE_OCL_PATH}/${COMPILE_OCL_OUTFILE}")
 
-    # Generate header content
-    set(HEADER_TEXT
-            "#pragma once
+    # Make the input path absolute
+    if(NOT IS_ABSOLUTE "${COMPILE_OCL_INFILE}")
+        set(INPUT_PATH "${CMAKE_CURRENT_SOURCE_DIR}/${COMPILE_OCL_INFILE}")
+    else()
+        set(INPUT_PATH "${COMPILE_OCL_INFILE}")
+    endif()
 
-namespace ${COMPILE_OCL_NAMESPACE} {
+    # Make the output directory at configure time
+    file(MAKE_DIRECTORY "${COMPILE_OCL_PATH}")
 
-inline constexpr const char ${COMPILE_OCL_VAR_NAME}[] = R\"${RAW_DELIM}(
-${FILE_CONTENTS}
-)${RAW_DELIM}\";
-
-} // namespace ${COMPILE_OCL_NAMESPACE}
-            ")
-    # Write header
-    file(WRITE "${OUTPUT_PATH}" "${HEADER_TEXT}")
+    # Create a custom command that runs at build time
+    add_custom_command(
+            OUTPUT "${OUTPUT_PATH}"
+            COMMAND ${CMAKE_COMMAND}
+            -D "INPUT_FILE=${INPUT_PATH}"
+            -D "OUTPUT_FILE=${OUTPUT_PATH}"
+            -D "VAR_NAME=${COMPILE_OCL_VAR_NAME}"
+            -D "NAMESPACE=${COMPILE_OCL_NAMESPACE}"
+            -P "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/opencl_to_header.cmake"
+            DEPENDS "${INPUT_PATH}"
+            COMMENT "Generating OpenCL header ${COMPILE_OCL_OUTFILE}"
+            VERBATIM
+    )
 endfunction()

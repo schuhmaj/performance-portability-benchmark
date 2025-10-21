@@ -12,7 +12,7 @@ namespace ppb {
     ImplBoost<FloatType>::ImplBoost()
         : gpu{boost::compute::system::default_device()}
         , context{gpu}
-        , queue{context, gpu}
+        , queue{context, gpu, boost::compute::command_queue::enable_profiling}
         , program{boost::compute::program::build_with_source(std::string(KERNEL_SOURCE), context)}
         , kernel{program, std::string(kernel_name())}
     {}
@@ -42,13 +42,11 @@ namespace ppb {
             util::roundUp<size_t>(config.m, localSize[0]),
             util::roundUp<size_t>(config.n, localSize[1])
         };
-        const auto start = std::chrono::high_resolution_clock::now();
 
-        queue.enqueue_nd_range_kernel(kernel, 2, nullptr, globalSize, localSize);
-        queue.finish();
+        const auto event = queue.enqueue_nd_range_kernel(kernel, 2, nullptr, globalSize, localSize);
+        event.wait();
 
-        const auto end = std::chrono::high_resolution_clock::now();
-        const double elapsed_nanoseconds = static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count());
+        const double elapsed_nanoseconds = event.duration<boost::chrono::nanoseconds>().count();
         boost::compute::copy(resultBuffer.begin(), resultBuffer.end(), result.begin(), queue);
         queue.finish();
         return std::make_pair(std::move(result), elapsed_nanoseconds);
