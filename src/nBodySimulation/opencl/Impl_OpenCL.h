@@ -1,5 +1,12 @@
 #pragma once
-#include "boost/compute.hpp"
+
+#ifdef __APPLE__
+#include <OpenCL/opencl.h>
+#else
+#include <CL/cl.h>
+#endif
+
+#include "common/opencl/OpenCLUtility.h"
 #include "nBodySimulation/NBodySimulation.h"
 #include "nBodySimulation/Particle.h"
 #include "ForceKernel.h"
@@ -11,7 +18,7 @@
 namespace ppb {
 
     template <typename FloatType>
-    class BoostParticleSoA {
+    class OpenCLParticleSoA {
 
         /**
          * Reference to the original vector of particles (used as a data source during initialization and conversion).
@@ -20,32 +27,31 @@ namespace ppb {
 
     public:
 
-        boost::compute::vector<boost::compute::float4_> positions;
-        boost::compute::vector<boost::compute::float4_> velocities;
-        boost::compute::vector<boost::compute::float4_> forces;
-        boost::compute::vector<boost::compute::float4_> oldForces;
+        cl_mem positions;
+        cl_mem velocities;
+        cl_mem forces;
+        cl_mem oldForces;
 
-        std::vector<boost::compute::float4_> positionsHost;
-        std::vector<boost::compute::float4_> velocitiesHost;
-        std::vector<boost::compute::float4_> forcesHost;
+        std::vector<cl_float4> positionsHost;
+        std::vector<cl_float4> velocitiesHost;
+        std::vector<cl_float4> forcesHost;
 
-        boost::compute::command_queue &queue;
+        OpenCLParticleSoA(const std::vector<Particle<FloatType>> &ref, cl_context &context);
 
+        ~OpenCLParticleSoA();
 
-        BoostParticleSoA(const std::vector<Particle<FloatType>> &ref, const boost::compute::context &context, boost::compute::command_queue &queue);
-
-        std::vector<Particle<FloatType>> toParticles();
+        std::vector<Particle<FloatType>> toParticles(cl_command_queue &queue);
 
     };
 
     /**
-     * @class ImplBoost
+     * @class ImplOpenCL
      * Template for a classical n-body simulation using the Lennard-Jones potential and velocity Verlet integration.
      *
      * @tparam FloatType Floating-point type for simulation (float or double).
      */
     template<typename FloatType>
-    class ImplBoost {
+    class ImplOpenCL {
 
         /**
          * Simulation configuration with parameters such as particle count, force, time step, and bounds.
@@ -55,23 +61,23 @@ namespace ppb {
         /**
          * Stores the timings for position, velocity, and force updates
          */
-        ParticleSimulationTimings _timings;
+        ParticleSimulationTimings _timings{};
 
         /**
          * The SoA GPU structure. It is initialized each time the simulate() functions is called
          */
-        std::optional<BoostParticleSoA<FloatType>> _particles{std::nullopt};
-        const unsigned int _numParticles;
-        const float _deltaT;
-        const boost::compute::float4_ _globalForce;
+        std::optional<OpenCLParticleSoA<FloatType>> _particles{std::nullopt};
+        const cl_uint _numParticles;
+        const cl_float _deltaT;
+        const cl_float4 _globalForce;
 
-        boost::compute::device gpu;
-        boost::compute::context context;
-        boost::compute::command_queue queue;
-        boost::compute::program program;
-        boost::compute::kernel kernelPositionUpdate;
-        boost::compute::kernel kerneVelocityUpdate;
-        boost::compute::kernel kernelForceUpdate;
+        cl_device_id gpu{nullptr};
+        cl_context context{nullptr};
+        cl_command_queue queue{nullptr};
+        cl_program program{nullptr};
+        cl_kernel kernelPositionUpdate{nullptr};
+        cl_kernel kerneVelocityUpdate{nullptr};
+        cl_kernel kernelForceUpdate{nullptr};
 
     public:
 
@@ -84,7 +90,9 @@ namespace ppb {
          * Constructs the simulation implementation.
          * @param config Simulation configuration with all necessary simulation parameters.
          */
-        explicit ImplBoost(const ParticleSimulationConfig<FloatType> &config);
+        explicit ImplOpenCL(const ParticleSimulationConfig<FloatType> &config);
+
+        ~ImplOpenCL();
 
         /**
          * Runs the simulation for the configured total simulation time, performing position, force,

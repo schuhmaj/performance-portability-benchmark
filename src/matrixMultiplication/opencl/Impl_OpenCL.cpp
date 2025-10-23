@@ -30,7 +30,6 @@ ppb::ImplOpenCL<FloatType>::ImplOpenCL() {
     else {
         static_assert(std::is_same_v<FloatType, float> || std::is_same_v<FloatType, double>, "Unsupported type");
     }
-
 }
 
 template <typename FloatType>
@@ -39,6 +38,7 @@ ppb::ImplOpenCL<FloatType>::~ImplOpenCL() {
     clReleaseKernel(kernel);
     clReleaseCommandQueue(queue);
     clReleaseContext(context);
+    clReleaseDevice(device);
 }
 
 template <typename FloatType>

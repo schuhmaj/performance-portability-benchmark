@@ -8,7 +8,7 @@ target_compile_features(nbody_boost_lib PUBLIC cxx_std_20)
 target_include_directories(nbody_boost_lib PUBLIC ${Boost_INCLUDE_DIR})
 target_link_libraries(nbody_boost_lib
         PUBLIC
-        OpenCL::OpenCL
+        common_ocl_lib
         nbody_lib
 )
 target_include_directories(nbody_boost_lib PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
