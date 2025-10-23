@@ -33,13 +33,8 @@ if (${PPB_ENABLE_OpenACC})
     # add_subdirectory(openacc)
 endif ()
 
-if(CMAKE_CUDA_COMPILER AND PPB_ENABLE_Cuda)
-    # add_subdirectory(cuda)
-    # add_subdirectory(thrust)
-endif ()
-
-if (${PPB_ENABLE_MetalCpp})
-    # add_subdirectory(metal)
+if (CMAKE_CUDA_COMPILER AND PPB_ENABLE_Cuda)
+    add_subdirectory(cuda)
 endif ()
 
 add_subdirectory(cpp)

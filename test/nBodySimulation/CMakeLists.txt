@@ -30,7 +30,10 @@ if (${PPB_ENABLE_Boost})
     add_subdirectory(boost)
 endif()
 
-
 if (${PPB_ENABLE_OpenCL})
     add_subdirectory(opencl)
 endif()
+
+if (CMAKE_CUDA_COMPILER AND PPB_ENABLE_Cuda)
+    add_subdirectory(cuda)
+endif ()
