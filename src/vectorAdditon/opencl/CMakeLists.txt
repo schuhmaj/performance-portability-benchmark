@@ -3,7 +3,7 @@ compile_opencl(
         OUTFILE VectorAdditionKernel.h
         PATH ${CMAKE_CURRENT_BINARY_DIR}
 )
-add_executable(vec_ocl Impl_OpenCL.cpp)
+add_executable(vec_ocl Impl_OpenCL.cpp "${CMAKE_CURRENT_BINARY_DIR}/VectorAdditionKernel.h")
 target_compile_features(vec_ocl PUBLIC cxx_std_17)
 target_link_libraries(vec_ocl
     PRIVATE
