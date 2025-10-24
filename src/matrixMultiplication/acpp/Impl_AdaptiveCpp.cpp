@@ -22,11 +22,10 @@ std::pair<std::vector<FloatType>, double> ppb::ImplAdaptiveCpp<FloatType>::opera
     queue.copy(a.data(), deviceA, a.size());
     queue.copy(b.data(), deviceB, b.size());
 
-    // We make it shared for easy access to copy results back
     FloatType *deviceResult = sycl::aligned_alloc_shared<FloatType>(ALIGNMENT, resultSize, queue);
-    // Simple Kernel
     auto event = queue.submit([&](sycl::handler &h) {
-        sycl::range<2> local{16, 16};
+        // sycl::range<2> local{16, 16}; is faster on RTX 2080
+        sycl::range<2> local{32, 32};
         sycl::range<2> global{util::roundUp(M, local[0]), util::roundUp(N, local[1])};
         h.parallel_for(sycl::nd_range<2>{global, local}, [=](const sycl::nd_item<2> &it) {
             const size_t row = it.get_global_id(0);
