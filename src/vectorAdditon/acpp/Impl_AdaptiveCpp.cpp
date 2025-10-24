@@ -58,14 +58,14 @@ BENCHMARK(ppb::VectorAddition<ppb::ImplAcpp<float>>::benchmark)
 #endif
     ->Complexity();
 
-BENCHMARK(ppb::VectorAddition<ppb::ImplAcpp<double>>::benchmark)
-    ->Name("VecAdd-Double-AdaptiveCpp")
-    ->RangeMultiplier(10)
-    ->Range(1e3, 1e8)
-#ifdef PPB_MEASURE_ONLY_KERNEL
-    ->UseManualTime()
-#endif
-    ->Complexity();
+// BENCHMARK(ppb::VectorAddition<ppb::ImplAcpp<double>>::benchmark)
+//     ->Name("VecAdd-Double-AdaptiveCpp")
+//     ->RangeMultiplier(10)
+//     ->Range(1e3, 1e8)
+// #ifdef PPB_MEASURE_ONLY_KERNEL
+//     ->UseManualTime()
+// #endif
+//     ->Complexity();
 
 int main(int argc, char **argv) {
     benchmark::MaybeReenterWithoutASLR(argc, argv);

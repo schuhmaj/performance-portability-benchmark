@@ -53,14 +53,14 @@ BENCHMARK(ppb::VectorAddition<ppb::ImplBoost<float>>::benchmark)
 #endif
     ->Complexity();
 
-BENCHMARK(ppb::VectorAddition<ppb::ImplBoost<double>>::benchmark)
-    ->Name("VecAdd-Double-BoostCL")
-    ->RangeMultiplier(10)
-    ->Range(1e3, 1e8)
-#ifdef PPB_MEASURE_ONLY_KERNEL
-    ->UseManualTime()
-#endif
-    ->Complexity();
+// BENCHMARK(ppb::VectorAddition<ppb::ImplBoost<double>>::benchmark)
+//     ->Name("VecAdd-Double-BoostCL")
+//     ->RangeMultiplier(10)
+//     ->Range(1e3, 1e8)
+// #ifdef PPB_MEASURE_ONLY_KERNEL
+//     ->UseManualTime()
+// #endif
+//     ->Complexity();
 
 int main(int argc, char** argv) {
     namespace compute = boost::compute;

@@ -80,14 +80,14 @@ BENCHMARK(ppb::VectorAddition<ppb::KokkosImpl<float>>::benchmark)
 #endif
     ->Complexity();
 
-BENCHMARK(ppb::VectorAddition<ppb::KokkosImpl<double>>::benchmark)
-    ->Name("VecAdd-Double-Kokkos")
-    ->RangeMultiplier(10)
-    ->Range(1e3, 1e8)
-#ifdef PPB_MEASURE_ONLY_KERNEL
-    ->UseManualTime()
-#endif
-    ->Complexity();
+// BENCHMARK(ppb::VectorAddition<ppb::KokkosImpl<double>>::benchmark)
+//     ->Name("VecAdd-Double-Kokkos")
+//     ->RangeMultiplier(10)
+//     ->Range(1e3, 1e8)
+// #ifdef PPB_MEASURE_ONLY_KERNEL
+//     ->UseManualTime()
+// #endif
+//     ->Complexity();
 
 
 int main(int argc, char **argv) {

@@ -111,16 +111,16 @@ BENCHMARK(ppb::VectorAddition<ppb::ImplOpenCL<float>>::benchmark)
 
 // Apple Metal Devices don't support Double Precision (as of 29.09.2025 - tested with M1 Pro)
 // Hence, building the Kernel will fail on an Apple Chip
-#ifndef __APPLE__
-BENCHMARK(ppb::VectorAddition<ppb::ImplOpenCL<double>>::benchmark)
-    ->Name("VecAdd-Double-OpenCL")
-    ->RangeMultiplier(10)
-    ->Range(1e3, 1e8)
-#ifdef PPB_MEASURE_ONLY_KERNEL
-    ->UseManualTime()
-#endif
-    ->Complexity();
-#endif
+// #ifndef __APPLE__
+// BENCHMARK(ppb::VectorAddition<ppb::ImplOpenCL<double>>::benchmark)
+//     ->Name("VecAdd-Double-OpenCL")
+//     ->RangeMultiplier(10)
+//     ->Range(1e3, 1e8)
+// #ifdef PPB_MEASURE_ONLY_KERNEL
+//     ->UseManualTime()
+// #endif
+//     ->Complexity();
+// #endif
 
 int main(int argc, char **argv) {
     benchmark::MaybeReenterWithoutASLR(argc, argv);
