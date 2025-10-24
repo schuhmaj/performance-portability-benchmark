@@ -41,3 +41,7 @@ endif ()
 if (${PPB_ENABLE_Alpaka})
     add_subdirectory(alpaka)
 endif ()
+
+if (${PPB_ENABLE_OpenMP})
+    add_subdirectory(openmp)
+endif ()
