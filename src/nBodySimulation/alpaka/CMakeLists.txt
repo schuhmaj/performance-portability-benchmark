@@ -1,6 +1,6 @@
-alpaka_add_library(matMul_alpaka_lib STATIC Impl_Alpaka.cpp Impl_Alpaka.h)
-target_compile_features(matMul_alpaka_lib PUBLIC cxx_std_17)
-target_link_libraries(matMul_alpaka_lib PUBLIC matMul_lib alpaka::alpaka)
+alpaka_add_library(nbody_alpaka_lib STATIC Impl_Alpaka.cpp Impl_Alpaka.h)
+target_compile_features(nbody_alpaka_lib PUBLIC cxx_std_20)
+target_link_libraries(nbody_alpaka_lib PUBLIC matMul_lib alpaka::alpaka)
 
-alpaka_add_executable(matMul_alpaka main.cpp)
-target_link_libraries(matMul_alpaka PUBLIC matMul_alpaka_lib)
+alpaka_add_executable(nbody_alpaka main.cpp)
+target_link_libraries(nbody_alpaka PUBLIC nbody_alpaka_lib)

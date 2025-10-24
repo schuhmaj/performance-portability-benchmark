@@ -1,14 +1,11 @@
-#include "benchmark/benchmark.h"
-#include "matrixMultiplication/alpaka/Impl_Alpaka.h"
-#include "matrixMultiplication/MatrixMultiplication.h"
+#include <benchmark/benchmark.h>
+#include "Impl_Alpaka.h"
+#include "nBodySimulation/NBodySimulation.h"
 
-BENCHMARK(ppb::MatrixMultiplication<ppb::ImplAlpaka<float>>::benchmark)
-    ->Name("MatrixMultiplication-Float-Alpaka")
-    ->RangeMultiplier(2)
-    ->Range(32, 8192)
-#ifdef PPB_MEASURE_ONLY_KERNEL
-    ->UseManualTime()
-#endif
+BENCHMARK(ppb::NBodySimulation<ppb::ImplAlpaka<float>>::benchmark)
+    ->Name("NBody-Float-Alpaka")
+    ->RangeMultiplier(10)
+    ->Range(1e1, 1e3)
     ->Complexity();
 
 int main(int argc, char** argv) {

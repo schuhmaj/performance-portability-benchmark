@@ -1,90 +1,225 @@
-
 #include "Impl_Alpaka.h"
 #include <chrono>
 
+template <typename FloatType>
+ppb::AlpakaParticleSoA<FloatType>::AlpakaParticleSoA(const std::vector<Particle<FloatType>> &ref, Host &host, Device &device, Queue &queue)
+    : _ref{ref}
+    , extent{ref.size() * 3}
+    , positions{alpaka::allocBuf<FloatType, Idx>(device, extent)}
+    , velocities{alpaka::allocBuf<FloatType, Idx>(device, extent)}
+    , forces{alpaka::allocBuf<FloatType, Idx>(device, extent)}
+    , oldForces{alpaka::allocBuf<FloatType, Idx>(device, extent)}
+    , positionsHost{alpaka::allocBuf<FloatType, Idx>(host, extent)}
+    , velocitiesHost{alpaka::allocBuf<FloatType, Idx>(host, extent)}
+    , forcesHost{alpaka::allocBuf<FloatType, Idx>(host, extent)}
+{
+    auto posPtr = alpaka::getPtrNative(positionsHost);
+    auto velPtr = alpaka::getPtrNative(velocitiesHost);
+    auto frcPtr = alpaka::getPtrNative(forcesHost);
+    for (Idx i = 0; i < _ref.size(); ++i) {
+        for (Idx j = 0; j < 3; ++j) {
+            posPtr[i * 3 + j] = ref[i].getPosition()[j];
+            velPtr[i * 3 + j] = ref[i].getVelocity()[j];
+            frcPtr[i * 3 + j] = ref[i].getForce()[j];
+        }
+    }
+    alpaka::memcpy(queue, positions, positionsHost, extent);
+    alpaka::memcpy(queue, velocities, velocitiesHost, extent);
+    alpaka::memcpy(queue, forces, forcesHost, extent);
+    alpaka::fill(queue, oldForces, 0.0f, extent);
+    alpaka::wait(queue);
+}
+
+template <typename FloatType>
+std::vector<ppb::Particle<FloatType>> ppb::AlpakaParticleSoA<FloatType>::toParticles(Queue &queue) {
+    std::vector<Particle<FloatType>> out{_ref};
+    alpaka::memcpy(queue, positionsHost, positions, extent);
+    alpaka::memcpy(queue, velocitiesHost, velocities, extent);
+    alpaka::memcpy(queue, forcesHost, forces, extent);
+    alpaka::wait(queue);
+
+    auto posPtr = alpaka::getPtrNative(positionsHost);
+    auto velPtr = alpaka::getPtrNative(velocitiesHost);
+    auto frcPtr = alpaka::getPtrNative(forcesHost);
+    for (Idx i = 0; i < _ref.size(); ++i) {
+        std::array<FloatType, 3> p{}, v{}, f{}, of{};
+        for (Idx j = 0; j < 3; ++j) {
+            p[j] = posPtr[i * 3 + j];
+            v[j] = velPtr[i * 3 + j];
+            f[j] = frcPtr[i * 3 + j];
+        }
+        out[i].setPosition(p);
+        out[i].setVelocity(v);
+        out[i].setForce(f);
+    }
+    return out;
+}
+
 template<typename FloatType>
-ppb::ImplAlpaka<FloatType>::ImplAlpaka()
-    : host(alpaka::getDevByIdx(alpaka::PlatformCpu{}, 0))
+ppb::ImplAlpaka<FloatType>::ImplAlpaka(const ParticleSimulationConfig<FloatType> &config)
+    : _config{config}
+    , _timings{}
+    , host(alpaka::getDevByIdx(alpaka::PlatformCpu{}, 0))
     , device(alpaka::getDevByIdx(alpaka::Platform<Acc>{}, 0))
     , queue(device) {}
 
+
 template <typename FloatType>
-std::pair<std::vector<FloatType>, double>
-ppb::ImplAlpaka<FloatType>::operator()(const std::vector<FloatType> &a, const std::vector<FloatType> &b,
-                                 const MatrixMultiplicationConfig &config) {
-    const size_t resultSize = config.m * config.n;
-    std::vector<FloatType> result(resultSize, 0.0);
+std::pair<std::vector<ppb::Particle<FloatType>>, ppb::ParticleSimulationTimings> ppb::ImplAlpaka<FloatType>::simulate(const std::vector<Particle<FloatType>> &particles) {
+    _timings.reset();
+    _particles.emplace(particles, host, device, queue);
 
-    using Dim1D = alpaka::DimInt<1u>;
-    const alpaka::Vec<Dim1D, Idx> extentA(config.m * config.k);
-    const alpaka::Vec<Dim1D, Idx> extentB(config.k * config.n);
-    const alpaka::Vec<Dim1D, Idx> extentC(config.m * config.n);
+    for (int i = 0; i < _config.numberTimeSteps; ++i) {
+        updatePositionsAndResetForce();
+        computeForces();
+        updateVelocities();
+    }
+    return std::make_pair(_particles->toParticles(queue), _timings);
+}
 
-    const auto bufHostA = alpaka::createView(host, const_cast<FloatType*>(a.data()), extentA);
-    const auto bufHostB = alpaka::createView(host, const_cast<FloatType*>(b.data()), extentB);
-    auto bufDevA = alpaka::allocBuf<FloatType, Idx>(device, extentA);
-    auto bufDevB = alpaka::allocBuf<FloatType, Idx>(device, extentB);
-    auto bufDevC = alpaka::allocBuf<FloatType, Idx>(device, extentC);
+template <typename FloatType>
+void ppb::ImplAlpaka<FloatType>::updatePositionsAndResetForce() {
+    const size_t n = _config.size;
+    const std::array<float_type, 3> &globalForce = _config.globalForce;
+    const auto &dt = static_cast<float_type>(_config.deltaT);
 
-    alpaka::memcpy(queue, bufDevA, bufHostA, extentA);
-    alpaka::memcpy(queue, bufDevB, bufHostB, extentB);
+    const auto kernel = [=] ALPAKA_FN_ACC (const Acc& acc, float_type* positions, float_type* velocities, float_type* forces, float_type *oldForces, Idx numParticles) {
+        const auto i = alpaka::getIdx<alpaka::Grid, alpaka::Threads>(acc)[0];
+        if (i >= numParticles) {
+            return;
+        }
+        constexpr float m = 1.0;
+        const float tt2m = (dt * dt / (2.0 * m));
 
-    // Create Matrix Multiplication Kernel (column-major)
-    const auto matMulKernel = [=] ALPAKA_FN_ACC (const Acc& acc,
-                                                  const FloatType* const A,
-                                                  const FloatType* const B,
-                                                  FloatType* const C,
-                                                  const Idx M,
-                                                  const Idx N,
-                                                  const Idx K) {
-        const auto globalThreadIdx = alpaka::getIdx<alpaka::Grid, alpaka::Threads>(acc);
-        const Idx row = globalThreadIdx[0];
-        const Idx col = globalThreadIdx[1];
+        float force[3];
+        float velocityPart[3];
+        float forcePart[3];
+        for (unsigned int d = 0; d < 3; ++d) {
+            const unsigned int index = i * 3 + d;
+            force[d] = forces[index];
+            oldForces[index] = force[d];
+            forces[index] = globalForce[d];
 
-        if (row < M && col < N) {
-            FloatType acc_val = 0.0;
-            for (Idx k = 0; k < K; ++k) {
-                acc_val += A[row + k * M] * B[k + col * K];
-            }
-            C[row + col * M] = acc_val;
+            velocityPart[d] = velocities[index] * dt;
+            forcePart[d] = force[d] * tt2m;
+
+            positions[index] += (velocityPart[d] + forcePart[d]);
         }
     };
-    const alpaka::Vec<Dim, Idx> problemExtent(config.m, config.n);
-    const auto workDiv = alpaka::getValidWorkDiv(
-        alpaka::KernelCfg<Acc>{problemExtent, alpaka::Vec<Dim, Idx>::ones()},
-        device,
-        matMulKernel,
-        alpaka::getPtrNative(bufDevA),
-        alpaka::getPtrNative(bufDevB),
-        alpaka::getPtrNative(bufDevC),
-        config.m,
-        config.n,
-        config.k
-    );
 
-    auto const taskKernel = alpaka::createTaskKernel<Acc>(
-        workDiv,
-        matMulKernel,
-        alpaka::getPtrNative(bufDevA),
-        alpaka::getPtrNative(bufDevB),
-        alpaka::getPtrNative(bufDevC),
-        config.m,
-        config.n,
-        config.k
-    );
+    auto posPtr = alpaka::getPtrNative(_particles->positions);
+    auto velPtr = alpaka::getPtrNative(_particles->velocities);
+    auto frcPtr = alpaka::getPtrNative(_particles->forces);
+    auto oldPtr = alpaka::getPtrNative(_particles->oldForces);
+
+    const auto workDiv = alpaka::getValidWorkDiv(
+        alpaka::KernelCfg<Acc>{n, 1},
+        device, kernel, posPtr, velPtr, frcPtr, oldPtr, n);
+    auto task = alpaka::createTaskKernel<Acc>(workDiv, kernel, posPtr, velPtr, frcPtr, oldPtr, n);
 
     const auto start = std::chrono::high_resolution_clock::now();
-    alpaka::enqueue(queue, taskKernel);
+    alpaka::enqueue(queue, task);
     alpaka::wait(queue);
     const auto end = std::chrono::high_resolution_clock::now();
-    const double elapsed_nanoseconds = static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count());
+    _timings.positionUpdateForceResetTime += static_cast<double>(
+        std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count());
+}
 
+template <typename FloatType>
+void ppb::ImplAlpaka<FloatType>::updateVelocities() {
+    const size_t n = _config.size;
+    const auto &dt = static_cast<float_type>(_config.deltaT);
 
-    auto resultView = alpaka::createView(host, result.data(), extentC);
-    alpaka::memcpy(queue, resultView, bufDevC, extentC);
+    const auto kernel = [=] ALPAKA_FN_ACC (const Acc& acc, float_type* vel, float_type* force, float_type *oldForce, Idx numParticles) {
+        const auto i = alpaka::getIdx<alpaka::Grid, alpaka::Threads>(acc)[0];
+        if (i >= numParticles) {
+            return;
+        }
+        constexpr float m = 1.0;
+        const float t2m = (dt / (2.0 * m));
+
+        for (int d = 0; d < 3; ++d) {
+            const unsigned int index = i * 3 + d;
+            vel[index] += ((force[index] + oldForce[index]) * t2m);
+        }
+    };
+
+    auto velPtr = alpaka::getPtrNative(_particles->velocities);
+    auto frcPtr = alpaka::getPtrNative(_particles->forces);
+    auto oldPtr = alpaka::getPtrNative(_particles->oldForces);
+
+    const auto workDiv = alpaka::getValidWorkDiv(
+        alpaka::KernelCfg<Acc>{n, 1},
+        device, kernel, velPtr, frcPtr, oldPtr, n);
+    auto task = alpaka::createTaskKernel<Acc>(workDiv, kernel, velPtr, frcPtr, oldPtr, n);
+
+    const auto start = std::chrono::high_resolution_clock::now();
+    alpaka::enqueue(queue, task);
     alpaka::wait(queue);
+    const auto end = std::chrono::high_resolution_clock::now();
+    _timings.velocityUpdateTime += static_cast<double>(
+        std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count());
+}
 
-    return std::make_pair(std::move(result), elapsed_nanoseconds);
+template <typename FloatType>
+void ppb::ImplAlpaka<FloatType>::computeForces() {
+    const size_t n = _config.size;
+    const auto &dt = static_cast<float_type>(_config.deltaT);
+
+    const auto kernel = [=] ALPAKA_FN_ACC (const Acc& acc, float_type* pos, float_type* force, Idx numParticles) {
+        const auto i = alpaka::getIdx<alpaka::Grid, alpaka::Threads>(acc)[0];
+        if (i >= numParticles) {
+            return;
+        }
+
+        constexpr float sigmaSrc = 1.0;
+        constexpr float epsilonSrc = 1.0;
+        constexpr float sigma = (sigmaSrc + sigmaSrc) * 0.5;
+        constexpr float sigmaSquared = sigma * sigma;
+        const float epsilon24 = alpaka::math::sqrt(acc, epsilonSrc * epsilonSrc) * 24.0f;
+
+        for (Idx j = 0; j < numParticles; ++j) {
+            if (i == j) {
+                continue;
+            }
+            float dr[3];
+            float dr2 = 0.0f;
+            for (int d = 0; d < 3; ++d) {
+                const unsigned int indexI = i * 3 + d;
+                const unsigned int indexJ = j * 3 + d;
+                dr[d] = pos[indexI] - pos[indexJ];
+                dr2 += dr[d] * dr[d];
+            }
+
+            const float invdr2 = 1.0f / dr2;
+            float lj6 = sigmaSquared * invdr2;
+            lj6 = lj6 * lj6 * lj6;
+            const float lj12 = lj6 * lj6;
+            const float lj12m6 = lj12 - lj6;
+            const float fac = epsilon24 * (lj12 + lj12m6) * invdr2;
+
+            for (int d = 0; d < 3; ++d) {
+                const unsigned int indexI = i * 3 + d;
+                force[indexI] += (dr[d] * fac);
+            }
+        }
+    };
+
+    auto posPtr = alpaka::getPtrNative(_particles->positions);
+    auto frcPtr = alpaka::getPtrNative(_particles->forces);
+
+    const auto workDiv = alpaka::getValidWorkDiv(
+        alpaka::KernelCfg<Acc>{n, 1},
+        device, kernel, posPtr, frcPtr, n);
+    auto task = alpaka::createTaskKernel<Acc>(workDiv, kernel, posPtr, frcPtr, n);
+
+    const auto start = std::chrono::high_resolution_clock::now();
+    alpaka::enqueue(queue, task);
+    alpaka::wait(queue);
+    const auto end = std::chrono::high_resolution_clock::now();
+    _timings.forceUpdateTime += static_cast<double>(
+        std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count());
 }
 
 template class ppb::ImplAlpaka<float>;
+template class ppb::AlpakaParticleSoA<float>;

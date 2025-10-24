@@ -25,16 +25,12 @@ if (${PPB_ENABLE_AdaptiveCpp})
     add_subdirectory(acpp)
 endif()
 
-if (${PPB_ENABLE_OpenMP})
-    # add_subdirectory(openmp)
-endif ()
-
-if (${PPB_ENABLE_OpenACC})
-    # add_subdirectory(openacc)
-endif ()
-
 if (CMAKE_CUDA_COMPILER AND PPB_ENABLE_Cuda)
     add_subdirectory(cuda)
+endif ()
+
+if (${PPB_ENABLE_Alpaka})
+    add_subdirectory(alpaka)
 endif ()
 
 add_subdirectory(cpp)
