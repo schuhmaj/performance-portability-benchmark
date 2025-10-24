@@ -49,3 +49,7 @@ endif ()
 if (${PPB_ENABLE_Vulkan})
     add_subdirectory(vulkan)
 endif ()
+
+if (${PPB_ENABLE_AdaptiveCpp})
+    add_subdirectory(acpp)
+endif()
