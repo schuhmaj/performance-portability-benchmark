@@ -24,6 +24,11 @@
 
 namespace ppb {
 
+    namespace NBodyBenchmarkConf {
+        constexpr double MIN_SIZE = 1e1;
+        constexpr double MAX_SIZE = 1e4;
+    }
+
     /**
      * Structure defining the configuration for an n-body particle simulation.
      *

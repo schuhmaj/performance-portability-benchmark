@@ -5,7 +5,7 @@
 BENCHMARK(ppb::NBodySimulation<ppb::ImplBoost<float>>::benchmark)
     ->Name("NBody-Float-Boost")
     ->RangeMultiplier(10)
-    ->Range(1e1, 1e3)
+    ->Range(ppb::NBodyBenchmarkConf::MIN_SIZE, ppb::NBodyBenchmarkConf::MAX_SIZE)
     ->Complexity();
 
 int main(int argc, char** argv) {

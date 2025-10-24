@@ -3,9 +3,9 @@
 #include "nBodySimulation/NBodySimulation.h"
 
 BENCHMARK(ppb::NBodySimulation<ppb::ImplKokkos<float>>::benchmark)
-    ->Name("NBody-Float-Kokkos-SoA_2D_Kernel_TeamPolicy")
+    ->Name("NBody-Float-Kokkos")
     ->RangeMultiplier(10)
-    ->Range(1e1, 1e3)
+    ->Range(ppb::NBodyBenchmarkConf::MIN_SIZE, ppb::NBodyBenchmarkConf::MAX_SIZE)
     ->Complexity();
 
 int main(int argc, char** argv) {
