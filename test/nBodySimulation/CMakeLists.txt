@@ -45,3 +45,7 @@ endif ()
 if (${PPB_ENABLE_OpenMP})
     add_subdirectory(openmp)
 endif ()
+
+if (${PPB_ENABLE_Vulkan})
+    add_subdirectory(vulkan)
+endif ()

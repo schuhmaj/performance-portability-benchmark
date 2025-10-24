@@ -3,7 +3,7 @@
 #include <iostream>
 
 
-vulkan_utility::VulkanManager::VulkanManager(bool enableValidationLayers) :
+vulkan_utility::VulkanManager::VulkanManager(const bool enableValidationLayers) :
     instancePtr{createInstance(enableValidationLayers)}, physicalDevicePtr{createPhysicalDevice(instancePtr)},
     computeQueueFamilyIndex{findComputeQueueFamilyIndex(*physicalDevicePtr).value()},
     devicePtr{createLogicalDevice(physicalDevicePtr, computeQueueFamilyIndex)} {}

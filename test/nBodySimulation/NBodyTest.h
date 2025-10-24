@@ -94,7 +94,7 @@ protected:
             ParticleSimulationConfig<float> config{static_cast<size_t>(size), ITERATIONS, TIME_STEP};
             Implementation nBodySim{config};
             const auto [actualResult, timings] = nBodySim.simulate(start_state);
-            ASSERT_THAT(actualResult, ParticlesEq(end_state, EPSILON));
+            ASSERT_THAT(actualResult, ParticlesEq(end_state, epsilon));
             return;
         }
 
@@ -104,6 +104,6 @@ protected:
         const auto [expectedResult, timings1] = cppNBodySim();
         const auto [actualResult, timings2]  = otherNBodySim();
 
-        ASSERT_THAT(actualResult, ParticlesEq(expectedResult, EPSILON));
+        ASSERT_THAT(actualResult, ParticlesEq(expectedResult, epsilon));
     }
 };
