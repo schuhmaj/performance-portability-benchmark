@@ -66,16 +66,6 @@ namespace ppb {
         Kokkos::View<FloatType *[3]> oldForces;
 
         /**
-         * Host mirror view of previous forces for velocity Verlet integration, shape [N][3].
-         */
-        typename Kokkos::View<FloatType *[3]>::HostMirror oldForcesHost;
-
-        /**
-         * Device view of integer particle types or identifiers, shape [N].
-         */
-        Kokkos::View<int *> types;
-
-        /**
          * Reference to the original vector of particles (used as a data source during initialization and conversion).
          */
         const std::vector<Particle<FloatType>> &_ref;

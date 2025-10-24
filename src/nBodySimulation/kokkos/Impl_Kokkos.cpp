@@ -11,8 +11,6 @@ namespace ppb {
         , forces{"forcesDevice", particles.size()}
         , forcesHost{Kokkos::create_mirror_view(forces)}
         , oldForces{"oldForcesDevice", particles.size()}
-        , oldForcesHost{Kokkos::create_mirror_view(oldForces)}
-        , types{"typesDevice", particles.size()}
         , _ref{particles}
     {
         for (size_t i = 0; i < particles.size(); ++i) {
@@ -33,22 +31,18 @@ namespace ppb {
         Kokkos::deep_copy(positionsHost, positions);
         Kokkos::deep_copy(velocitiesHost, velocities);
         Kokkos::deep_copy(forcesHost, forces);
-        Kokkos::deep_copy(oldForcesHost, oldForces);
         for (size_t i = 0; i < particles.size(); ++i) {
             std::array<FloatType, 3> pos{};
             std::array<FloatType, 3> vel{};
             std::array<FloatType, 3> force{};
-            std::array<FloatType, 3> oldForce{};
             for (size_t j = 0; j < 3; ++j) {
                 pos[j] = positionsHost(i, j);
                 vel[j] = velocitiesHost(i, j);
                 force[j] = forcesHost(i, j);
-                oldForce[j] = oldForcesHost(i, j);
             }
             particles[i].setPosition(pos);
             particles[i].setVelocity(vel);
             particles[i].setForce(force);
-            particles[i].setOldForce(oldForce);
         }
         return particles;
     }
@@ -126,13 +120,22 @@ namespace ppb {
         auto &force = _particles->forces;
         auto &position = _particles->positions;
 
-        using TeamPolicy = Kokkos::TeamPolicy<>;
-        using MemberType = TeamPolicy::member_type;
+        Kokkos::TeamPolicy<> policy(size, Kokkos::AUTO);
 
-        TeamPolicy policy(size, Kokkos::AUTO);
+        struct Vec3 {
+            FloatType data[3];
+            KOKKOS_FUNCTION Vec3() { data[0]=data[1]=data[2]=0; }
+            KOKKOS_FUNCTION Vec3 &operator+=(const Vec3 &other) {
+                for (int i = 0; i < 3; ++i) {
+                    data[i] += other.data[i];
+                }
+                return *this;
+            }
+            KOKKOS_FUNCTION FloatType &operator[](int i) { return data[i]; }
+        };
 
         const Kokkos::Timer timer;
-        Kokkos::parallel_for("compute_forces_team", policy, KOKKOS_LAMBDA(const MemberType& team) {
+        Kokkos::parallel_for("compute_forces", policy, KOKKOS_LAMBDA(const Kokkos::TeamPolicy<>::member_type &team) {
             const int i = team.league_rank();
 
             constexpr auto sigmaSrc = 1.0;
@@ -142,8 +145,8 @@ namespace ppb {
             constexpr auto sigmaSquared = sigma * sigma;
             const auto epsilon24 = Kokkos::sqrt(epsilonSrc * epsilonSrc) * 24.0;
 
-            Kokkos::parallel_for(
-                Kokkos::TeamThreadRange(team, 0, i), [&](const int j) {
+            Vec3 team_sum;
+            Kokkos::parallel_reduce(Kokkos::TeamThreadRange(team, 0, size), [&](const int j, Vec3 &sum) {
                     if (j == i) {
                         return;
                     }
@@ -159,13 +162,19 @@ namespace ppb {
                     const auto lj12 = lj6 * lj6;
                     const auto lj12m6 = lj12 - lj6;
                     const auto fac = epsilon24 * (lj12 + lj12m6) * invdr2;
+                    Vec3 tmp;
                     for (int k = 0; k < 3; ++k) {
                         const auto f = dr[k] * fac;
-                        Kokkos::atomic_add(&force(i, k), f);
-                        Kokkos::atomic_sub(&force(j, k), f);
+                        tmp[k] = f;
                     }
-                }
-            );
+                    sum += tmp;
+                }, team_sum);
+
+                Kokkos::single(Kokkos::PerTeam(team), [&]() {
+                    force(i,0) += team_sum[0];
+                    force(i,1) += team_sum[1];
+                    force(i,2) += team_sum[2];
+                });
         });
         Kokkos::fence();
         _timings.forceUpdateTime += (timer.seconds() * 1e9);
