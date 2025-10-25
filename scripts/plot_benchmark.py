@@ -44,7 +44,7 @@ import seaborn as sns
 from loguru import logger
 
 
-def find_files(search_dir: list[Path] | Path, pattern: str) -> list[Path]:
+def find_files(search_dir: list[Path] | Path, pattern: str | list[str]) -> list[Path]:
     """Searches for files given a search directory and a glob pattern.
     Args:
         search_dir: Directory/ Directories to search for files.
@@ -54,12 +54,17 @@ def find_files(search_dir: list[Path] | Path, pattern: str) -> list[Path]:
         A list of file paths that match the given pattern.
     """
     cmake_targets = []
+    if isinstance(search_dir, Path):
+        search_dir = [search_dir]
+    if isinstance(pattern, str):
+        pattern = [pattern]
     logger.info(f"Recursive searching for files in {search_dir} according to pattern: {pattern}")
     for directory in search_dir:
-        for file in directory.rglob(pattern):
-            if file.is_file():
-                cmake_targets.append(file.resolve())
-                logger.debug(f"Append file {file}")
+        for regex_pattern in pattern:
+            for file in directory.rglob(regex_pattern):
+                if file.is_file():
+                    cmake_targets.append(file.resolve())
+                    logger.debug(f"Append file {file}")
     logger.info(f"Found {len(cmake_targets)} files")
     return cmake_targets
 
@@ -113,9 +118,6 @@ def load_reports(report_files: list[Path]) -> pd.DataFrame:
         # 1. Drop rows where `iterations` is NaN
         df = df.dropna(subset=["iterations"])
 
-        # 2. Select specific columns
-        df = df[["name", "iterations", "real_time", "cpu_time", "time_unit", "kernel_time"]]
-
         # 3. Split the `name` column into `type`, `framework`, `precision`, and `size`
         # Assuming the format is consistent as 'VecAdd-Float-Kokkos-Version/1000'
         # Separate by '/' first, then '-'
@@ -138,6 +140,9 @@ def load_reports(report_files: list[Path]) -> pd.DataFrame:
             df["Version"] = ""
             df["Framework[Version]"] = df["Framework"]
 
+        for col in ["kernel_time", "position_update_reset", "velocity_update", "force_update"]:
+            if col not in df.columns:
+                df[col] = None
 
         df.rename(
             columns={
@@ -145,13 +150,16 @@ def load_reports(report_files: list[Path]) -> pd.DataFrame:
                 "cpu_time": "CPU Time",
                 "time_unit": "Time Unit",
                 "iterations": "Iterations",
-                "kernel_time" : "Kernel Time"
+                "kernel_time" : "Kernel Time",
+                "position_update_reset": "Position Update Time",
+                "velocity_update": "Velocity Update Time",
+                "force_update": "Force Update Time"
             },
             inplace=True
         )
 
         # Rearrange the columns as needed
-        df = df[["Name", "Framework", "Precision", "Problem Size", "Iterations", "Wall Clock Time", "CPU Time", "Kernel Time", "Time Unit", "Version", "Framework[Version]"]]
+        df = df[["Name", "Framework", "Precision", "Problem Size", "Iterations", "Wall Clock Time", "CPU Time", "Kernel Time", "Position Update Time", "Velocity Update Time", "Force Update Time", "Time Unit", "Version", "Framework[Version]"]]
         data.append(df)
     logger.info(f"Loaded {len(data)} report json files")
     return pd.concat(data)
@@ -269,17 +277,17 @@ def plot_barchart(benchmark_df: pd.DataFrame, save_path: Path | None = None, tim
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Benchmarking Command Line Interface")
-    parser.add_argument("--report", action="store_false", default=True,
+    parser.add_argument("--benchmark_reports", action="store_false", default=True,
         help="If set, the regex and path are used to directly search for the report files instead of benchmarking targets", )
     parser.add_argument("-p", "--path", nargs='+', type=Path, default=[Path.cwd()], help="Path to search for files")
-    parser.add_argument("-r", "--regex", type=str, required=True, help="Regex Pattern for files to search")
+    parser.add_argument("-r", "--regex", nargs='+', type=str, required=True, help="Regex Pattern for files to search")
     parser.add_argument("-u", "--time-unit",type=str, default="nanoseconds", help="Time unit for the plots",)
-    default_output = datetime.now().strftime("%Y-%m-%d_%H-%M_Benchmark_Result.pdf")
+    default_output = datetime.now().strftime("%Y-%m-%d_%H-%M_Benchmark_Result")
     parser.add_argument("-o", "--output", type=Path, default=Path(default_output),
-        help="Output file name for the plots", )
+        help="Output file name for the csv and plots", )
     parser.add_argument("-v", "--verbose", action="count", default=0, help="Verbosity level (Enable Debug & Trace Logs)")
     parser.add_argument("-t", "--time", type=str, default="wall_time", help="Time to use for the plot", choices=["wall_time", "cpu_time", "kernel_time"])
-    parser.add_argument("-c","--chart", type=str, default="line", help="Chart type to use for the plot", choices=["line", "bar"])
+    parser.add_argument("-c","--chart", type=str, default="none", help="Chart type to use for the plot", choices=["none", "line", "bar"])
 
     args = parser.parse_args()
 
@@ -289,12 +297,12 @@ if __name__ == "__main__":
 
     # Run the benchmark pipeline
     files = find_files(args.path, args.regex)
-    if args.report:
+    if args.benchmark_reports:
         files = run_benchmarks(files)
     df = load_reports(files)
+    df.to_csv(args.output.with_suffix(".csv"), index=False)
     match args.chart:
         case "line":
-            plot_linechart(df, args.output, args.time_unit, args.time)
+            plot_linechart(df, args.output.with_suffix(".pdf"), args.time_unit, args.time)
         case "bar":
-            plot_barchart(df, args.output, args.time_unit, [args.time])
-    df.to_csv(args.output.with_suffix(".csv"), index=False)
+            plot_barchart(df, args.output.with_suffix(".pdf"), args.time_unit, [args.time])
