@@ -1,0 +1,73 @@
+{
+  "context": {
+    "date": "2025-10-25T21:05:36+02:00",
+    "host_name": "Zeus1999-Ubuntu",
+    "executable": "./cmake-build-release/bench_plain_cpp",
+    "num_cpus": 28,
+    "mhz_per_cpu": 1724,
+    "cpu_scaling_enabled": false,
+    "aslr_enabled": true,
+    "caches": [
+      {
+        "type": "Data",
+        "level": 1,
+        "size": 49152,
+        "num_sharing": 2
+      },
+      {
+        "type": "Instruction",
+        "level": 1,
+        "size": 32768,
+        "num_sharing": 2
+      },
+      {
+        "type": "Unified",
+        "level": 2,
+        "size": 2097152,
+        "num_sharing": 2
+      },
+      {
+        "type": "Unified",
+        "level": 3,
+        "size": 34603008,
+        "num_sharing": 28
+      }
+    ],
+    "load_avg": [0.563477,0.559082,0.663086],
+    "library_version": "v1.9.4",
+    "library_build_type": "release",
+    "json_schema_version": 1
+  },
+  "benchmarks": [
+    {
+      "name": "BM_Eros",
+      "family_index": 0,
+      "per_family_instance_index": 0,
+      "run_name": "BM_Eros",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 383,
+      "real_time": 1.8145470861658605e+06,
+      "cpu_time": 1.8143843420365539e+06,
+      "time_unit": "ns",
+      "NumFaces": 1.4744000000000000e+04
+    },
+    {
+      "name": "BM_obj/67P_ESA_NAVCAM_Jul2015data_256k",
+      "family_index": 1,
+      "per_family_instance_index": 0,
+      "run_name": "BM_obj/67P_ESA_NAVCAM_Jul2015data_256k",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 20,
+      "real_time": 3.4082809249957785e+07,
+      "cpu_time": 3.4078208750000007e+07,
+      "time_unit": "ns",
+      "NumFaces": 2.5593200000000000e+05
+    }
+  ]
+}

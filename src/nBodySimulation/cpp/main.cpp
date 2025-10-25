@@ -3,7 +3,7 @@
 #include "nBodySimulation/NBodySimulation.h"
 
 BENCHMARK(ppb::NBodySimulation<ppb::ImplCpp<float>>::benchmark)
-    ->Name("NBody-Float-cpp")
+    ->Name("NBody-Float-CPP")
     ->RangeMultiplier(10)
     ->Range(ppb::NBodyBenchmarkConf::MIN_SIZE, ppb::NBodyBenchmarkConf::MAX_SIZE)
     ->Complexity();

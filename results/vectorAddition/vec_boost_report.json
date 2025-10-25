@@ -1,0 +1,160 @@
+{
+  "context": {
+    "date": "2025-10-25T18:57:35+02:00",
+    "host_name": "Zeus1999-Ubuntu",
+    "executable": "/home/schuhmaj/Programming/performance-portability-benchmark/cmake-build-release/src/vectorAdditon/boost/vec_boost",
+    "num_cpus": 28,
+    "mhz_per_cpu": 802,
+    "cpu_scaling_enabled": false,
+    "aslr_enabled": false,
+    "caches": [
+      {
+        "type": "Data",
+        "level": 1,
+        "size": 49152,
+        "num_sharing": 2
+      },
+      {
+        "type": "Instruction",
+        "level": 1,
+        "size": 32768,
+        "num_sharing": 2
+      },
+      {
+        "type": "Unified",
+        "level": 2,
+        "size": 2097152,
+        "num_sharing": 2
+      },
+      {
+        "type": "Unified",
+        "level": 3,
+        "size": 34603008,
+        "num_sharing": 28
+      }
+    ],
+    "load_avg": [0.969727,1.12793,1.10254],
+    "library_version": "v1.9.4",
+    "library_build_type": "release",
+    "json_schema_version": 1
+  },
+  "benchmarks": [
+    {
+      "name": "VecAdd-Float-BoostCL/1000",
+      "family_index": 0,
+      "per_family_instance_index": 0,
+      "run_name": "VecAdd-Float-BoostCL/1000",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 7717,
+      "real_time": 7.2301709343155264e+04,
+      "cpu_time": 7.1957359725281844e+04,
+      "time_unit": "ns",
+      "kernel_time": 1.4277310353764417e+04
+    },
+    {
+      "name": "VecAdd-Float-BoostCL/10000",
+      "family_index": 0,
+      "per_family_instance_index": 1,
+      "run_name": "VecAdd-Float-BoostCL/10000",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 6685,
+      "real_time": 9.9031867912800531e+04,
+      "cpu_time": 9.8216310246821318e+04,
+      "time_unit": "ns",
+      "kernel_time": 2.3466907105459984e+04
+    },
+    {
+      "name": "VecAdd-Float-BoostCL/100000",
+      "family_index": 0,
+      "per_family_instance_index": 2,
+      "run_name": "VecAdd-Float-BoostCL/100000",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 1944,
+      "real_time": 2.9158411111163819e+05,
+      "cpu_time": 2.8870330504115199e+05,
+      "time_unit": "ns",
+      "kernel_time": 5.3592465020576128e+04
+    },
+    {
+      "name": "VecAdd-Float-BoostCL/1000000",
+      "family_index": 0,
+      "per_family_instance_index": 3,
+      "run_name": "VecAdd-Float-BoostCL/1000000",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 257,
+      "real_time": 2.0172531167261533e+06,
+      "cpu_time": 1.9981579883268478e+06,
+      "time_unit": "ns",
+      "kernel_time": 3.3640540856031131e+05
+    },
+    {
+      "name": "VecAdd-Float-BoostCL/10000000",
+      "family_index": 0,
+      "per_family_instance_index": 4,
+      "run_name": "VecAdd-Float-BoostCL/10000000",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 16,
+      "real_time": 3.6861293062656842e+07,
+      "cpu_time": 3.6559536499999993e+07,
+      "time_unit": "ns",
+      "kernel_time": 4.8165895000000000e+06
+    },
+    {
+      "name": "VecAdd-Float-BoostCL/100000000",
+      "family_index": 0,
+      "per_family_instance_index": 5,
+      "run_name": "VecAdd-Float-BoostCL/100000000",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 2,
+      "real_time": 3.5850836499957949e+08,
+      "cpu_time": 3.5581939199999988e+08,
+      "time_unit": "ns",
+      "kernel_time": 3.8716104500000000e+07
+    },
+    {
+      "name": "VecAdd-Float-BoostCL_BigO",
+      "family_index": 0,
+      "per_family_instance_index": 0,
+      "run_name": "VecAdd-Float-BoostCL",
+      "run_type": "aggregate",
+      "repetitions": 1,
+      "threads": 1,
+      "aggregate_name": "BigO",
+      "aggregate_unit": "time",
+      "cpu_coefficient": 3.5590067021000475e+00,
+      "real_coefficient": 3.5859281935721272e+00,
+      "big_o": "N",
+      "time_unit": "ns"
+    },
+    {
+      "name": "VecAdd-Float-BoostCL_RMS",
+      "family_index": 0,
+      "per_family_instance_index": 0,
+      "run_name": "VecAdd-Float-BoostCL",
+      "run_type": "aggregate",
+      "repetitions": 1,
+      "threads": 1,
+      "aggregate_name": "RMS",
+      "aggregate_unit": "percentage",
+      "rms": 1.1432274567225993e-02
+    }
+  ]
+}

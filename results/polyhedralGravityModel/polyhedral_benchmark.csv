@@ -1,0 +1,17 @@
+Name,Framework,Precision,Problem Size,Iterations,Wall Clock Time,CPU Time,Kernel Time,Position Update Time,Velocity Update Time,Force Update Time,Time Unit,Version,Framework[Version]
+PolyhedralGravity,AdaptiveCpp,float,14744,3212,251522.11737340092,188656.93679950185,,,,,ns,,AdaptiveCpp
+PolyhedralGravity,AdaptiveCpp,float,255932,332,2316057.771080172,2168615.231927711,,,,,ns,,AdaptiveCpp
+PolyhedralGravity,OpenACC,float,14744,1850,354251.7578367748,354222.9135135135,,,,,ns,,OpenACC
+PolyhedralGravity,OpenACC,float,255932,171,4086669.122821335,4086073.011695907,,,,,ns,,OpenACC
+PolyhedralGravity,Vulkan,float,14744,10000,603871.4397996955,12065.142099999992,,,,,ns,,Vulkan
+PolyhedralGravity,Vulkan,float,255932,1000,9591028.490998724,35314.23800000022,,,,,ns,,Vulkan
+PolyhedralGravity,OpenCL,float,14744,3088,224892.37370428813,224853.9543393782,,,,,ns,,OpenCL
+PolyhedralGravity,OpenCL,float,255932,210,3901966.3666771348,3901854.9523809543,,,,,ns,,OpenCL
+PolyhedralGravity,Kokkos,float,14744,3233,214618.22363172632,214590.8082276523,,,,,ns,,Kokkos
+PolyhedralGravity,Kokkos,float,255932,384,1822498.3359497553,1822279.9088541663,,,,,ns,,Kokkos
+PolyhedralGravity,Slang-CUDA,float,14744,4738,148036.0998303991,148021.0975094977,,,,,ns,,Slang-CUDA
+PolyhedralGravity,Slang-CUDA,float,255932,368,2006543.1494517922,2005559.407608696,,,,,ns,,Slang-CUDA
+PolyhedralGravity,Slang-Vulkan,float,14744,10000,485268.3764001995,8806.955100000003,,,,,ns,,Slang-Vulkan
+PolyhedralGravity,Slang-Vulkan,float,255932,1000,9450041.510004668,27727.559999999987,,,,,ns,,Slang-Vulkan
+PolyhedralGravity,CPP,float,14744,383,1814547.0861658605,1814384.342036554,,,,,ns,,CPP
+PolyhedralGravity,CPP,float,255932,20,34082809.249957785,34078208.75000001,,,,,ns,,CPP

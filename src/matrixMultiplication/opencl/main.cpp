@@ -3,7 +3,7 @@
 #include "matrixMultiplication/MatrixMultiplication.h"
 
 BENCHMARK(ppb::MatrixMultiplication<ppb::ImplOpenCL<float>>::benchmark)
-    ->Name("MatrixMultiplication-Float-ImplOpenCL")
+    ->Name("MatrixMultiplication-Float-OpenCL")
     ->RangeMultiplier(2)
     ->Range(32, 8192)
 #ifdef PPB_MEASURE_ONLY_KERNEL

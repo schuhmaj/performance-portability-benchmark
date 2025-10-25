@@ -1,0 +1,138 @@
+{
+  "context": {
+    "date": "2025-10-25T18:57:58+02:00",
+    "host_name": "Zeus1999-Ubuntu",
+    "executable": "/home/schuhmaj/Programming/performance-portability-benchmark/cmake-build-release/src/nBodySimulation/alpaka/nbody_alpaka",
+    "num_cpus": 28,
+    "mhz_per_cpu": 883,
+    "cpu_scaling_enabled": false,
+    "aslr_enabled": false,
+    "caches": [
+      {
+        "type": "Data",
+        "level": 1,
+        "size": 49152,
+        "num_sharing": 2
+      },
+      {
+        "type": "Instruction",
+        "level": 1,
+        "size": 32768,
+        "num_sharing": 2
+      },
+      {
+        "type": "Unified",
+        "level": 2,
+        "size": 2097152,
+        "num_sharing": 2
+      },
+      {
+        "type": "Unified",
+        "level": 3,
+        "size": 34603008,
+        "num_sharing": 28
+      }
+    ],
+    "load_avg": [0.979004,1.11816,1.09863],
+    "library_version": "v1.9.4",
+    "library_build_type": "release",
+    "json_schema_version": 1
+  },
+  "benchmarks": [
+    {
+      "name": "NBody-Float-Alpaka/10",
+      "family_index": 0,
+      "per_family_instance_index": 0,
+      "run_name": "NBody-Float-Alpaka/10",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 42,
+      "real_time": 1.6626879047613502e+07,
+      "cpu_time": 1.6624246047619045e+07,
+      "time_unit": "ns",
+      "force_update": 5.8530020952380951e+06,
+      "position_update_reset": 4.2165717619047621e+06,
+      "velocity_update": 4.0788570714285714e+06
+    },
+    {
+      "name": "NBody-Float-Alpaka/100",
+      "family_index": 0,
+      "per_family_instance_index": 1,
+      "run_name": "NBody-Float-Alpaka/100",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 22,
+      "real_time": 3.2217606545435213e+07,
+      "cpu_time": 3.2215200409090903e+07,
+      "time_unit": "ns",
+      "force_update": 2.1170237818181816e+07,
+      "position_update_reset": 4.3401253636363633e+06,
+      "velocity_update": 4.2096940454545459e+06
+    },
+    {
+      "name": "NBody-Float-Alpaka/1000",
+      "family_index": 0,
+      "per_family_instance_index": 2,
+      "run_name": "NBody-Float-Alpaka/1000",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 1,
+      "real_time": 7.2671482699661279e+08,
+      "cpu_time": 7.2669515399999976e+08,
+      "time_unit": "ns",
+      "force_update": 7.1153478600000000e+08,
+      "position_update_reset": 6.5664340000000000e+06,
+      "velocity_update": 5.5591300000000000e+06
+    },
+    {
+      "name": "NBody-Float-Alpaka/10000",
+      "family_index": 0,
+      "per_family_instance_index": 3,
+      "run_name": "NBody-Float-Alpaka/10000",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 1,
+      "real_time": 8.5164093470011721e+09,
+      "cpu_time": 8.5159322539999990e+09,
+      "time_unit": "ns",
+      "force_update": 8.5007296320000000e+09,
+      "position_update_reset": 6.8160050000000000e+06,
+      "velocity_update": 5.4756100000000000e+06
+    },
+    {
+      "name": "NBody-Float-Alpaka_BigO",
+      "family_index": 0,
+      "per_family_instance_index": 0,
+      "run_name": "NBody-Float-Alpaka",
+      "run_type": "aggregate",
+      "repetitions": 1,
+      "threads": 1,
+      "aggregate_name": "BigO",
+      "aggregate_unit": "time",
+      "cpu_coefficient": 6.4137806565121100e+04,
+      "real_coefficient": 6.4141388011872616e+04,
+      "big_o": "NlgN",
+      "time_unit": "ns"
+    },
+    {
+      "name": "NBody-Float-Alpaka_RMS",
+      "family_index": 0,
+      "per_family_instance_index": 0,
+      "run_name": "NBody-Float-Alpaka",
+      "run_type": "aggregate",
+      "repetitions": 1,
+      "threads": 1,
+      "aggregate_name": "RMS",
+      "aggregate_unit": "percentage",
+      "rms": 1.9275376324207321e-02
+    }
+  ]
+}

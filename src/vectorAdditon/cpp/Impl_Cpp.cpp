@@ -25,7 +25,7 @@ namespace ppb {
 };
 
 BENCHMARK(ppb::VectorAddition<ppb::ImplCpp<float>>::benchmark)
-    ->Name("VecAdd-Float-cpp")
+    ->Name("VecAdd-Float-CPP")
     ->RangeMultiplier(10)
     ->Range(1e3, 1e8)
 #ifdef PPB_MEASURE_ONLY_KERNEL

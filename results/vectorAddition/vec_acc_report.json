@@ -1,0 +1,160 @@
+{
+  "context": {
+    "date": "2025-10-25T19:02:51+02:00",
+    "host_name": "Zeus1999-Ubuntu",
+    "executable": "/home/schuhmaj/Programming/performance-portability-benchmark/cmake-build-release-nvhpc/src/vectorAdditon/openacc/vec_acc",
+    "num_cpus": 28,
+    "mhz_per_cpu": 800,
+    "cpu_scaling_enabled": false,
+    "aslr_enabled": false,
+    "caches": [
+      {
+        "type": "Data",
+        "level": 1,
+        "size": 49152,
+        "num_sharing": 2
+      },
+      {
+        "type": "Instruction",
+        "level": 1,
+        "size": 32768,
+        "num_sharing": 2
+      },
+      {
+        "type": "Unified",
+        "level": 2,
+        "size": 2097152,
+        "num_sharing": 2
+      },
+      {
+        "type": "Unified",
+        "level": 3,
+        "size": 34603008,
+        "num_sharing": 28
+      }
+    ],
+    "load_avg": [1,1.04199,1.06836],
+    "library_version": "v1.9.4",
+    "library_build_type": "release",
+    "json_schema_version": 1
+  },
+  "benchmarks": [
+    {
+      "name": "VecAdd-Float-OpenACC/1000",
+      "family_index": 0,
+      "per_family_instance_index": 0,
+      "run_name": "VecAdd-Float-OpenACC/1000",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 50397,
+      "real_time": 1.3922138758226938e+04,
+      "cpu_time": 1.3920953390082743e+04,
+      "time_unit": "ns",
+      "kernel_time": 1.3414942357680020e+04
+    },
+    {
+      "name": "VecAdd-Float-OpenACC/10000",
+      "family_index": 0,
+      "per_family_instance_index": 1,
+      "run_name": "VecAdd-Float-OpenACC/10000",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 22836,
+      "real_time": 3.0634705421391562e+04,
+      "cpu_time": 3.0632194648800152e+04,
+      "time_unit": "ns",
+      "kernel_time": 2.7059232264844981e+04
+    },
+    {
+      "name": "VecAdd-Float-OpenACC/100000",
+      "family_index": 0,
+      "per_family_instance_index": 2,
+      "run_name": "VecAdd-Float-OpenACC/100000",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 4139,
+      "real_time": 1.6842799420116169e+05,
+      "cpu_time": 1.6841063276153657e+05,
+      "time_unit": "ns",
+      "kernel_time": 1.4679922469195459e+05
+    },
+    {
+      "name": "VecAdd-Float-OpenACC/1000000",
+      "family_index": 0,
+      "per_family_instance_index": 3,
+      "run_name": "VecAdd-Float-OpenACC/1000000",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 241,
+      "real_time": 2.9043076224090131e+06,
+      "cpu_time": 2.9040220539419102e+06,
+      "time_unit": "ns",
+      "kernel_time": 1.1053549128630706e+06
+    },
+    {
+      "name": "VecAdd-Float-OpenACC/10000000",
+      "family_index": 0,
+      "per_family_instance_index": 4,
+      "run_name": "VecAdd-Float-OpenACC/10000000",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 22,
+      "real_time": 3.1525474045503702e+07,
+      "cpu_time": 3.1521360272727299e+07,
+      "time_unit": "ns",
+      "kernel_time": 1.0355597772727273e+07
+    },
+    {
+      "name": "VecAdd-Float-OpenACC/100000000",
+      "family_index": 0,
+      "per_family_instance_index": 5,
+      "run_name": "VecAdd-Float-OpenACC/100000000",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 2,
+      "real_time": 3.2350466249954480e+08,
+      "cpu_time": 3.2347035750000018e+08,
+      "time_unit": "ns",
+      "kernel_time": 1.0138552900000000e+08
+    },
+    {
+      "name": "VecAdd-Float-OpenACC_BigO",
+      "family_index": 0,
+      "per_family_instance_index": 0,
+      "run_name": "VecAdd-Float-OpenACC",
+      "run_type": "aggregate",
+      "repetitions": 1,
+      "threads": 1,
+      "aggregate_name": "BigO",
+      "aggregate_unit": "time",
+      "cpu_coefficient": 3.2338518830758871e+00,
+      "real_coefficient": 3.2341956036521879e+00,
+      "big_o": "N",
+      "time_unit": "ns"
+    },
+    {
+      "name": "VecAdd-Float-OpenACC_RMS",
+      "family_index": 0,
+      "per_family_instance_index": 0,
+      "run_name": "VecAdd-Float-OpenACC",
+      "run_type": "aggregate",
+      "repetitions": 1,
+      "threads": 1,
+      "aggregate_name": "RMS",
+      "aggregate_unit": "percentage",
+      "rms": 6.1481713741187534e-03
+    }
+  ]
+}
