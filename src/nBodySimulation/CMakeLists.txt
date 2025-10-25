@@ -41,4 +41,8 @@ if (${PPB_ENABLE_Vulkan})
     add_subdirectory(vulkan)
 endif ()
 
+if (${PPB_ENABLE_OpenACC})
+    add_subdirectory(openacc)
+endif ()
+
 add_subdirectory(cpp)

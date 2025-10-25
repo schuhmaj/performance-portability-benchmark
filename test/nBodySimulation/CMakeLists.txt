@@ -53,3 +53,7 @@ endif ()
 if (${PPB_ENABLE_AdaptiveCpp})
     add_subdirectory(acpp)
 endif()
+
+if (${PPB_ENABLE_OpenACC})
+    add_subdirectory(openacc)
+endif ()

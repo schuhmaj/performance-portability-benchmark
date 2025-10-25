@@ -3,17 +3,17 @@
 #include "matrixMultiplication/MatrixMultiplication.h"
 #include "benchmark/benchmark.h"
 
-BENCHMARK(ppb::MatrixMultiplication<ppb::ImplOpenMP<float>>::benchmark)
-    ->Name("MatrixMultiplication-Float-OpenMP-CPU")
-    ->RangeMultiplier(2)
-    ->Range(32, 8192)
-#ifdef PPB_MEASURE_ONLY_KERNEL
-    ->UseManualTime()
-#endif
-    ->Complexity();
+// BENCHMARK(ppb::MatrixMultiplication<ppb::ImplOpenMP<float>>::benchmark)
+//     ->Name("MatrixMultiplication-Float-OpenMP-CPU")
+//     ->RangeMultiplier(2)
+//     ->Range(32, 8192)
+// #ifdef PPB_MEASURE_ONLY_KERNEL
+//     ->UseManualTime()
+// #endif
+//     ->Complexity();
 
 BENCHMARK(ppb::MatrixMultiplication<ppb::ImplOpenMPDevice<float>>::benchmark)
-    ->Name("MatrixMultiplication-Float-OpenMP-Device")
+    ->Name("MatrixMultiplication-Float-OpenMP")
     ->RangeMultiplier(2)
     ->Range(32, 8192)
 #ifdef PPB_MEASURE_ONLY_KERNEL
