@@ -48,6 +48,8 @@ def create_dataframe(report_files: list[Path]) -> pd.DataFrame:
             "vulkan": "Vulkan",
             "slang_cuda": "Slang-CUDA",
             "slang_vulkan": "Slang-Vulkan",
+            "omp" : "OpenMP",
+            "cuda": "Cuda"
         }
         # Apply mapping (unmapped values remain as-is with fillna)
         df["Framework"] = df["Framework"].map(framework_map).fillna(df["Framework"])
