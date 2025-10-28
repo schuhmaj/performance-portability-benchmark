@@ -7,10 +7,11 @@ Some frameworks are not portable to every platform.
 
 
 <p align="center">
-  <img src="results/vectorAddition/2025-06-04_19-41_Benchmark_Result.png" width="90%">
+  <img src="results/all_scatter.png" width="90%">
   <br>
   <em>
-    Runtime of a Simple Vector Addition on the RTX 3080 using Different Pardigms
+      Normalized Halstead Effort (Complexity) vs. Application Efficiency (Runtime)<br>
+      performed on an RTX 2080 with LLVM 20.1.8/ NVHPC 25.9
   </em>
 </p>
 
