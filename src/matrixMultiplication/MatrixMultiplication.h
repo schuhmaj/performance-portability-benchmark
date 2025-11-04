@@ -6,8 +6,6 @@
 #include <iostream>
 #include <utility>
 #include <vector>
-
-#include "ContainerUtility.h"
 #include "UtilityContainer.h"
 
 namespace ppb {
@@ -26,7 +24,7 @@ namespace ppb {
      *
      * Provides matrix multiplication for two input matrices, A and B, resulting
      * in an output matrix C. The sizes of the matrices are defined by the
-     * constructor parameters m, n, and l.
+     * constructor parameters m, n, and k.
      * A is M x K
      * B is K x N
      * C is M x N
@@ -112,15 +110,16 @@ namespace ppb {
          * Matrices are stored in column-major format as specified in the documentation.
          */
         void isFunctional() {
+            using namespace ppb::util;
             const std::vector<FloatType> matrixA = {1, 3, 5, 2, 4, 6};
             const std::vector<FloatType> matrixA_row_major = {1, 2, 3, 4, 5, 6};
             const std::vector<FloatType> matrixB = {7, 10, 8, 11, 9, 12};
             const std::vector<FloatType> matrixB_row_major = {7, 8, 9, 10, 11, 12};
             const std::vector<FloatType> expectedResult = {27, 61, 95, 30, 68, 106, 33, 75, 117};
             const std::vector<FloatType> expectedResult_row_major = {27, 30, 33, 61, 68, 75, 95, 106, 117};
-            std::vector<FloatType> actualResult;
+            MatrixMultiplicationConfig config{3, 3, 2};
             if constexpr (std::is_same_v<is_row_major, std::true_type>) {
-                actualResult = _impl(matrixA_row_major, matrixB_row_major, {3, 3, 2});
+                const auto [actualResult, time] = _impl(matrixA_row_major, matrixB_row_major, config);
                 if (!std::equal(actualResult.begin(), actualResult.end(), expectedResult_row_major.begin())) {
                     std::cerr << "Matrix multiplication failed!" << std::endl;
                     std::cerr << "Expected: " << expectedResult_row_major << std::endl;
@@ -128,7 +127,7 @@ namespace ppb {
                     std::exit(1);
                 }
             } else {
-                actualResult = _impl(matrixA, matrixB, {3, 3, 2});
+                const auto [actualResult, time] = _impl(matrixA, matrixB, config);
                 if (!std::equal(actualResult.begin(), actualResult.end(), expectedResult.begin())) {
                     std::cerr << "Matrix multiplication failed!" << std::endl;
                     std::cerr << "Expected: " << expectedResult << std::endl;
@@ -157,7 +156,7 @@ namespace ppb {
                 state.SetIterationTime(time);
             }
 #ifndef PPB_MEASURE_ONLY_KERNEL
-            state.counters["Kernel Time"] = benchmark::Counter(kernelTime, benchmark::Counter::kAvgIterations);
+            state.counters["kernel_time"] = benchmark::Counter(kernelTime, benchmark::Counter::kAvgIterations);
 #endif
             state.SetComplexityN(static_cast<long long>(size));
         }

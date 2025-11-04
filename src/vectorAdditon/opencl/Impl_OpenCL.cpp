@@ -1,13 +1,17 @@
 #include <benchmark/benchmark.h>
 #include <iostream>
 #include <utility>
-#include "VectorAddition.h"
-#include "OpenCLUtility.h"
+#include "vectorAdditon/VectorAddition.h"
+#include "common/opencl/OpenCLUtility.h"
+#include "common/UtilityFloatArithmetic.h"
+#include "VectorAdditionKernel.h"
 
 #ifdef __APPLE__
 #include <OpenCL/opencl.h>
+constexpr size_t WORKGROUP_SIZE = 32;
 #else
 #include <CL/cl.h>
+constexpr size_t WORKGROUP_SIZE = 1024;
 #endif
 
 namespace ppb {
@@ -21,40 +25,27 @@ namespace ppb {
         cl_program program = nullptr;
         cl_kernel kernel = nullptr;
 
-        static size_t roundUp(int group_size, int global_size) {
-            int r = global_size % group_size;
-            return r == 0 ? global_size : global_size + group_size - r;
-        }
-
         ImplOpenCL() {
             // 0. Get device
-            device = util::getFirstGPU();
+            device = opencl_utility::getFirstGPU();
 
             // 1. Context & queue
             cl_int err;
             context = clCreateContext(0, 1, &device, nullptr, nullptr, &err);
             queue = clCreateCommandQueue(context, device, CL_QUEUE_PROFILING_ENABLE, &err);
 
-            // 3. OpenCL program & kernel
-            std::string kernelSource;
+            // 3. opencl_utility program & kernel
+            const char* kernelProg = KERNEL_SOURCE;
+            program = clCreateProgramWithSource(context, 1, &kernelProg, nullptr, &err);
+            err = clBuildProgram(program, 0, nullptr, nullptr, nullptr, nullptr);
+
             if constexpr (std::is_same_v<FloatType, float>) {
-                kernelSource = "__kernel void add_vector(__global const float* a, __global const float* b, __global float* c) {"
-                " int gid = get_global_id(0);"
-                " c[gid] = a[gid] + b[gid];"
-                " }";
+                kernel = clCreateKernel(program, "add_vector_float", &err);
             } else if constexpr (std::is_same_v<FloatType, double>) {
-                kernelSource = "__kernel void add_vector(__global const double* a, __global const double* b, __global double* c) {"
-                " int gid = get_global_id(0);"
-                " c[gid] = a[gid] + b[gid];"
-                " }";
+                kernel = clCreateKernel(program, "add_vector_double", &err);
             } else {
                 static_assert(std::is_same_v<FloatType, float> || std::is_same_v<FloatType, double>, "Unsupported type");
             }
-            const char* kernelProg = kernelSource.c_str();
-            program = clCreateProgramWithSource(context, 1, &kernelProg, nullptr, &err);
-
-            err = clBuildProgram(program, 0, nullptr, nullptr, nullptr, nullptr);
-            kernel = clCreateKernel(program, "add_vector", &err);
         }
 
         ~ImplOpenCL() {
@@ -83,8 +74,8 @@ namespace ppb {
             // 3. Launch kernel and Measure Time
             cl_event event;
             cl_ulong start, end;
-            const size_t localWorkSize = 1024;
-            const size_t globalWorkSize = roundUp(localWorkSize, size);
+            const size_t localWorkSize = WORKGROUP_SIZE;
+            const size_t globalWorkSize = util::roundUp(size, localWorkSize);
             err = clEnqueueNDRangeKernel(queue, kernel, 1, nullptr, &globalWorkSize, &localWorkSize, 0, nullptr, &event);
             if (err != CL_SUCCESS) throw std::runtime_error("EnqueueNDRangeKernel failed");
 
@@ -95,13 +86,13 @@ namespace ppb {
 
             clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_START, sizeof(start), &start, nullptr);
             clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_END, sizeof(end), &end, nullptr);
-            double execution_time = static_cast<double>(end - start) * 1e-9;
+            double elapsed_nanoseconds = static_cast<double>(end - start);
 
             clReleaseMemObject(deviceA);
             clReleaseMemObject(deviceB);
             clReleaseMemObject(resultBuffer);
             clReleaseEvent(event);
-            return std::make_pair(result, execution_time);
+            return std::make_pair(result, elapsed_nanoseconds);
         }
     };
 
@@ -110,7 +101,7 @@ namespace ppb {
 }
 
 BENCHMARK(ppb::VectorAddition<ppb::ImplOpenCL<float>>::benchmark)
-    ->Name("VecAdd-OpenCL-Float")
+    ->Name("VecAdd-Float-OpenCL")
     ->RangeMultiplier(10)
     ->Range(1e3, 1e8)
 #ifdef PPB_MEASURE_ONLY_KERNEL
@@ -118,21 +109,21 @@ BENCHMARK(ppb::VectorAddition<ppb::ImplOpenCL<float>>::benchmark)
 #endif
     ->Complexity();
 
+// Apple Metal Devices don't support Double Precision (as of 29.09.2025 - tested with M1 Pro)
+// Hence, building the Kernel will fail on an Apple Chip
+#ifndef __APPLE__
 BENCHMARK(ppb::VectorAddition<ppb::ImplOpenCL<double>>::benchmark)
-    ->Name("VecAdd-OpenCL-Double")
+    ->Name("VecAdd-Double-OpenCL")
     ->RangeMultiplier(10)
     ->Range(1e3, 1e8)
 #ifdef PPB_MEASURE_ONLY_KERNEL
     ->UseManualTime()
 #endif
     ->Complexity();
+#endif
 
 int main(int argc, char **argv) {
     benchmark::MaybeReenterWithoutASLR(argc, argv);
-    
-    auto gpu = util::getFirstGPU();
-    std::cout << "GPU Name: " << util::getDeviceName(gpu) << '\n';
-
     benchmark::Initialize(&argc, argv);
     benchmark::RunSpecifiedBenchmarks();
     benchmark::Shutdown();

@@ -1,0 +1,16 @@
+add_library(nbody_cuda_lib STATIC Impl_Cuda.cu Impl_Cuda.cuh)
+target_compile_features(nbody_cuda_lib PUBLIC cxx_std_20)
+target_link_libraries(nbody_cuda_lib PUBLIC nbody_lib)
+target_compile_options(nbody_cuda_lib PUBLIC $<$<COMPILE_LANGUAGE:CUDA>:--ptxas-options=-v>)
+set_target_properties(nbody_cuda_lib PROPERTIES
+        CUDA_SEPARABLE_COMPILATION ON
+        CUDA_ARCHITECTURES native
+)
+
+add_executable(nbody_cuda main.cu)
+target_compile_features(nbody_cuda PUBLIC cxx_std_20)
+target_link_libraries(nbody_cuda PRIVATE nbody_cuda_lib)
+set_target_properties(nbody_cuda PROPERTIES
+        CUDA_SEPARABLE_COMPILATION ON
+        CUDA_ARCHITECTURES native
+)

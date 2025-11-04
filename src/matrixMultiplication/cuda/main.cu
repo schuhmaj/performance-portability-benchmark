@@ -1,45 +1,51 @@
-#include "Impl_Cuda.cuh"
-#include "Impl_CudaTensor.cuh"
-#include "Impl_CudaBuffer.cuh"
-#include "Impl_Cublas.cuh"
-#include "MatrixMultiplication.h"
+#include "matrixMultiplication/cuda/Impl_Cuda.cuh"
+#include "matrixMultiplication/cuda/Impl_CudaTensor.cuh"
+#include "matrixMultiplication/cuda/Impl_CudaBuffer.cuh"
+#include "matrixMultiplication/cuda/Impl_Cublas.cuh"
+#include "matrixMultiplication/cuda/Impl_CudaNaive.cuh"
+#include "matrixMultiplication/MatrixMultiplication.h"
 #include "benchmark/benchmark.h"
 
 BENCHMARK(ppb::MatrixMultiplication<ppb::ImplCublas<float>>::benchmark)
-    ->Name("MatrixMultiplication-Cublas-Float")
-    ->Arg(4096)
-    ->Iterations(10)
-    ->Unit(benchmark::kMillisecond)
+    ->Name("MatrixMultiplication-Float-Cublas")
+    ->RangeMultiplier(2)
+    ->Range(32, 8192)
+#ifdef PPB_MEASURE_ONLY_KERNEL
+    ->UseManualTime()
+#endif
+    ->Complexity();
+
+BENCHMARK(ppb::MatrixMultiplication<ppb::ImplCudaNaive<float>>::benchmark)
+    ->Name("MatrixMultiplication-Float-Cuda-Naive")
+    ->RangeMultiplier(2)
+    ->Range(32, 8192)
 #ifdef PPB_MEASURE_ONLY_KERNEL
     ->UseManualTime()
 #endif
     ->Complexity();
 
 BENCHMARK(ppb::MatrixMultiplication<ppb::ImplCuda<float>>::benchmark)
-    ->Name("MatrixMultiplication-Cuda-Float")
-    ->Arg(4096)
-    ->Iterations(10)
-    ->Unit(benchmark::kMillisecond)
+    ->Name("MatrixMultiplication-Float-Cuda-SharedMemory")
+    ->RangeMultiplier(2)
+    ->Range(32, 8192)
 #ifdef PPB_MEASURE_ONLY_KERNEL
     ->UseManualTime()
 #endif
     ->Complexity();
 
 BENCHMARK(ppb::MatrixMultiplication<ppb::ImplCudaBuffer<float>>::benchmark)
-    ->Name("MatrixMultiplication-CudaBuffer-Float")
-    ->Arg(4096)
-    ->Iterations(10)
-    ->Unit(benchmark::kMillisecond)
+    ->Name("MatrixMultiplication-Float-Cuda-Buffer")
+    ->RangeMultiplier(2)
+    ->Range(32, 8192)
 #ifdef PPB_MEASURE_ONLY_KERNEL
     ->UseManualTime()
 #endif
     ->Complexity();
 
 BENCHMARK(ppb::MatrixMultiplication<ppb::ImplCudaTensor<float>>::benchmark)
-    ->Name("MatrixMultiplication-CudaTensor-Float")
-    ->Arg(4096)
-    ->Iterations(10)
-    ->Unit(benchmark::kMillisecond)
+    ->Name("MatrixMultiplication-Float-Cuda-Tensor")
+    ->RangeMultiplier(2)
+    ->Range(32, 8192)
 #ifdef PPB_MEASURE_ONLY_KERNEL
     ->UseManualTime()
 #endif

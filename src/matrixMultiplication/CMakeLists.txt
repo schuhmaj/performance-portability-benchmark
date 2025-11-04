@@ -3,7 +3,7 @@ set(MATRIX_MULTIPLICATION_FILES MatrixMultiplication.h)
 
 add_library(matMul_lib INTERFACE ${MATRIX_MULTIPLICATION_FILES})
 target_link_libraries(matMul_lib INTERFACE common_lib benchmark::benchmark )
-target_include_directories(matMul_lib INTERFACE ${MATRIX_MULTIPLICATION_ROOT_DIR})
+target_include_directories(matMul_lib INTERFACE ${PPB_SRC_SOURCE_DIRECTORY})
 
 if (CMAKE_CUDA_COMPILER AND PPB_ENABLE_Cuda)
     add_subdirectory(cuda)
@@ -24,5 +24,17 @@ endif()
 if (${PPB_ENABLE_OpenCL})
     add_subdirectory(opencl)
 endif()
+
+if (${PPB_ENABLE_AdaptiveCpp})
+    add_subdirectory(acpp)
+endif()
+
+if (${PPB_ENABLE_Alpaka})
+    add_subdirectory(alpaka)
+endif ()
+
+if (${PPB_ENABLE_Vulkan})
+    add_subdirectory(vulkan)
+endif ()
 
 add_subdirectory(cpp)

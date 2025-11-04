@@ -1,6 +1,6 @@
-#include "Implementations.cuh"
+#include "vectorAdditon/cuda/Implementations.cuh"
 
-#include "VectorAddition.h"
+#include "vectorAdditon/VectorAddition.h"
 #include <benchmark/benchmark.h>
 #include <iostream>
 
@@ -63,7 +63,7 @@ namespace ppb {
         cudaStreamSynchronize(stream);
         cudaEventSynchronize(stop);
         cudaEventElapsedTime(&elapsedTime, start, stop);
-        return std::make_pair(result, elapsedTime * 1e-3);
+        return std::make_pair(result, elapsedTime * 1e6);
     };
 
     template class ImplCuda<float>;

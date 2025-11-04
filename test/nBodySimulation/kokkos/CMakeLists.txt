@@ -1,4 +1,4 @@
-add_executable(nbody_kokkos_test KokkosTest.cpp KokkosTestMain.cpp)
+add_executable(nbody_kokkos_test KokkosNBodyTest.cpp KokkosTestMain.cpp)
 target_link_libraries(nbody_kokkos_test
     PRIVATE
         nbody_test_lib

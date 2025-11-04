@@ -8,7 +8,7 @@ namespace ppb {
     ImplAdaptiveCpp<FloatType>::ImplAdaptiveCpp(const ParticleSimulationConfig<FloatType> &config) : _config{config} {}
 
     template <typename FloatType>
-    std::vector<Particle<FloatType>> ImplAdaptiveCpp<FloatType>::simulate(const std::vector<Particle<FloatType>> &particles) {
+    std::pair<std::vector<Particle<FloatType>>, ParticleSimulationTimings> ImplAdaptiveCpp<FloatType>::simulate(const std::vector<Particle<FloatType>> &particles) {
         // a copy of the passed particles. N * sizeof(Particle<FloatType>) overhead
         // can theoretically be freed once data is moved to SoA
         std::vector<Particle<FloatType>> particlesCopy = particles;
@@ -71,7 +71,7 @@ namespace ppb {
         sycl::free(cell_countsUSM, queue);
         sycl::free(overflowUSM, queue);
 
-        return particlesCopy;
+        return std::make_pair(particlesCopy, _timings);
     }
 
     template <typename FloatType>
@@ -81,9 +81,9 @@ namespace ppb {
         const auto globalForce = _config.globalForce;
         const auto deltaT = _config.deltaT;
 
-        queue.parallel_for(sycl::range<1>(size), [=](sycl::id<1> idx) {
+        auto event = queue.parallel_for(sycl::range<1>(size), [=](sycl::id<1> idx) {
             const FloatType m = FloatType(1.0);
-            
+
             // oldForce = force
             oldForcesUSM[4 * idx + 0] = forcesUSM[4 * idx + 0];
             oldForcesUSM[4 * idx + 1] = forcesUSM[4 * idx + 1];
@@ -114,6 +114,10 @@ namespace ppb {
             positionsUSM[4 * idx + 2] += vfac[2] + ffac[2];
         });
         queue.wait();
+        auto end = event.template get_profiling_info<sycl::info::event_profiling::command_end>();
+        auto start = event.template get_profiling_info<sycl::info::event_profiling::command_start>();
+        const double elapsed_nanoseconds = end - start;
+        _timings.forceUpdateTime += elapsed_nanoseconds;
     }
 
     template <typename FloatType>
@@ -122,7 +126,7 @@ namespace ppb {
 
         const auto deltaT = _config.deltaT;
 
-        queue.parallel_for(sycl::range<1>(size), [=](sycl::id<1> idx) {
+        auto event = queue.parallel_for(sycl::range<1>(size), [=](sycl::id<1> idx) {
             const FloatType m = FloatType(1.0);
 
             // change in velocity = (force + oldForce) * deltaT / (2 * mass)
@@ -131,6 +135,10 @@ namespace ppb {
             velocitiesUSM[2] += (forcesUSM[2] + oldForcesUSM[2]) * (deltaT / (2 * m));
         });
         queue.wait();
+        auto end = event.template get_profiling_info<sycl::info::event_profiling::command_end>();
+        auto start = event.template get_profiling_info<sycl::info::event_profiling::command_start>();
+        const double elapsed_nanoseconds = end - start;
+        _timings.forceUpdateTime += elapsed_nanoseconds;
     }
 
     template <typename FloatType>
@@ -148,7 +156,7 @@ namespace ppb {
         sycl::range<2> local_range(local_size_x, local_size_y);
         sycl::nd_range<2> nd_range(global_range, local_range);
 
-        queue.parallel_for(nd_range, [=](sycl::nd_item<2> item) {
+        auto event = queue.parallel_for(nd_range, [=](sycl::nd_item<2> item) {
             size_t i = item.get_global_id(0);
             size_t j = item.get_global_id(1);
 
@@ -185,6 +193,10 @@ namespace ppb {
             atomic_fi2.fetch_add(f[2]);
         });
         queue.wait();
+        auto end = event.template get_profiling_info<sycl::info::event_profiling::command_end>();
+        auto start = event.template get_profiling_info<sycl::info::event_profiling::command_start>();
+        const double elapsed_nanoseconds = end - start;
+        _timings.forceUpdateTime += elapsed_nanoseconds;
     }
 
     template <typename FloatType>
@@ -195,7 +207,7 @@ namespace ppb {
         int32_t *cells = particle_container->getCells();
         int32_t cell_size = particle_container->getCellsSize() / particle_container->getTotalCells();
         std::array<int32_t, 3> cell_count = particle_container->getCellCount();
-        queue.parallel_for(sycl::range<1>(size), [=](sycl::id<1> i) {
+        auto event = queue.parallel_for(sycl::range<1>(size), [=](sycl::id<1> i) {
             int32_t cell_index = *reinterpret_cast<int32_t *>(&positionsUSM[4 * i + 3]);
             for (int32_t x = -1; x <= 1; ++x) {
                 for (int32_t y = -1; y <= 1; ++y) {
@@ -241,6 +253,10 @@ namespace ppb {
             }
         });
         queue.wait();
+        auto end = event.template get_profiling_info<sycl::info::event_profiling::command_end>();
+        auto start = event.template get_profiling_info<sycl::info::event_profiling::command_start>();
+        const double elapsed_nanoseconds = end - start;
+        _timings.forceUpdateTime += elapsed_nanoseconds;
     }
 
     /* Explicit Instantiation for float and double */

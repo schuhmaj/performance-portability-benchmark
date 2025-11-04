@@ -3,8 +3,8 @@ project(performance_portability_benchmark VERSION 1.0 LANGUAGES CXX)
 
 # Detect platform and conditionally enable CUDA if not Apple
 if(NOT ${CMAKE_SYSTEM_NAME} MATCHES "Darwin") # Darwin is the system name for macOS
-    enable_language(CUDA)
-    find_package(CUDAToolkit)
+#    enable_language(CUDA)
+#    find_package(CUDAToolkit)
 endif ()
 
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -35,11 +35,12 @@ option(PPB_ENABLE_OnlyKernelRuntime "Only measures the actual GPU Kernel runtime
 option(PPB_ENABLE_OpenACC "Enable OpenACC Target" OFF)
 option(PPB_ENABLE_OpenMP "Enable OpenMP Target" OFF)
 option(PPB_ENABLE_AdaptiveCpp "Enable AdaptiveCPP Target" OFF)
+option(PPB_ENABLE_Vulkan "Enable Vulkan Kompute Target" OFF)
 option(PPB_ENABLE_OpenCL "Enable OpenCL Targets" OFF)
 cmake_dependent_option(PPB_ENABLE_Boost "Enable Boost::Compute Target (requires OpenCL)" OFF "PPB_ENABLE_OpenCL" OFF)
 option(PPB_ENABLE_Kokkos "Enable Kokkos Target" OFF)
 option(PPB_ENABLE_Cuda "Enable Cuda and Thrust Targets" OFF)
-option(PPB_ENABLE_MetalCpp "Enable MetalCpp (Only on macOS!)" OFF)
+option(PPB_ENABLE_Metal "Enable MetalCpp (Only on macOS!)" OFF)
 option(PPB_ENABLE_Alpaka "Enable Alpaka" OFF)
 
 option(PPB_ENABLE_VectorAddition "Enable VectorAddition Benchmarks" ON)
@@ -54,13 +55,14 @@ message(STATUS "Only Kernel Runtime             ${PPB_ENABLE_OnlyKernelRuntime}"
 message(STATUS "####################################################")
 message(STATUS "Kokkos                          ${PPB_ENABLE_Kokkos}")
 message(STATUS "AdaptiveCpp (needs Boost)       ${PPB_ENABLE_AdaptiveCpp}")
+message(STATUS "Vulkan-Kompute                  ${PPB_ENABLE_Vulkan}")
 message(STATUS "OpenACC                         ${PPB_ENABLE_OpenACC}")
 message(STATUS "OpenMP                          ${PPB_ENABLE_OpenMP}")
 message(STATUS "OpenCL                          ${PPB_ENABLE_OpenCL}")
 message(STATUS "Boost::Compute (needs OpenCL)   ${PPB_ENABLE_Boost}")
 message(STATUS "Cuda                            ${PPB_ENABLE_Cuda}")
 message(STATUS "Alpaka                          ${PPB_ENABLE_Alpaka}")
-message(STATUS "MetalCpp                        ${PPB_ENABLE_MetalCpp}")
+message(STATUS "Metal (Apple)                   ${PPB_ENABLE_Metal}")
 message(STATUS "####################################################")
 message(STATUS "VectorAddition                  ${PPB_ENABLE_VectorAddition}")
 message(STATUS "MatrixMultiplication            ${PPB_ENABLE_MatrixMultiplication}")
@@ -82,8 +84,12 @@ list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 
 # We always requires Google Benchmark
 include(gbench)
+include(opencl_compiling)
 
 if (${PPB_ENABLE_Boost} OR ${PPB_ENABLE_AdaptiveCpp})
+    # std::random_shuffle was removed in C++17 and deprecated in C++14 - Boost uses it if we don't enable
+    # this macro for C++11 usage. Then, Boost uses the modern approach rom the header <random> (compliant with C++17)
+    add_compile_definitions(BOOST_COMPUTE_USE_CPP11)
     include(boost)
 endif ()
 
@@ -122,12 +128,16 @@ if (${PPB_ENABLE_AdaptiveCpp} AND NOT CMAKE_CXX_COMPILER_ID STREQUAL "IntelLLVM"
 endif ()
 
 # AdaptiveCPP Inclusion
-if (${PPB_ENABLE_MetalCpp})
+if (${PPB_ENABLE_Metal})
     include(metal)
 endif ()
 
 if (${PPB_ENABLE_Alpaka})
     include(alpaka)
+endif ()
+
+if (${PPB_ENABLE_Vulkan})
+    include(vulkan)
 endif ()
 
 #######################################################

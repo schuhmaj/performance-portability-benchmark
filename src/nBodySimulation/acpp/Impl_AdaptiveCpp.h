@@ -7,12 +7,13 @@
  */
 
 #pragma once
-#include "NBodySimulation.h"
-#include "Particle.h"
-#include "ParticleContainer.h"
-#include "UtilityContainer.h"
-#include <iostream>
+
 #include <sycl/sycl.hpp>
+
+#include "nBodySimulation/NBodySimulation.h"
+#include "nBodySimulation/Particle.h"
+#include "ParticleContainer.h"
+#include "common/UtilityContainer.h"
 
 namespace ppb {
 
@@ -29,6 +30,11 @@ namespace ppb {
          * Simulation configuration with parameters such as particle count, force, time step, and bounds.
          */
         ParticleSimulationConfig<FloatType> _config;
+
+        /**
+         * Stores tje timings for position, velocity, and force updates
+         */
+        ParticleSimulationTimings _timings;
 
     public:
 
@@ -50,7 +56,7 @@ namespace ppb {
          * @param particles Initial vector of particles to simulate (input is not modified).
          * @return std::vector<Particle<FloatType>> Final state of all particles after the simulation.
          */
-        std::vector<Particle<FloatType>> simulate(const std::vector<Particle<FloatType>> &particles);
+        std::pair<std::vector<Particle<FloatType>>, ParticleSimulationTimings> simulate(const std::vector<Particle<FloatType>> &particles);
 
     private:
 

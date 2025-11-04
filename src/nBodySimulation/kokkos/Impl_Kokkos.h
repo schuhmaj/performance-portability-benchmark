@@ -10,9 +10,9 @@
 #pragma once
 
 #include <Kokkos_Core.hpp>
-#include "NBodySimulation.h"
-#include "Particle.h"
-#include "../../common/UtilityContainer.h"
+#include "nBodySimulation/NBodySimulation.h"
+#include "nBodySimulation/Particle.h"
+#include "common/UtilityContainer.h"
 
 namespace ppb {
 
@@ -121,9 +121,14 @@ namespace ppb {
         ParticleSimulationConfig<FloatType> _config;
 
         /**
-         * The SoA GPU structure. It is initalized each time the simulate() functions is called
+         * The SoA GPU structure. It is initialized each time the simulate() functions is called
          */
         std::optional<KokkosParticleSoA<FloatType>> _particles{std::nullopt};
+
+        /**
+         * Stores the timings for position, velocity, and force updates
+         */
+        ParticleSimulationTimings _timings;
 
     public:
         /**
@@ -144,7 +149,7 @@ namespace ppb {
          * @param particles Initial vector of particles to simulate (input is not modified).
          * @return std::vector<Particle<FloatType>> Final state of all particles after the simulation.
          */
-        std::vector<Particle<FloatType>> simulate(const std::vector<Particle<FloatType>> &particles);
+        std::pair<std::vector<Particle<FloatType>>, ParticleSimulationTimings> simulate(const std::vector<Particle<FloatType>> &particles);
 
         /**
          * Updates positions of all particles on the device using the velocity Verlet integrator,

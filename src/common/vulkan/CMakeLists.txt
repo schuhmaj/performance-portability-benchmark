@@ -1,0 +1,5 @@
+set(COMMON_VULKAN_ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR})
+add_library(common_vulkan_lib STATIC VulkanUtility.cpp VulkanUtility.h)
+target_compile_features(common_vulkan_lib PRIVATE cxx_std_17)
+target_link_libraries(common_vulkan_lib PUBLIC Vulkan::Vulkan kompute::kompute)
+target_include_directories(common_vulkan_lib PRIVATE ${COMMON_VULKAN_ROOT_DIR})

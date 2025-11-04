@@ -11,12 +11,12 @@
 #include <string>
 #include <vector>
 
-namespace util {
+namespace opencl_utility {
     /**
      * Returns all available OpenCL platforms of the computer.
      * @return vector of platform ids
      */
-    std::vector<cl_platform_id> getOpenCLPlattforms();
+    std::vector<cl_platform_id> getPlatforms();
 
     /**
      * Returns all available OpenCL devices for a given platform of the computer. Further, this method allows
@@ -25,7 +25,7 @@ namespace util {
      * @param type the type of the devices to return, e.g. CL_DEVICE_TYPE_ALL or CL_DEVICE_TYPE_GPU
      * @return vector of device ids
      */
-    std::vector<cl_device_id> getOpenCLDevices(const cl_platform_id &platformId,
+    std::vector<cl_device_id> getDevices(const cl_platform_id &platformId,
                                                const cl_device_type &type = CL_DEVICE_TYPE_ALL);
 
     /**
@@ -41,4 +41,4 @@ namespace util {
      * @return cl_device_id of the first GPU
      */
     cl_device_id getFirstGPU();
-} // namespace util
+} // namespace opencl_utilities

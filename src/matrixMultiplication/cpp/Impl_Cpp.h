@@ -3,7 +3,7 @@
 #include <array>
 #include <utility>
 #include <chrono>
-#include "MatrixMultiplication.h"
+#include "matrixMultiplication/MatrixMultiplication.h"
 
 namespace ppb {
 

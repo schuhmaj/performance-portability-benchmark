@@ -2,7 +2,7 @@
 #include <benchmark/benchmark.h>
 #include <iostream>
 #include <sycl/sycl.hpp>
-#include "VectorAddition.h"
+#include "vectorAdditon/VectorAddition.h"
 
 namespace ppb {
 
@@ -34,13 +34,13 @@ namespace ppb {
             // Get time and return elpased time in seconds
             auto end = event.template get_profiling_info<sycl::info::event_profiling::command_end>();
             auto start = event.template get_profiling_info<sycl::info::event_profiling::command_start>();
-            double elapsed_seconds = (end - start) * 1e-9;
+            double elapsed_nanoseconds = end - start;
 
             std::vector<FloatType> hostResult(result, result + size);
             sycl::free(deviceA, queue);
             sycl::free(deviceB, queue);
             sycl::free(result, queue);
-            return std::make_pair(hostResult, elapsed_seconds);
+            return std::make_pair(hostResult, elapsed_nanoseconds);
         }
     };
 
@@ -50,7 +50,7 @@ namespace ppb {
 }
 
 BENCHMARK(ppb::VectorAddition<ppb::ImplAcpp<float>>::benchmark)
-    ->Name("VecAdd-AdaptiveCpp-Float")
+    ->Name("VecAdd-Float-AdaptiveCpp")
     ->RangeMultiplier(10)
     ->Range(1e3, 1e8)
 #ifdef PPB_MEASURE_ONLY_KERNEL
@@ -59,7 +59,7 @@ BENCHMARK(ppb::VectorAddition<ppb::ImplAcpp<float>>::benchmark)
     ->Complexity();
 
 BENCHMARK(ppb::VectorAddition<ppb::ImplAcpp<double>>::benchmark)
-    ->Name("VecAdd-AdaptiveCpp-Double")
+    ->Name("VecAdd-Double-AdaptiveCpp")
     ->RangeMultiplier(10)
     ->Range(1e3, 1e8)
 #ifdef PPB_MEASURE_ONLY_KERNEL

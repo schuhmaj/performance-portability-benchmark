@@ -1,5 +1,5 @@
-#include "Implementations.cuh"
-#include "VectorAddition.h"
+#include "vectorAdditon/cuda/Implementations.cuh"
+#include "vectorAdditon/VectorAddition.h"
 #include <benchmark/benchmark.h>
 
 
@@ -49,7 +49,7 @@ namespace ppb {
 
         cudaFree(deviceA);
         cudaFree(deviceC);
-        return std::make_pair(result, elapsedTime * 1e-3);
+        return std::make_pair(result, elapsedTime * 1e6);
     }
 
     template class ImplCublas<float>;

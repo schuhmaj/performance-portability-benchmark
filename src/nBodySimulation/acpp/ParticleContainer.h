@@ -4,7 +4,7 @@
 
 #include <sycl/sycl.hpp>
 
-#include "Particle.h"
+#include "nBodySimulation/Particle.h"
 
 namespace ppb {
     template <typename FloatType>

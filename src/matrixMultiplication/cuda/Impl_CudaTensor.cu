@@ -80,12 +80,12 @@ namespace ppb {
         cudaStreamSynchronize(stream);
         cudaEventSynchronize(stop);
         cudaEventElapsedTime(&elapsedTime, start, stop);
-        return std::make_pair(result, elapsedTime * 1e-3);
+        return std::make_pair(result, elapsedTime * 1e6);
     }
 
     template <typename FloatType>
     dim3 ImplCudaTensor<FloatType>::getIdealGridSize(const dim3 &blockSize, const int m, const int n) {
-        return {ceilDiv<unsigned int>(m, blockSize.x), ceilDiv<unsigned int>(n, blockSize.y), 1};
+        return {util::ceilDiv<unsigned int>(m, blockSize.x), util::ceilDiv<unsigned int>(n, blockSize.y), 1};
     }
 
 

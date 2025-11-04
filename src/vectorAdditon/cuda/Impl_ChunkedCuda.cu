@@ -1,4 +1,4 @@
-#include "Implementations.cuh"
+#include "vectorAdditon/cuda/Implementations.cuh"
 
 namespace ppb {
 
@@ -103,7 +103,7 @@ namespace ppb {
             cudaEventElapsedTime(&elapsedTime, start[i], stop[i]);
             totalElapsedTime += elapsedTime;
         }
-        return std::make_pair(result, totalElapsedTime * 1e-3);
+        return std::make_pair(result, totalElapsedTime * 1e6);
     }
 
     template class ImplChunkedCuda<float>;

@@ -1,5 +1,5 @@
 # Creates the Test Target
-add_library(matMul_test_lib INTERFACE)
+add_library(matMul_test_lib INTERFACE MatrixMultiplicationTest.h)
 
 # Links target breakupModelTest against gtest_main (entry point, so no own main method is required)
 target_link_libraries(matMul_test_lib
@@ -24,4 +24,28 @@ endif ()
 
 if (PPB_ENABLE_OpenMP)
     add_subdirectory(omp)
+endif ()
+
+if (${PPB_ENABLE_AdaptiveCpp})
+    add_subdirectory(acpp)
+endif()
+
+if (${PPB_ENABLE_Vulkan})
+    add_subdirectory(vulkan)
+endif ()
+
+if (${PPB_ENABLE_Boost})
+    add_subdirectory(boost)
+endif()
+
+if (${PPB_ENABLE_OpenCL})
+    add_subdirectory(opencl)
+endif()
+
+if (${PPB_ENABLE_Alpaka})
+    add_subdirectory(alpaka)
+endif ()
+
+if (${PPB_ENABLE_Kokkos})
+    add_subdirectory(kokkos)
 endif ()

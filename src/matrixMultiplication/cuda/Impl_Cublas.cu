@@ -57,7 +57,7 @@ namespace ppb {
         cudaFree(devA);
         cudaFree(devB);
         cudaFree(devC);
-        return std::make_pair(result, elapsedTime * 1e-3);
+        return std::make_pair(result, elapsedTime * 1e6);
     }
 
     // Explicit instantiation for float and double

@@ -44,7 +44,7 @@ namespace ppb {
 
 
         Kokkos::deep_copy(exec, hostC, devC);
-        return std::make_pair(result, seconds);
+        return std::make_pair(result, seconds * 1e9);
     }
 
     /* Explicit Instantiation for float and double */
