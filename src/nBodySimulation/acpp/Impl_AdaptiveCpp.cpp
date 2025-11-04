@@ -193,42 +193,51 @@ namespace ppb {
 
         int32_t *cell_counts = particle_container->getCellCounts();
         int32_t *cells = particle_container->getCells();
+        int32_t cell_size = particle_container->getCellsSize() / particle_container->getTotalCells();
+        std::array<int32_t, 3> cell_count = particle_container->getCellCount();
         queue.parallel_for(sycl::range<1>(size), [=](sycl::id<1> i) {
             int32_t cell_index = *reinterpret_cast<int32_t *>(&positionsUSM[4 * i + 3]);
+            for (int32_t x = -1; x <= 1; ++x) {
+                for (int32_t y = -1; y <= 1; ++y) {
+                    for (int32_t z = -1; z <= 1; ++z) {
+                        int32_t cell_index_now = cell_index + x + y * cell_count[0] + z * cell_count[0] * cell_count[1];
+                        if (cell_index_now >= 27) return;
+                        for (size_t cell_it = 0; cell_it < cell_counts[cell_index_now]; ++cell_it) {
+                            sycl::id<1> j = cells[cell_index_now * cell_size + cell_it];
+                            if (i == j) return;
 
-            for (size_t cell_it = 0; cell_it < cell_counts[cell_index]; ++cell_it) {
-                sycl::id<1> j = cells[cell_index + cell_it];
-                if (i == j) return;
+                            const FloatType sigma = FloatType(0.5);
+                            const FloatType sigmaSquared = sigma * sigma;
+                            const FloatType epsilon = FloatType(5.0);
+                            const FloatType epsilon24 = epsilon * FloatType(24);
 
-                const FloatType sigma = FloatType(0.5);
-                const FloatType sigmaSquared = sigma * sigma;
-                const FloatType epsilon = FloatType(5.0);
-                const FloatType epsilon24 = epsilon * FloatType(24);
+                            // distance = position_i - position_j
+                            std::array<FloatType, 3> dist{
+                                positionsUSM[4 * i + 0] - positionsUSM[4 * j + 0],
+                                positionsUSM[4 * i + 1] - positionsUSM[4 * j + 1],
+                                positionsUSM[4 * i + 2] - positionsUSM[4 * j + 2]
+                            };
 
-                // distance = position_i - position_j
-                std::array<FloatType, 3> dist{
-                    positionsUSM[4 * i + 0] - positionsUSM[4 * j + 0],
-                    positionsUSM[4 * i + 1] - positionsUSM[4 * j + 1],
-                    positionsUSM[4 * i + 2] - positionsUSM[4 * j + 2]
-                };
+                            const FloatType distSquared = dot(dist, dist);
 
-                const FloatType distSquared = dot(dist, dist);
+                            const FloatType inverseDistSquared = FloatType(1.0) / distSquared;
+                            FloatType lj6 = sigmaSquared * inverseDistSquared;
+                            lj6 = lj6 * lj6 * lj6;
+                            const FloatType lj12 = lj6 * lj6;
+                            const FloatType lj12m6 = lj12 - lj6;
+                            const FloatType fac = epsilon24 * (lj12 + lj12m6) * inverseDistSquared;
+                            const std::array<FloatType, 3> f = dist * fac;
 
-                const FloatType inverseDistSquared = FloatType(1.0) / distSquared;
-                FloatType lj6 = sigmaSquared * inverseDistSquared;
-                lj6 = lj6 * lj6 * lj6;
-                const FloatType lj12 = lj6 * lj6;
-                const FloatType lj12m6 = lj12 - lj6;
-                const FloatType fac = epsilon24 * (lj12 + lj12m6) * inverseDistSquared;
-                const std::array<FloatType, 3> f = dist * fac;
-
-                // change in force = dist * (epsilon * 24 * (2 * lj12 - lj6) * inverse distance square)
-                sycl::atomic_ref<FloatType, sycl::memory_order::relaxed, sycl::memory_scope::device, sycl::access::address_space::global_space>atomic_fi0(forcesUSM[4 * i + 0]);
-                sycl::atomic_ref<FloatType, sycl::memory_order::relaxed, sycl::memory_scope::device, sycl::access::address_space::global_space>atomic_fi1(forcesUSM[4 * i + 1]);
-                sycl::atomic_ref<FloatType, sycl::memory_order::relaxed, sycl::memory_scope::device, sycl::access::address_space::global_space>atomic_fi2(forcesUSM[4 * i + 2]);
-                atomic_fi0.fetch_add(f[0]);
-                atomic_fi1.fetch_add(f[1]);
-                atomic_fi2.fetch_add(f[2]);
+                            // change in force = dist * (epsilon * 24 * (2 * lj12 - lj6) * inverse distance square)
+                            sycl::atomic_ref<FloatType, sycl::memory_order::relaxed, sycl::memory_scope::device, sycl::access::address_space::global_space>atomic_fi0(forcesUSM[4 * i + 0]);
+                            sycl::atomic_ref<FloatType, sycl::memory_order::relaxed, sycl::memory_scope::device, sycl::access::address_space::global_space>atomic_fi1(forcesUSM[4 * i + 1]);
+                            sycl::atomic_ref<FloatType, sycl::memory_order::relaxed, sycl::memory_scope::device, sycl::access::address_space::global_space>atomic_fi2(forcesUSM[4 * i + 2]);
+                            atomic_fi0.fetch_add(f[0]);
+                            atomic_fi1.fetch_add(f[1]);
+                            atomic_fi2.fetch_add(f[2]);
+                        }
+                    }
+                }
             }
         });
         queue.wait();
