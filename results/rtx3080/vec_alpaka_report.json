@@ -1,0 +1,160 @@
+{
+  "context": {
+    "date": "2025-11-05T09:18:42+00:00",
+    "host_name": "x-wing0",
+    "executable": "/nfs/c3po/home/ge25zov/Programming/performance-portability-benchmark/build/src/vectorAdditon/alpaka/vec_alpaka",
+    "num_cpus": 48,
+    "mhz_per_cpu": 2800,
+    "cpu_scaling_enabled": true,
+    "aslr_enabled": false,
+    "caches": [
+      {
+        "type": "Data",
+        "level": 1,
+        "size": 32768,
+        "num_sharing": 2
+      },
+      {
+        "type": "Instruction",
+        "level": 1,
+        "size": 32768,
+        "num_sharing": 2
+      },
+      {
+        "type": "Unified",
+        "level": 2,
+        "size": 524288,
+        "num_sharing": 2
+      },
+      {
+        "type": "Unified",
+        "level": 3,
+        "size": 16777216,
+        "num_sharing": 6
+      }
+    ],
+    "load_avg": [2.10059,2.14697,2.04297],
+    "library_version": "v1.9.4",
+    "library_build_type": "release",
+    "json_schema_version": 1
+  },
+  "benchmarks": [
+    {
+      "name": "VecAdd-Float-Alpaka/1000",
+      "family_index": 0,
+      "per_family_instance_index": 0,
+      "run_name": "VecAdd-Float-Alpaka/1000",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 2532,
+      "real_time": 2.9125551459207357e+05,
+      "cpu_time": 2.5125233965244866e+05,
+      "time_unit": "ns",
+      "kernel_time": 9.9255778041074245e+03
+    },
+    {
+      "name": "VecAdd-Float-Alpaka/10000",
+      "family_index": 0,
+      "per_family_instance_index": 1,
+      "run_name": "VecAdd-Float-Alpaka/10000",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 2390,
+      "real_time": 3.1340830541940633e+05,
+      "cpu_time": 2.7182223305439326e+05,
+      "time_unit": "ns",
+      "kernel_time": 1.0157397489539750e+04
+    },
+    {
+      "name": "VecAdd-Float-Alpaka/100000",
+      "family_index": 0,
+      "per_family_instance_index": 2,
+      "run_name": "VecAdd-Float-Alpaka/100000",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 1851,
+      "real_time": 5.3660837981345761e+05,
+      "cpu_time": 4.2608967963263096e+05,
+      "time_unit": "ns",
+      "kernel_time": 1.0899944894651540e+04
+    },
+    {
+      "name": "VecAdd-Float-Alpaka/1000000",
+      "family_index": 0,
+      "per_family_instance_index": 3,
+      "run_name": "VecAdd-Float-Alpaka/1000000",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 370,
+      "real_time": 2.2087065081388964e+06,
+      "cpu_time": 1.9509755648648641e+06,
+      "time_unit": "ns",
+      "kernel_time": 2.6188829729729729e+04
+    },
+    {
+      "name": "VecAdd-Float-Alpaka/10000000",
+      "family_index": 0,
+      "per_family_instance_index": 4,
+      "run_name": "VecAdd-Float-Alpaka/10000000",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 18,
+      "real_time": 3.9193594168561198e+07,
+      "cpu_time": 3.7811804166666679e+07,
+      "time_unit": "ns",
+      "kernel_time": 2.0096272222222222e+05
+    },
+    {
+      "name": "VecAdd-Float-Alpaka/100000000",
+      "family_index": 0,
+      "per_family_instance_index": 5,
+      "run_name": "VecAdd-Float-Alpaka/100000000",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 2,
+      "real_time": 3.4080025751609355e+08,
+      "cpu_time": 3.4078390150000006e+08,
+      "time_unit": "ns",
+      "kernel_time": 1.7736680000000000e+06
+    },
+    {
+      "name": "VecAdd-Float-Alpaka_BigO",
+      "family_index": 0,
+      "per_family_instance_index": 0,
+      "run_name": "VecAdd-Float-Alpaka",
+      "run_type": "aggregate",
+      "repetitions": 1,
+      "threads": 1,
+      "aggregate_name": "BigO",
+      "aggregate_unit": "time",
+      "cpu_coefficient": 3.4113919698251545e+00,
+      "real_coefficient": 3.4129485211153989e+00,
+      "big_o": "N",
+      "time_unit": "ns"
+    },
+    {
+      "name": "VecAdd-Float-Alpaka_RMS",
+      "family_index": 0,
+      "per_family_instance_index": 0,
+      "run_name": "VecAdd-Float-Alpaka",
+      "run_type": "aggregate",
+      "repetitions": 1,
+      "threads": 1,
+      "aggregate_name": "RMS",
+      "aggregate_unit": "percentage",
+      "rms": 2.5729949993751198e-02
+    }
+  ]
+}

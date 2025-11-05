@@ -1,0 +1,160 @@
+{
+  "context": {
+    "date": "2025-11-05T10:35:12+01:00",
+    "host_name": "atsccs109",
+    "executable": "/work_fast/ge25zov/Programming/performance-portability-benchmark/build/src/vectorAdditon/cpp/vec_cpp",
+    "num_cpus": 24,
+    "mhz_per_cpu": 5400,
+    "cpu_scaling_enabled": true,
+    "aslr_enabled": true,
+    "caches": [
+      {
+        "type": "Data",
+        "level": 1,
+        "size": 49152,
+        "num_sharing": 1
+      },
+      {
+        "type": "Instruction",
+        "level": 1,
+        "size": 65536,
+        "num_sharing": 1
+      },
+      {
+        "type": "Unified",
+        "level": 2,
+        "size": 3145728,
+        "num_sharing": 1
+      },
+      {
+        "type": "Unified",
+        "level": 3,
+        "size": 37748736,
+        "num_sharing": 24
+      }
+    ],
+    "load_avg": [1.42529,1.32666,0.713867],
+    "library_version": "v1.9.4",
+    "library_build_type": "release",
+    "json_schema_version": 1
+  },
+  "benchmarks": [
+    {
+      "name": "VecAdd-Float-CPP/1000",
+      "family_index": 0,
+      "per_family_instance_index": 0,
+      "run_name": "VecAdd-Float-CPP/1000",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 5910619,
+      "real_time": 1.1512193801127715e+02,
+      "cpu_time": 1.1508340987635984e+02,
+      "time_unit": "ns",
+      "kernel_time": 4.5726645550998974e+01
+    },
+    {
+      "name": "VecAdd-Float-CPP/10000",
+      "family_index": 0,
+      "per_family_instance_index": 1,
+      "run_name": "VecAdd-Float-CPP/10000",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 435746,
+      "real_time": 1.6071857411335236e+03,
+      "cpu_time": 1.6068779678987303e+03,
+      "time_unit": "ns",
+      "kernel_time": 7.8668098617084263e+02
+    },
+    {
+      "name": "VecAdd-Float-CPP/100000",
+      "family_index": 0,
+      "per_family_instance_index": 2,
+      "run_name": "VecAdd-Float-CPP/100000",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 3178,
+      "real_time": 2.2016457736825064e+05,
+      "cpu_time": 2.2009124764002516e+05,
+      "time_unit": "ns",
+      "kernel_time": 9.2473684707363118e+03
+    },
+    {
+      "name": "VecAdd-Float-CPP/1000000",
+      "family_index": 0,
+      "per_family_instance_index": 3,
+      "run_name": "VecAdd-Float-CPP/1000000",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 245,
+      "real_time": 2.8566254730507429e+06,
+      "cpu_time": 2.8558986938775512e+06,
+      "time_unit": "ns",
+      "kernel_time": 2.4772816734693878e+05
+    },
+    {
+      "name": "VecAdd-Float-CPP/10000000",
+      "family_index": 0,
+      "per_family_instance_index": 4,
+      "run_name": "VecAdd-Float-CPP/10000000",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 22,
+      "real_time": 3.0817762906239793e+07,
+      "cpu_time": 3.0809676954545438e+07,
+      "time_unit": "ns",
+      "kernel_time": 3.6227986363636362e+06
+    },
+    {
+      "name": "VecAdd-Float-CPP/100000000",
+      "family_index": 0,
+      "per_family_instance_index": 5,
+      "run_name": "VecAdd-Float-CPP/100000000",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 2,
+      "real_time": 3.2022494554985315e+08,
+      "cpu_time": 3.2013784200000030e+08,
+      "time_unit": "ns",
+      "kernel_time": 3.5231220500000000e+07
+    },
+    {
+      "name": "VecAdd-Float-CPP_BigO",
+      "family_index": 0,
+      "per_family_instance_index": 0,
+      "run_name": "VecAdd-Float-CPP",
+      "run_type": "aggregate",
+      "repetitions": 1,
+      "threads": 1,
+      "aggregate_name": "BigO",
+      "aggregate_unit": "time",
+      "cpu_coefficient": 3.2001511304644508e+00,
+      "real_coefficient": 3.2010215333775833e+00,
+      "big_o": "N",
+      "time_unit": "ns"
+    },
+    {
+      "name": "VecAdd-Float-CPP_RMS",
+      "family_index": 0,
+      "per_family_instance_index": 0,
+      "run_name": "VecAdd-Float-CPP",
+      "run_type": "aggregate",
+      "repetitions": 1,
+      "threads": 1,
+      "aggregate_name": "RMS",
+      "aggregate_unit": "percentage",
+      "rms": 8.6555156489739587e-03
+    }
+  ]
+}

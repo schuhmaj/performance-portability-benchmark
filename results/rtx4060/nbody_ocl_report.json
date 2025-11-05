@@ -1,0 +1,138 @@
+{
+  "context": {
+    "date": "2025-11-05T10:45:20+01:00",
+    "host_name": "atsccs109",
+    "executable": "/work_fast/ge25zov/Programming/performance-portability-benchmark/build/src/nBodySimulation/opencl/nbody_ocl",
+    "num_cpus": 24,
+    "mhz_per_cpu": 5400,
+    "cpu_scaling_enabled": true,
+    "aslr_enabled": false,
+    "caches": [
+      {
+        "type": "Data",
+        "level": 1,
+        "size": 49152,
+        "num_sharing": 1
+      },
+      {
+        "type": "Instruction",
+        "level": 1,
+        "size": 65536,
+        "num_sharing": 1
+      },
+      {
+        "type": "Unified",
+        "level": 2,
+        "size": 3145728,
+        "num_sharing": 1
+      },
+      {
+        "type": "Unified",
+        "level": 3,
+        "size": 37748736,
+        "num_sharing": 24
+      }
+    ],
+    "load_avg": [1.06104,1.16162,0.940918],
+    "library_version": "v1.9.4",
+    "library_build_type": "release",
+    "json_schema_version": 1
+  },
+  "benchmarks": [
+    {
+      "name": "NBody-Float-OpenCL/10",
+      "family_index": 0,
+      "per_family_instance_index": 0,
+      "run_name": "NBody-Float-OpenCL/10",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 24,
+      "real_time": 3.4693856296750404e+07,
+      "cpu_time": 2.9248322250000004e+07,
+      "time_unit": "ns",
+      "force_update": 1.8446650248717046e+22,
+      "position_update_reset": 1.8446744073474091e+19,
+      "velocity_update": 5.2945333333333336e+04
+    },
+    {
+      "name": "NBody-Float-OpenCL/100",
+      "family_index": 0,
+      "per_family_instance_index": 1,
+      "run_name": "NBody-Float-OpenCL/100",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 25,
+      "real_time": 2.9685999918729067e+07,
+      "cpu_time": 2.8150322520000000e+07,
+      "time_unit": "ns",
+      "force_update": 1.8446650248717048e+22,
+      "position_update_reset": 1.8446744073474036e+19,
+      "velocity_update": 9.6000000000000000e+04
+    },
+    {
+      "name": "NBody-Float-OpenCL/1000",
+      "family_index": 0,
+      "per_family_instance_index": 2,
+      "run_name": "NBody-Float-OpenCL/1000",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 6,
+      "real_time": 1.2925751646980643e+08,
+      "cpu_time": 1.2046041483333333e+08,
+      "time_unit": "ns",
+      "force_update": 1.8446650248717041e+22,
+      "position_update_reset": 1.8446744073474046e+19,
+      "velocity_update": 9.9200000000000000e+05
+    },
+    {
+      "name": "NBody-Float-OpenCL/10000",
+      "family_index": 0,
+      "per_family_instance_index": 3,
+      "run_name": "NBody-Float-OpenCL/10000",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 1,
+      "real_time": 2.0616592569276690e+09,
+      "cpu_time": 2.0611644570000002e+09,
+      "time_unit": "ns",
+      "force_update": 1.8446650248717043e+22,
+      "position_update_reset": 1.8446744073484274e+19,
+      "velocity_update": 9.9840000000000000e+06
+    },
+    {
+      "name": "NBody-Float-OpenCL_BigO",
+      "family_index": 0,
+      "per_family_instance_index": 0,
+      "run_name": "NBody-Float-OpenCL",
+      "run_type": "aggregate",
+      "repetitions": 1,
+      "threads": 1,
+      "aggregate_name": "BigO",
+      "aggregate_unit": "time",
+      "cpu_coefficient": 1.5493375560447374e+04,
+      "real_coefficient": 1.5502083490652914e+04,
+      "big_o": "NlgN",
+      "time_unit": "ns"
+    },
+    {
+      "name": "NBody-Float-OpenCL_RMS",
+      "family_index": 0,
+      "per_family_instance_index": 0,
+      "run_name": "NBody-Float-OpenCL",
+      "run_type": "aggregate",
+      "repetitions": 1,
+      "threads": 1,
+      "aggregate_name": "RMS",
+      "aggregate_unit": "percentage",
+      "rms": 4.2863057061149769e-02
+    }
+  ]
+}

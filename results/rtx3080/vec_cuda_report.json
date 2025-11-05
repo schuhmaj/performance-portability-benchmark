@@ -1,0 +1,187 @@
+{
+  "context": {
+    "date": "2025-11-05T09:18:35+00:00",
+    "host_name": "x-wing0",
+    "executable": "/nfs/c3po/home/ge25zov/Programming/performance-portability-benchmark/build/src/vectorAdditon/cuda/vec_cuda",
+    "num_cpus": 48,
+    "mhz_per_cpu": 2800,
+    "cpu_scaling_enabled": true,
+    "aslr_enabled": false,
+    "caches": [
+      {
+        "type": "Data",
+        "level": 1,
+        "size": 32768,
+        "num_sharing": 2
+      },
+      {
+        "type": "Instruction",
+        "level": 1,
+        "size": 32768,
+        "num_sharing": 2
+      },
+      {
+        "type": "Unified",
+        "level": 2,
+        "size": 524288,
+        "num_sharing": 2
+      },
+      {
+        "type": "Unified",
+        "level": 3,
+        "size": 16777216,
+        "num_sharing": 6
+      }
+    ],
+    "load_avg": [2.11963,2.15283,2.04395],
+    "library_version": "v1.9.4",
+    "library_build_type": "release",
+    "json_schema_version": 1
+  },
+  "benchmarks": [
+    {
+      "name": "VecAdd-Float-Cuda/1000000",
+      "family_index": 0,
+      "per_family_instance_index": 0,
+      "run_name": "VecAdd-Float-Cuda/1000000",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 115,
+      "real_time": 6.7365960177520048e+06,
+      "cpu_time": 6.2354175565217398e+06,
+      "time_unit": "ns",
+      "kernel_time": 2.0462747890016308e+04
+    },
+    {
+      "name": "VecAdd-Float-Cuda/10000000",
+      "family_index": 0,
+      "per_family_instance_index": 1,
+      "run_name": "VecAdd-Float-Cuda/10000000",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 11,
+      "real_time": 6.7309561725282535e+07,
+      "cpu_time": 6.4761282454545476e+07,
+      "time_unit": "ns",
+      "kernel_time": 1.8239418214017694e+05
+    },
+    {
+      "name": "VecAdd-Float-Cuda/100000000",
+      "family_index": 0,
+      "per_family_instance_index": 2,
+      "run_name": "VecAdd-Float-Cuda/100000000",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 1,
+      "real_time": 6.4519532799022269e+08,
+      "cpu_time": 6.4513032099999988e+08,
+      "time_unit": "ns",
+      "kernel_time": 1.7370239496231079e+06
+    },
+    {
+      "name": "VecAdd-Float-Cuda_BigO",
+      "family_index": 0,
+      "per_family_instance_index": 0,
+      "run_name": "VecAdd-Float-Cuda",
+      "run_type": "aggregate",
+      "repetitions": 1,
+      "threads": 1,
+      "aggregate_name": "BigO",
+      "aggregate_unit": "time",
+      "cpu_coefficient": 6.4515276053956994e+00,
+      "real_coefficient": 6.4547435909605824e+00,
+      "big_o": "N",
+      "time_unit": "ns"
+    },
+    {
+      "name": "VecAdd-Float-Cuda_RMS",
+      "family_index": 0,
+      "per_family_instance_index": 0,
+      "run_name": "VecAdd-Float-Cuda",
+      "run_type": "aggregate",
+      "repetitions": 1,
+      "threads": 1,
+      "aggregate_name": "RMS",
+      "aggregate_unit": "percentage",
+      "rms": 7.9383694656766639e-04
+    },
+    {
+      "name": "VecAdd-Float-Cublas/1000000",
+      "family_index": 1,
+      "per_family_instance_index": 0,
+      "run_name": "VecAdd-Float-Cublas/1000000",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 106,
+      "real_time": 8.5180129999742974e+06,
+      "cpu_time": 7.1760377264150912e+06,
+      "time_unit": "ns",
+      "kernel_time": 2.1753056642581832e+04
+    },
+    {
+      "name": "VecAdd-Float-Cublas/10000000",
+      "family_index": 1,
+      "per_family_instance_index": 1,
+      "run_name": "VecAdd-Float-Cublas/10000000",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 11,
+      "real_time": 6.6095526457171552e+07,
+      "cpu_time": 6.3535962818181850e+07,
+      "time_unit": "ns",
+      "kernel_time": 1.7707054452462631e+05
+    },
+    {
+      "name": "VecAdd-Float-Cublas/100000000",
+      "family_index": 1,
+      "per_family_instance_index": 2,
+      "run_name": "VecAdd-Float-Cublas/100000000",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 1,
+      "real_time": 6.2266650702804327e+08,
+      "cpu_time": 6.2265275700000000e+08,
+      "time_unit": "ns",
+      "kernel_time": 1.7366720438003540e+06
+    },
+    {
+      "name": "VecAdd-Float-Cublas_BigO",
+      "family_index": 1,
+      "per_family_instance_index": 0,
+      "run_name": "VecAdd-Float-Cublas",
+      "run_type": "aggregate",
+      "repetitions": 1,
+      "threads": 1,
+      "aggregate_name": "BigO",
+      "aggregate_unit": "time",
+      "cpu_coefficient": 6.2278795531044686e+00,
+      "real_coefficient": 6.2306825047397307e+00,
+      "big_o": "N",
+      "time_unit": "ns"
+    },
+    {
+      "name": "VecAdd-Float-Cublas_RMS",
+      "family_index": 1,
+      "per_family_instance_index": 0,
+      "run_name": "VecAdd-Float-Cublas",
+      "run_type": "aggregate",
+      "repetitions": 1,
+      "threads": 1,
+      "aggregate_name": "RMS",
+      "aggregate_unit": "percentage",
+      "rms": 3.9479671432135557e-03
+    }
+  ]
+}

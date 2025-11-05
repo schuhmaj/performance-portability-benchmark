@@ -1,0 +1,160 @@
+{
+  "context": {
+    "date": "2025-11-05T10:35:43+01:00",
+    "host_name": "atsccs109",
+    "executable": "/work_fast/ge25zov/Programming/performance-portability-benchmark/build/src/vectorAdditon/openmp/vec_omp",
+    "num_cpus": 24,
+    "mhz_per_cpu": 5400,
+    "cpu_scaling_enabled": true,
+    "aslr_enabled": false,
+    "caches": [
+      {
+        "type": "Data",
+        "level": 1,
+        "size": 49152,
+        "num_sharing": 1
+      },
+      {
+        "type": "Instruction",
+        "level": 1,
+        "size": 65536,
+        "num_sharing": 1
+      },
+      {
+        "type": "Unified",
+        "level": 2,
+        "size": 3145728,
+        "num_sharing": 1
+      },
+      {
+        "type": "Unified",
+        "level": 3,
+        "size": 37748736,
+        "num_sharing": 24
+      }
+    ],
+    "load_avg": [1.21973,1.28906,0.726562],
+    "library_version": "v1.9.4",
+    "library_build_type": "release",
+    "json_schema_version": 1
+  },
+  "benchmarks": [
+    {
+      "name": "VecAdd-Float-OpenMP/1000",
+      "family_index": 0,
+      "per_family_instance_index": 0,
+      "run_name": "VecAdd-Float-OpenMP/1000",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 29634,
+      "real_time": 4.6770494472930121e+04,
+      "cpu_time": 2.3086089188094753e+04,
+      "time_unit": "ns",
+      "kernel_time": 4.6210038368090703e+04
+    },
+    {
+      "name": "VecAdd-Float-OpenMP/10000",
+      "family_index": 0,
+      "per_family_instance_index": 1,
+      "run_name": "VecAdd-Float-OpenMP/10000",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 22306,
+      "real_time": 9.0274932663755797e+04,
+      "cpu_time": 3.1170307002600191e+04,
+      "time_unit": "ns",
+      "kernel_time": 8.7681137227651750e+04
+    },
+    {
+      "name": "VecAdd-Float-OpenMP/100000",
+      "family_index": 0,
+      "per_family_instance_index": 2,
+      "run_name": "VecAdd-Float-OpenMP/100000",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 6791,
+      "real_time": 4.3836996421308978e+05,
+      "cpu_time": 1.0610574893241050e+05,
+      "time_unit": "ns",
+      "kernel_time": 4.0980926255337946e+05
+    },
+    {
+      "name": "VecAdd-Float-OpenMP/1000000",
+      "family_index": 0,
+      "per_family_instance_index": 3,
+      "run_name": "VecAdd-Float-OpenMP/1000000",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 185,
+      "real_time": 6.6754511079272712e+06,
+      "cpu_time": 3.7178478864864884e+06,
+      "time_unit": "ns",
+      "kernel_time": 3.8849825027027028e+06
+    },
+    {
+      "name": "VecAdd-Float-OpenMP/10000000",
+      "family_index": 0,
+      "per_family_instance_index": 4,
+      "run_name": "VecAdd-Float-OpenMP/10000000",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 19,
+      "real_time": 7.2748184106067613e+07,
+      "cpu_time": 3.6240294315789461e+07,
+      "time_unit": "ns",
+      "kernel_time": 4.5947890631578945e+07
+    },
+    {
+      "name": "VecAdd-Float-OpenMP/100000000",
+      "family_index": 0,
+      "per_family_instance_index": 5,
+      "run_name": "VecAdd-Float-OpenMP/100000000",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 2,
+      "real_time": 6.8011504644528031e+08,
+      "cpu_time": 3.6389989300000012e+08,
+      "time_unit": "ns",
+      "kernel_time": 3.9720225800000000e+08
+    },
+    {
+      "name": "VecAdd-Float-OpenMP_BigO",
+      "family_index": 0,
+      "per_family_instance_index": 0,
+      "run_name": "VecAdd-Float-OpenMP",
+      "run_type": "aggregate",
+      "repetitions": 1,
+      "threads": 1,
+      "aggregate_name": "BigO",
+      "aggregate_unit": "time",
+      "cpu_coefficient": 3.6388559826080753e+00,
+      "real_coefficient": 6.8058249656048808e+00,
+      "big_o": "N",
+      "time_unit": "ns"
+    },
+    {
+      "name": "VecAdd-Float-OpenMP_RMS",
+      "family_index": 0,
+      "per_family_instance_index": 0,
+      "run_name": "VecAdd-Float-OpenMP",
+      "run_type": "aggregate",
+      "repetitions": 1,
+      "threads": 1,
+      "aggregate_name": "RMS",
+      "aggregate_unit": "percentage",
+      "rms": 1.8714631418432584e-03
+    }
+  ]
+}
