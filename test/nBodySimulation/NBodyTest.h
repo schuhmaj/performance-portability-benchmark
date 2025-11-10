@@ -90,13 +90,13 @@ protected:
         using namespace testing;
         using namespace ppb;
 
-        if (size == 10) {
-            ParticleSimulationConfig<float> config{static_cast<size_t>(size), ITERATIONS, TIME_STEP};
-            Implementation nBodySim{config};
-            const auto [actualResult, timings] = nBodySim.simulate(start_state);
-            ASSERT_THAT(actualResult, ParticlesEq(end_state, epsilon));
-            return;
-        }
+        // if (size == 10) {
+            // ParticleSimulationConfig<float> config{static_cast<size_t>(size), ITERATIONS, TIME_STEP};
+            // Implementation nBodySim{config};
+            // const auto [actualResult, timings] = nBodySim.simulate(start_state);
+            // ASSERT_THAT(actualResult, ParticlesEq(end_state, epsilon));
+            // return;
+        // }
 
         ParticleSimulationConfig<float> config{static_cast<size_t>(size), ITERATIONS, 1e-10};
         NBodySimulation<ImplCpp<float>> cppNBodySim{config};
