@@ -58,6 +58,7 @@ namespace ppb {
         queue.memcpy(particle_container.getVelocities(), velocitiesUSM, 4 * size * sizeof(FloatType));
         queue.memcpy(particle_container.getForces(), forcesUSM, 4 * size * sizeof(FloatType));
         queue.memcpy(particle_container.getOldForces(), oldForcesUSM, 4 * size * sizeof(FloatType));
+        queue.wait();
 
         // convert SoA to AoO
         particle_container.extractParticleData(particlesCopy);
@@ -130,9 +131,9 @@ namespace ppb {
             const FloatType m = FloatType(1.0);
 
             // change in velocity = (force + oldForce) * deltaT / (2 * mass)
-            velocitiesUSM[0] += (forcesUSM[0] + oldForcesUSM[0]) * (deltaT / (2 * m));
-            velocitiesUSM[1] += (forcesUSM[1] + oldForcesUSM[1]) * (deltaT / (2 * m));
-            velocitiesUSM[2] += (forcesUSM[2] + oldForcesUSM[2]) * (deltaT / (2 * m));
+            velocitiesUSM[4 * idx + 0] += (forcesUSM[4 * idx + 0] + oldForcesUSM[4 * idx + 0]) * (deltaT / (2 * m));
+            velocitiesUSM[4 * idx + 1] += (forcesUSM[4 * idx + 1] + oldForcesUSM[4 * idx + 1]) * (deltaT / (2 * m));
+            velocitiesUSM[4 * idx + 2] += (forcesUSM[4 * idx + 2] + oldForcesUSM[4 * idx + 2]) * (deltaT / (2 * m));
         });
         queue.wait();
         auto end = event.template get_profiling_info<sycl::info::event_profiling::command_end>();
@@ -162,9 +163,9 @@ namespace ppb {
 
             if (i == j || i >= size || j >= size) return;
 
-            const FloatType sigma = FloatType(0.5);
+            const FloatType sigma = FloatType(1.0);
             const FloatType sigmaSquared = sigma * sigma;
-            const FloatType epsilon = FloatType(5.0);
+            const FloatType epsilon = FloatType(1.0);
             const FloatType epsilon24 = epsilon * FloatType(24);
 
             // distance = position_i - position_j
@@ -213,14 +214,15 @@ namespace ppb {
                 for (int32_t y = -1; y <= 1; ++y) {
                     for (int32_t z = -1; z <= 1; ++z) {
                         int32_t cell_index_now = cell_index + x + y * cell_count[0] + z * cell_count[0] * cell_count[1];
-                        if (cell_index_now >= 27) return;
+                        // sanity check
+                        if (cell_index_now >= cell_count[0] * cell_count[1] * cell_count[2]) continue;
                         for (size_t cell_it = 0; cell_it < cell_counts[cell_index_now]; ++cell_it) {
                             sycl::id<1> j = cells[cell_index_now * cell_size + cell_it];
-                            if (i == j) return;
+                            if (i == j) continue;
 
-                            const FloatType sigma = FloatType(0.5);
+                            const FloatType sigma = FloatType(1.0);
                             const FloatType sigmaSquared = sigma * sigma;
-                            const FloatType epsilon = FloatType(5.0);
+                            const FloatType epsilon = FloatType(1.0);
                             const FloatType epsilon24 = epsilon * FloatType(24);
 
                             // distance = position_i - position_j

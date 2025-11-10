@@ -47,10 +47,12 @@ namespace ppb {
                 std::copy_n(particles[i].getOldForce().begin(), 3, oldForces + 4 * i);
             }
 
+            constexpr int32_t MAX_CELL_COUNT = 8;
+
             cell_count = {
-                std::max(1, static_cast<int32_t>(std::floor((_config.boxMax[0] - _config.boxMin[0]) / FloatType(2.5)))) + 2,
-                std::max(1, static_cast<int32_t>(std::floor((_config.boxMax[1] - _config.boxMin[1]) / FloatType(2.5)))) + 2,
-                std::max(1, static_cast<int32_t>(std::floor((_config.boxMax[2] - _config.boxMin[2]) / FloatType(2.5)))) + 2,
+                std::min(MAX_CELL_COUNT, std::max(1, static_cast<int32_t>(std::floor((_config.boxMax[0] - _config.boxMin[0]) / FloatType(3.5)))) + 2),
+                std::min(MAX_CELL_COUNT, std::max(1, static_cast<int32_t>(std::floor((_config.boxMax[1] - _config.boxMin[1]) / FloatType(3.5)))) + 2),
+                std::min(MAX_CELL_COUNT, std::max(1, static_cast<int32_t>(std::floor((_config.boxMax[2] - _config.boxMin[2]) / FloatType(3.5)))) + 2),
             };
             total_cells = cell_count[0] * cell_count[1] * cell_count[2];
             // perfectly even distribution would mean that every cell has about the same avg_occupancy.
