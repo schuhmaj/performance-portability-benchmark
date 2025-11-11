@@ -2,8 +2,23 @@
 #include "Impl_AdaptiveCpp.h"
 #include "nBodySimulation/NBodySimulation.h"
 
-BENCHMARK(ppb::NBodySimulation<ppb::ImplAdaptiveCpp<float>>::benchmark)
-    ->Name("NBody-Float-AdaptiveCpp")
+BENCHMARK(ppb::NBodySimulation<ppb::ImplAdaptiveCpp<float, ppb::Naive>>::benchmark)
+    ->Name("NBody-Float-AdaptiveCpp-Naive")
+    ->RangeMultiplier(10)
+    ->Range(1e1, 1e3)
+    ->Complexity();
+BENCHMARK(ppb::NBodySimulation<ppb::ImplAdaptiveCpp<double, ppb::Naive>>::benchmark)
+    ->Name("NBody-Double-AdaptiveCpp-Naive")
+    ->RangeMultiplier(10)
+    ->Range(1e1, 1e3)
+    ->Complexity();
+BENCHMARK(ppb::NBodySimulation<ppb::ImplAdaptiveCpp<float, ppb::CellList>>::benchmark)
+    ->Name("NBody-Float-AdaptiveCpp-CellList")
+    ->RangeMultiplier(10)
+    ->Range(1e1, 1e3)
+    ->Complexity();
+BENCHMARK(ppb::NBodySimulation<ppb::ImplAdaptiveCpp<double, ppb::CellList>>::benchmark)
+    ->Name("NBody-Double-AdaptiveCpp-CellList")
     ->RangeMultiplier(10)
     ->Range(1e1, 1e3)
     ->Complexity();

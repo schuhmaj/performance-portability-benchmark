@@ -4,18 +4,18 @@
 
 namespace ppb {
 
-    template <typename FloatType>
-    ImplAdaptiveCpp<FloatType>::ImplAdaptiveCpp(const ParticleSimulationConfig<FloatType> &config) : _config{config}, _queue{sycl::default_selector_v, {}, {sycl::property::queue::in_order(), sycl::property::queue::enable_profiling()}}, _size{_config.size} {}
+    template <typename FloatType, typename Algorithm>
+    ImplAdaptiveCpp<FloatType, Algorithm>::ImplAdaptiveCpp(const ParticleSimulationConfig<FloatType> &config) : _config{config}, _queue{sycl::default_selector_v, {}, {sycl::property::queue::in_order(), sycl::property::queue::enable_profiling()}}, _size{_config.size} {}
 
-    template <typename FloatType>
-    std::pair<std::vector<Particle<FloatType>>, ParticleSimulationTimings> ImplAdaptiveCpp<FloatType>::simulate(const std::vector<Particle<FloatType>> &particles) {
+    template <typename FloatType, typename Algorithm>
+    std::pair<std::vector<Particle<FloatType>>, ParticleSimulationTimings> ImplAdaptiveCpp<FloatType, Algorithm>::simulate(const std::vector<Particle<FloatType>> &particles) {
         // a copy of the passed particles. N * sizeof(Particle<FloatType>) overhead
         // can theoretically be freed once data is moved to SoA
         std::vector<Particle<FloatType>> particlesCopy = particles;
 
         // a container for particles in SoA form. N * 16 * sizeof(FloatType) overhead
         // build SoA from AoO
-        ParticleContainer<FloatType> particle_container(particles, _config);
+        ParticleContainer<FloatType, Algorithm> particle_container(particles, _config);
 
         // copy of particles in SoA form in USM. N * 16 * sizeof(FloatType) overhead, on device
         // set up memory on device
@@ -24,16 +24,25 @@ namespace ppb {
         _forces     = static_cast<sycl::vec<FloatType, 4> *>(sycl::aligned_alloc_device(sizeof(sycl::vec<FloatType, 4>), _size * sizeof(sycl::vec<FloatType, 4>), _queue));
         _oldForces  = static_cast<sycl::vec<FloatType, 4> *>(sycl::aligned_alloc_device(sizeof(sycl::vec<FloatType, 4>), _size * sizeof(sycl::vec<FloatType, 4>), _queue));
 
-        // Spatial Subdivision in cells. N * 5 * sizeof(int32_t) overhead, on device
-        int32_t *cellsUSM = static_cast<int32_t *>(sycl::aligned_alloc_device(4 * sizeof(int32_t), 4 * ((particle_container.getCellsSize() - 1) / 4 + 1) * sizeof(int32_t), _queue));
-        int32_t *cell_countsUSM = static_cast<int32_t *>(sycl::aligned_alloc_device(4 * sizeof(int32_t), 4 * ((particle_container.getTotalCells() - 1) / 4 + 1) * sizeof(int32_t), _queue));
-        int32_t *overflowUSM = static_cast<int32_t *>(sycl::aligned_alloc_device(4 * sizeof(int32_t), 4 * ((_size - 1) / 4 + 1) * sizeof(int32_t), _queue));
-
-        if (!_positions || !_velocities || !_forces || !_oldForces || !cellsUSM || !cell_countsUSM || !overflowUSM) {
+        if (!_positions || !_velocities || !_forces || !_oldForces)  {
             throw std::runtime_error("USM allocation failed");
         }
 
-        particle_container.setCells(cellsUSM, cell_countsUSM, overflowUSM, _queue);
+        int32_t *cellsUSM = nullptr;
+        int32_t *cell_countsUSM = nullptr;
+        int32_t *overflowUSM = nullptr;
+        if constexpr (std::is_same_v<Algorithm, CellList>) {
+            // Spatial Subdivision in cells. N * 5 * sizeof(int32_t) overhead, on device
+            cellsUSM = static_cast<int32_t *>(sycl::aligned_alloc_device(4 * sizeof(int32_t), 4 * ((particle_container.getCellsSize() - 1) / 4 + 1) * sizeof(int32_t), _queue));
+            cell_countsUSM = static_cast<int32_t *>(sycl::aligned_alloc_device(4 * sizeof(int32_t), 4 * ((particle_container.getTotalCells() - 1) / 4 + 1) * sizeof(int32_t), _queue));
+            overflowUSM = static_cast<int32_t *>(sycl::aligned_alloc_device(4 * sizeof(int32_t), 4 * ((_size - 1) / 4 + 1) * sizeof(int32_t), _queue));
+
+            if (!cellsUSM || !cell_countsUSM || !overflowUSM) {
+                throw std::runtime_error("USM allocation failed");
+            }
+
+            particle_container.setCells(cellsUSM, cell_countsUSM, overflowUSM, _queue);
+        }
 
         // move data to device
         _queue.memcpy(_positions,  particle_container.getPositions(),  _size * sizeof(sycl::vec<FloatType, 4>));
@@ -43,9 +52,12 @@ namespace ppb {
 
         for (int i = 0; i < _config.numberTimeSteps; ++i) {
             updatePositionsAndResetForce();
-            particle_container.buildCells(_queue, _positions);
-            // computeForces_atomic();
-            computeForces_cell_based_atomic(&particle_container);
+            if constexpr (std::is_same_v<Algorithm, Naive>) {
+                computeForces_atomic();
+            } else {
+                particle_container.buildCells(_queue, _positions);
+                computeForces_cell_based_atomic(&particle_container);
+            }
             updateVelocities();
         }
 
@@ -64,15 +76,17 @@ namespace ppb {
         sycl::free(_forces, _queue);
         sycl::free(_oldForces, _queue);
 
-        sycl::free(cellsUSM, _queue);
-        sycl::free(cell_countsUSM, _queue);
-        sycl::free(overflowUSM, _queue);
+        if constexpr (std::is_same_v<Algorithm, CellList>) {
+            sycl::free(cellsUSM, _queue);
+            sycl::free(cell_countsUSM, _queue);
+            sycl::free(overflowUSM, _queue);
+        }
 
         return std::make_pair(particlesCopy, _timings);
     }
 
-    template <typename FloatType>
-    void ImplAdaptiveCpp<FloatType>::updatePositionsAndResetForce() {
+    template <typename FloatType, typename Algorithm>
+    void ImplAdaptiveCpp<FloatType, Algorithm>::updatePositionsAndResetForce() {
         using namespace ppb::util;
 
         const sycl::vec<FloatType, 4> globalForce = {_config.globalForce[0], _config.globalForce[1], _config.globalForce[2], FloatType(0.0)};
@@ -100,8 +114,8 @@ namespace ppb {
         _timings.forceUpdateTime += elapsed_nanoseconds;
     }
 
-    template <typename FloatType>
-    void ImplAdaptiveCpp<FloatType>::updateVelocities() {
+    template <typename FloatType, typename Algorithm>
+    void ImplAdaptiveCpp<FloatType, Algorithm>::updateVelocities() {
         using namespace ppb::util;
 
         const auto deltaT = _config.deltaT;
@@ -119,8 +133,8 @@ namespace ppb {
         _timings.forceUpdateTime += elapsed_nanoseconds;
     }
 
-    template <typename FloatType>
-    void ImplAdaptiveCpp<FloatType>::computeForces_atomic() {
+    template <typename FloatType, typename Algorithm>
+    void ImplAdaptiveCpp<FloatType, Algorithm>::computeForces_atomic() {
         using namespace ppb::util;
 
         // tuned to best ratio
@@ -177,8 +191,8 @@ namespace ppb {
         _timings.forceUpdateTime += elapsed_nanoseconds;
     }
 
-    template <typename FloatType>
-    void ImplAdaptiveCpp<FloatType>::computeForces_cell_based_atomic(ParticleContainer<FloatType> *particle_container) {
+    template <typename FloatType, typename Algorithm>
+    void ImplAdaptiveCpp<FloatType, Algorithm>::computeForces_cell_based_atomic(ParticleContainer<FloatType, Algorithm> *particle_container) {
         using namespace ppb::util;
 
         int32_t *cell_counts = particle_container->getCellCounts();
@@ -241,6 +255,8 @@ namespace ppb {
     /* Explicit Instantiation for float and double */
     template class ImplAdaptiveCpp<float>;
     template class ImplAdaptiveCpp<double>;
+    template class ImplAdaptiveCpp<float, CellList>;
+    template class ImplAdaptiveCpp<double, CellList>;
 
 } // namespace ppb
 

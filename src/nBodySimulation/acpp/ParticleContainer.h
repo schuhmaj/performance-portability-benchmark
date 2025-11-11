@@ -7,7 +7,10 @@
 #include "nBodySimulation/Particle.h"
 
 namespace ppb {
-    template <typename FloatType>
+    struct Naive {};
+    struct CellList {};
+
+    template <typename FloatType, typename Algorithm = ppb::Naive>
     class ParticleContainer {
         FloatType *positions;
         FloatType *velocities;
@@ -45,12 +48,18 @@ namespace ppb {
                 std::copy_n(particles[i].getOldForce().begin(), 3, oldForces + 4 * i);
             }
 
-            constexpr int32_t MAX_CELL_COUNT = 3;
+            int32_t MAX_CELL_COUNT = 1;
+            if constexpr (std::is_same_v<Algorithm, ppb::CellList>) {
+                // MAX_CELL_COUNT is computed dynamically based on number of particles
+                // this improves the algorithm in situations where the bounding box is large, but there's not many particles
+                // TODO: fine tune magic number
+                MAX_CELL_COUNT = static_cast<int32_t>(std::floor(std::cbrt(static_cast<double>(_size) / 8)));
+            }
 
             cell_count = {
-                std::min(MAX_CELL_COUNT, std::max(1, static_cast<int32_t>(std::floor((_config.boxMax[0] - _config.boxMin[0]) / FloatType(3.5)))) + 2),
-                std::min(MAX_CELL_COUNT, std::max(1, static_cast<int32_t>(std::floor((_config.boxMax[1] - _config.boxMin[1]) / FloatType(3.5)))) + 2),
-                std::min(MAX_CELL_COUNT, std::max(1, static_cast<int32_t>(std::floor((_config.boxMax[2] - _config.boxMin[2]) / FloatType(3.5)))) + 2),
+                std::max(1, std::min(MAX_CELL_COUNT, static_cast<int32_t>(std::floor((_config.boxMax[0] - _config.boxMin[0]) / FloatType(3.5))))) + 2,
+                std::max(1, std::min(MAX_CELL_COUNT, static_cast<int32_t>(std::floor((_config.boxMax[1] - _config.boxMin[1]) / FloatType(3.5))))) + 2,
+                std::max(1, std::min(MAX_CELL_COUNT, static_cast<int32_t>(std::floor((_config.boxMax[2] - _config.boxMin[2]) / FloatType(3.5))))) + 2
             };
             total_cells = cell_count[0] * cell_count[1] * cell_count[2];
             // perfectly even distribution would mean that every cell has about the same avg_occupancy.

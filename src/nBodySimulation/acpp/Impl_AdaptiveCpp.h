@@ -13,7 +13,6 @@
 #include "nBodySimulation/NBodySimulation.h"
 #include "nBodySimulation/Particle.h"
 #include "ParticleContainer.h"
-#include "common/UtilityContainer.h"
 
 namespace ppb {
 
@@ -23,7 +22,7 @@ namespace ppb {
      *
      * @tparam FloatType Floating-point type for simulation (float or double).
      */
-    template<typename FloatType>
+    template<typename FloatType, typename Algorithm = ppb::Naive>
     class ImplAdaptiveCpp {
 
         /**
@@ -110,7 +109,7 @@ namespace ppb {
          * @param particlesUSM Array of particles in shared memory whose positions and forces are modified in-place.
          * @param particles Vector of particles for which the forces will be calculated and accumulated.
          */
-        void computeForces_cell_based_atomic(ParticleContainer<FloatType> *particle_container);
+        void computeForces_cell_based_atomic(ParticleContainer<FloatType, Algorithm> *particle_container);
 
     };
 } // namespace ppb
