@@ -36,6 +36,21 @@ namespace ppb {
          */
         ParticleSimulationTimings _timings;
 
+        /**
+         * Manages the tasks on a device
+         */
+        sycl::queue _queue;
+
+        /**
+         * Particle Data in SoA form on device
+         */
+        sycl::vec<FloatType, 4> *_positions = nullptr;
+        sycl::vec<FloatType, 4> *_velocities = nullptr;
+        sycl::vec<FloatType, 4> *_forces = nullptr;
+        sycl::vec<FloatType, 4> *_oldForces = nullptr;
+
+        size_t _size = 0;
+
     public:
 
         /**
@@ -68,7 +83,7 @@ namespace ppb {
          * @param particlesUSM Array of particles in shared memory whose positions and forces are modified in-place.
          * @param size size of particleusm, amount of particles
          */
-        void updatePositionsAndResetForce(sycl::queue &queue, FloatType *positionsUSM, FloatType *velocitiesUSM, FloatType *forcesUSM, FloatType *oldForcesUSM, const size_t &size);
+        void updatePositionsAndResetForce();
 
         /**
          * Updates velocities of all particles using the forces computed before and after the integration step.
@@ -77,7 +92,7 @@ namespace ppb {
          * @param particlesUSM Array of particles in shared memory whose positions and forces are modified in-place.
          * @param particles Vector of particles for which the forces will be calculated and accumulated.
          */
-        void updateVelocities(sycl::queue &queue, FloatType *velocitiesUSM, FloatType *forcesUSM, FloatType *oldForcesUSM, const size_t &size);
+        void updateVelocities();
 
         /**
          * Computes the inter-particle forces for all particles using the Lennard-Jones potential.
@@ -86,7 +101,7 @@ namespace ppb {
          * @param particlesUSM Array of particles in shared memory whose positions and forces are modified in-place.
          * @param particles Vector of particles for which the forces will be calculated and accumulated.
          */
-        void computeForces_atomic(sycl::queue &queue, FloatType *positionsUSM, FloatType *forcesUSM, const size_t &size);
+        void computeForces_atomic();
 
         /**
          * Computes the inter-particle forces for all particles of neighboring cells using the Lennard-Jones potential.
@@ -95,7 +110,7 @@ namespace ppb {
          * @param particlesUSM Array of particles in shared memory whose positions and forces are modified in-place.
          * @param particles Vector of particles for which the forces will be calculated and accumulated.
          */
-        void computeForces_cell_based_atomic(sycl::queue &queue, FloatType *positionsUSM, FloatType *forcesUSM, const size_t &size, ParticleContainer<FloatType> *particle_container);
+        void computeForces_cell_based_atomic(ParticleContainer<FloatType> *particle_container);
 
     };
 } // namespace ppb

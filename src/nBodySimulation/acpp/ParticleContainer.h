@@ -27,27 +27,25 @@ namespace ppb {
         size_t total_cells;
         size_t overflow_count;
 
-        size_t size;
+        size_t _size;
 
     public:
 
         // build SoA from AoO
-        explicit ParticleContainer(const std::vector<Particle<FloatType>> &particles, const ParticleSimulationConfig<FloatType> _config) : _config(_config) {
-            size = particles.size();
+        explicit ParticleContainer(const std::vector<Particle<FloatType>> &particles, const ParticleSimulationConfig<FloatType> _config) : _config(_config), _size{_config.size} {
+            positions = static_cast<FloatType *>(std::aligned_alloc(4 * sizeof(FloatType), 4 * sizeof(FloatType) * _size));
+            velocities = static_cast<FloatType *>(std::aligned_alloc(4 * sizeof(FloatType), 4 * sizeof(FloatType) * _size));
+            forces = static_cast<FloatType *>(std::aligned_alloc(4 * sizeof(FloatType), 4 * sizeof(FloatType) * _size));
+            oldForces = static_cast<FloatType *>(std::aligned_alloc(4 * sizeof(FloatType), 4 * sizeof(FloatType) * _size));
 
-            positions = static_cast<FloatType *>(std::aligned_alloc(4 * sizeof(FloatType), 4 * sizeof(FloatType) * size));
-            velocities = static_cast<FloatType *>(std::aligned_alloc(4 * sizeof(FloatType), 4 * sizeof(FloatType) * size));
-            forces = static_cast<FloatType *>(std::aligned_alloc(4 * sizeof(FloatType), 4 * sizeof(FloatType) * size));
-            oldForces = static_cast<FloatType *>(std::aligned_alloc(4 * sizeof(FloatType), 4 * sizeof(FloatType) * size));
-
-            for (size_t i = 0; i < size; ++i) {
+            for (size_t i = 0; i < _size; ++i) {
                 std::copy_n(particles[i].getPosition().begin(), 3, positions + 4 * i);
                 std::copy_n(particles[i].getVelocity().begin(), 3, velocities + 4 * i);
                 std::copy_n(particles[i].getForce().begin(), 3, forces + 4 * i);
                 std::copy_n(particles[i].getOldForce().begin(), 3, oldForces + 4 * i);
             }
 
-            constexpr int32_t MAX_CELL_COUNT = 8;
+            constexpr int32_t MAX_CELL_COUNT = 3;
 
             cell_count = {
                 std::min(MAX_CELL_COUNT, std::max(1, static_cast<int32_t>(std::floor((_config.boxMax[0] - _config.boxMin[0]) / FloatType(3.5)))) + 2),
@@ -59,7 +57,7 @@ namespace ppb {
             // DENSITY_FACTOR allows cells to contain DENSITY_FACTOR times as many particles as expected from
             // avg_occupancy. any particles that still overflow any given cell are stored in overflow and will be
             // treated separately.
-            const int32_t avg_occupancy = (size - 1) / ((cell_count[0] - 2) * (cell_count[1] - 2) * (cell_count[2] - 2)) + 1;
+            const int32_t avg_occupancy = (_size - 1) / ((cell_count[0] - 2) * (cell_count[1] - 2) * (cell_count[2] - 2)) + 1;
             cells_size = DENSITY_FACTOR * avg_occupancy * total_cells;
             overflow_count = 0;
         }
@@ -73,7 +71,7 @@ namespace ppb {
 
         // convert SoA to AoO
         void extractParticleData(std::vector<Particle<FloatType>> &particles) {
-            for (size_t i = 0; i < size; ++i) {
+            for (size_t i = 0; i < _size; ++i) {
                 particles[i].setPosition({positions[i * 4 + 0], positions[i * 4 + 1], positions[i * 4 + 2]});
                 particles[i].setVelocity({velocities[i * 4 + 0], velocities[i * 4 + 1], velocities[i * 4 + 2]});
                 particles[i].setForce({forces[i * 4 + 0], forces[i * 4 + 1], forces[i * 4 + 2]});
@@ -81,7 +79,7 @@ namespace ppb {
             }
         }
 
-        void buildCells(sycl::queue &queue, FloatType *positionsUSM) {
+        void buildCells(sycl::queue &queue, sycl::vec<FloatType, 4> *positions) {
             queue.memset(cell_counts, 0, 4 * ((total_cells - 1) / 4 + 1) * sizeof(int32_t)).wait();
             std::array<FloatType, 3> boxSize {
                 _config.boxMax[0] - _config.boxMin[0],
@@ -104,13 +102,13 @@ namespace ppb {
             int32_t *cell_counts_tick = cell_counts;
             int32_t *overflow_tick = overflow;
             size_t *overflow_count_tick = &overflow_count;
-            queue.parallel_for(sycl::range<1>(size), [=](sycl::id<1> idx) {
+            queue.parallel_for(sycl::range<1>(_size), [=](sycl::id<1> idx) {
                 // clamping factor 0.999999 allows for boxMax to fit into the cell box.
                 // TODO: make boxMax exclusive in future iterations?
                 std::array<int32_t, 3> indices{
-                    static_cast<int32_t>(sycl::floor(0.999999 * (positionsUSM[idx * 4 + 0] - boxMin[0]) / (boxSize[0] / (cell_count_tick[0] - 2)))) + 1,
-                    static_cast<int32_t>(sycl::floor(0.999999 * (positionsUSM[idx * 4 + 1] - boxMin[1]) / (boxSize[1] / (cell_count_tick[1] - 2)))) + 1,
-                    static_cast<int32_t>(sycl::floor(0.999999 * (positionsUSM[idx * 4 + 2] - boxMin[2]) / (boxSize[2] / (cell_count_tick[2] - 2)))) + 1
+                    static_cast<int32_t>(sycl::floor(0.999999 * (positions[idx][0] - boxMin[0]) / (boxSize[0] / (cell_count_tick[0] - 2)))) + 1,
+                    static_cast<int32_t>(sycl::floor(0.999999 * (positions[idx][1] - boxMin[1]) / (boxSize[1] / (cell_count_tick[1] - 2)))) + 1,
+                    static_cast<int32_t>(sycl::floor(0.999999 * (positions[idx][2] - boxMin[2]) / (boxSize[2] / (cell_count_tick[2] - 2)))) + 1
                 };
                 int32_t flat_index = indices[0] + indices[1] * cell_count_tick[0] + indices[2] * cell_count_tick[0] * cell_count_tick[1];
                 if (indices[0] < 1 || indices[1] < 1 || indices[2] < 1 || indices[0] >= cell_count_tick[0] - 1 || indices[1] >= cell_count_tick[1] - 1 || indices[2] >= cell_count_tick[2] - 1) {
@@ -126,7 +124,7 @@ namespace ppb {
                     size_t overflow_count_now = atomic_overflow_count.fetch_add(1);
                     overflow_tick[overflow_count_now] = static_cast<int32_t>(idx);
                 }
-                int32_t *cell_keeper = reinterpret_cast<int32_t *>(&positionsUSM[idx * 4 + 3]);
+                int32_t *cell_keeper = reinterpret_cast<int32_t *>(&positions[idx][3]);
                 *cell_keeper = flat_index;
             }).wait();
         }

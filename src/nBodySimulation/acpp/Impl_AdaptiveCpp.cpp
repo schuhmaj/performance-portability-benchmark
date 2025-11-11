@@ -5,7 +5,7 @@
 namespace ppb {
 
     template <typename FloatType>
-    ImplAdaptiveCpp<FloatType>::ImplAdaptiveCpp(const ParticleSimulationConfig<FloatType> &config) : _config{config} {}
+    ImplAdaptiveCpp<FloatType>::ImplAdaptiveCpp(const ParticleSimulationConfig<FloatType> &config) : _config{config}, _queue{sycl::default_selector_v, {}, {sycl::property::queue::in_order(), sycl::property::queue::enable_profiling()}}, _size{_config.size} {}
 
     template <typename FloatType>
     std::pair<std::vector<Particle<FloatType>>, ParticleSimulationTimings> ImplAdaptiveCpp<FloatType>::simulate(const std::vector<Particle<FloatType>> &particles) {
@@ -13,108 +13,87 @@ namespace ppb {
         // can theoretically be freed once data is moved to SoA
         std::vector<Particle<FloatType>> particlesCopy = particles;
 
-        sycl::queue queue{sycl::default_selector_v, {}, {sycl::property::queue::in_order(), sycl::property::queue::enable_profiling()}};
-
-        size_t size = particlesCopy.size();
-
         // a container for particles in SoA form. N * 16 * sizeof(FloatType) overhead
         // build SoA from AoO
         ParticleContainer<FloatType> particle_container(particles, _config);
 
         // copy of particles in SoA form in USM. N * 16 * sizeof(FloatType) overhead, on device
         // set up memory on device
-        FloatType *positionsUSM = static_cast<FloatType *>(sycl::aligned_alloc_device(4 * sizeof(FloatType), 4 * size * sizeof(FloatType), queue));
-        FloatType *velocitiesUSM = static_cast<FloatType *>(sycl::aligned_alloc_device(4 * sizeof(FloatType), 4 * size * sizeof(FloatType), queue));
-        FloatType *forcesUSM = static_cast<FloatType *>(sycl::aligned_alloc_device(4 * sizeof(FloatType), 4 * size * sizeof(FloatType), queue));
-        FloatType *oldForcesUSM = static_cast<FloatType *>(sycl::aligned_alloc_device(4 * sizeof(FloatType), 4 * size * sizeof(FloatType), queue));
+        _positions  = static_cast<sycl::vec<FloatType, 4> *>(sycl::aligned_alloc_device(sizeof(sycl::vec<FloatType, 4>), _size * sizeof(sycl::vec<FloatType, 4>), _queue));
+        _velocities = static_cast<sycl::vec<FloatType, 4> *>(sycl::aligned_alloc_device(sizeof(sycl::vec<FloatType, 4>), _size * sizeof(sycl::vec<FloatType, 4>), _queue));
+        _forces     = static_cast<sycl::vec<FloatType, 4> *>(sycl::aligned_alloc_device(sizeof(sycl::vec<FloatType, 4>), _size * sizeof(sycl::vec<FloatType, 4>), _queue));
+        _oldForces  = static_cast<sycl::vec<FloatType, 4> *>(sycl::aligned_alloc_device(sizeof(sycl::vec<FloatType, 4>), _size * sizeof(sycl::vec<FloatType, 4>), _queue));
 
         // Spatial Subdivision in cells. N * 5 * sizeof(int32_t) overhead, on device
-        int32_t *cellsUSM = static_cast<int32_t *>(sycl::aligned_alloc_device(4 * sizeof(int32_t), 4 * ((particle_container.getCellsSize() - 1) / 4 + 1) * sizeof(int32_t), queue));
-        int32_t *cell_countsUSM = static_cast<int32_t *>(sycl::aligned_alloc_device(4 * sizeof(int32_t), 4 * ((particle_container.getTotalCells() - 1) / 4 + 1) * sizeof(int32_t), queue));
-        int32_t *overflowUSM = static_cast<int32_t *>(sycl::aligned_alloc_device(4 * sizeof(int32_t), 4 * ((size - 1) / 4 + 1) * sizeof(int32_t), queue));
+        int32_t *cellsUSM = static_cast<int32_t *>(sycl::aligned_alloc_device(4 * sizeof(int32_t), 4 * ((particle_container.getCellsSize() - 1) / 4 + 1) * sizeof(int32_t), _queue));
+        int32_t *cell_countsUSM = static_cast<int32_t *>(sycl::aligned_alloc_device(4 * sizeof(int32_t), 4 * ((particle_container.getTotalCells() - 1) / 4 + 1) * sizeof(int32_t), _queue));
+        int32_t *overflowUSM = static_cast<int32_t *>(sycl::aligned_alloc_device(4 * sizeof(int32_t), 4 * ((_size - 1) / 4 + 1) * sizeof(int32_t), _queue));
 
-        if (!positionsUSM || !velocitiesUSM || !forcesUSM || !oldForcesUSM || !cellsUSM || !cell_countsUSM || !overflowUSM) {
-            throw std::runtime_error("USM allocation faild");
+        if (!_positions || !_velocities || !_forces || !_oldForces || !cellsUSM || !cell_countsUSM || !overflowUSM) {
+            throw std::runtime_error("USM allocation failed");
         }
 
-        particle_container.setCells(cellsUSM, cell_countsUSM, overflowUSM, queue);
+        particle_container.setCells(cellsUSM, cell_countsUSM, overflowUSM, _queue);
 
         // move data to device
-        queue.memcpy(positionsUSM, particle_container.getPositions(), 4 * size * sizeof(FloatType));
-        queue.memcpy(velocitiesUSM, particle_container.getVelocities(), 4 * size * sizeof(FloatType));
-        queue.memcpy(forcesUSM, particle_container.getForces(), 4 * size * sizeof(FloatType));
-        queue.memcpy(oldForcesUSM, particle_container.getOldForces(), 4 * size * sizeof(FloatType));
+        _queue.memcpy(_positions,  particle_container.getPositions(),  _size * sizeof(sycl::vec<FloatType, 4>));
+        _queue.memcpy(_velocities, particle_container.getVelocities(), _size * sizeof(sycl::vec<FloatType, 4>));
+        _queue.memcpy(_forces,     particle_container.getForces(),     _size * sizeof(sycl::vec<FloatType, 4>));
+        _queue.memcpy(_oldForces,  particle_container.getOldForces(),  _size * sizeof(sycl::vec<FloatType, 4>));
 
         for (int i = 0; i < _config.numberTimeSteps; ++i) {
-            updatePositionsAndResetForce(queue, positionsUSM, velocitiesUSM, forcesUSM, oldForcesUSM, size);
-            particle_container.buildCells(queue, positionsUSM);
-            // computeForces_atomic(queue, positionsUSM, forcesUSM, size);
-            computeForces_cell_based_atomic(queue, positionsUSM, forcesUSM, size, &particle_container);
-            updateVelocities(queue, velocitiesUSM, forcesUSM, oldForcesUSM, size);
+            updatePositionsAndResetForce();
+            particle_container.buildCells(_queue, _positions);
+            // computeForces_atomic();
+            computeForces_cell_based_atomic(&particle_container);
+            updateVelocities();
         }
 
         // move data to host
-        queue.memcpy(particle_container.getPositions(), positionsUSM, 4 * size * sizeof(FloatType));
-        queue.memcpy(particle_container.getVelocities(), velocitiesUSM, 4 * size * sizeof(FloatType));
-        queue.memcpy(particle_container.getForces(), forcesUSM, 4 * size * sizeof(FloatType));
-        queue.memcpy(particle_container.getOldForces(), oldForcesUSM, 4 * size * sizeof(FloatType));
-        queue.wait();
+        _queue.memcpy(particle_container.getPositions(),    _positions,   _size * sizeof(sycl::vec<FloatType, 4>));
+        _queue.memcpy(particle_container.getVelocities(),   _velocities,  _size * sizeof(sycl::vec<FloatType, 4>));
+        _queue.memcpy(particle_container.getForces(),       _forces,      _size * sizeof(sycl::vec<FloatType, 4>));
+        _queue.memcpy(particle_container.getOldForces(),    _oldForces,   _size * sizeof(sycl::vec<FloatType, 4>));
+        _queue.wait();
 
         // convert SoA to AoO
         particle_container.extractParticleData(particlesCopy);
 
-        sycl::free(positionsUSM, queue);
-        sycl::free(velocitiesUSM, queue);
-        sycl::free(forcesUSM, queue);
-        sycl::free(oldForcesUSM, queue);
+        sycl::free(_positions, _queue);
+        sycl::free(_velocities, _queue);
+        sycl::free(_forces, _queue);
+        sycl::free(_oldForces, _queue);
 
-        sycl::free(cellsUSM, queue);
-        sycl::free(cell_countsUSM, queue);
-        sycl::free(overflowUSM, queue);
+        sycl::free(cellsUSM, _queue);
+        sycl::free(cell_countsUSM, _queue);
+        sycl::free(overflowUSM, _queue);
 
         return std::make_pair(particlesCopy, _timings);
     }
 
     template <typename FloatType>
-    void ImplAdaptiveCpp<FloatType>::updatePositionsAndResetForce(sycl::queue &queue, FloatType *positionsUSM, FloatType *velocitiesUSM, FloatType *forcesUSM, FloatType *oldForcesUSM, const size_t &size) {
+    void ImplAdaptiveCpp<FloatType>::updatePositionsAndResetForce() {
         using namespace ppb::util;
 
-        const auto globalForce = _config.globalForce;
+        const sycl::vec<FloatType, 4> globalForce = {_config.globalForce[0], _config.globalForce[1], _config.globalForce[2], FloatType(0.0)};
         const auto deltaT = _config.deltaT;
 
-        auto event = queue.parallel_for(sycl::range<1>(size), [=](sycl::id<1> idx) {
+        auto event = _queue.parallel_for(sycl::range<1>(_size), [=, *this](sycl::id<1> idx) {
             const FloatType m = FloatType(1.0);
 
-            // oldForce = force
-            oldForcesUSM[4 * idx + 0] = forcesUSM[4 * idx + 0];
-            oldForcesUSM[4 * idx + 1] = forcesUSM[4 * idx + 1];
-            oldForcesUSM[4 * idx + 2] = forcesUSM[4 * idx + 2];
+            _oldForces[idx] = _forces[idx];
 
-            // force = globalForce
-            forcesUSM[4 * idx + 0] = globalForce[0];
-            forcesUSM[4 * idx + 1] = globalForce[1];
-            forcesUSM[4 * idx + 2] = globalForce[2];
+            _forces[idx] = globalForce;
 
-            // velocityFactor = velocity * deltaT
-            std::array<FloatType, 3> vfac{
-                velocitiesUSM[4 * idx + 0] * deltaT,
-                velocitiesUSM[4 * idx + 1] * deltaT,
-                velocitiesUSM[4 * idx + 2] * deltaT
-            };
+            sycl::vec<FloatType, 4> vfac = _velocities[idx] * deltaT;
 
-            // forceFactor = force * deltaT ** 2 / (2 * mass)
-            std::array<FloatType, 3> ffac{
-                forcesUSM[4 * idx + 0] * (deltaT * deltaT / (2 * m)),
-                forcesUSM[4 * idx + 1] * (deltaT * deltaT / (2 * m)),
-                forcesUSM[4 * idx + 2] * (deltaT * deltaT / (2 * m))
-            };
+            sycl::vec<FloatType, 4> ffac = _forces[idx] * (deltaT * deltaT / (2 * m));
 
-            // change in position = velocityFactor + forceFactor
-            positionsUSM[4 * idx + 0] += vfac[0] + ffac[0];
-            positionsUSM[4 * idx + 1] += vfac[1] + ffac[1];
-            positionsUSM[4 * idx + 2] += vfac[2] + ffac[2];
+            _positions[idx][0] += vfac[0] + ffac[0];
+            _positions[idx][1] += vfac[1] + ffac[1];
+            _positions[idx][2] += vfac[2] + ffac[2];
         });
-        queue.wait();
+        _queue.wait();
         auto end = event.template get_profiling_info<sycl::info::event_profiling::command_end>();
         auto start = event.template get_profiling_info<sycl::info::event_profiling::command_start>();
         const double elapsed_nanoseconds = end - start;
@@ -122,20 +101,18 @@ namespace ppb {
     }
 
     template <typename FloatType>
-    void ImplAdaptiveCpp<FloatType>::updateVelocities(sycl::queue &queue, FloatType *velocitiesUSM, FloatType *forcesUSM, FloatType *oldForcesUSM, const size_t &size) {
+    void ImplAdaptiveCpp<FloatType>::updateVelocities() {
         using namespace ppb::util;
 
         const auto deltaT = _config.deltaT;
 
-        auto event = queue.parallel_for(sycl::range<1>(size), [=](sycl::id<1> idx) {
+        auto event = _queue.parallel_for(sycl::range<1>(_size), [=, *this](sycl::id<1> idx) {
             const FloatType m = FloatType(1.0);
 
             // change in velocity = (force + oldForce) * deltaT / (2 * mass)
-            velocitiesUSM[4 * idx + 0] += (forcesUSM[4 * idx + 0] + oldForcesUSM[4 * idx + 0]) * (deltaT / (2 * m));
-            velocitiesUSM[4 * idx + 1] += (forcesUSM[4 * idx + 1] + oldForcesUSM[4 * idx + 1]) * (deltaT / (2 * m));
-            velocitiesUSM[4 * idx + 2] += (forcesUSM[4 * idx + 2] + oldForcesUSM[4 * idx + 2]) * (deltaT / (2 * m));
+            _velocities[idx] += (_forces[idx] + _oldForces[idx]) * (deltaT / (2 * m));
         });
-        queue.wait();
+        _queue.wait();
         auto end = event.template get_profiling_info<sycl::info::event_profiling::command_end>();
         auto start = event.template get_profiling_info<sycl::info::event_profiling::command_start>();
         const double elapsed_nanoseconds = end - start;
@@ -143,25 +120,25 @@ namespace ppb {
     }
 
     template <typename FloatType>
-    void ImplAdaptiveCpp<FloatType>::computeForces_atomic(sycl::queue &queue, FloatType *positionsUSM, FloatType *forcesUSM, const size_t &size) {
+    void ImplAdaptiveCpp<FloatType>::computeForces_atomic() {
         using namespace ppb::util;
 
         // tuned to best ratio
         constexpr size_t local_size_x = sizeof(FloatType) == 4 ? 512 : 64;
         constexpr size_t local_size_y = sizeof(FloatType) == 4 ? 2 : 16;
 
-        const size_t global_size_x = ((size + local_size_x - 1) / local_size_x) * local_size_x;
-        const size_t global_size_y = ((size + local_size_y - 1) / local_size_y) * local_size_y;
+        const size_t global_size_x = ((_size + local_size_x - 1) / local_size_x) * local_size_x;
+        const size_t global_size_y = ((_size + local_size_y - 1) / local_size_y) * local_size_y;
 
         sycl::range<2> global_range(global_size_x, global_size_y);
         sycl::range<2> local_range(local_size_x, local_size_y);
         sycl::nd_range<2> nd_range(global_range, local_range);
 
-        auto event = queue.parallel_for(nd_range, [=](sycl::nd_item<2> item) {
+        auto event = _queue.parallel_for(nd_range, [=, *this](sycl::nd_item<2> item) {
             size_t i = item.get_global_id(0);
             size_t j = item.get_global_id(1);
 
-            if (i == j || i >= size || j >= size) return;
+            if (i == j || i >= _size || j >= _size) return;
 
             const FloatType sigma = FloatType(1.0);
             const FloatType sigmaSquared = sigma * sigma;
@@ -170,9 +147,9 @@ namespace ppb {
 
             // distance = position_i - position_j
             std::array<FloatType, 3> dist{
-                positionsUSM[4 * i + 0] - positionsUSM[4 * j + 0],
-                positionsUSM[4 * i + 1] - positionsUSM[4 * j + 1],
-                positionsUSM[4 * i + 2] - positionsUSM[4 * j + 2]
+                _positions[i][0] - _positions[j][0],
+                _positions[i][1] - _positions[j][1],
+                _positions[i][2] - _positions[j][2]
             };
 
             const FloatType distSquared = dot(dist, dist);
@@ -186,14 +163,14 @@ namespace ppb {
             const std::array<FloatType, 3> f = dist * fac;
 
             // change in force = dist * (epsilon * 24 * (2 * lj12 - lj6) * inverse distance square)
-            sycl::atomic_ref<FloatType, sycl::memory_order::relaxed, sycl::memory_scope::device, sycl::access::address_space::global_space>atomic_fi0(forcesUSM[4 * i + 0]);
-            sycl::atomic_ref<FloatType, sycl::memory_order::relaxed, sycl::memory_scope::device, sycl::access::address_space::global_space>atomic_fi1(forcesUSM[4 * i + 1]);
-            sycl::atomic_ref<FloatType, sycl::memory_order::relaxed, sycl::memory_scope::device, sycl::access::address_space::global_space>atomic_fi2(forcesUSM[4 * i + 2]);
+            sycl::atomic_ref<FloatType, sycl::memory_order::relaxed, sycl::memory_scope::device, sycl::access::address_space::global_space>atomic_fi0(_forces[i][0]);
+            sycl::atomic_ref<FloatType, sycl::memory_order::relaxed, sycl::memory_scope::device, sycl::access::address_space::global_space>atomic_fi1(_forces[i][1]);
+            sycl::atomic_ref<FloatType, sycl::memory_order::relaxed, sycl::memory_scope::device, sycl::access::address_space::global_space>atomic_fi2(_forces[i][2]);
             atomic_fi0.fetch_add(f[0]);
             atomic_fi1.fetch_add(f[1]);
             atomic_fi2.fetch_add(f[2]);
         });
-        queue.wait();
+        _queue.wait();
         auto end = event.template get_profiling_info<sycl::info::event_profiling::command_end>();
         auto start = event.template get_profiling_info<sycl::info::event_profiling::command_start>();
         const double elapsed_nanoseconds = end - start;
@@ -201,15 +178,15 @@ namespace ppb {
     }
 
     template <typename FloatType>
-    void ImplAdaptiveCpp<FloatType>::computeForces_cell_based_atomic(sycl::queue &queue, FloatType *positionsUSM, FloatType *forcesUSM, const size_t &size, ParticleContainer<FloatType> *particle_container) {
+    void ImplAdaptiveCpp<FloatType>::computeForces_cell_based_atomic(ParticleContainer<FloatType> *particle_container) {
         using namespace ppb::util;
 
         int32_t *cell_counts = particle_container->getCellCounts();
         int32_t *cells = particle_container->getCells();
         int32_t cell_size = particle_container->getCellsSize() / particle_container->getTotalCells();
         std::array<int32_t, 3> cell_count = particle_container->getCellCount();
-        auto event = queue.parallel_for(sycl::range<1>(size), [=](sycl::id<1> i) {
-            int32_t cell_index = *reinterpret_cast<int32_t *>(&positionsUSM[4 * i + 3]);
+        auto event = _queue.parallel_for(sycl::range<1>(_size), [=, *this](sycl::id<1> i) {
+            int32_t cell_index = *reinterpret_cast<int32_t *>(&_positions[i][3]);
             for (int32_t x = -1; x <= 1; ++x) {
                 for (int32_t y = -1; y <= 1; ++y) {
                     for (int32_t z = -1; z <= 1; ++z) {
@@ -227,9 +204,9 @@ namespace ppb {
 
                             // distance = position_i - position_j
                             std::array<FloatType, 3> dist{
-                                positionsUSM[4 * i + 0] - positionsUSM[4 * j + 0],
-                                positionsUSM[4 * i + 1] - positionsUSM[4 * j + 1],
-                                positionsUSM[4 * i + 2] - positionsUSM[4 * j + 2]
+                                _positions[i][0] - _positions[j][0],
+                                _positions[i][1] - _positions[j][1],
+                                _positions[i][2] - _positions[j][2]
                             };
 
                             const FloatType distSquared = dot(dist, dist);
@@ -243,9 +220,9 @@ namespace ppb {
                             const std::array<FloatType, 3> f = dist * fac;
 
                             // change in force = dist * (epsilon * 24 * (2 * lj12 - lj6) * inverse distance square)
-                            sycl::atomic_ref<FloatType, sycl::memory_order::relaxed, sycl::memory_scope::device, sycl::access::address_space::global_space>atomic_fi0(forcesUSM[4 * i + 0]);
-                            sycl::atomic_ref<FloatType, sycl::memory_order::relaxed, sycl::memory_scope::device, sycl::access::address_space::global_space>atomic_fi1(forcesUSM[4 * i + 1]);
-                            sycl::atomic_ref<FloatType, sycl::memory_order::relaxed, sycl::memory_scope::device, sycl::access::address_space::global_space>atomic_fi2(forcesUSM[4 * i + 2]);
+                            sycl::atomic_ref<FloatType, sycl::memory_order::relaxed, sycl::memory_scope::device, sycl::access::address_space::global_space>atomic_fi0(_forces[i][0]);
+                            sycl::atomic_ref<FloatType, sycl::memory_order::relaxed, sycl::memory_scope::device, sycl::access::address_space::global_space>atomic_fi1(_forces[i][1]);
+                            sycl::atomic_ref<FloatType, sycl::memory_order::relaxed, sycl::memory_scope::device, sycl::access::address_space::global_space>atomic_fi2(_forces[i][2]);
                             atomic_fi0.fetch_add(f[0]);
                             atomic_fi1.fetch_add(f[1]);
                             atomic_fi2.fetch_add(f[2]);
@@ -254,7 +231,7 @@ namespace ppb {
                 }
             }
         });
-        queue.wait();
+        _queue.wait();
         auto end = event.template get_profiling_info<sycl::info::event_profiling::command_end>();
         auto start = event.template get_profiling_info<sycl::info::event_profiling::command_start>();
         const double elapsed_nanoseconds = end - start;
