@@ -8,12 +8,13 @@
 
 BENCHMARK(ppb::VectorAddition<ppb::ImplCuda<float>>::benchmark)
 ->Name("VecAdd-Float-Cuda")
-->Args(1e6)
+->Arg(1e6)
 #ifdef PPB_MEASURE_ONLY_KERNEL
 ->UseManualTime()
 #endif
 ->Complexity();
 
+// Exceute with likwid-perfctr -G 0 -W FLOPS_SP -m src/vectorAdditon/cuda/vec_cuda
 int main(int argc, char **argv) {
     NVMON_MARKER_INIT;
     benchmark::MaybeReenterWithoutASLR(argc, argv);
