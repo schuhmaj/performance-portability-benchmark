@@ -36,7 +36,7 @@ if(LIKWID_FOUND)
     set(LIKWID_LIBRARIES "${LIKWID_LIBRARY}")
 
     if(NOT TARGET likwid::likwid)
-        add_library(likwid::likwid UNKNOWN IMPORTED)
+        add_library(likwid::likwid UNKNOWN IMPORTED GLOBAL)
         set_target_properties(likwid::likwid PROPERTIES
             IMPORTED_LOCATION "${LIKWID_LIBRARY}"
             INTERFACE_INCLUDE_DIRECTORIES "${LIKWID_INCLUDE_DIR}"
