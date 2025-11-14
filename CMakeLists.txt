@@ -1,10 +1,32 @@
 cmake_minimum_required(VERSION 3.22)
 project(performance_portability_benchmark VERSION 1.0 LANGUAGES CXX)
 
-# Detect platform and conditionally enable CUDA if not Apple
-if(NOT ${CMAKE_SYSTEM_NAME} MATCHES "Darwin") # Darwin is the system name for macOS
+include(CheckLanguage)
+
+check_language(CUDA)
+if (CMAKE_CUDA_COMPILER)
     enable_language(CUDA)
-    find_package(CUDAToolkit)
+    find_package(CUDAToolkit QUIET)
+    if (CUDAToolkit_FOUND)
+        message(STATUS "CUDA language enabled and CUDAToolkit found")
+    else ()
+        message(WARNING "CUDA compiler available but CUDAToolkit not found")
+    endif ()
+else ()
+    message(STATUS "CUDA language not available with current toolchain")
+endif ()
+
+check_language(HIP)
+if (CMAKE_HIP_COMPILER)
+    enable_language(HIP)
+    find_package(HIP QUIET)
+    if (HIP_FOUND)
+        message(STATUS "HIP language enabled and HIP package found")
+    else ()
+        message(WARNING "HIP compiler available but HIP package not found")
+    endif ()
+else ()
+    message(STATUS "HIP language not available with current toolchain")
 endif ()
 
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
