@@ -61,10 +61,17 @@ namespace ppb {
          */
         std::array<FloatType, 3> boxMax{1000, 1000, 1000};
 
+        /*
+         * cut off radius for particle influence
+         * also used for calculating the number of cells when using cell lists
+         */
+        FloatType h{3.0};
+
         /**
          * Seed to initialize the ParticleGenerator
          */
         unsigned int seed{42};
+
 
         /**
          * Creates a simulation configuration.

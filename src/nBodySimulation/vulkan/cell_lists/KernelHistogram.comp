@@ -1,0 +1,53 @@
+#version 450
+layout(local_size_x = 32, local_size_y = 1, local_size_z = 1) in;
+
+layout(std430, binding = 0) readonly buffer Positions {
+    vec3 positions[]; // vec3 is 16 byte aligned, so 4 bytes are wasted each element. Maybe better to do a flat array
+};
+
+layout(std430, binding = 1) buffer Histogram {
+    uint histogram[];
+}
+
+layout(std430, binding = 2) buffer ParticleIdx {
+    vec2 particleIdx[]; // vec2 is only 8 byte aligned so it works here
+    // idx 0 : cellIdx
+    // idx 1 : slot
+} 
+
+// push_constant is 16 byte aligned, std140 like
+layout(push_constant) uniform ParamsForce {
+    uint numParticles;
+    // cell counts
+    int cCount_x;
+    int cCount_y;
+    int cCount_z;
+    // boxMin
+    float bMin_x;
+    float bMin_y;
+    float bMin_z;
+    // boxSize
+    float bSize_x;
+    float bSize_y;
+    float bSize_z;
+} pc;
+
+void main()
+{
+    uint i = gl_GlobalInvocationID.x;
+    if (i >= pc.numParticles) {
+        return;
+    }
+
+    vec3 pi = positions[i];
+    ivec3 cCount = ivec3(cCount_x, cCount_y, cCount_z);
+    vec3 bMin = ivec3(bMin_x, bMin_y, bMin_z);
+    vec3 bSize = ivec3(bSize_x, bSize_y, bSize_z);
+
+    ivec3 gridIdx = ivec3(clamp((pi - bmin) / pc.bSize * cCount, vec3(0.0), cCount - 1));
+    int c = gridIdx.x + gridIdx.y * pc.cCount_x + gridIdx.z * pc.cCount_x * pc.cCount_y;
+
+    int slot = int(atomicAdd(histogram[c], 1));
+    particleIdx[i][0] = c;
+    particleIdx[i][1] = slot;
+}
