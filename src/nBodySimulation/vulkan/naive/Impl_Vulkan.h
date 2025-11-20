@@ -30,8 +30,6 @@ namespace ppb {
         std::vector<uint32_t> _kernelVelocity;
         std::vector<uint32_t> _kernelForce;
 
-        std::vector<uint32_t> _kernelBlellochScan;
-
     public:
 
         /**
@@ -55,8 +53,6 @@ namespace ppb {
         std::pair<std::vector<Particle<FloatType>>, ParticleSimulationTimings> simulate(const std::vector<Particle<FloatType>> &particles);
 
     private:
-
-        void test(const std::vector<std::shared_ptr<kp::Tensor>> &params);
 
         /**
          * Updates positions of all particles using velocity Verlet integration and resets their forces

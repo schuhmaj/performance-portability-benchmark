@@ -16,19 +16,11 @@ vulkan_compile_shader(
         NAMESPACE "ppb"
         RELATIVE_PATH "${kompute_SOURCE_DIR}/cmake"
 )
-vulkan_compile_shader(
-        INFILE KernelBlellochScan.comp
-        OUTFILE KernelBlellochScan.h
-        NAMESPACE "ppb"
-        RELATIVE_PATH "${kompute_SOURCE_DIR}/cmake"
-)
 add_library(nbody_vulkan_lib STATIC
         Impl_Vulkan.h Impl_Vulkan.cpp
         "${CMAKE_CURRENT_BINARY_DIR}/KernelForce.h"
         "${CMAKE_CURRENT_BINARY_DIR}/KernelVelocity.h"
         "${CMAKE_CURRENT_BINARY_DIR}/KernelPosition.h"
-        "${CMAKE_CURRENT_BINARY_DIR}/KernelBlellochScan.h"
-
 )
 target_compile_features(nbody_vulkan_lib PUBLIC cxx_std_20)
 target_link_libraries(nbody_vulkan_lib PUBLIC nbody_lib kompute::kompute common_vulkan_lib)

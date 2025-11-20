@@ -26,16 +26,6 @@ namespace ppb {
         std::vector<float> forcesHost(particles.size() * 3, 0.0);
         std::vector<float> oldForcesHost(particles.size() * 3, 0.0);
 
-        std::array<float, 3> boxMin = _config.boxMin;
-        std::array<float, 3> boxMax = _config.boxMax;
-        std::array<float, 3> boxSize = { boxMax[0] - boxMin[0], boxMax[1] - boxMin[1], boxMax[2] - boxMin[2] };
-        std::array<int, 3> cellCounts = { int(boxSize[0] / _config.h), int(boxSize[1] / _config.h), int(boxSize[2] / _config.h) };
-        int nCells = cellCounts[0] * cellCounts[1] * cellCounts[2];
-
-        std::vector<uint> histogramHost(nCells, 0);
-        std::vector<uint> cellStartIdxHost(nCells, 0);
-        std::vector<uint> idInCellsHost(particles.size(), 0);
-
         for (size_t i = 0; i < particles.size() * 3; ++i) {
             const size_t particleIndex = i / 3;
             const size_t componentIndex = i % 3;
@@ -44,15 +34,11 @@ namespace ppb {
             forcesHost[i] = particles[particleIndex].getForce()[componentIndex];
             oldForcesHost[i] = 0.0;
         }
-
-
+        
         auto positions = _manager.tensor(positionsHost);
         auto velocities = _manager.tensor(velocitiesHost);
         auto forces = _manager.tensor(forcesHost);
         auto oldForces = _manager.tensor(oldForcesHost);
-
-        
-
         std::vector<std::shared_ptr<kp::Tensor>> params = {positions, velocities, forces, oldForces};
         _sequence->template record<kp::OpTensorSyncDevice>(params)->eval();
         _timings.reset();

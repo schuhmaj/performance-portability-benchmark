@@ -7,7 +7,7 @@ layout(std430, binding = 0) readonly buffer Positions {
 
 layout(std430, binding = 1) buffer Histogram {
     uint histogram[];
-};
+}
 
 layout(std430, binding = 2) buffer ParticleIdx {
     vec2 particleIdx[]; // vec2 is only 8 byte aligned so it works here

@@ -3,6 +3,7 @@
 #include "KernelForce.h"
 #include "KernelPosition.h"
 #include "KernelVelocity.h"
+#include "KernelBlellochScan.h"
 #include "common/UtilityFloatArithmetic.h"
 
 namespace ppb {
@@ -16,6 +17,7 @@ namespace ppb {
         , _kernelForce{KERNELFORCE_COMP_SPV.begin(), KERNELFORCE_COMP_SPV.end()}
         , _kernelVelocity{KERNELVELOCITY_COMP_SPV.begin(), KERNELVELOCITY_COMP_SPV.end()}
         , _kernelPosition{KERNELPOSITION_COMP_SPV.begin(), KERNELPOSITION_COMP_SPV.end()}
+        , _kernelBlellochScan{KERNELBLELLOCHSCAN_COMP_SPV.begin(), KERNELBLELLOCHSCAN_COMP_SPV.end()}
     {}
 
 
@@ -25,6 +27,16 @@ namespace ppb {
         std::vector<float> velocitiesHost(particles.size() * 3, 0.0);
         std::vector<float> forcesHost(particles.size() * 3, 0.0);
         std::vector<float> oldForcesHost(particles.size() * 3, 0.0);
+
+        std::array<float, 3> boxMin = _config.boxMin;
+        std::array<float, 3> boxMax = _config.boxMax;
+        std::array<float, 3> boxSize = { boxMax[0] - boxMin[0], boxMax[1] - boxMin[1], boxMax[2] - boxMin[2] };
+        std::array<int, 3> cellCounts = { int(boxSize[0] / _config.h), int(boxSize[1] / _config.h), int(boxSize[2] / _config.h) };
+        int nCells = cellCounts[0] * cellCounts[1] * cellCounts[2];
+
+        std::vector<uint> histogramHost(nCells, 0);
+        std::vector<uint> cellStartIdxHost(nCells, 0);
+        std::vector<uint> idInCellsHost(particles.size(), 0);
 
         for (size_t i = 0; i < particles.size() * 3; ++i) {
             const size_t particleIndex = i / 3;
@@ -40,10 +52,18 @@ namespace ppb {
         auto velocities = _manager.tensor(velocitiesHost);
         auto forces = _manager.tensor(forcesHost);
         auto oldForces = _manager.tensor(oldForcesHost);
-        std::vector<std::shared_ptr<kp::Tensor>> params = {positions, velocities, forces, oldForces};
+
+        std::vector<uint> v = {1,2,3,4,5,6,7,8};
+        std::vector<uint> h = {0};
+        auto vec = _manager.tensor(v);
+        auto blockSum = _manager.tensor(h);
+
+        std::vector<std::shared_ptr<kp::Tensor>> params = {positions, velocities, forces, oldForces, vec, blockSum};
         _sequence->template record<kp::OpTensorSyncDevice>(params)->eval();
         _timings.reset();
+
         for (int i = 0; i < _config.numberTimeSteps; ++i) {
+            test({vec, blockSum});
             updatePositionsAndResetForce({positions, velocities, forces, oldForces});
             computeForces({positions, forces});
             updateVelocities({velocities, forces, oldForces});
@@ -63,6 +83,39 @@ namespace ppb {
 
         return std::make_pair(particlesRet, _timings);
     }
+
+    template <typename FloatType>
+    void ImplVulkan<FloatType>::test(const std::vector<std::shared_ptr<kp::Tensor>> &params) {
+        constexpr unsigned int TILE_SIZE = 8;
+        kp::Workgroup workgroup{{1, 1, 1}};  // one workgroup
+        std::vector<uint32_t> pushConstants{8};  // number of elements
+
+        auto algorithm = _manager.algorithm(
+            params,
+            _kernelBlellochScan,
+            workgroup,
+            {},
+            pushConstants
+        );
+
+        // Run the compute shader
+        _sequence->record<kp::OpAlgoDispatch>(algorithm, pushConstants)->eval();
+
+        // Sync tensor back to host/local memory
+        _sequence->record<kp::OpTensorSyncLocal>({ params[0] })->eval();
+
+        // Read back the data as a vector of the right type
+        auto data = params[0]->vector<uint>();
+
+        // Print the result
+        std::cout << "Scan result: ";
+        for (auto &v : data) {
+            std::cout << v << " ";
+        }
+        std::cout << std::endl;
+    }
+
+
 
     template <typename FloatType>
     void ImplVulkan<FloatType>::updatePositionsAndResetForce(const std::vector<std::shared_ptr<kp::Tensor>> &params) {
