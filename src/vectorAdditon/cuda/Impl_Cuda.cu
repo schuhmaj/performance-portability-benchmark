@@ -3,7 +3,7 @@
 #include "vectorAdditon/VectorAddition.h"
 #include <benchmark/benchmark.h>
 #include <iostream>
-#include <likwid-marker.h>
+// #include <likwid-marker.h>
 
 
 namespace ppb {
@@ -54,9 +54,9 @@ namespace ppb {
         int gridSize = (size + blockSize - 1) / blockSize;
 
         cudaEventRecord(start, stream);
-        NVMON_MARKER_START("triad");
+        // NVMON_MARKER_START("triad");
         kernel_vector_add<<<gridSize, blockSize, 0, stream>>>(size, deviceA, deviceC);
-        NVMON_MARKER_STOP("triad");
+        // NVMON_MARKER_STOP("triad");
         cudaEventRecord(stop, stream);
 
         std::vector<FloatType> result(size);

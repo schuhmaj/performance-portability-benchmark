@@ -1,4 +1,4 @@
-find_package(LIKWID REQUIRED)
+#find_package(LIKWID REQUIRED)
 
 add_executable(vec_cuda main.cpp Impl_Cuda.cu)
 target_link_libraries(vec_cuda PRIVATE vec_lib)
@@ -9,7 +9,7 @@ target_link_libraries(vec_cuda
         vec_lib
         CUDA::cublas
 )
-target_link_libraries(vec_cuda
-        PRIVATE
-        likwid::likwid
-)
+#target_link_libraries(vec_cuda
+#        PRIVATE
+#        likwid::likwid
+#)
