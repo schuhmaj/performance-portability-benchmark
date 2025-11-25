@@ -11,7 +11,7 @@ TEST_P(NBodyTest, ImplBoost_Implementation) {
 
 TEST_P(NBodyTest, ImplAcpp_CellList_Implementation) {
     const int size = GetParam();
-    this->runTest<ppb::ImplAdaptiveCpp<float, ppb::CellList>>(size);
+    this->runTest<ppb::ImplAdaptiveCpp<float, ppb::CellList<>>>(size);
 }
 
 INSTANTIATE_TEST_SUITE_P(BySize, NBodyTest, ::testing::Values(10, 100));
