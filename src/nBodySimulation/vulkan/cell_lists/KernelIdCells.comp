@@ -25,9 +25,9 @@ void main() {
         return;
     }
 
-    ivec2 p = particleIdx[i];
-    int cell = p.x;
-    int slot = p.y;
+    ivec2 data = particleIdx[i];
+    int cell = data.x;
+    int slot = data.y;
 
     uint idx = starts[cell] + slot;
 

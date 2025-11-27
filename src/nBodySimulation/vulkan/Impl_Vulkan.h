@@ -87,7 +87,7 @@ namespace ppb {
         /**
          * Computes the inter-particle forces for all particles using the Lennard-Jones potential.
          */
-        void computeForces(const std::vector<std::shared_ptr<kp::Tensor>> &params);
+        void computeForces(const std::vector<std::shared_ptr<kp::Tensor>> &params, std::array<int, 3> cellCounts);
 
 
     };

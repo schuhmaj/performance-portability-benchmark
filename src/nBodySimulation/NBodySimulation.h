@@ -65,7 +65,7 @@ namespace ppb {
          * cut off radius for particle influence
          * also used for calculating the number of cells when using cell lists
          */
-        FloatType h{1000.0};
+        FloatType h{100.0};
 
         /*
          * size of workgroups. 
