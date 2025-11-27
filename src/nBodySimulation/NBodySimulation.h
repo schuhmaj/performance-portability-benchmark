@@ -65,7 +65,13 @@ namespace ppb {
          * cut off radius for particle influence
          * also used for calculating the number of cells when using cell lists
          */
-        FloatType h{3.0};
+        FloatType h{1000.0};
+
+        /*
+         * size of workgroups. 
+         * WARNING: if updated it should also be updated in the relevant shader files
+         */
+        uint TILE_SIZE{256};
 
         /**
          * Seed to initialize the ParticleGenerator

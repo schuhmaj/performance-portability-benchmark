@@ -17,8 +17,26 @@ vulkan_compile_shader(
         RELATIVE_PATH "${kompute_SOURCE_DIR}/cmake"
 )
 vulkan_compile_shader(
+        INFILE KernelHistogram.comp
+        OUTFILE KernelHistogram.h
+        NAMESPACE "ppb"
+        RELATIVE_PATH "${kompute_SOURCE_DIR}/cmake"
+)
+vulkan_compile_shader(
         INFILE KernelBlellochScan.comp
         OUTFILE KernelBlellochScan.h
+        NAMESPACE "ppb"
+        RELATIVE_PATH "${kompute_SOURCE_DIR}/cmake"
+)
+vulkan_compile_shader(
+        INFILE KernelBlockSum.comp
+        OUTFILE KernelBlockSum.h
+        NAMESPACE "ppb"
+        RELATIVE_PATH "${kompute_SOURCE_DIR}/cmake"
+)
+vulkan_compile_shader(
+        INFILE KernelIdCells.comp
+        OUTFILE KernelIdCells.h
         NAMESPACE "ppb"
         RELATIVE_PATH "${kompute_SOURCE_DIR}/cmake"
 )
@@ -28,6 +46,9 @@ add_library(nbody_vulkan_lib STATIC
         "${CMAKE_CURRENT_BINARY_DIR}/KernelVelocity.h"
         "${CMAKE_CURRENT_BINARY_DIR}/KernelPosition.h"
         "${CMAKE_CURRENT_BINARY_DIR}/KernelBlellochScan.h"
+        "${CMAKE_CURRENT_BINARY_DIR}/KernelBlockSum.h"
+        "${CMAKE_CURRENT_BINARY_DIR}/KernelHistogram.h"
+        "${CMAKE_CURRENT_BINARY_DIR}/KernelIdCells.h"
 
 )
 target_compile_features(nbody_vulkan_lib PUBLIC cxx_std_20)

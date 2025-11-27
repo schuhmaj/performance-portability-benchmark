@@ -1,8 +1,8 @@
 #version 450
-layout(local_size_x = 32, local_size_y = 1, local_size_z = 1) in;
+layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
 
 layout(std430, binding = 0) readonly buffer Positions {
-    vec3 positions[]; // vec3 is 16 byte aligned, so 4 bytes are wasted each element. Maybe better to do a flat array
+    float positions[];
 };
 
 layout(std430, binding = 1) buffer Histogram {
@@ -10,10 +10,10 @@ layout(std430, binding = 1) buffer Histogram {
 };
 
 layout(std430, binding = 2) buffer ParticleIdx {
-    vec2 particleIdx[]; // vec2 is only 8 byte aligned so it works here
+    ivec2 particleIdx[]; // vec2 is only 8 byte aligned so it works here
     // idx 0 : cellIdx
     // idx 1 : slot
-} 
+}; 
 
 // push_constant is 16 byte aligned, std140 like
 layout(push_constant) uniform ParamsForce {
@@ -32,20 +32,23 @@ layout(push_constant) uniform ParamsForce {
     float bSize_z;
 } pc;
 
-void main()
-{
+vec3 getPos(uint i) {
+    uint off = i * 3;
+    return vec3(positions[off], positions[off + 1], positions[off + 2]);
+}
+
+void main() {
     uint i = gl_GlobalInvocationID.x;
     if (i >= pc.numParticles) {
         return;
     }
 
-    vec3 pi = positions[i];
-    ivec3 cCount = ivec3(cCount_x, cCount_y, cCount_z);
-    vec3 bMin = ivec3(bMin_x, bMin_y, bMin_z);
-    vec3 bSize = ivec3(bSize_x, bSize_y, bSize_z);
+    vec3 pi = getPos(i);
 
-    ivec3 gridIdx = ivec3(clamp((pi - bmin) / pc.bSize * cCount, vec3(0.0), cCount - 1));
-    int c = gridIdx.x + gridIdx.y * pc.cCount_x + gridIdx.z * pc.cCount_x * pc.cCount_y;
+    int gridIdx_x = int(clamp(int((pi.x - pc.bMin_x) / pc.bSize_x * pc.cCount_x), 0, pc.cCount_x - 1));
+    int gridIdx_y = int(clamp(int((pi.y - pc.bMin_y) / pc.bSize_y * pc.cCount_y), 0, pc.cCount_y - 1));
+    int gridIdx_z = int(clamp(int((pi.z - pc.bMin_z) / pc.bSize_z * pc.cCount_z), 0, pc.cCount_z - 1));
+    int c = gridIdx_x + gridIdx_y * pc.cCount_x + gridIdx_z * pc.cCount_x * pc.cCount_y;
 
     int slot = int(atomicAdd(histogram[c], 1));
     particleIdx[i][0] = c;

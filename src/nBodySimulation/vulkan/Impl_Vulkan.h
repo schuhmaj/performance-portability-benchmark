@@ -30,7 +30,10 @@ namespace ppb {
         std::vector<uint32_t> _kernelVelocity;
         std::vector<uint32_t> _kernelForce;
 
+        std::vector<uint32_t> _kernelHistogram;
         std::vector<uint32_t> _kernelBlellochScan;
+        std::vector<uint32_t> _kernelBlockSum;
+        std::vector<uint32_t> _kernelIdCells;
 
     public:
 
@@ -56,7 +59,19 @@ namespace ppb {
 
     private:
 
-        void test(const std::vector<std::shared_ptr<kp::Tensor>> &params);
+        void printBuffer(const std::shared_ptr<kp::Tensor> &buffer, bool floats);
+
+        void calculateHistogram(const std::vector<std::shared_ptr<kp::Tensor>> &params, std::array<int, 3> cellCounts, std::array<float, 3> boxMin, std::array<float, 3> boxSize);
+
+        void exclusiveScanBlelloch(const std::shared_ptr<kp::Tensor> &data, const uint totalLength);
+
+        void calculateIdCells(const std::vector<std::shared_ptr<kp::Tensor>> &params);
+
+        std::vector<uint> exclusiveScanNaive(std::vector<uint> vec);
+
+        void benchmarkExclusiveScan(uint length, std::vector<uint> vec, const std::shared_ptr<kp::Tensor> &tensor);
+
+        bool validateExclusiveScan(std::vector<uint> cpu, const std::shared_ptr<kp::Tensor> &gpuBuffer);
 
         /**
          * Updates positions of all particles using velocity Verlet integration and resets their forces
