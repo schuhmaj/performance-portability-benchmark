@@ -89,6 +89,5 @@ namespace ppb {
          */
         void computeForces(const std::vector<std::shared_ptr<kp::Tensor>> &params, std::array<int, 3> cellCounts);
 
-
     };
 } // namespace ppb
