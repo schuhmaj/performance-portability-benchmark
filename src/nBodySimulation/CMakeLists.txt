@@ -38,7 +38,12 @@ if (${PPB_ENABLE_OpenMP})
 endif ()
 
 if (${PPB_ENABLE_Vulkan})
-    add_subdirectory(vulkan)
+    if (${PPB_ENABLE_NBodySimulation_naive})
+        add_subdirectory(vulkan/naive)
+    endif ()
+    if (${PPB_ENABLE_NBodySimulation_cells})
+        add_subdirectory(vulkan/cell_lists)
+    endif ()
 endif ()
 
 add_subdirectory(cpp)

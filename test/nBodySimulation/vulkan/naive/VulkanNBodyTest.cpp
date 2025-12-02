@@ -2,7 +2,7 @@
 #include "gtest/gtest.h"
 
 #include "NBodyTest.h"
-#include "nBodySimulation/vulkan/Impl_Vulkan.h"
+#include "nBodySimulation/vulkan/naive/Impl_Vulkan.h"
 
 TEST_P(NBodyTest, ImplVulkan_Implementation) {
     const int size = GetParam();

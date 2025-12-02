@@ -64,7 +64,7 @@ namespace ppb {
         uint cellsLength = nBlocks * TILE_SIZE;
 
         std::vector<uint> cellsHost(cellsLength, 0);
-        std::vector<int> particleIdxHost(particles.size(), 0);
+        std::vector<int> particleIdxHost(particles.size() * 2, 0);
         std::vector<uint> idCellsHost(particles.size(), 0);
 
         auto positions = _manager.tensor(positionsHost);
@@ -88,8 +88,9 @@ namespace ppb {
             updatePositionsAndResetForce({positions, velocities, forces, oldForces});
             computeForces({positions, forces, particleIdx, cells, idCells}, cellCounts);
             updateVelocities({velocities, forces, oldForces});
+            _sequence->template record<kp::OpTensorSyncLocal>(params)->eval();
         }
-
+        
         _sequence->template record<kp::OpTensorSyncLocal>(params)->eval();
 
         positionsHost = positions->vector();
@@ -130,7 +131,7 @@ namespace ppb {
         uint TILE_SIZE = _config.TILE_SIZE;
         const uint groups = util::ceilDiv<uint>(_config.size, TILE_SIZE);
         kp::Workgroup workgroup{{groups, 1, 1}};
-        
+
         struct PushHist {
             uint32_t numParticles;
             int32_t cCx;
