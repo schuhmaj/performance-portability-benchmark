@@ -54,7 +54,7 @@ namespace ppb {
         std::array<float, 3> boxMin = _config.boxMin;
         std::array<float, 3> boxMax = _config.boxMax;
         std::array<float, 3> boxSize = { boxMax[0] - boxMin[0], boxMax[1] - boxMin[1], boxMax[2] - boxMin[2] };
-        std::array<int, 3> cellCounts = { 
+        std::array<uint, 3> cellCounts = { 
             util::ceilDiv<uint>(boxSize[0], _config.h), 
             util::ceilDiv<uint>(boxSize[1], _config.h), 
             util::ceilDiv<uint>(boxSize[2], _config.h) };
