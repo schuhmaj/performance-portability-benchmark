@@ -203,7 +203,7 @@ namespace ppb {
         uint TILE_SIZE = _config.TILE_SIZE;
         const uint groups = util::ceilDiv<uint>(_config.size, TILE_SIZE);
         kp::Workgroup workgroup{{groups, 1, 1}};
-        std::vector<uint32_t> pushData{_config.size};
+        std::vector<uint32_t> pushData{ static_cast<uint32_t>(_config.size) };
 
         auto algorithm = _manager.algorithm(params, _kernelIdCells, workgroup, {}, pushData);
 
