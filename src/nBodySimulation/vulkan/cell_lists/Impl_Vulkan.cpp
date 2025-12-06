@@ -7,6 +7,7 @@
 #include "KernelBlellochScan.h"
 #include "KernelBlockSum.h"
 #include "KernelIdCells.h"
+#include "KernelResetCells.h"
 #include "common/UtilityFloatArithmetic.h"
 
 #include <chrono>
@@ -27,6 +28,7 @@ namespace ppb {
         , _kernelBlellochScan{KERNELBLELLOCHSCAN_COMP_SPV.begin(), KERNELBLELLOCHSCAN_COMP_SPV.end()}
         , _kernelBlockSum{KERNELBLOCKSUM_COMP_SPV.begin(), KERNELBLOCKSUM_COMP_SPV.end()}
         , _kernelIdCells{KERNELIDCELLS_COMP_SPV.begin(), KERNELIDCELLS_COMP_SPV.end()}
+        , _kernelResetCells{KERNELRESETCELLS_COMP_SPV.begin(), KERNELRESETCELLS_COMP_SPV.end()}
     {}
 
 
@@ -38,17 +40,18 @@ namespace ppb {
         std::vector<float> oldForcesHost(particles.size() * 4, 0.0);
 
         for (size_t p = 0; p < particles.size(); ++p) {
-            positionsHost[p*4] = particles[p].getPosition()[0];
-            positionsHost[p*4 + 1] = particles[p].getPosition()[1];
-            positionsHost[p*4 + 2] = particles[p].getPosition()[2];
+            uint base = 4 * p;
+            positionsHost[base] = particles[p].getPosition()[0];
+            positionsHost[base + 1] = particles[p].getPosition()[1];
+            positionsHost[base + 2] = particles[p].getPosition()[2];
 
-            velocitiesHost[p*4] = particles[p].getVelocity()[0];
-            velocitiesHost[p*4 + 1] = particles[p].getVelocity()[1];
-            velocitiesHost[p*4 + 2] = particles[p].getVelocity()[2];
+            velocitiesHost[base] = particles[p].getVelocity()[0];
+            velocitiesHost[base + 1] = particles[p].getVelocity()[1];
+            velocitiesHost[base + 2] = particles[p].getVelocity()[2];
 
-            forcesHost[p*4] = particles[p].getForce()[0];
-            forcesHost[p*4 + 1] = particles[p].getForce()[1];
-            forcesHost[p*4 + 2] = particles[p].getForce()[2];
+            forcesHost[base] = particles[p].getForce()[0];
+            forcesHost[base + 1] = particles[p].getForce()[1];
+            forcesHost[base + 2] = particles[p].getForce()[2];
         }
 
         std::array<float, 3> boxMin = _config.boxMin;
@@ -88,9 +91,10 @@ namespace ppb {
             updatePositionsAndResetForce({positions, velocities, forces, oldForces});
             computeForces({positions, forces, particleIdx, cells, idCells}, cellCounts);
             updateVelocities({velocities, forces, oldForces});
-            _sequence->template record<kp::OpTensorSyncLocal>(params)->eval();
+            
+            resetCells(cells, nBlocks, cellsLength);
         }
-        
+
         _sequence->template record<kp::OpTensorSyncLocal>(params)->eval();
 
         positionsHost = positions->vector();
@@ -163,7 +167,15 @@ namespace ppb {
 
         auto algorithm = _manager.algorithm(params, _kernelHistogram, workgroup, {}, pushData);
 
+        // dispatch shader
+        const auto start = std::chrono::high_resolution_clock::now();
         _sequence->template record<kp::OpAlgoDispatch>(algorithm, pushData);
+        const auto end = std::chrono::high_resolution_clock::now();
+
+        const double elapsedNanoseconds =
+            static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count());
+
+        _timings.idCellsTime += elapsedNanoseconds;
     }
 
     template <typename FloatType>
@@ -181,7 +193,14 @@ namespace ppb {
         auto algorithmBlelloch = _manager.algorithm({data, blockSum}, _kernelBlellochScan, workgroup, {}, pushData);
 
         // dispatch shader
+        const auto startBlelloch = std::chrono::high_resolution_clock::now();
         _sequence->template record<kp::OpAlgoDispatch>(algorithmBlelloch, pushData);
+        const auto endBlelloch = std::chrono::high_resolution_clock::now();
+
+        const double elapsedNanosecondsBlelloch =
+            static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(endBlelloch - startBlelloch).count());
+
+        _timings.idCellsTime += elapsedNanosecondsBlelloch;
 
         // calculate prefix sum of block sum
         if (nBlocks > 1) {
@@ -193,7 +212,14 @@ namespace ppb {
             auto algorithmBlock = _manager.algorithm({data, blockSum}, _kernelBlockSum, workgroup, {}, pushData);
 
             // dispatch shader
+            const auto startBlock = std::chrono::high_resolution_clock::now();
             _sequence->template record<kp::OpAlgoDispatch>(algorithmBlock, pushData);
+            const auto endBlock = std::chrono::high_resolution_clock::now();
+
+            const double elapsedNanosecondsBlock =
+                static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(endBlock - startBlock).count());
+
+            _timings.idCellsTime += elapsedNanosecondsBlock;
         }
     }
 
@@ -208,7 +234,33 @@ namespace ppb {
         auto algorithm = _manager.algorithm(params, _kernelIdCells, workgroup, {}, pushData);
 
         // dispatch shader
+        const auto start = std::chrono::high_resolution_clock::now();
         _sequence->template record<kp::OpAlgoDispatch>(algorithm, pushData);
+        const auto end = std::chrono::high_resolution_clock::now();
+
+        const double elapsedNanoseconds =
+            static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count());
+
+        _timings.idCellsTime += elapsedNanoseconds;
+    }
+
+
+    template <typename FloatType>
+    void ImplVulkan<FloatType>::resetCells(const std::shared_ptr<kp::Tensor> &cells, uint nBlocks, uint cellsLength) {
+        kp::Workgroup workgroup{{nBlocks, 1, 1}};
+        std::vector<uint32_t> pushData{ static_cast<uint32_t>(cellsLength) };
+
+        auto algorithm = _manager.algorithm({cells}, _kernelResetCells, workgroup, {}, pushData);
+
+        // dispatch shader
+        const auto start = std::chrono::high_resolution_clock::now();
+        _sequence->template record<kp::OpAlgoDispatch>(algorithm, pushData);
+        const auto end = std::chrono::high_resolution_clock::now();
+
+        const double elapsedNanoseconds =
+            static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count());
+
+        _timings.idCellsTime += elapsedNanoseconds;
     }
 
 

@@ -5,7 +5,7 @@
 BENCHMARK(ppb::NBodySimulation<ppb::ImplCpp<float>>::benchmark)
     ->Name("NBody-Float-cpp")
     ->RangeMultiplier(10)
-    ->Range(1e1, 1e7)
+    ->Range(1e1, 1e3)
     ->Complexity();
 
 int main(int argc, char** argv) {

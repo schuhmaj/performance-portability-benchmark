@@ -5,7 +5,7 @@
 BENCHMARK(ppb::NBodySimulation<ppb::ImplVulkan<float>>::benchmark)
     ->Name("NBody-Float-Vulkan")
     ->RangeMultiplier(10)
-    ->Range(1e1, 1e4)
+    ->Range(1e1, 1e7)
     ->Complexity();
 
 int main(int argc, char** argv) {

@@ -64,6 +64,24 @@ namespace ppb {
     }
 
     template <typename FloatType>
+    void ImplVulkan<FloatType>::printBuffer(const std::shared_ptr<kp::Tensor> &buffer, bool floats) {
+
+        _sequence->record<kp::OpTensorSyncLocal>({ buffer })->eval();
+
+        std::cout << "BUFFER: ";
+        
+        if (floats) {
+            auto data = buffer->vector<FloatType>();
+            for (auto &v : data) std::cout << v << " ";
+        } else {
+            auto data = buffer->vector<uint>();
+            for (auto &v : data) std::cout << v << " ";
+        }
+
+        std::cout << " END OF BUFFER" << std::endl;
+    }
+
+    template <typename FloatType>
     void ImplVulkan<FloatType>::updatePositionsAndResetForce(const std::vector<std::shared_ptr<kp::Tensor>> &params) {
         constexpr unsigned int TILE_SIZE = 32;
         const unsigned int groups = util::ceilDiv<unsigned int>(_config.size, TILE_SIZE);

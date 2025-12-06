@@ -62,10 +62,9 @@ namespace ppb {
         std::array<FloatType, 3> boxMax{1000, 1000, 1000};
 
         /*
-         * cut off radius for particle influence
-         * also used for calculating the number of cells when using cell lists
+         * used for calculating the number of cells when using cell lists
          */
-        FloatType h{2000.0};
+        FloatType h{9.0};
 
         /*
          * size of workgroups. 
@@ -94,6 +93,8 @@ namespace ppb {
 
 
     struct ParticleSimulationTimings {
+        /** Total accumulated time for setting up idCells in nanoseconds [ns] */
+        double idCellsTime;
         /** Total accumulated time for position updates and force reset in nanoseconds [ns] */
         double positionUpdateForceResetTime;
         /** Total accumulated time for velocity updates in nanoseconds [ns] */
@@ -102,9 +103,10 @@ namespace ppb {
         double forceUpdateTime;
 
         ParticleSimulationTimings operator+(const ParticleSimulationTimings &other) const {
-            return {positionUpdateForceResetTime + other.positionUpdateForceResetTime, velocityUpdateTime + other.velocityUpdateTime, forceUpdateTime + other.forceUpdateTime};
+            return {idCellsTime + other.idCellsTime, positionUpdateForceResetTime + other.positionUpdateForceResetTime, velocityUpdateTime + other.velocityUpdateTime, forceUpdateTime + other.forceUpdateTime};
         }
         ParticleSimulationTimings operator+=(const ParticleSimulationTimings &other) {
+            idCellsTime += other.idCellsTime;
             positionUpdateForceResetTime += other.positionUpdateForceResetTime;
             velocityUpdateTime += other.velocityUpdateTime;
             forceUpdateTime += other.forceUpdateTime;
@@ -112,6 +114,7 @@ namespace ppb {
         }
 
         void reset() {
+            idCellsTime = 0.0;
             positionUpdateForceResetTime = 0.0;
             velocityUpdateTime = 0.0;
             forceUpdateTime = 0.0;
@@ -205,7 +208,8 @@ namespace ppb {
                 benchmark::DoNotOptimize(result);
                 totalTimings += iterationTimings;
             }
-            const auto&[positionUpdateForceResetTime, velocityUpdateTime, forceUpdateTime] = totalTimings;
+            const auto&[idCellsTime, positionUpdateForceResetTime, velocityUpdateTime, forceUpdateTime] = totalTimings;
+            state.counters["idCells_setup"] = benchmark::Counter(idCellsTime, benchmark::Counter::kAvgIterations);
             state.counters["position_update_reset"] = benchmark::Counter(positionUpdateForceResetTime, benchmark::Counter::kAvgIterations);
             state.counters["velocity_update"] = benchmark::Counter(velocityUpdateTime, benchmark::Counter::kAvgIterations);
             state.counters["force_update"] = benchmark::Counter(forceUpdateTime, benchmark::Counter::kAvgIterations);

@@ -40,6 +40,12 @@ vulkan_compile_shader(
         NAMESPACE "ppb"
         RELATIVE_PATH "${kompute_SOURCE_DIR}/cmake"
 )
+vulkan_compile_shader(
+        INFILE KernelResetCells.comp
+        OUTFILE KernelResetCells.h
+        NAMESPACE "ppb"
+        RELATIVE_PATH "${kompute_SOURCE_DIR}/cmake"
+)
 add_library(nbody_vulkan_cells_lib STATIC
         Impl_Vulkan.h Impl_Vulkan.cpp
         "${CMAKE_CURRENT_BINARY_DIR}/KernelForce.h"
@@ -49,7 +55,7 @@ add_library(nbody_vulkan_cells_lib STATIC
         "${CMAKE_CURRENT_BINARY_DIR}/KernelBlockSum.h"
         "${CMAKE_CURRENT_BINARY_DIR}/KernelHistogram.h"
         "${CMAKE_CURRENT_BINARY_DIR}/KernelIdCells.h"
-
+        "${CMAKE_CURRENT_BINARY_DIR}/KernelResetCells.h"
 )
 target_compile_features(nbody_vulkan_cells_lib PUBLIC cxx_std_20)
 target_link_libraries(nbody_vulkan_cells_lib PUBLIC nbody_lib kompute::kompute common_vulkan_lib)

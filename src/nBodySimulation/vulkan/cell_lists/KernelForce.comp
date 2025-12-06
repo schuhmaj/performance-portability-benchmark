@@ -88,5 +88,5 @@ void main()
         }
     }
 
-    forces[i].xyz = acc.xyz;
+    forces[i].xyz += acc.xyz;
 }

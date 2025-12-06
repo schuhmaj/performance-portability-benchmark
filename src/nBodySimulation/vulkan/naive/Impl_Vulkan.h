@@ -54,6 +54,8 @@ namespace ppb {
 
     private:
 
+        void printBuffer(const std::shared_ptr<kp::Tensor> &buffer, bool floats);
+        
         /**
          * Updates positions of all particles using velocity Verlet integration and resets their forces
          * with the configured global force.

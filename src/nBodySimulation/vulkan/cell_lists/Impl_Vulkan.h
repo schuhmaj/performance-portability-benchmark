@@ -34,6 +34,7 @@ namespace ppb {
         std::vector<uint32_t> _kernelBlellochScan;
         std::vector<uint32_t> _kernelBlockSum;
         std::vector<uint32_t> _kernelIdCells;
+        std::vector<uint32_t> _kernelResetCells;
 
     public:
 
@@ -66,6 +67,8 @@ namespace ppb {
         void exclusiveScanBlelloch(const std::shared_ptr<kp::Tensor> &data, const uint totalLength);
 
         void calculateIdCells(const std::vector<std::shared_ptr<kp::Tensor>> &params);
+
+        void resetCells(const std::shared_ptr<kp::Tensor> &cells, uint nBlocks, uint cellsLength);
 
         std::vector<uint> exclusiveScanNaive(std::vector<uint> vec);
 
