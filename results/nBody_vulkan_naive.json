@@ -1,0 +1,162 @@
+{
+  "context": {
+    "date": "2025-12-07T21:20:39+01:00",
+    "host_name": "fedora",
+    "executable": "../build/src/nBodySimulation/vulkan/naive/nbody_vulkan_naive",
+    "num_cpus": 16,
+    "mhz_per_cpu": 4854,
+    "cpu_scaling_enabled": true,
+    "aslr_enabled": false,
+    "caches": [
+      {
+        "type": "Data",
+        "level": 1,
+        "size": 32768,
+        "num_sharing": 2
+      },
+      {
+        "type": "Instruction",
+        "level": 1,
+        "size": 32768,
+        "num_sharing": 2
+      },
+      {
+        "type": "Unified",
+        "level": 2,
+        "size": 524288,
+        "num_sharing": 2
+      },
+      {
+        "type": "Unified",
+        "level": 3,
+        "size": 33554432,
+        "num_sharing": 16
+      }
+    ],
+    "load_avg": [0.716797,0.692383,0.686523],
+    "library_version": "v1.9.4",
+    "library_build_type": "release",
+    "json_schema_version": 1,
+    "git_hash": "b634594",
+    "workgroup_size": "256"
+  },
+  "benchmarks": [
+    {
+      "name": "NBody-Float-Vulkan-Naive/10",
+      "family_index": 0,
+      "per_family_instance_index": 0,
+      "run_name": "NBody-Float-Vulkan-Naive/10",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 1,
+      "real_time": 2.9303913090006971e+09,
+      "cpu_time": 2.6597901700000000e+09,
+      "time_unit": "ns",
+      "cells_setup": 0.0000000000000000e+00,
+      "force_update": 7.0943528100000000e+08,
+      "position_update_reset": 7.1019871100000000e+08,
+      "velocity_update": 7.0637557900000000e+08
+    },
+    {
+      "name": "NBody-Float-Vulkan-Naive/100",
+      "family_index": 0,
+      "per_family_instance_index": 1,
+      "run_name": "NBody-Float-Vulkan-Naive/100",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 1,
+      "real_time": 2.8511245820009208e+09,
+      "cpu_time": 2.5896392619999995e+09,
+      "time_unit": "ns",
+      "cells_setup": 0.0000000000000000e+00,
+      "force_update": 6.9299974500000000e+08,
+      "position_update_reset": 6.9251270100000000e+08,
+      "velocity_update": 6.8729948700000000e+08
+    },
+    {
+      "name": "NBody-Float-Vulkan-Naive/1000",
+      "family_index": 0,
+      "per_family_instance_index": 2,
+      "run_name": "NBody-Float-Vulkan-Naive/1000",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 1,
+      "real_time": 3.0837908459980097e+09,
+      "cpu_time": 2.6529233359999995e+09,
+      "time_unit": "ns",
+      "cells_setup": 0.0000000000000000e+00,
+      "force_update": 8.6431326100000000e+08,
+      "position_update_reset": 7.1158159800000000e+08,
+      "velocity_update": 7.0600482400000000e+08
+    },
+    {
+      "name": "NBody-Float-Vulkan-Naive/10000",
+      "family_index": 0,
+      "per_family_instance_index": 3,
+      "run_name": "NBody-Float-Vulkan-Naive/10000",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 1,
+      "real_time": 4.4701124919993162e+09,
+      "cpu_time": 2.6172759510000000e+09,
+      "time_unit": "ns",
+      "cells_setup": 0.0000000000000000e+00,
+      "force_update": 2.2778779890000000e+09,
+      "position_update_reset": 6.2611439800000000e+08,
+      "velocity_update": 6.4419925500000000e+08
+    },
+    {
+      "name": "NBody-Float-Vulkan-Naive/100000",
+      "family_index": 0,
+      "per_family_instance_index": 4,
+      "run_name": "NBody-Float-Vulkan-Naive/100000",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 1,
+      "real_time": 3.5479511901998192e+10,
+      "cpu_time": 3.8494224600000014e+09,
+      "time_unit": "ns",
+      "cells_setup": 0.0000000000000000e+00,
+      "force_update": 3.2028255299000000e+10,
+      "position_update_reset": 9.0151365200000000e+08,
+      "velocity_update": 9.7983608600000000e+08
+    },
+    {
+      "name": "NBody-Float-Vulkan-Naive_BigO",
+      "family_index": 0,
+      "per_family_instance_index": 0,
+      "run_name": "NBody-Float-Vulkan-Naive",
+      "run_type": "aggregate",
+      "repetitions": 1,
+      "threads": 1,
+      "aggregate_name": "BigO",
+      "aggregate_unit": "time",
+      "cpu_coefficient": 2.8738102358000002e+09,
+      "real_coefficient": 9.7629862261994267e+09,
+      "big_o": "(1)",
+      "time_unit": "ns"
+    },
+    {
+      "name": "NBody-Float-Vulkan-Naive_RMS",
+      "family_index": 0,
+      "per_family_instance_index": 0,
+      "run_name": "NBody-Float-Vulkan-Naive",
+      "run_type": "aggregate",
+      "repetitions": 1,
+      "threads": 1,
+      "aggregate_name": "RMS",
+      "aggregate_unit": "percentage",
+      "rms": 1.6997032013414787e-01
+    }
+  ]
+}

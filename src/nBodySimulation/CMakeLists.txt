@@ -9,6 +9,15 @@ add_library(nbody_lib INTERFACE ${NBODY_SIMULATION_FILES})
 target_include_directories(nbody_lib INTERFACE ${PPB_SRC_SOURCE_DIRECTORY})
 target_link_libraries(nbody_lib INTERFACE benchmark::benchmark common_lib)
 
+execute_process(
+    COMMAND git rev-parse --short HEAD
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    OUTPUT_VARIABLE GIT_HASH
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+
+add_definitions(-DGIT_HASH_STRING="${GIT_HASH}")
+
 if (${PPB_ENABLE_Kokkos})
     add_subdirectory(kokkos)
 endif ()

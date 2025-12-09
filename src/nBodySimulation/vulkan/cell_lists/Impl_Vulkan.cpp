@@ -175,7 +175,7 @@ namespace ppb {
         const double elapsedNanoseconds =
             static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count());
 
-        _timings.idCellsTime += elapsedNanoseconds;
+        _timings.cellsTime += elapsedNanoseconds;
     }
 
     template <typename FloatType>
@@ -200,7 +200,7 @@ namespace ppb {
         const double elapsedNanosecondsBlelloch =
             static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(endBlelloch - startBlelloch).count());
 
-        _timings.idCellsTime += elapsedNanosecondsBlelloch;
+        _timings.cellsTime += elapsedNanosecondsBlelloch;
 
         // calculate prefix sum of block sum
         if (nBlocks > 1) {
@@ -219,7 +219,7 @@ namespace ppb {
             const double elapsedNanosecondsBlock =
                 static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(endBlock - startBlock).count());
 
-            _timings.idCellsTime += elapsedNanosecondsBlock;
+            _timings.cellsTime += elapsedNanosecondsBlock;
         }
     }
 
@@ -241,7 +241,7 @@ namespace ppb {
         const double elapsedNanoseconds =
             static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count());
 
-        _timings.idCellsTime += elapsedNanoseconds;
+        _timings.cellsTime += elapsedNanoseconds;
     }
 
 
@@ -260,7 +260,7 @@ namespace ppb {
         const double elapsedNanoseconds =
             static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count());
 
-        _timings.idCellsTime += elapsedNanoseconds;
+        _timings.cellsTime += elapsedNanoseconds;
     }
 
 

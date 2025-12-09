@@ -22,6 +22,7 @@ add_library(nbody_vulkan_naive_lib STATIC
         "${CMAKE_CURRENT_BINARY_DIR}/KernelVelocity.h"
         "${CMAKE_CURRENT_BINARY_DIR}/KernelPosition.h"
 )
+
 target_compile_features(nbody_vulkan_naive_lib PUBLIC cxx_std_20)
 target_link_libraries(nbody_vulkan_naive_lib PUBLIC nbody_lib kompute::kompute common_vulkan_lib)
 target_include_directories(nbody_vulkan_naive_lib PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>)

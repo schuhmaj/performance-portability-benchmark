@@ -70,7 +70,7 @@ namespace ppb {
          * size of workgroups. 
          * WARNING: if updated it should also be updated in the relevant shader files
          */
-        uint TILE_SIZE{256};
+        static constexpr uint TILE_SIZE{256};
 
         /**
          * Seed to initialize the ParticleGenerator
@@ -94,7 +94,7 @@ namespace ppb {
 
     struct ParticleSimulationTimings {
         /** Total accumulated time for setting up idCells in nanoseconds [ns] */
-        double idCellsTime;
+        double cellsTime;
         /** Total accumulated time for position updates and force reset in nanoseconds [ns] */
         double positionUpdateForceResetTime;
         /** Total accumulated time for velocity updates in nanoseconds [ns] */
@@ -103,10 +103,10 @@ namespace ppb {
         double forceUpdateTime;
 
         ParticleSimulationTimings operator+(const ParticleSimulationTimings &other) const {
-            return {idCellsTime + other.idCellsTime, positionUpdateForceResetTime + other.positionUpdateForceResetTime, velocityUpdateTime + other.velocityUpdateTime, forceUpdateTime + other.forceUpdateTime};
+            return {cellsTime + other.cellsTime, positionUpdateForceResetTime + other.positionUpdateForceResetTime, velocityUpdateTime + other.velocityUpdateTime, forceUpdateTime + other.forceUpdateTime};
         }
         ParticleSimulationTimings operator+=(const ParticleSimulationTimings &other) {
-            idCellsTime += other.idCellsTime;
+            cellsTime += other.cellsTime;
             positionUpdateForceResetTime += other.positionUpdateForceResetTime;
             velocityUpdateTime += other.velocityUpdateTime;
             forceUpdateTime += other.forceUpdateTime;
@@ -114,7 +114,7 @@ namespace ppb {
         }
 
         void reset() {
-            idCellsTime = 0.0;
+            cellsTime = 0.0;
             positionUpdateForceResetTime = 0.0;
             velocityUpdateTime = 0.0;
             forceUpdateTime = 0.0;
@@ -208,8 +208,8 @@ namespace ppb {
                 benchmark::DoNotOptimize(result);
                 totalTimings += iterationTimings;
             }
-            const auto&[idCellsTime, positionUpdateForceResetTime, velocityUpdateTime, forceUpdateTime] = totalTimings;
-            state.counters["idCells_setup"] = benchmark::Counter(idCellsTime, benchmark::Counter::kAvgIterations);
+            const auto&[cellsTime, positionUpdateForceResetTime, velocityUpdateTime, forceUpdateTime] = totalTimings;
+            state.counters["cells_setup"] = benchmark::Counter(cellsTime, benchmark::Counter::kAvgIterations);
             state.counters["position_update_reset"] = benchmark::Counter(positionUpdateForceResetTime, benchmark::Counter::kAvgIterations);
             state.counters["velocity_update"] = benchmark::Counter(velocityUpdateTime, benchmark::Counter::kAvgIterations);
             state.counters["force_update"] = benchmark::Counter(forceUpdateTime, benchmark::Counter::kAvgIterations);
