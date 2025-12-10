@@ -10,6 +10,8 @@ BENCHMARK(ppb::NBodySimulation<ppb::ImplVulkan<float>>::benchmark)
     ->Name("NBody-Float-Vulkan-Cell-Lists")
     ->RangeMultiplier(10)
     ->Range(1e1, 1e7)
+    ->Repetitions(3)
+    ->ReportAggregatesOnly(false)
     ->Complexity();
 
 int main(int argc, char** argv) {

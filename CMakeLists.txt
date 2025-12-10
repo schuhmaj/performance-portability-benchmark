@@ -48,8 +48,8 @@ option(PPB_ENABLE_MatrixMultiplication "Enable MatrixMultiplication Benchmarks" 
 option(PPB_ENABLE_NBodySimulation "Enable NBodySimulation Benchmarks" OFF)
 option(PPB_ENABLE_Testing "Enable Testing" ON)
 
-cmake_dependent_option(PPB_ENABLE_NBodySimulation_naive "Enable naive nBodySimulation" OFF "PPB_ENABLE_Vulkan AND PPB_ENABLE_NBodySimulation" OFF)
-cmake_dependent_option(PPB_ENABLE_NBodySimulation_cells "Enable cells nBodySimulation" OFF "PPB_ENABLE_Vulkan AND PPB_ENABLE_NBodySimulation" OFF)
+cmake_dependent_option(PPB_ENABLE_NBodySimulation_naive  "Enable naive nBodySimulation"  OFF "PPB_ENABLE_Vulkan AND PPB_ENABLE_NBodySimulation" OFF)
+cmake_dependent_option(PPB_ENABLE_NBodySimulation_cells  "Enable cells nBodySimulation"  OFF "PPB_ENABLE_Vulkan AND PPB_ENABLE_NBodySimulation" OFF)
 
 message(STATUS "####################################################")
 message(STATUS "Build Type                      ${CMAKE_BUILD_TYPE}")
@@ -72,8 +72,8 @@ message(STATUS "MatrixMultiplication            ${PPB_ENABLE_MatrixMultiplicatio
 message(STATUS "NBodySimulation                 ${PPB_ENABLE_NBodySimulation}")
 message(STATUS "Testing                         ${PPB_ENABLE_Testing}")
 message(STATUS "####################################################")
-message(STATUS "naive nBodySimulation           ${PPB_ENABLE_Testing}")
-message(STATUS "cells nBodySimulation           ${PPB_ENABLE_Testing}")
+message(STATUS "naive nBodySimulation           ${PPB_ENABLE_NBodySimulation_naive}")
+message(STATUS "cells nBodySimulation           ${PPB_ENABLE_NBodySimulation_cells}")
 message(STATUS "####################################################")
 
 #######################################################
