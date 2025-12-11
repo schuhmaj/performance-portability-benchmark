@@ -34,7 +34,7 @@ BENCHMARK(ppb::VectorAddition<ppb::ImplCpp<float>>::benchmark)
     ->Complexity();
 
 BENCHMARK(ppb::VectorAddition<ppb::ImplCpp<double>>::benchmark)
-    ->Name("VecAdd-CStd-Float")
+    ->Name("VecAdd-CStd-Double")
     ->RangeMultiplier(10)
     ->Range(1e3, 1e8)
 #ifdef PPB_MEASURE_ONLY_KERNEL

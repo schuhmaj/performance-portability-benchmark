@@ -1,0 +1,209 @@
+{
+  "context": {
+    "date": "2025-09-29T13:55:00+02:00",
+    "host_name": "desktop",
+    "executable": "/home/marius/performance-portability-benchmark/build/src/nBodySimulation/acpp/nbody_acpp",
+    "num_cpus": 12,
+    "mhz_per_cpu": 4208,
+    "cpu_scaling_enabled": true,
+    "aslr_enabled": false,
+    "caches": [
+      {
+        "type": "Data",
+        "level": 1,
+        "size": 32768,
+        "num_sharing": 2
+      },
+      {
+        "type": "Instruction",
+        "level": 1,
+        "size": 32768,
+        "num_sharing": 2
+      },
+      {
+        "type": "Unified",
+        "level": 2,
+        "size": 524288,
+        "num_sharing": 2
+      },
+      {
+        "type": "Unified",
+        "level": 3,
+        "size": 16777216,
+        "num_sharing": 6
+      }
+    ],
+    "load_avg": [1.24609,1.10791,0.904297],
+    "library_version": "v1.9.4",
+    "library_build_type": "release",
+    "json_schema_version": 1
+  },
+  "benchmarks": [
+    {
+      "name": "NBody-AdaptiveCpp-Float/10",
+      "family_index": 0,
+      "per_family_instance_index": 0,
+      "run_name": "NBody-AdaptiveCpp-Float/10",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 7,
+      "real_time": 9.7962528858001207e+01,
+      "cpu_time": 9.7616224285714310e+01,
+      "time_unit": "ms"
+    },
+    {
+      "name": "NBody-AdaptiveCpp-Float/100",
+      "family_index": 0,
+      "per_family_instance_index": 1,
+      "run_name": "NBody-AdaptiveCpp-Float/100",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 6,
+      "real_time": 1.1644727100307743e+02,
+      "cpu_time": 1.1606968349999998e+02,
+      "time_unit": "ms"
+    },
+    {
+      "name": "NBody-AdaptiveCpp-Float/1000",
+      "family_index": 0,
+      "per_family_instance_index": 2,
+      "run_name": "NBody-AdaptiveCpp-Float/1000",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 2,
+      "real_time": 3.0844772400450893e+02,
+      "cpu_time": 3.0790322900000012e+02,
+      "time_unit": "ms"
+    },
+    {
+      "name": "NBody-AdaptiveCpp-Float/10000",
+      "family_index": 0,
+      "per_family_instance_index": 3,
+      "run_name": "NBody-AdaptiveCpp-Float/10000",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 1,
+      "real_time": 7.3621031420188956e+03,
+      "cpu_time": 7.3539421999999995e+03,
+      "time_unit": "ms"
+    },
+    {
+      "name": "NBody-AdaptiveCpp-Float_BigO",
+      "family_index": 0,
+      "per_family_instance_index": 0,
+      "run_name": "NBody-AdaptiveCpp-Float",
+      "run_type": "aggregate",
+      "repetitions": 1,
+      "threads": 1,
+      "aggregate_name": "BigO",
+      "aggregate_unit": "time",
+      "cpu_coefficient": 5.5210329320952900e+04,
+      "real_coefficient": 5.5271721847542234e+04,
+      "big_o": "NlgN",
+      "time_unit": "ns"
+    },
+    {
+      "name": "NBody-AdaptiveCpp-Float_RMS",
+      "family_index": 0,
+      "per_family_instance_index": 0,
+      "run_name": "NBody-AdaptiveCpp-Float",
+      "run_type": "aggregate",
+      "repetitions": 1,
+      "threads": 1,
+      "aggregate_name": "RMS",
+      "aggregate_unit": "percentage",
+      "rms": 6.9318221413144573e-02
+    },
+    {
+      "name": "NBody-AdaptiveCpp-Double/10",
+      "family_index": 1,
+      "per_family_instance_index": 0,
+      "run_name": "NBody-AdaptiveCpp-Double/10",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 7,
+      "real_time": 9.6229201141146149e+01,
+      "cpu_time": 9.5831272571428471e+01,
+      "time_unit": "ms"
+    },
+    {
+      "name": "NBody-AdaptiveCpp-Double/100",
+      "family_index": 1,
+      "per_family_instance_index": 1,
+      "run_name": "NBody-AdaptiveCpp-Double/100",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 6,
+      "real_time": 1.1530633566629452e+02,
+      "cpu_time": 1.1488670849999998e+02,
+      "time_unit": "ms"
+    },
+    {
+      "name": "NBody-AdaptiveCpp-Double/1000",
+      "family_index": 1,
+      "per_family_instance_index": 2,
+      "run_name": "NBody-AdaptiveCpp-Double/1000",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 1,
+      "real_time": 1.1436297940090299e+03,
+      "cpu_time": 1.1430703690000000e+03,
+      "time_unit": "ms"
+    },
+    {
+      "name": "NBody-AdaptiveCpp-Double/10000",
+      "family_index": 1,
+      "per_family_instance_index": 3,
+      "run_name": "NBody-AdaptiveCpp-Double/10000",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 1,
+      "real_time": 8.9406202763988404e+04,
+      "cpu_time": 8.9382330009000012e+04,
+      "time_unit": "ms"
+    },
+    {
+      "name": "NBody-AdaptiveCpp-Double_BigO",
+      "family_index": 1,
+      "per_family_instance_index": 0,
+      "run_name": "NBody-AdaptiveCpp-Double",
+      "run_type": "aggregate",
+      "repetitions": 1,
+      "threads": 1,
+      "aggregate_name": "BigO",
+      "aggregate_unit": "time",
+      "cpu_coefficient": 8.9384832919962423e+02,
+      "real_coefficient": 8.9408708923722384e+02,
+      "big_o": "N^2",
+      "time_unit": "ns"
+    },
+    {
+      "name": "NBody-AdaptiveCpp-Double_RMS",
+      "family_index": 1,
+      "per_family_instance_index": 0,
+      "run_name": "NBody-AdaptiveCpp-Double",
+      "run_type": "aggregate",
+      "repetitions": 1,
+      "threads": 1,
+      "aggregate_name": "RMS",
+      "aggregate_unit": "percentage",
+      "rms": 6.3314266508634467e-03
+    }
+  ]
+}

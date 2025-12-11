@@ -1,0 +1,209 @@
+{
+  "context": {
+    "date": "2025-09-22T14:22:28+02:00",
+    "host_name": "desktop",
+    "executable": "/home/marius/performance-portability-benchmark/build/src/nBodySimulation/cpp/nbody_cpp",
+    "num_cpus": 12,
+    "mhz_per_cpu": 4208,
+    "cpu_scaling_enabled": true,
+    "aslr_enabled": false,
+    "caches": [
+      {
+        "type": "Data",
+        "level": 1,
+        "size": 32768,
+        "num_sharing": 2
+      },
+      {
+        "type": "Instruction",
+        "level": 1,
+        "size": 32768,
+        "num_sharing": 2
+      },
+      {
+        "type": "Unified",
+        "level": 2,
+        "size": 524288,
+        "num_sharing": 2
+      },
+      {
+        "type": "Unified",
+        "level": 3,
+        "size": 16777216,
+        "num_sharing": 6
+      }
+    ],
+    "load_avg": [1.08398,0.838867,0.696289],
+    "library_version": "v1.9.4",
+    "library_build_type": "release",
+    "json_schema_version": 1
+  },
+  "benchmarks": [
+    {
+      "name": "NBody-CStd-Float/10",
+      "family_index": 0,
+      "per_family_instance_index": 0,
+      "run_name": "NBody-CStd-Float/10",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 903,
+      "real_time": 7.8352244518372571e-01,
+      "cpu_time": 7.8349229678848276e-01,
+      "time_unit": "ms"
+    },
+    {
+      "name": "NBody-CStd-Float/100",
+      "family_index": 0,
+      "per_family_instance_index": 1,
+      "run_name": "NBody-CStd-Float/100",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 9,
+      "real_time": 8.1808760555456203e+01,
+      "cpu_time": 8.1806569333333314e+01,
+      "time_unit": "ms"
+    },
+    {
+      "name": "NBody-CStd-Float/1000",
+      "family_index": 0,
+      "per_family_instance_index": 2,
+      "run_name": "NBody-CStd-Float/1000",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 1,
+      "real_time": 8.1800800809996872e+03,
+      "cpu_time": 8.1797493990000003e+03,
+      "time_unit": "ms"
+    },
+    {
+      "name": "NBody-CStd-Float/10000",
+      "family_index": 0,
+      "per_family_instance_index": 3,
+      "run_name": "NBody-CStd-Float/10000",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 1,
+      "real_time": 8.1975365812299971e+05,
+      "cpu_time": 8.1955133996500005e+05,
+      "time_unit": "ms"
+    },
+    {
+      "name": "NBody-CStd-Float_BigO",
+      "family_index": 0,
+      "per_family_instance_index": 0,
+      "run_name": "NBody-CStd-Float",
+      "run_type": "aggregate",
+      "repetitions": 1,
+      "threads": 1,
+      "aggregate_name": "BigO",
+      "aggregate_unit": "time",
+      "cpu_coefficient": 8.1955118232586647e+03,
+      "real_coefficient": 8.1975348355875885e+03,
+      "big_o": "N^2",
+      "time_unit": "ns"
+    },
+    {
+      "name": "NBody-CStd-Float_RMS",
+      "family_index": 0,
+      "per_family_instance_index": 0,
+      "run_name": "NBody-CStd-Float",
+      "run_type": "aggregate",
+      "repetitions": 1,
+      "threads": 1,
+      "aggregate_name": "RMS",
+      "aggregate_unit": "percentage",
+      "rms": 3.8085753042735277e-05
+    },
+    {
+      "name": "NBody-CStd-Double/10",
+      "family_index": 1,
+      "per_family_instance_index": 0,
+      "run_name": "NBody-CStd-Double/10",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 1030,
+      "real_time": 6.7760726116512604e-01,
+      "cpu_time": 6.7756763980581847e-01,
+      "time_unit": "ms"
+    },
+    {
+      "name": "NBody-CStd-Double/100",
+      "family_index": 1,
+      "per_family_instance_index": 1,
+      "run_name": "NBody-CStd-Double/100",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 10,
+      "real_time": 7.0714938799937954e+01,
+      "cpu_time": 7.0713754500002324e+01,
+      "time_unit": "ms"
+    },
+    {
+      "name": "NBody-CStd-Double/1000",
+      "family_index": 1,
+      "per_family_instance_index": 2,
+      "run_name": "NBody-CStd-Double/1000",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 1,
+      "real_time": 7.1149636310001370e+03,
+      "cpu_time": 7.1145215249999865e+03,
+      "time_unit": "ms"
+    },
+    {
+      "name": "NBody-CStd-Double/10000",
+      "family_index": 1,
+      "per_family_instance_index": 3,
+      "run_name": "NBody-CStd-Double/10000",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 1,
+      "real_time": 7.1793080692799960e+05,
+      "cpu_time": 7.1745056458600005e+05,
+      "time_unit": "ms"
+    },
+    {
+      "name": "NBody-CStd-Double_BigO",
+      "family_index": 1,
+      "per_family_instance_index": 0,
+      "run_name": "NBody-CStd-Double",
+      "run_type": "aggregate",
+      "repetitions": 1,
+      "threads": 1,
+      "aggregate_name": "BigO",
+      "aggregate_unit": "time",
+      "cpu_coefficient": 7.1744996470161577e+03,
+      "real_coefficient": 7.1793016344011739e+03,
+      "big_o": "N^2",
+      "time_unit": "ns"
+    },
+    {
+      "name": "NBody-CStd-Double_RMS",
+      "family_index": 1,
+      "per_family_instance_index": 0,
+      "run_name": "NBody-CStd-Double",
+      "run_type": "aggregate",
+      "repetitions": 1,
+      "threads": 1,
+      "aggregate_name": "RMS",
+      "aggregate_unit": "percentage",
+      "rms": 1.6557267348613682e-04
+    }
+  ]
+}
