@@ -30,11 +30,10 @@ namespace ppb {
         std::vector<uint32_t> _kernelVelocity;
         std::vector<uint32_t> _kernelForce;
 
-        std::vector<uint32_t> _kernelHistogram;
+        std::vector<uint32_t> _kernelCountNeighbors;
         std::vector<uint32_t> _kernelBlellochScan;
         std::vector<uint32_t> _kernelBlockSum;
-        std::vector<uint32_t> _kernelIdCells;
-        std::vector<uint32_t> _kernelResetCells;
+        std::vector<uint32_t> _kernelVerlet;
 
     public:
 
@@ -68,10 +67,12 @@ namespace ppb {
         void printBuffer(const std::shared_ptr<kp::Tensor> &buffer, bool floats);
 
         /**
-         * Creates a histogram of the number of particles in each cell. This is used to generate a flat 
-         * list of particle IDs with offsets corresponding to the cell. 
+         * This function is called for each particle and iterates over all other particles to count
+         * how many can be considered neighbors using the 'influenceRadius' hyperparameter in the config.
+         * This function is the first step in creating a flattened verlet list, and is also needed for 
+         * determining how much memory needs to be allocated to the verlet lists.
          */
-        void calculateHistogram(const std::vector<std::shared_ptr<kp::Tensor>> &params, std::array<int, 3> cellCounts, std::array<float, 3> boxMin, std::array<float, 3> boxSize);
+        void countNeighbors(const std::vector<std::shared_ptr<kp::Tensor>> &params);
 
         /**
          * Calculates an exclusive scan of the buffer 'data' with length 'totalLength'.
@@ -81,16 +82,11 @@ namespace ppb {
         void exclusiveScanBlelloch(const std::shared_ptr<kp::Tensor> &data, const uint totalLength);
 
         /**
-         * Generates a flat buffer where particle IDs are sorted by their cell. This cell is used to 
-         * find all particles in a cell.
+         * Writes the flattened verlet list. The shader is called for each particle and iterates over each other 
+         * particle again to write the particle ID to the correct buffer address.
          */
-        void calculateIdCells(const std::vector<std::shared_ptr<kp::Tensor>> &params);
-
-        /**
-         * Resets the cell buffer to 0s so that the histogram can be rebuilt again using the calculateHistogram function.
-         */
-        void resetCells(const std::shared_ptr<kp::Tensor> &cells, uint nBlocks, uint cellsLength);
-
+        std::shared_ptr<kp::Tensor> createVerletList(const std::shared_ptr<kp::Tensor> &positions, const std::shared_ptr<kp::Tensor> &neighborsStarts);
+        
         /**
          * Updates positions of all particles using velocity Verlet integration and resets their forces
          * with the configured global force.
@@ -105,7 +101,8 @@ namespace ppb {
         /**
          * Computes the inter-particle forces for all particles using the Lennard-Jones potential.
          */
-        void computeForces(const std::vector<std::shared_ptr<kp::Tensor>> &params, std::array<int, 3> cellCounts);
+        void computeForces(const std::vector<std::shared_ptr<kp::Tensor>> &params);
+
 
     };
 } // namespace ppb

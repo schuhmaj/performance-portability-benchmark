@@ -61,10 +61,7 @@ void main()
                         int nz = cz + dz;
                         if (nz >= 0 && nz < pc.cCount_z) {
                             int cell = nx + ny * pc.cCount_x + nz * ccxy;
-                            uint end;
-                            if (cell + 1 < ccxyz) end = starts[cell + 1];
-                            else end = pc.numParticles;
-                            for (uint u = starts[cell]; u < end; u++) {
+                            for (uint u = starts[cell]; u < starts[cell + 1]; u++) {
                                 uint j = idCells[u];
                                 if (i == j) {
                                     continue;

@@ -1,0 +1,39 @@
+#version 450
+layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
+
+layout(std430, binding = 0) buffer Positions {
+    vec4 positions[];
+};
+
+layout(std430, binding = 1) buffer NNeighbors {
+    uint nNeighbors[];
+};
+
+layout(push_constant) uniform ParamsPos {
+    uint n;
+    float radius;
+} pc;
+
+void main() {
+    uint gid = gl_GlobalInvocationID.x;
+
+    if (gid >= pc.n) {
+        return;
+    }
+    
+    vec3 pi = positions[gid].xyz;
+
+    uint neighbors = 0;
+    for (uint i = 0; i < pc.n; i++) {
+        if (i == gid) { continue; }
+        // calculate distance to see if this particle is a neighbor
+        vec3 dr = pi - positions[i].xyz;
+        float dr2 = dot(dr.xyz, dr.xyz);
+        if (dr2 < pc.radius * pc.radius) {
+            // if the particle is close enough, add it
+            neighbors += 1;
+        }
+    }
+    
+    nNeighbors[gid] = neighbors;
+}

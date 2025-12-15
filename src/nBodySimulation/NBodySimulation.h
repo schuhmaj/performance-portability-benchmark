@@ -62,13 +62,25 @@ namespace ppb {
         std::array<FloatType, 3> boxMax{1000, 1000, 1000};
 
         /*
-         * used for calculating the number of cells when using cell lists
+         * Used for calculating the number of cells when using cell lists.
+         * This is a magic number and should still be tested.
+         * The influence of the Lennard-Jones-Kernel stays close to 0 at a distance of around 3. Therefore h should not be less than 3. 
+         * https://www.desmos.com/calculator/zrswwcpt4k
          */
         FloatType h{9.0};
 
         /*
+         * Radius at which a particle should be added to the verlet lists.
+         * This is a magic number and should still be tested. 
+         * The influence of the Lennard-Jones-Kernel stays close to 0 at a distance of around 3. Therefore the influence radius should not be less than 3. 
+         * https://www.desmos.com/calculator/zrswwcpt4k
+         */
+        FloatType influenceRadius{4.0};
+
+        /*
          * size of workgroups. 
-         * WARNING: if updated it should also be updated in the relevant shader files
+         * NOTE: if updated it should also be updated in the relevant shader files.
+         * This is a magic number and should still be tested.
          */
         static constexpr uint TILE_SIZE{256};
 
@@ -94,7 +106,7 @@ namespace ppb {
 
     struct ParticleSimulationTimings {
         /** Total accumulated time for setting up idCells in nanoseconds [ns] */
-        double cellsTime;
+        double neighborSearch;
         /** Total accumulated time for position updates and force reset in nanoseconds [ns] */
         double positionUpdateForceResetTime;
         /** Total accumulated time for velocity updates in nanoseconds [ns] */
@@ -103,10 +115,10 @@ namespace ppb {
         double forceUpdateTime;
 
         ParticleSimulationTimings operator+(const ParticleSimulationTimings &other) const {
-            return {cellsTime + other.cellsTime, positionUpdateForceResetTime + other.positionUpdateForceResetTime, velocityUpdateTime + other.velocityUpdateTime, forceUpdateTime + other.forceUpdateTime};
+            return {neighborSearch + other.neighborSearch, positionUpdateForceResetTime + other.positionUpdateForceResetTime, velocityUpdateTime + other.velocityUpdateTime, forceUpdateTime + other.forceUpdateTime};
         }
         ParticleSimulationTimings operator+=(const ParticleSimulationTimings &other) {
-            cellsTime += other.cellsTime;
+            neighborSearch += other.neighborSearch;
             positionUpdateForceResetTime += other.positionUpdateForceResetTime;
             velocityUpdateTime += other.velocityUpdateTime;
             forceUpdateTime += other.forceUpdateTime;
@@ -114,7 +126,7 @@ namespace ppb {
         }
 
         void reset() {
-            cellsTime = 0.0;
+            neighborSearch = 0.0;
             positionUpdateForceResetTime = 0.0;
             velocityUpdateTime = 0.0;
             forceUpdateTime = 0.0;
@@ -208,8 +220,8 @@ namespace ppb {
                 benchmark::DoNotOptimize(result);
                 totalTimings += iterationTimings;
             }
-            const auto&[cellsTime, positionUpdateForceResetTime, velocityUpdateTime, forceUpdateTime] = totalTimings;
-            state.counters["cells_setup"] = benchmark::Counter(cellsTime, benchmark::Counter::kAvgIterations);
+            const auto&[neighborSearch, positionUpdateForceResetTime, velocityUpdateTime, forceUpdateTime] = totalTimings;
+            state.counters["neighbor_search"] = benchmark::Counter(neighborSearch, benchmark::Counter::kAvgIterations);
             state.counters["position_update_reset"] = benchmark::Counter(positionUpdateForceResetTime, benchmark::Counter::kAvgIterations);
             state.counters["velocity_update"] = benchmark::Counter(velocityUpdateTime, benchmark::Counter::kAvgIterations);
             state.counters["force_update"] = benchmark::Counter(forceUpdateTime, benchmark::Counter::kAvgIterations);
