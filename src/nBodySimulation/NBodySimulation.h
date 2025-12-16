@@ -87,14 +87,20 @@ namespace ppb {
         double velocityUpdateTime;
         /** Total accumulated time for force updates in nanoseconds [ns] */
         double forceUpdateTime;
+        /** Total accumulated time for sorting in nanoseconds [ns] */
+        double sortingTime;
+        /** Total accumulated time for structural work in nanoseconds [ns] */
+        double structuralTime;
 
         ParticleSimulationTimings operator+(const ParticleSimulationTimings &other) const {
-            return {positionUpdateForceResetTime + other.positionUpdateForceResetTime, velocityUpdateTime + other.velocityUpdateTime, forceUpdateTime + other.forceUpdateTime};
+            return {positionUpdateForceResetTime + other.positionUpdateForceResetTime, velocityUpdateTime + other.velocityUpdateTime, forceUpdateTime + other.forceUpdateTime, sortingTime + other.sortingTime, structuralTime + other.structuralTime};
         }
         ParticleSimulationTimings operator+=(const ParticleSimulationTimings &other) {
             positionUpdateForceResetTime += other.positionUpdateForceResetTime;
             velocityUpdateTime += other.velocityUpdateTime;
             forceUpdateTime += other.forceUpdateTime;
+            sortingTime += other.sortingTime;
+            structuralTime += other.structuralTime;
             return *this;
         }
 
@@ -102,6 +108,8 @@ namespace ppb {
             positionUpdateForceResetTime = 0.0;
             velocityUpdateTime = 0.0;
             forceUpdateTime = 0.0;
+            sortingTime = 0.0;
+            structuralTime = 0.0;
         }
     };
 
@@ -192,10 +200,12 @@ namespace ppb {
                 benchmark::DoNotOptimize(result);
                 totalTimings += iterationTimings;
             }
-            const auto&[positionUpdateForceResetTime, velocityUpdateTime, forceUpdateTime] = totalTimings;
+            const auto&[positionUpdateForceResetTime, velocityUpdateTime, forceUpdateTime, sortingTime, structuralTime] = totalTimings;
             state.counters["position_update_reset"] = benchmark::Counter(positionUpdateForceResetTime, benchmark::Counter::kAvgIterations);
             state.counters["velocity_update"] = benchmark::Counter(velocityUpdateTime, benchmark::Counter::kAvgIterations);
             state.counters["force_update"] = benchmark::Counter(forceUpdateTime, benchmark::Counter::kAvgIterations);
+            state.counters["sorting"] = benchmark::Counter(sortingTime, benchmark::Counter::kAvgIterations);
+            state.counters["structural"] = benchmark::Counter(structuralTime, benchmark::Counter::kAvgIterations);
             state.SetComplexityN(static_cast<long long>(size));
         }
 
