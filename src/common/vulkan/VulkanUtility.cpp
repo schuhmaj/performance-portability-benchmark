@@ -8,9 +8,9 @@ vulkan_utility::VulkanManager::VulkanManager(const bool enableValidationLayers) 
     computeQueueFamilyIndex{findComputeQueueFamilyIndex(*physicalDevicePtr).value()},
     devicePtr{createLogicalDevice(physicalDevicePtr, computeQueueFamilyIndex)} {}
 
-std::shared_ptr<kp::Sequence> vulkan_utility::VulkanManager::sequence() {
+std::shared_ptr<kp::Sequence> vulkan_utility::VulkanManager::sequence(uint32_t totalTimestamps) {
     return std::make_shared<kp::Sequence>(
-        physicalDevicePtr, devicePtr, createComputeQueue(devicePtr, computeQueueFamilyIndex), computeQueueFamilyIndex);
+        physicalDevicePtr, devicePtr, createComputeQueue(devicePtr, computeQueueFamilyIndex), computeQueueFamilyIndex, totalTimestamps);
 }
 
 std::shared_ptr<vk::Instance> vulkan_utility::VulkanManager::createInstance(bool enableValidationLayers) {

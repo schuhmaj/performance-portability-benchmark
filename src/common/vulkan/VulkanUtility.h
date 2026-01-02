@@ -69,7 +69,7 @@ namespace vulkan_utility {
          *
          * @return shared pointer to a Kompute sequence
          */
-        std::shared_ptr<kp::Sequence> sequence();
+        std::shared_ptr<kp::Sequence> sequence(uint32_t totalTimestamps = 0);
 
     private:
 

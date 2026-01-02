@@ -16,7 +16,6 @@ namespace ppb {
         : _config{config}
         , _timings{}
         , _manager{}
-        , _sequence{_manager.sequence()}
         , _kernelForce{KERNELFORCE_COMP_SPV.begin(), KERNELFORCE_COMP_SPV.end()}
         , _kernelVelocity{KERNELVELOCITY_COMP_SPV.begin(), KERNELVELOCITY_COMP_SPV.end()}
         , _kernelPosition{KERNELPOSITION_COMP_SPV.begin(), KERNELPOSITION_COMP_SPV.end()}
@@ -25,6 +24,8 @@ namespace ppb {
         , _kernelBlellochScan{KERNELBLELLOCHSCAN_COMP_SPV.begin(), KERNELBLELLOCHSCAN_COMP_SPV.end()}
         , _kernelBlockSum{KERNELBLOCKSUM_COMP_SPV.begin(), KERNELBLOCKSUM_COMP_SPV.end()}
         , _kernelVerlet{KERNELVERLET_COMP_SPV.begin(), KERNELVERLET_COMP_SPV.end()}
+
+        , _sequence{_manager.sequence(2)}
     {}
 
 
@@ -139,7 +140,7 @@ namespace ppb {
 
         // dispatch shader
         const auto start = std::chrono::high_resolution_clock::now();
-        _sequence->template record<kp::OpAlgoDispatch>(algorithm, pushData);
+        _sequence->template record<kp::OpAlgoDispatch>(algorithm, pushData)->eval();
         const auto end = std::chrono::high_resolution_clock::now();
 
         const double elapsedNanoseconds =
@@ -164,7 +165,7 @@ namespace ppb {
 
         // dispatch shader
         const auto startBlelloch = std::chrono::high_resolution_clock::now();
-        _sequence->template record<kp::OpAlgoDispatch>(algorithmBlelloch, pushData);
+        _sequence->template record<kp::OpAlgoDispatch>(algorithmBlelloch, pushData)->eval();
         const auto endBlelloch = std::chrono::high_resolution_clock::now();
 
         const double elapsedNanosecondsBlelloch =
@@ -183,7 +184,7 @@ namespace ppb {
 
             // dispatch shader
             const auto startBlock = std::chrono::high_resolution_clock::now();
-            _sequence->template record<kp::OpAlgoDispatch>(algorithmBlock, pushData);
+            _sequence->template record<kp::OpAlgoDispatch>(algorithmBlock, pushData)->eval();
             const auto endBlock = std::chrono::high_resolution_clock::now();
 
             const double elapsedNanosecondsBlock =
@@ -223,7 +224,7 @@ namespace ppb {
 
         // dispatch shader
         const auto start = std::chrono::high_resolution_clock::now();
-        _sequence->template record<kp::OpAlgoDispatch>(algorithm, pushData);
+        _sequence->template record<kp::OpAlgoDispatch>(algorithm, pushData)->eval();
         const auto end = std::chrono::high_resolution_clock::now();
 
         const double elapsedNanoseconds =
@@ -236,7 +237,7 @@ namespace ppb {
 
     template <typename FloatType>
     void ImplVulkan<FloatType>::updatePositionsAndResetForce(const std::vector<std::shared_ptr<kp::Tensor>> &params) {
-        constexpr unsigned int TILE_SIZE = _config.TILE_SIZE;
+        uint TILE_SIZE = _config.TILE_SIZE;
         const unsigned int groups = util::ceilDiv<unsigned int>(_config.size, TILE_SIZE);
         kp::Workgroup workgroup{{groups, 1, 1}};
 
@@ -257,7 +258,7 @@ namespace ppb {
 
     template <typename FloatType>
     void ImplVulkan<FloatType>::updateVelocities(const std::vector<std::shared_ptr<kp::Tensor>> &params) {
-        constexpr unsigned int TILE_SIZE = _config.TILE_SIZE;
+        uint TILE_SIZE = _config.TILE_SIZE;
         const unsigned int groups = util::ceilDiv<unsigned int>(_config.size, TILE_SIZE);
         kp::Workgroup workgroup{{groups, 1, 1}};
         std::vector<float> pushConstants({_config.deltaT, *reinterpret_cast<float*>(&_config.size)});
@@ -277,7 +278,7 @@ namespace ppb {
 
     template <typename FloatType>
     void ImplVulkan<FloatType>::computeForces(const std::vector<std::shared_ptr<kp::Tensor>> &params) {
-        constexpr unsigned int TILE_SIZE = _config.TILE_SIZE;
+        uint TILE_SIZE = _config.TILE_SIZE;
         const unsigned int groups = util::ceilDiv<unsigned int>(_config.size, TILE_SIZE);
         kp::Workgroup workgroup{{groups, 1, 1}};
 
