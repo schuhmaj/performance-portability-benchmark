@@ -5,7 +5,7 @@
 # NOTE: This compile/ install steps happens at CMake CONFIGURE Time, since the compiler
 # and `acpp` tools need to be present for the configuring the project building on top of it!
 
-set(ADAPTIVE_CPP_VERSION 25.02.0)
+set(ADAPTIVE_CPP_VERSION 25.10.0)
 
 # Try to find AdaptiveCpp on the System
 find_package(AdaptiveCpp CONFIG)
