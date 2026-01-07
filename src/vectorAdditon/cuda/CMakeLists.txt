@@ -1,6 +1,6 @@
 #find_package(LIKWID REQUIRED)
 
-add_executable(vec_cuda main.cpp Impl_Cuda.cu)
+add_executable(vec_cuda main.cpp Impl_Cuda.cu Impl_Cublas.cu)
 target_link_libraries(vec_cuda PRIVATE vec_lib)
 set_target_properties(vec_cuda PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 

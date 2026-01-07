@@ -19,11 +19,11 @@ else ()
     FetchContent_MakeAvailable(Kokkos)
 
     # Mark all CMake variables of the Kokkos project as advanced for this project expect the main backend selection
-    get_cmake_property(_vars CACHE_VARIABLES)
-    foreach(_var ${_vars})
-        if(_var MATCHES "^Kokkos_" AND
-                NOT _var MATCHES "^Kokkos_ENABLE_(SERIAL|OPENMP|THREADS|HPX|CUDA|HIP|SYCL|OPENMPTARGET|OPENACC)$")
-            mark_as_advanced(${_var})
-        endif()
-    endforeach()
+#    get_cmake_property(_vars CACHE_VARIABLES)
+#    foreach(_var ${_vars})
+#        if(_var MATCHES "^Kokkos_" AND
+#                NOT _var MATCHES "^Kokkos_ENABLE_(SERIAL|OPENMP|THREADS|HPX|CUDA|HIP|SYCL|OPENMPTARGET|OPENACC)$")
+#            mark_as_advanced(${_var})
+#        endif()
+#    endforeach()
 endif ()
