@@ -1,0 +1,138 @@
+{
+  "context": {
+    "date": "2026-01-07T19:59:00+01:00",
+    "host_name": "Zeus1999-Ubuntu",
+    "executable": "/home/schuhmaj/Programming/performance-portability-benchmark/build_llvm/src/nBodySimulation/opencl/nbody_ocl",
+    "num_cpus": 28,
+    "mhz_per_cpu": 800,
+    "cpu_scaling_enabled": false,
+    "aslr_enabled": false,
+    "caches": [
+      {
+        "type": "Data",
+        "level": 1,
+        "size": 49152,
+        "num_sharing": 2
+      },
+      {
+        "type": "Instruction",
+        "level": 1,
+        "size": 32768,
+        "num_sharing": 2
+      },
+      {
+        "type": "Unified",
+        "level": 2,
+        "size": 2097152,
+        "num_sharing": 2
+      },
+      {
+        "type": "Unified",
+        "level": 3,
+        "size": 34603008,
+        "num_sharing": 28
+      }
+    ],
+    "load_avg": [1.02197,1.09717,1.12256],
+    "library_version": "v1.9.4",
+    "library_build_type": "release",
+    "json_schema_version": 1
+  },
+  "benchmarks": [
+    {
+      "name": "NBody-Float-OpenCL/10",
+      "family_index": 0,
+      "per_family_instance_index": 0,
+      "run_name": "NBody-Float-OpenCL/10",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 38,
+      "real_time": 1.8174804315788750e+07,
+      "cpu_time": 1.8145740000000000e+07,
+      "time_unit": "ns",
+      "force_update": 1.8446650248717043e+22,
+      "position_update_reset": 1.8493265450884714e+19,
+      "velocity_update": 3.8568421052631578e+02
+    },
+    {
+      "name": "NBody-Float-OpenCL/100",
+      "family_index": 0,
+      "per_family_instance_index": 1,
+      "run_name": "NBody-Float-OpenCL/100",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 29,
+      "real_time": 2.4608578206896018e+07,
+      "cpu_time": 2.4593667482758615e+07,
+      "time_unit": "ns",
+      "force_update": 1.8446650248717050e+22,
+      "position_update_reset": 1.8446744073474062e+19,
+      "velocity_update": 9.6000000000000000e+04
+    },
+    {
+      "name": "NBody-Float-OpenCL/1000",
+      "family_index": 0,
+      "per_family_instance_index": 2,
+      "run_name": "NBody-Float-OpenCL/1000",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 5,
+      "real_time": 1.3261684879998939e+08,
+      "cpu_time": 1.3258762900000000e+08,
+      "time_unit": "ns",
+      "force_update": 1.8446650248717041e+22,
+      "position_update_reset": 1.8446744073474054e+19,
+      "velocity_update": 9.9200000000000000e+05
+    },
+    {
+      "name": "NBody-Float-OpenCL/10000",
+      "family_index": 0,
+      "per_family_instance_index": 3,
+      "run_name": "NBody-Float-OpenCL/10000",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 1,
+      "real_time": 1.2430368909999743e+09,
+      "cpu_time": 1.2428520430000000e+09,
+      "time_unit": "ns",
+      "force_update": 1.8446650248717043e+22,
+      "position_update_reset": 1.8446744073484284e+19,
+      "velocity_update": 9.9840000000000000e+06
+    },
+    {
+      "name": "NBody-Float-OpenCL_BigO",
+      "family_index": 0,
+      "per_family_instance_index": 0,
+      "run_name": "NBody-Float-OpenCL",
+      "run_type": "aggregate",
+      "repetitions": 1,
+      "threads": 1,
+      "aggregate_name": "BigO",
+      "aggregate_unit": "time",
+      "cpu_coefficient": 1.2438111518697908e+05,
+      "real_coefficient": 1.2439972205416668e+05,
+      "big_o": "N",
+      "time_unit": "ns"
+    },
+    {
+      "name": "NBody-Float-OpenCL_RMS",
+      "family_index": 0,
+      "per_family_instance_index": 0,
+      "run_name": "NBody-Float-OpenCL",
+      "run_type": "aggregate",
+      "repetitions": 1,
+      "threads": 1,
+      "aggregate_name": "RMS",
+      "aggregate_unit": "percentage",
+      "rms": 3.1587900005754226e-02
+    }
+  ]
+}

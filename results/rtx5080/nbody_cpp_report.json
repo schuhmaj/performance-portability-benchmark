@@ -1,0 +1,138 @@
+{
+  "context": {
+    "date": "2026-01-07T19:56:31+01:00",
+    "host_name": "Zeus1999-Ubuntu",
+    "executable": "/home/schuhmaj/Programming/performance-portability-benchmark/build_llvm/src/nBodySimulation/cpp/nbody_cpp",
+    "num_cpus": 28,
+    "mhz_per_cpu": 3795,
+    "cpu_scaling_enabled": false,
+    "aslr_enabled": false,
+    "caches": [
+      {
+        "type": "Data",
+        "level": 1,
+        "size": 49152,
+        "num_sharing": 2
+      },
+      {
+        "type": "Instruction",
+        "level": 1,
+        "size": 32768,
+        "num_sharing": 2
+      },
+      {
+        "type": "Unified",
+        "level": 2,
+        "size": 2097152,
+        "num_sharing": 2
+      },
+      {
+        "type": "Unified",
+        "level": 3,
+        "size": 34603008,
+        "num_sharing": 28
+      }
+    ],
+    "load_avg": [0.611328,1.12695,1.14014],
+    "library_version": "v1.9.4",
+    "library_build_type": "release",
+    "json_schema_version": 1
+  },
+  "benchmarks": [
+    {
+      "name": "NBody-Float-CPP/10",
+      "family_index": 0,
+      "per_family_instance_index": 0,
+      "run_name": "NBody-Float-CPP/10",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 1137,
+      "real_time": 6.1507236147742684e+05,
+      "cpu_time": 6.1505506596306071e+05,
+      "time_unit": "ns",
+      "force_update": 1.5478563060686016e+05,
+      "position_update_reset": 4.0912988478452066e+05,
+      "velocity_update": 1.6729613896218118e+04
+    },
+    {
+      "name": "NBody-Float-CPP/100",
+      "family_index": 0,
+      "per_family_instance_index": 1,
+      "run_name": "NBody-Float-CPP/100",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 46,
+      "real_time": 1.4877432869564906e+07,
+      "cpu_time": 1.4874153130434783e+07,
+      "time_unit": "ns",
+      "force_update": 1.4547295978260869e+07,
+      "position_update_reset": 2.1416560869565216e+05,
+      "velocity_update": 8.1322173913043473e+04
+    },
+    {
+      "name": "NBody-Float-CPP/1000",
+      "family_index": 0,
+      "per_family_instance_index": 2,
+      "run_name": "NBody-Float-CPP/1000",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 1,
+      "real_time": 1.4700339870000789e+09,
+      "cpu_time": 1.4698827430000000e+09,
+      "time_unit": "ns",
+      "force_update": 1.4679248470000000e+09,
+      "position_update_reset": 1.1545130000000000e+06,
+      "velocity_update": 8.8134200000000000e+05
+    },
+    {
+      "name": "NBody-Float-CPP/10000",
+      "family_index": 0,
+      "per_family_instance_index": 3,
+      "run_name": "NBody-Float-CPP/10000",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 1,
+      "real_time": 1.4586668939900006e+11,
+      "cpu_time": 1.4584592555999997e+11,
+      "time_unit": "ns",
+      "force_update": 1.4584615809300000e+11,
+      "position_update_reset": 1.1172904000000000e+07,
+      "velocity_update": 8.9152970000000000e+06
+    },
+    {
+      "name": "NBody-Float-CPP_BigO",
+      "family_index": 0,
+      "per_family_instance_index": 0,
+      "run_name": "NBody-Float-CPP",
+      "run_type": "aggregate",
+      "repetitions": 1,
+      "threads": 1,
+      "aggregate_name": "BigO",
+      "aggregate_unit": "time",
+      "cpu_coefficient": 1.4584603981287282e+03,
+      "real_coefficient": 1.4586680308810569e+03,
+      "big_o": "N^2",
+      "time_unit": "ns"
+    },
+    {
+      "name": "NBody-Float-CPP_RMS",
+      "family_index": 0,
+      "per_family_instance_index": 0,
+      "run_name": "NBody-Float-CPP",
+      "run_type": "aggregate",
+      "repetitions": 1,
+      "threads": 1,
+      "aggregate_name": "RMS",
+      "aggregate_unit": "percentage",
+      "rms": 1.5524488173206059e-04
+    }
+  ]
+}

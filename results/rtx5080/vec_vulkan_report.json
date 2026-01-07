@@ -1,0 +1,160 @@
+{
+  "context": {
+    "date": "2026-01-07T19:52:23+01:00",
+    "host_name": "Zeus1999-Ubuntu",
+    "executable": "/home/schuhmaj/Programming/performance-portability-benchmark/build_llvm/src/vectorAdditon/vulkan/vec_vulkan",
+    "num_cpus": 28,
+    "mhz_per_cpu": 2355,
+    "cpu_scaling_enabled": false,
+    "aslr_enabled": false,
+    "caches": [
+      {
+        "type": "Data",
+        "level": 1,
+        "size": 49152,
+        "num_sharing": 2
+      },
+      {
+        "type": "Instruction",
+        "level": 1,
+        "size": 32768,
+        "num_sharing": 2
+      },
+      {
+        "type": "Unified",
+        "level": 2,
+        "size": 2097152,
+        "num_sharing": 2
+      },
+      {
+        "type": "Unified",
+        "level": 3,
+        "size": 34603008,
+        "num_sharing": 28
+      }
+    ],
+    "load_avg": [1.16992,1.51514,1.23877],
+    "library_version": "v1.9.4",
+    "library_build_type": "release",
+    "json_schema_version": 1
+  },
+  "benchmarks": [
+    {
+      "name": "VecAdd-Float-Vulkan/1000",
+      "family_index": 0,
+      "per_family_instance_index": 0,
+      "run_name": "VecAdd-Float-Vulkan/1000",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 401,
+      "real_time": 1.8113460299251105e+06,
+      "cpu_time": 1.7255161970074812e+06,
+      "time_unit": "ns",
+      "kernel_time": 4.2320015211970074e+05
+    },
+    {
+      "name": "VecAdd-Float-Vulkan/10000",
+      "family_index": 0,
+      "per_family_instance_index": 1,
+      "run_name": "VecAdd-Float-Vulkan/10000",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 373,
+      "real_time": 1.9487091662199723e+06,
+      "cpu_time": 1.8417516353887403e+06,
+      "time_unit": "ns",
+      "kernel_time": 4.2927986058981234e+05
+    },
+    {
+      "name": "VecAdd-Float-Vulkan/100000",
+      "family_index": 0,
+      "per_family_instance_index": 2,
+      "run_name": "VecAdd-Float-Vulkan/100000",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 245,
+      "real_time": 3.5871946734691942e+06,
+      "cpu_time": 3.2139847102040839e+06,
+      "time_unit": "ns",
+      "kernel_time": 5.2503443265306123e+05
+    },
+    {
+      "name": "VecAdd-Float-Vulkan/1000000",
+      "family_index": 0,
+      "per_family_instance_index": 3,
+      "run_name": "VecAdd-Float-Vulkan/1000000",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 43,
+      "real_time": 1.6815800651162919e+07,
+      "cpu_time": 1.5646623976744199e+07,
+      "time_unit": "ns",
+      "kernel_time": 5.0312781395348837e+05
+    },
+    {
+      "name": "VecAdd-Float-Vulkan/10000000",
+      "family_index": 0,
+      "per_family_instance_index": 4,
+      "run_name": "VecAdd-Float-Vulkan/10000000",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 3,
+      "real_time": 2.2598806399999678e+08,
+      "cpu_time": 2.1475196000000009e+08,
+      "time_unit": "ns",
+      "kernel_time": 8.1222833333333337e+05
+    },
+    {
+      "name": "VecAdd-Float-Vulkan/100000000",
+      "family_index": 0,
+      "per_family_instance_index": 5,
+      "run_name": "VecAdd-Float-Vulkan/100000000",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 1,
+      "real_time": 2.1729106569999886e+09,
+      "cpu_time": 2.0704985339999995e+09,
+      "time_unit": "ns",
+      "kernel_time": 2.1706860000000000e+06
+    },
+    {
+      "name": "VecAdd-Float-Vulkan_BigO",
+      "family_index": 0,
+      "per_family_instance_index": 0,
+      "run_name": "VecAdd-Float-Vulkan",
+      "run_type": "aggregate",
+      "repetitions": 1,
+      "threads": 1,
+      "aggregate_name": "BigO",
+      "aggregate_unit": "time",
+      "cpu_coefficient": 2.0712122755403257e+01,
+      "real_coefficient": 2.1737246073718683e+01,
+      "big_o": "N",
+      "time_unit": "ns"
+    },
+    {
+      "name": "VecAdd-Float-Vulkan_RMS",
+      "family_index": 0,
+      "per_family_instance_index": 0,
+      "run_name": "VecAdd-Float-Vulkan",
+      "run_type": "aggregate",
+      "repetitions": 1,
+      "threads": 1,
+      "aggregate_name": "RMS",
+      "aggregate_unit": "percentage",
+      "rms": 1.0141232561072334e-02
+    }
+  ]
+}
