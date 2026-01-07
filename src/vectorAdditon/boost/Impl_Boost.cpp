@@ -47,7 +47,7 @@ namespace ppb {
 BENCHMARK(ppb::VectorAddition<ppb::ImplBoost<float>>::benchmark)
     ->Name("VecAdd-Float-BoostCL")
     ->RangeMultiplier(10)
-    ->Range(1e3, 1e8)
+    ->Range(ppb::VectorAdditionBenchmarkConf::MIN_SIZE, ppb::VectorAdditionBenchmarkConf::MAX_SIZE)
 #ifdef PPB_MEASURE_ONLY_KERNEL
     ->UseManualTime()
 #endif
@@ -56,7 +56,7 @@ BENCHMARK(ppb::VectorAddition<ppb::ImplBoost<float>>::benchmark)
 // BENCHMARK(ppb::VectorAddition<ppb::ImplBoost<double>>::benchmark)
 //     ->Name("VecAdd-Double-BoostCL")
 //     ->RangeMultiplier(10)
-//     ->Range(1e3, 1e8)
+//     ->Range(ppb::VectorAdditionBenchmarkConf::MIN_SIZE, ppb::VectorAdditionBenchmarkConf::MAX_SIZE)
 // #ifdef PPB_MEASURE_ONLY_KERNEL
 //     ->UseManualTime()
 // #endif

@@ -66,7 +66,7 @@ namespace ppb {
 BENCHMARK(ppb::VectorAddition<ppb::ImplVulkan<float>>::benchmark)
     ->Name("VecAdd-Float-Vulkan")
     ->RangeMultiplier(10)
-    ->Range(1e3, 1e8)
+    ->Range(ppb::VectorAdditionBenchmarkConf::MIN_SIZE, ppb::VectorAdditionBenchmarkConf::MAX_SIZE)
 #ifdef PPB_MEASURE_ONLY_KERNEL
     ->UseManualTime()
 #endif

@@ -27,7 +27,7 @@ namespace ppb {
 BENCHMARK(ppb::VectorAddition<ppb::ImplCpp<float>>::benchmark)
     ->Name("VecAdd-Float-CPP")
     ->RangeMultiplier(10)
-    ->Range(1e3, 1e8)
+    ->Range(ppb::VectorAdditionBenchmarkConf::MIN_SIZE, ppb::VectorAdditionBenchmarkConf::MAX_SIZE)
 #ifdef PPB_MEASURE_ONLY_KERNEL
     ->UseManualTime()
 #endif
@@ -36,7 +36,7 @@ BENCHMARK(ppb::VectorAddition<ppb::ImplCpp<float>>::benchmark)
 // BENCHMARK(ppb::VectorAddition<ppb::ImplCpp<double>>::benchmark)
 //     ->Name("VecAdd-Double-cpp")
 //     ->RangeMultiplier(10)
-//     ->Range(1e3, 1e8)
+//     ->Range(ppb::VectorAdditionBenchmarkConf::MIN_SIZE, ppb::VectorAdditionBenchmarkConf::MAX_SIZE)
 // #ifdef PPB_MEASURE_ONLY_KERNEL
 //     ->UseManualTime()
 // #endif

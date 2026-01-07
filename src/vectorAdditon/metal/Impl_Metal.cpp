@@ -154,7 +154,7 @@ BENCHMARK(ppb::VectorAddition<ppb::ImplMetal>::benchmark)
     ->UseManualTime()
 #endif
     ->RangeMultiplier(10)
-    ->Range(1e3, 1e8)
+    ->Range(ppb::VectorAdditionBenchmarkConf::MIN_SIZE, ppb::VectorAdditionBenchmarkConf::MAX_SIZE)
     ->Complexity();
 
 int main(int argc, char **argv) {

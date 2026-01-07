@@ -6,7 +6,7 @@
 // BENCHMARK(ppb::MatrixMultiplication<ppb::ImplOpenMP<float>>::benchmark)
 //     ->Name("MatrixMultiplication-Float-OpenMP-CPU")
 //     ->RangeMultiplier(2)
-//     ->Range(32, 8192)
+//     ->Range(ppb::MatrixMultiplicationBenchmarkConf::MIN_SIZE, ppb::MatrixMultiplicationBenchmarkConf::MAX_SIZE)
 // #ifdef PPB_MEASURE_ONLY_KERNEL
 //     ->UseManualTime()
 // #endif
@@ -15,7 +15,7 @@
 BENCHMARK(ppb::MatrixMultiplication<ppb::ImplOpenMPDevice<float>>::benchmark)
     ->Name("MatrixMultiplication-Float-OpenMP")
     ->RangeMultiplier(2)
-    ->Range(32, 8192)
+    ->Range(ppb::MatrixMultiplicationBenchmarkConf::MIN_SIZE, ppb::MatrixMultiplicationBenchmarkConf::MAX_SIZE)
 #ifdef PPB_MEASURE_ONLY_KERNEL
     ->UseManualTime()
 #endif

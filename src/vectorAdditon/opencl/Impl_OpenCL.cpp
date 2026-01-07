@@ -103,7 +103,7 @@ namespace ppb {
 BENCHMARK(ppb::VectorAddition<ppb::ImplOpenCL<float>>::benchmark)
     ->Name("VecAdd-Float-OpenCL")
     ->RangeMultiplier(10)
-    ->Range(1e3, 1e8)
+    ->Range(ppb::VectorAdditionBenchmarkConf::MIN_SIZE, ppb::VectorAdditionBenchmarkConf::MAX_SIZE)
 #ifdef PPB_MEASURE_ONLY_KERNEL
     ->UseManualTime()
 #endif
@@ -115,7 +115,7 @@ BENCHMARK(ppb::VectorAddition<ppb::ImplOpenCL<float>>::benchmark)
 // BENCHMARK(ppb::VectorAddition<ppb::ImplOpenCL<double>>::benchmark)
 //     ->Name("VecAdd-Double-OpenCL")
 //     ->RangeMultiplier(10)
-//     ->Range(1e3, 1e8)
+//     ->Range(ppb::VectorAdditionBenchmarkConf::MIN_SIZE, ppb::VectorAdditionBenchmarkConf::MAX_SIZE)
 // #ifdef PPB_MEASURE_ONLY_KERNEL
 //     ->UseManualTime()
 // #endif

@@ -27,7 +27,7 @@ namespace ppb {
 BENCHMARK(ppb::VectorAddition<ImplNvHpcStd<float>>::benchmark)
     ->Name("VecAdd-Float-NvhpcCStd")
     ->RangeMultiplier(10)
-    ->Range(1e3, 1e8)
+    ->Range(ppb::VectorAdditionBenchmarkConf::MIN_SIZE, ppb::VectorAdditionBenchmarkConf::MAX_SIZE)
 #ifdef PPB_MEASURE_ONLY_KERNEL
     ->UseManualTime()
 #endif

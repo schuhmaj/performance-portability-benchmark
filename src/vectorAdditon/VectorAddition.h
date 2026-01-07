@@ -15,6 +15,11 @@
 
 namespace ppb {
 
+    namespace VectorAdditionBenchmarkConf {
+        constexpr double MIN_SIZE = 1e3;
+        constexpr double MAX_SIZE = 1e8;
+    }
+
     /**
      * Simple Class offering a vector addition benchmark
      */

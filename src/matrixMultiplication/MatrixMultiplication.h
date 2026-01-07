@@ -10,6 +10,10 @@
 
 namespace ppb {
 
+    namespace MatrixMultiplicationBenchmarkConf {
+        constexpr double MIN_SIZE = 32;
+        constexpr double MAX_SIZE = 8192;
+    }
 
     struct MatrixMultiplicationConfig {
         int m;

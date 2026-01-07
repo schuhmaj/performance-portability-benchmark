@@ -7,19 +7,19 @@
 #include "benchmark/benchmark.h"
 
 BENCHMARK(ppb::VectorAddition<ppb::ImplCuda<float>>::benchmark)
-->Name("VecAdd-Float-Cuda")
-->RangeMultiplier(10)
-->Range(1e6, 1e8)
-#ifdef PPB_MEASURE_ONLY_KERNEL
-->UseManualTime()
-#endif
-->Complexity();
+    ->Name("VecAdd-Float-Cuda")
+    ->RangeMultiplier(10)
+    ->Range(ppb::VectorAdditionBenchmarkConf::MIN_SIZE, ppb::VectorAdditionBenchmarkConf::MAX_SIZE)
+    #ifdef PPB_MEASURE_ONLY_KERNEL
+    ->UseManualTime()
+    #endif
+    ->Complexity();
 
 
 BENCHMARK(ppb::VectorAddition<ppb::ImplCublas<float>>::benchmark)
     ->Name("VecAdd-Float-Cublas")
     ->RangeMultiplier(10)
-    ->Range(1e6, 1e8)
+    ->Range(ppb::VectorAdditionBenchmarkConf::MIN_SIZE, ppb::VectorAdditionBenchmarkConf::MAX_SIZE)
 #ifdef PPB_MEASURE_ONLY_KERNEL
     ->UseManualTime()
 #endif
@@ -28,7 +28,7 @@ BENCHMARK(ppb::VectorAddition<ppb::ImplCublas<float>>::benchmark)
 // BENCHMARK(ppb::VectorAddition<ppb::ImplChunkedCuda<float>>::benchmark)
 //     ->Name("VecAdd-Float-Cuda-Chunked")
 //     ->RangeMultiplier(10)
-//     ->Range(1e6, 1e9)
+//     ->Range(ppb::VectorAdditionBenchmarkConf::MIN_SIZE, ppb::VectorAdditionBenchmarkConf::MAX_SIZE)
 // #ifdef PPB_MEASURE_ONLY_KERNEL
 //     ->UseManualTime()
 // #endif
@@ -37,7 +37,7 @@ BENCHMARK(ppb::VectorAddition<ppb::ImplCublas<float>>::benchmark)
 // BENCHMARK(ppb::VectorAddition<ppb::ImplThrust<float>>::benchmark)
 //     ->Name("VecAdd-Float-Thrust")
 //     ->RangeMultiplier(10)
-//     ->Range(1e3, 1e8)
+//     ->Range(ppb::VectorAdditionBenchmarkConf::MIN_SIZE, ppb::VectorAdditionBenchmarkConf::MAX_SIZE)
 // #ifdef PPB_MEASURE_ONLY_KERNEL
 //     ->UseManualTime()
 // #endif
@@ -46,7 +46,7 @@ BENCHMARK(ppb::VectorAddition<ppb::ImplCublas<float>>::benchmark)
 // BENCHMARK(ppb::VectorAddition<ppb::ImplThrust<double>>::benchmark)
 //     ->Name("VecAdd-Double-Thrust")
 //     ->RangeMultiplier(10)
-//     ->Range(1e3, 1e7)
+//     ->Range(ppb::VectorAdditionBenchmarkConf::MIN_SIZE, ppb::VectorAdditionBenchmarkConf::MAX_SIZE)
 // #ifdef PPB_MEASURE_ONLY_KERNEL
 //     ->UseManualTime()
 // #endif

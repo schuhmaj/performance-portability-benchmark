@@ -5,7 +5,7 @@
 BENCHMARK(ppb::MatrixMultiplication<ppb::ImplAlpaka<float>>::benchmark)
     ->Name("MatrixMultiplication-Float-Alpaka")
     ->RangeMultiplier(2)
-    ->Range(32, 8192)
+    ->Range(ppb::MatrixMultiplicationBenchmarkConf::MIN_SIZE, ppb::MatrixMultiplicationBenchmarkConf::MAX_SIZE)
 #ifdef PPB_MEASURE_ONLY_KERNEL
     ->UseManualTime()
 #endif
