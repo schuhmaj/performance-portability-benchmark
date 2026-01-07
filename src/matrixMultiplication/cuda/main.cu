@@ -42,14 +42,14 @@ BENCHMARK(ppb::MatrixMultiplication<ppb::ImplCuda<float>>::benchmark)
 // #endif
 //     ->Complexity();
 
-// BENCHMARK(ppb::MatrixMultiplication<ppb::ImplCudaTensor<float>>::benchmark)
-//     ->Name("MatrixMultiplication-Float-Cuda-Tensor")
-//     ->RangeMultiplier(2)
-//     ->Range(ppb::MatrixMultiplicationBenchmarkConf::MIN_SIZE, ppb::MatrixMultiplicationBenchmarkConf::MAX_SIZE)
-// #ifdef PPB_MEASURE_ONLY_KERNEL
-//     ->UseManualTime()
-// #endif
-//     ->Complexity();
+BENCHMARK(ppb::MatrixMultiplication<ppb::ImplCudaTensor<float>>::benchmark)
+    ->Name("MatrixMultiplication-Float-Cuda-Tensor")
+    ->RangeMultiplier(2)
+    ->Range(ppb::MatrixMultiplicationBenchmarkConf::MIN_SIZE, ppb::MatrixMultiplicationBenchmarkConf::MAX_SIZE)
+#ifdef PPB_MEASURE_ONLY_KERNEL
+    ->UseManualTime()
+#endif
+    ->Complexity();
 
 int main(int argc, char** argv) {
     benchmark::MaybeReenterWithoutASLR(argc, argv);

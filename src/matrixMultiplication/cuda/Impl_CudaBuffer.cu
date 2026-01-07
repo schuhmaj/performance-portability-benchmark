@@ -150,7 +150,7 @@ namespace ppb {
         cudaMallocAsync(&devA, sizeA, stream);
         cudaMallocAsync(&devB, sizeB, stream);
         cudaMallocAsync(&devC, sizeC, stream);
-        cudaMemsetAsync(&devC, 0, sizeC, stream);
+        cudaMemsetAsync(devC, 0, sizeC, stream);
 
         cudaMemcpyAsync(devA, a.data(), sizeA, cudaMemcpyHostToDevice, stream);
         cudaMemcpyAsync(devB, b.data(), sizeB, cudaMemcpyHostToDevice, stream);
