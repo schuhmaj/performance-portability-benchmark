@@ -86,6 +86,13 @@ def create_dataframe(report_files: list[Path]) -> pd.DataFrame:
     logger.info(f"Loaded {len(data)} report json files")
     return pd.concat(data)
 
+def filter_data(data: pd.DataFrame) -> pd.DataFrame:
+    """
+    Selects only the entries where column `Problem Size` is 14744 or 255932.
+    Only selects one row for each `Framework[Version]`
+    """
+    return data[(data["Problem Size"] == 14744) | (data["Problem Size"] == 255932)].drop_duplicates(subset=["Framework[Version]", "Problem Size"])
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Benchmarking Command Line Interface")
@@ -98,4 +105,5 @@ if __name__ == "__main__":
 
     report_files = load_files(args.path)
     df = create_dataframe(report_files)
+    df = filter_data(df)
     df.to_csv("polyhedral_benchmark.csv", index=False)
