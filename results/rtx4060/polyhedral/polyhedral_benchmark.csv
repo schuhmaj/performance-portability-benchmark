@@ -1,0 +1,21 @@
+Name,Framework,Precision,Problem Size,Iterations,Wall Clock Time,CPU Time,Kernel Time,Position Update Time,Velocity Update Time,Force Update Time,Time Unit,Version,Framework[Version]
+PolyhedralGravity,Kokkos,float,14744,179,3794378.611420453,3793445.4972067047,,,,,ns,,Kokkos
+PolyhedralGravity,Kokkos,float,255932,25,27356614.731252193,27354701.23999999,,,,,ns,,Kokkos
+PolyhedralGravity,Slang-Vulkan,float,14744,12542,1364099.0380237564,41592.480784563864,,,,,ns,,Slang-Vulkan
+PolyhedralGravity,Slang-Vulkan,float,255932,1000,15920284.394174814,203864.85600000003,,,,,ns,,Slang-Vulkan
+PolyhedralGravity,AdaptiveCpp,float,14744,3451,280187.16461492324,203841.83830773688,,,,,ns,,AdaptiveCpp
+PolyhedralGravity,AdaptiveCpp,float,255932,303,2528989.1773324595,2159955.5379537963,,,,,ns,,AdaptiveCpp
+PolyhedralGravity,CPP,float,14744,45,15361219.18923325,15333268.333333336,,,,,ns,,CPP
+PolyhedralGravity,CPP,float,255932,2,285224813.9679432,285199333.50000006,,,,,ns,,CPP
+PolyhedralGravity,Slang-CUDA,float,14744,3653,175840.81843205748,175801.85737749794,,,,,ns,,Slang-CUDA
+PolyhedralGravity,Slang-CUDA,float,255932,285,2428631.442027134,2428050.491228072,,,,,ns,,Slang-CUDA
+PolyhedralGravity,Cuda,float,14744,1510,455136.94378121797,454932.11258278135,,,,,ns,,Cuda
+PolyhedralGravity,Cuda,float,255932,125,5435405.977070332,5433037.928000005,,,,,ns,,Cuda
+PolyhedralGravity,Vulkan,float,14744,12553,1137022.4394613476,28592.381821078616,,,,,ns,,Vulkan
+PolyhedralGravity,Vulkan,float,255932,1000,16635958.28320831,213583.35299999977,,,,,ns,,Vulkan
+PolyhedralGravity,OpenMP,float,14744,100,45535065.25233388,465947.20000000007,,,,,ns,,OpenMP
+PolyhedralGravity,OpenMP,float,255932,10,605291452.2588253,483901.00000000873,,,,,ns,,OpenMP
+PolyhedralGravity,OpenACC,float,14744,1882,363131.365011368,363047.63921360247,,,,,ns,,OpenACC
+PolyhedralGravity,OpenACC,float,255932,154,4526959.254418488,4526043.123376626,,,,,ns,,OpenACC
+PolyhedralGravity,OpenCL,float,14744,2274,284199.55129831005,284137.30123131047,,,,,ns,,OpenCL
+PolyhedralGravity,OpenCL,float,255932,153,4251727.669992868,4249993.509803917,,,,,ns,,OpenCL
