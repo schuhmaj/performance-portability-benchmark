@@ -6,7 +6,11 @@
 \begin{document}
   \begin{tikzpicture}[
     font=\Large,
-    cell/.style={draw, very thick, minimum width=15mm, minimum height=9mm, align=center},
+    cell/.style={
+      draw, very thick,
+      minimum size=15mm,   % <- makes each cell quadratic (width = height)
+      align=center
+    },
     matA/.style={cell, fill=blue!12},
     matB/.style={cell, fill=orange!14},
     matC/.style={cell, fill=green!12},
@@ -25,11 +29,12 @@
     \matrix (A) [
       matrix of nodes,
       nodes in empty cells,
+      nodes={text height=1.8ex, text depth=0.4ex},
       row sep=-\pgflinewidth,
       column sep=-\pgflinewidth
     ]{
       \node[matA] {$a_{1,1}$}; \& \node[matA] {$a_{1,2}$}; \& \node[matA] {$\cdots$}; \& \node[matA] {$a_{1,k}$}; \\
-      \node[rowA] {$a_{2,1}$}; \& \node[rowA] {$a_{2,2}$}; \& \node[rowA] {$\cdots$}; \& \node[rowA] {$a_{2, k}$}; \\
+      \node[rowA] {$a_{2,1}$}; \& \node[rowA] {$a_{2,2}$}; \& \node[rowA] {$\cdots$}; \& \node[rowA] {$a_{2,k}$}; \\
       \node[matA] {$\vdots$};  \& \node[matA] {$\vdots$};  \& \node[matA] {$\ddots$}; \& \node[matA] {$\vdots$};  \\
       \node[matA] {$a_{n,1}$}; \& \node[matA] {$a_{n,2}$}; \& \node[matA] {$\cdots$}; \& \node[matA] {$a_{n,k}$}; \\
     };
@@ -41,14 +46,15 @@
     \matrix (B) [
       matrix of nodes,
       nodes in empty cells,
+      nodes={text height=1.8ex, text depth=0.4ex},
       row sep=-\pgflinewidth,
       column sep=-\pgflinewidth,
       right=3mm of times
     ]{
-      \node[matB] {$b_{1,1}$}; \& \node[colB] {$b_{1,2}$}; \& \node[matB] {$b_{1,3}$}; \& \node[matB] {$b_{1,4}$}; \\
-      \node[matB] {$b_{2,1}$}; \& \node[colB] {$b_{2,2}$}; \& \node[matB] {$b_{2,3}$}; \& \node[matB] {$b_{2,4}$}; \\
-      \node[matB] {$\cdots$};  \& \node[colB] {$\cdots$};  \& \node[matB] {$\cdots$};  \& \node[matB] {$\cdots$};  \\
-      \node[matB] {$b_{4,1}$}; \& \node[colB] {$b_{4,2}$}; \& \node[matB] {$b_{4,3}$}; \& \node[matB] {$b_{4,4}$}; \\
+      \node[matB] {$b_{1,1}$}; \& \node[colB] {$b_{1,2}$}; \& \node[matB] {$\cdots$}; \& \node[matB] {$b_{1,m}$}; \\
+      \node[matB] {$b_{2,1}$}; \& \node[colB] {$b_{2,2}$}; \& \node[matB] {$\cdots$}; \& \node[matB] {$b_{2,m}$}; \\
+      \node[matB] {$\vdots$};  \& \node[colB] {$\vdots$};  \& \node[matB] {$\ddots$};  \& \node[matB] {$\vdots$};  \\
+      \node[matB] {$b_{k,1}$}; \& \node[colB] {$b_{k,2}$}; \& \node[matB] {$\cdots$}; \& \node[matB] {$b_{k,m}$}; \\
     };
 
 % --- Equals sign ---
@@ -58,14 +64,15 @@
     \matrix (C) [
       matrix of nodes,
       nodes in empty cells,
+      nodes={text height=1.8ex, text depth=0.4ex},
       row sep=-\pgflinewidth,
       column sep=-\pgflinewidth,
       right=3mm of eq
     ]{
-      \node[matC] {$c_{1,1}$}; \& \node[matC] {$c_{1,2}$}; \& \node[matC] {$c_{1,3}$}; \& \node[matC] {$c_{1,4}$}; \\
-      \node[matC] {$c_{2,1}$}; \& \node[hiC]  {$c_{2,2}$}; \& \node[matC] {$c_{2,3}$}; \& \node[matC] {$c_{2,4}$}; \\
-      \node[matC] {$\cdots$};  \& \node[matC] {$\cdots$};  \& \node[matC] {$\cdots$};  \& \node[matC] {$\cdots$};  \\
-      \node[matC] {$c_{4,1}$}; \& \node[matC] {$c_{4,2}$}; \& \node[matC] {$c_{4,3}$}; \& \node[matC] {$c_{4,4}$}; \\
+      \node[matC] {$c_{1,1}$}; \& \node[matC] {$c_{1,2}$}; \& \node[matC] {$\cdots$}; \& \node[matC] {$c_{1,m}$}; \\
+      \node[matC] {$c_{2,1}$}; \& \node[hiC]  {$c_{2,2}$}; \& \node[matC] {$\cdots$}; \& \node[matC] {$c_{2,m}$}; \\
+      \node[matC] {$\vdots$};  \& \node[matC] {$\vdots$};  \& \node[matC] {$\ddots$};  \& \node[matC] {$\vdots$};  \\
+      \node[matC] {$c_{n,1}$}; \& \node[matC] {$c_{n,2}$}; \& \node[matC] {$\cdots$}; \& \node[matC] {$c_{n,m}$}; \\
     };
 
   \end{tikzpicture}
