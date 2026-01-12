@@ -1,7 +1,7 @@
 #version 450
 layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
 
-layout(std430, binding = 0) buffer Positions {
+layout(std430, binding = 0) readonly buffer Positions {
     vec4 positions[];
 };
 
@@ -9,7 +9,7 @@ layout(std430, binding = 1) buffer VerletLists {
     uint verletLists[];
 };
 
-layout(std430, binding = 2) buffer NieghborsStarts {
+layout(std430, binding = 2) readonly buffer NieghborsStarts {
     uint neighborsStarts[];
 };
 

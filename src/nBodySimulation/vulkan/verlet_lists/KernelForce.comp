@@ -9,11 +9,11 @@ layout(std430, binding = 1) buffer Forces {
     vec4 forces[];
 };
 
-layout(std430, binding = 2) buffer VerletLists {
+layout(std430, binding = 2) readonly buffer VerletLists {
     uint verletLists[];
 };
 
-layout(std430, binding = 3) buffer NieghborsStarts {
+layout(std430, binding = 3) readonly buffer NieghborsStarts {
     uint neighborsStarts[];
 };
 

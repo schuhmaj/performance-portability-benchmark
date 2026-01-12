@@ -1,25 +1,19 @@
-// KernelVelocity.slang
-RWStructuredBuffer<float4> velocities;
-StructuredBuffer<float4> forces;
-StructuredBuffer<float4> oldForces;
+// KernelBlockSum.slang
+RWStructuredBuffer<uint> data;
+StructuredBuffer<uint> blockSums;
 
-uniform float dt;
-uniform uint numParticles;
+uniform uint total_size;
 
 [shader("compute")]
 [numthreads(256,1,1)]
-void computeMain(uint3 threadId : SV_DispatchThreadID)
+void computeMain(uint3 threadId : SV_DispatchThreadID, uint3 groupId : SV_GroupID)
 {
-    uint i = threadId.x;
-    if (i >= numParticles) {
+    uint gid = threadId.x;
+    uint block = groupId.x;
+
+    if (gid >= total_size) {
         return;
     }
 
-    float m = 1.0;
-
-    float3 force = forces[i].xyz + oldForces[i].xyz;
-    float t2m = dt / (2.0 * m);
-    float3 velChange = force * t2m;
-
-    velocities[i].xyz += velChange;
+    data[gid] += blockSums[block];
 }

@@ -1,25 +1,33 @@
-// KernelVelocity.slang
-RWStructuredBuffer<float4> velocities;
-StructuredBuffer<float4> forces;
-StructuredBuffer<float4> oldForces;
+// KernelVerlet.slang
+StructuredBuffer<float4> positions;
+RWStructuredBuffer<uint> verletLists;
+StructuredBuffer<uint> neighborsStarts;
 
-uniform float dt;
 uniform uint numParticles;
+uniform float radius;
 
 [shader("compute")]
 [numthreads(256,1,1)]
 void computeMain(uint3 threadId : SV_DispatchThreadID)
 {
-    uint i = threadId.x;
-    if (i >= numParticles) {
-        return;
+    uint gid = threadId.x;
+    if (gid >= numParticles) { return; }
+
+    uint index = neighborsStarts[gid];
+    uint end = neighborsStarts[gid + 1];
+
+    float3 pi = positions[gid].xyz;
+    
+    for (uint i = 0; i < numParticles; i++) {
+        if (i == gid) { continue; }
+        if (index == end) { break; }
+        // calculate distance to see if this particle is a neighbor
+        float3 dr = pi - positions[i].xyz;
+        float dr2 = dot(dr.xyz, dr.xyz);
+        if (dr2 < radius * radius) {
+            // if the particle is close enough, add it
+            verletLists[index] = i;
+            index += 1;
+        }
     }
-
-    float m = 1.0;
-
-    float3 force = forces[i].xyz + oldForces[i].xyz;
-    float t2m = dt / (2.0 * m);
-    float3 velChange = force * t2m;
-
-    velocities[i].xyz += velChange;
 }

@@ -4,7 +4,9 @@ StructuredBuffer<float4> velocities;
 RWStructuredBuffer<float4> forces;
 RWStructuredBuffer<float4> oldForces;
 
-uniform float4 globalForce;
+uniform float globalForce_x;
+uniform float globalForce_y;
+uniform float globalForce_z;
 uniform float dt;
 uniform uint numParticles;
 
@@ -20,7 +22,7 @@ void computeMain(uint3 threadId : SV_DispatchThreadID)
     float m = 1.0;
     vector<float, 3> force = forces[i].xyz;
     oldForces[i].xyz = force;
-    forces[i] = globalForce;
+    forces[i].xyz = float3(globalForce_x, globalForce_y, globalForce_z);
 
     float3 velocityPart = velocities[i].xyz * dt;
     float tt2m = (dt * dt) / (2.0 * m);

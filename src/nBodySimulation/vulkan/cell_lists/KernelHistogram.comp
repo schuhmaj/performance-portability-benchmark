@@ -48,5 +48,4 @@ void main() {
     int slot = int(atomicAdd(histogram[c], 1));
 
     particleIdx[i] = ivec2(c, slot);
-
 }

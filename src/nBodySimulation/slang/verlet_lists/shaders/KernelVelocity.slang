@@ -21,5 +21,5 @@ void computeMain(uint3 threadId : SV_DispatchThreadID)
     float t2m = dt / (2.0 * m);
     float3 velChange = force * t2m;
 
-    velocities[i].xyz += velChange;
+    velocities[i].xyz += velChange.xyz;
 }

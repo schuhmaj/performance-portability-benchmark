@@ -1,9 +1,8 @@
-// KernelVelocity.slang
-RWStructuredBuffer<float4> velocities;
-StructuredBuffer<float4> forces;
-StructuredBuffer<float4> oldForces;
+// KernelIdCells.slang
+StructuredBuffer<int2> particleIdx;
+RWStructuredBuffer<uint> idCells;
+StructuredBuffer<uint> starts;
 
-uniform float dt;
 uniform uint numParticles;
 
 [shader("compute")]
@@ -15,11 +14,11 @@ void computeMain(uint3 threadId : SV_DispatchThreadID)
         return;
     }
 
-    float m = 1.0;
+    int2 data = particleIdx[i];
+    int cell = data.x;
+    int slot = data.y;
 
-    float3 force = forces[i].xyz + oldForces[i].xyz;
-    float t2m = dt / (2.0 * m);
-    float3 velChange = force * t2m;
+    uint idx = starts[cell] + slot;
 
-    velocities[i].xyz += velChange;
+    idCells[idx] = i;
 }
