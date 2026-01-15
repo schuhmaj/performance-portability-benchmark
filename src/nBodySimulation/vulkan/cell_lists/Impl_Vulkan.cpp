@@ -83,10 +83,6 @@ namespace ppb {
         _sequence->template record<kp::OpTensorSyncDevice>(params)->eval();
         _timings.reset();
 
-        calculateHistogram({positions, cells, particleIdx}, cellCounts, boxMin, boxSize);
-        exclusiveScanBlelloch(cells, cellsLength);
-        calculateIdCells({particleIdx, idCells, cells});
-
         for (int i = 0; i < _config.numberTimeSteps; ++i) {
             resetCells(cells, nBlocks, cellsLength);
             calculateHistogram({positions, cells, particleIdx}, cellCounts, boxMin, boxSize);
@@ -99,6 +95,8 @@ namespace ppb {
         }
 
         _sequence->template record<kp::OpTensorSyncLocal>(params)->eval();
+
+        printBuffer(positions, true);
 
         positionsHost = positions->vector();
         velocitiesHost = velocities->vector();

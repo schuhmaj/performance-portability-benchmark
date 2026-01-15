@@ -14,7 +14,7 @@ function(slang_vulkan_compile_shader)
         DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/shaders/${SLANG_SLANG_FILE}
         COMMENT "Slang -> GLSL (.comp): ${stem}"
     )
-    add_custom_target(generate_${stem} DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/generated_shaders/${stem}.comp)
+    add_custom_target(generate_cell_lists_${stem} DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/generated_shaders/${stem}.comp)
 
     vulkan_compile_shader(
         INFILE generated_shaders/${stem}.comp 

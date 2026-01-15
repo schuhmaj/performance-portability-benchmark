@@ -1,12 +1,12 @@
 #include "benchmark/benchmark.h"
-#include "Impl_Vulkan.h"
+#include "Impl_Slang_Vulkan.h"
 #include "nBodySimulation/NBodySimulation.h"
 
 #ifndef GIT_HASH_STRING
 #define GIT_HASH_STRING "unknown"
 #endif
 
-BENCHMARK(ppb::NBodySimulation<ppb::ImplVulkan<float>>::benchmark)
+BENCHMARK(ppb::NBodySimulation<ppb::ImplSlangVulkan<float>>::benchmark)
     ->Name("NBody-Float-Vulkan-Naive")
     ->RangeMultiplier(10)
     ->Range(1e1, 1e5)

@@ -1,0 +1,40 @@
+#version 450
+layout(row_major) uniform;
+layout(row_major) buffer;
+
+#line 2 0
+layout(std430, binding = 1) buffer StructuredBuffer_uint_t_0 {
+    uint _data[];
+} cells_0;
+
+#line 2
+struct GlobalParams_natural_0
+{
+    uint total_size_0;
+};
+
+
+#line 2
+layout(binding = 0)
+layout(std140) uniform block_GlobalParams_natural_0
+{
+    uint total_size_0;
+}globalParams_0;
+
+layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
+void main()
+{
+
+#line 10
+    uint gid_0 = gl_GlobalInvocationID.x;
+    if(gid_0 >= (globalParams_0.total_size_0))
+    {
+
+#line 12
+        return;
+    }
+
+    cells_0._data[uint(gid_0)] = 0U;
+    return;
+}
+

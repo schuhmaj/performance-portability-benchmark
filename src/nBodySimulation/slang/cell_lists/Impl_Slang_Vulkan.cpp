@@ -1,4 +1,4 @@
-#include "Impl_Vulkan.h"
+#include "Impl_Slang_Vulkan.h"
 
 #include "KernelForce.h"
 #include "KernelPosition.h"
@@ -15,7 +15,7 @@
 namespace ppb {
 
     template <typename FloatType>
-    ImplVulkan<FloatType>::ImplVulkan(const ParticleSimulationConfig<FloatType> &config)
+    ImplSlangVulkan<FloatType>::ImplSlangVulkan(const ParticleSimulationConfig<FloatType> &config)
         : _config{config}
         , _timings{}
         , _manager{}
@@ -33,7 +33,7 @@ namespace ppb {
 
 
     template <typename FloatType>
-    std::pair<std::vector<Particle<FloatType>>, ParticleSimulationTimings> ImplVulkan<FloatType>::simulate(const std::vector<Particle<FloatType>> &particles) {
+    std::pair<std::vector<Particle<FloatType>>, ParticleSimulationTimings> ImplSlangVulkan<FloatType>::simulate(const std::vector<Particle<FloatType>> &particles) {
         std::vector<float> positionsHost(particles.size() * 4, 0.0);
         std::vector<float> velocitiesHost(particles.size() * 4, 0.0);
         std::vector<float> forcesHost(particles.size() * 4, 0.0);
@@ -83,10 +83,6 @@ namespace ppb {
         _sequence->template record<kp::OpTensorSyncDevice>(params)->eval();
         _timings.reset();
 
-        calculateHistogram({positions, cells, particleIdx}, cellCounts, boxMin, boxSize);
-        exclusiveScanBlelloch(cells, cellsLength);
-        calculateIdCells({particleIdx, idCells, cells});
-
         for (int i = 0; i < _config.numberTimeSteps; ++i) {
             resetCells(cells, nBlocks, cellsLength);
             calculateHistogram({positions, cells, particleIdx}, cellCounts, boxMin, boxSize);
@@ -116,7 +112,7 @@ namespace ppb {
     }
 
     template <typename FloatType>
-    void ImplVulkan<FloatType>::printBuffer(const std::shared_ptr<kp::Tensor> &buffer, bool floats) {
+    void ImplSlangVulkan<FloatType>::printBuffer(const std::shared_ptr<kp::Tensor> &buffer, bool floats) {
 
         _sequence->record<kp::OpTensorSyncLocal>({ buffer })->eval();
 
@@ -134,7 +130,7 @@ namespace ppb {
     }
 
     template <typename FloatType>
-    void ImplVulkan<FloatType>::calculateHistogram(const std::vector<std::shared_ptr<kp::Tensor>> &params, std::array<int, 3> cellCounts, std::array<float, 3> boxMin, std::array<float, 3> boxSize) {
+    void ImplSlangVulkan<FloatType>::calculateHistogram(const std::vector<std::shared_ptr<kp::Tensor>> &params, std::array<int, 3> cellCounts, std::array<float, 3> boxMin, std::array<float, 3> boxSize) {
         uint TILE_SIZE = _config.TILE_SIZE;
         const uint groups = util::ceilDiv<uint>(_config.size, TILE_SIZE);
         kp::Workgroup workgroup{{groups, 1, 1}};
@@ -182,7 +178,7 @@ namespace ppb {
     }
 
     template <typename FloatType>
-    void ImplVulkan<FloatType>::exclusiveScanBlelloch(const std::shared_ptr<kp::Tensor> &data, const uint totalLength) {
+    void ImplSlangVulkan<FloatType>::exclusiveScanBlelloch(const std::shared_ptr<kp::Tensor> &data, const uint totalLength) {
         uint TILE_SIZE = _config.TILE_SIZE;
         // init blockSum buffer
         uint nBlocks = (totalLength + TILE_SIZE - 1) / TILE_SIZE;
@@ -228,7 +224,7 @@ namespace ppb {
 
 
     template <typename FloatType>
-    void ImplVulkan<FloatType>::calculateIdCells(const std::vector<std::shared_ptr<kp::Tensor>> &params) {
+    void ImplSlangVulkan<FloatType>::calculateIdCells(const std::vector<std::shared_ptr<kp::Tensor>> &params) {
         uint TILE_SIZE = _config.TILE_SIZE;
         const uint groups = util::ceilDiv<uint>(_config.size, TILE_SIZE);
         kp::Workgroup workgroup{{groups, 1, 1}};
@@ -249,7 +245,7 @@ namespace ppb {
 
 
     template <typename FloatType>
-    void ImplVulkan<FloatType>::resetCells(const std::shared_ptr<kp::Tensor> &cells, uint nBlocks, uint totalLength) {
+    void ImplSlangVulkan<FloatType>::resetCells(const std::shared_ptr<kp::Tensor> &cells, uint nBlocks, uint totalLength) {
         kp::Workgroup workgroup{{nBlocks, 1, 1}};
         std::vector<uint32_t> pushData{ static_cast<uint32_t>(totalLength) };
 
@@ -267,7 +263,7 @@ namespace ppb {
     }
 
     template <typename FloatType>
-    void ImplVulkan<FloatType>::updatePositionsAndResetForce(const std::vector<std::shared_ptr<kp::Tensor>> &params) {
+    void ImplSlangVulkan<FloatType>::updatePositionsAndResetForce(const std::vector<std::shared_ptr<kp::Tensor>> &params) {
         uint TILE_SIZE = _config.TILE_SIZE;
         const uint groups = util::ceilDiv<uint>(_config.size, TILE_SIZE);
         kp::Workgroup workgroup{{groups, 1, 1}};
@@ -305,7 +301,7 @@ namespace ppb {
     }
 
     template <typename FloatType>
-    void ImplVulkan<FloatType>::updateVelocities(const std::vector<std::shared_ptr<kp::Tensor>> &params) {
+    void ImplSlangVulkan<FloatType>::updateVelocities(const std::vector<std::shared_ptr<kp::Tensor>> &params) {
         uint TILE_SIZE = _config.TILE_SIZE;
         const uint groups = util::ceilDiv<uint>(_config.size, TILE_SIZE);
         kp::Workgroup workgroup{{groups, 1, 1}};
@@ -337,7 +333,7 @@ namespace ppb {
     }
 
     template <typename FloatType>
-    void ImplVulkan<FloatType>::computeForces(const std::vector<std::shared_ptr<kp::Tensor>> &params, std::array<int, 3> cellCounts) {
+    void ImplSlangVulkan<FloatType>::computeForces(const std::vector<std::shared_ptr<kp::Tensor>> &params, std::array<int, 3> cellCounts) {
         uint TILE_SIZE = _config.TILE_SIZE;
         const uint groups = util::ceilDiv<uint>(_config.size, TILE_SIZE);
         kp::Workgroup workgroup{{groups, 1, 1}};
@@ -372,6 +368,6 @@ namespace ppb {
         _timings.forceUpdateTime += elapsed_nanoseconds;
     }
 
-    template class ImplVulkan<float>;
+    template class ImplSlangVulkan<float>;
 
 } // namespace ppb

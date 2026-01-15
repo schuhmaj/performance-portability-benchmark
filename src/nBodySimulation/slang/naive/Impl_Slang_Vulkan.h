@@ -10,7 +10,7 @@
 namespace ppb {
 
     template<typename FloatType>
-    class ImplVulkan {
+    class ImplSlangVulkan {
 
         /**
          * Simulation configuration with parameters such as particle count, force, time step, and bounds.
@@ -41,7 +41,7 @@ namespace ppb {
          * Constructs the simulation implementation.
          * @param config Simulation configuration with all necessary simulation parameters.
          */
-        explicit ImplVulkan(const ParticleSimulationConfig<FloatType> &config);
+        explicit ImplSlangVulkan(const ParticleSimulationConfig<FloatType> &config);
 
         /**
          * Runs the simulation for the configured total simulation time, performing position, force,

@@ -2,103 +2,103 @@
 layout(row_major) uniform;
 layout(row_major) buffer;
 
-#line 2 0
-layout(std430, binding = 1) readonly buffer StructuredBuffer_vectorx3Cfloatx2C4x3E_t_0 {
-    vec4 _data[];
-} positions_0;
-
-#line 3
-layout(std430, binding = 2) buffer StructuredBuffer_vectorx3Cfloatx2C4x3E_t_1 {
-    vec4 _data[];
-} forces_0;
-
-#line 90 1
+#line 7 0
 struct GlobalParams_natural_0
 {
     uint numParticles_0;
 };
 
 
-#line 90
-layout(binding = 0)
-layout(std140) uniform block_GlobalParams_natural_0
+#line 9
+layout(push_constant)
+layout(std430) uniform block_GlobalParams_natural_0
 {
     uint numParticles_0;
-}globalParams_0;
+}pc_0;
 
-#line 9 0
-layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
+#line 2
+layout(std430, binding = 0) readonly buffer StructuredBuffer_vectorx3Cfloatx2C4x3E_t_0 {
+    vec4 _data[];
+} positions_0;
+
+#line 3
+layout(std430, binding = 1) buffer StructuredBuffer_vectorx3Cfloatx2C4x3E_t_1 {
+    vec4 _data[];
+} forces_0;
+
+#line 13
+layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
 void main()
 {
 
-#line 11
+#line 15
     uint i_0 = gl_GlobalInvocationID.x;
 
-#line 11
-    uint _S1 = globalParams_0.numParticles_0;
-    if(i_0 >= (globalParams_0.numParticles_0))
+#line 15
+    uint _S1 = pc_0.numParticles_0;
+    if(i_0 >= (pc_0.numParticles_0))
     {
 
-#line 13
+#line 17
         return;
     }
     const vec3 _S2 = vec3(0.0);
 
-#line 21
+#line 25
     vec3 _S3 = positions_0._data[uint(i_0)].xyz;
 
-#line 21
+#line 25
     uint j_0 = 0U;
 
-#line 21
+#line 25
     vec3 acc_0 = _S2;
 
     for(;;)
     {
 
-#line 23
+#line 27
         if(j_0 < _S1)
         {
         }
         else
         {
 
-#line 23
+#line 27
             break;
         }
 
-#line 24
+#line 28
         if(i_0 == j_0)
         {
 
-#line 25
+#line 29
             j_0 = j_0 + 1U;
 
-#line 23
+#line 27
             continue;
         }
 
 
 
         vec3 dr_0 = _S3 - positions_0._data[uint(j_0)].xyz;
+        vec3 _S4 = dr_0.xyz;
 
-
-        float invdr2_0 = 1.0 / dot(dr_0, dr_0);
+        float invdr2_0 = 1.0 / dot(_S4, _S4);
 
         float lj6_0 = invdr2_0 * invdr2_0 * invdr2_0;
         float lj12_0 = lj6_0 * lj6_0;
 
-#line 34
+#line 38
         acc_0 = acc_0 + dr_0 * (24.0 * (lj12_0 + (lj12_0 - lj6_0)) * invdr2_0);
 
-#line 23
+#line 27
         j_0 = j_0 + 1U;
 
-#line 23
+#line 27
     }
 
-#line 41
-    forces_0._data[uint(i_0)].xyz = acc_0;
+#line 45
+    forces_0._data[uint(i_0)].xyz = forces_0._data[uint(i_0)].xyz + acc_0;
     return;
 }
 

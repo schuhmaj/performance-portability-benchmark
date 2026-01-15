@@ -1,4 +1,4 @@
-#include "Impl_Vulkan.h"
+#include "Impl_Slang_Vulkan.h"
 
 #include "KernelForce.h"
 #include "KernelPosition.h"
@@ -12,7 +12,7 @@
 namespace ppb {
 
     template <typename FloatType>
-    ImplVulkan<FloatType>::ImplVulkan(const ParticleSimulationConfig<FloatType> &config)
+    ImplSlangVulkan<FloatType>::ImplSlangVulkan(const ParticleSimulationConfig<FloatType> &config)
         : _config{config}
         , _timings{}
         , _manager{}
@@ -30,7 +30,7 @@ namespace ppb {
 
 
     template <typename FloatType>
-    std::pair<std::vector<Particle<FloatType>>, ParticleSimulationTimings> ImplVulkan<FloatType>::simulate(const std::vector<Particle<FloatType>> &particles) {
+    std::pair<std::vector<Particle<FloatType>>, ParticleSimulationTimings> ImplSlangVulkan<FloatType>::simulate(const std::vector<Particle<FloatType>> &particles) {
         std::vector<float> positionsHost(particles.size() * 4, 0.0);
         std::vector<float> velocitiesHost(particles.size() * 4, 0.0);
         std::vector<float> forcesHost(particles.size() * 4, 0.0);
@@ -100,7 +100,7 @@ namespace ppb {
     }
 
     template <typename FloatType>
-    void ImplVulkan<FloatType>::printBuffer(const std::shared_ptr<kp::Tensor> &buffer, bool floats) {
+    void ImplSlangVulkan<FloatType>::printBuffer(const std::shared_ptr<kp::Tensor> &buffer, bool floats) {
 
         _sequence->record<kp::OpTensorSyncLocal>({ buffer })->eval();
 
@@ -118,7 +118,7 @@ namespace ppb {
     }
 
     template <typename FloatType>
-    void ImplVulkan<FloatType>::countNeighbors(const std::vector<std::shared_ptr<kp::Tensor>> &params) {
+    void ImplSlangVulkan<FloatType>::countNeighbors(const std::vector<std::shared_ptr<kp::Tensor>> &params) {
         uint TILE_SIZE = _config.TILE_SIZE;
         const uint groups = util::ceilDiv<uint>(_config.size, TILE_SIZE);
         kp::Workgroup workgroup{{groups, 1, 1}};
@@ -150,7 +150,7 @@ namespace ppb {
     }
 
     template <typename FloatType>
-    void ImplVulkan<FloatType>::exclusiveScanBlelloch(const std::shared_ptr<kp::Tensor> &data, const uint totalLength) {
+    void ImplSlangVulkan<FloatType>::exclusiveScanBlelloch(const std::shared_ptr<kp::Tensor> &data, const uint totalLength) {
         uint TILE_SIZE = _config.TILE_SIZE;
         // init blockSum buffer
         uint nBlocks = (totalLength + TILE_SIZE - 1) / TILE_SIZE;
@@ -195,7 +195,7 @@ namespace ppb {
     }
 
     template <typename FloatType>
-    std::shared_ptr<kp::Tensor> ImplVulkan<FloatType>::createVerletList(const std::shared_ptr<kp::Tensor> &positions, const std::shared_ptr<kp::Tensor> &neighborsStarts) {
+    std::shared_ptr<kp::Tensor> ImplSlangVulkan<FloatType>::createVerletList(const std::shared_ptr<kp::Tensor> &positions, const std::shared_ptr<kp::Tensor> &neighborsStarts) {
         _sequence->record<kp::OpTensorSyncLocal>({ neighborsStarts })->eval();
         auto data = neighborsStarts->vector<uint>();
         uint nNeighbors = std::max(data[_config.size], 1u);
@@ -236,7 +236,7 @@ namespace ppb {
     }
 
     template <typename FloatType>
-    void ImplVulkan<FloatType>::updatePositionsAndResetForce(const std::vector<std::shared_ptr<kp::Tensor>> &params) {
+    void ImplSlangVulkan<FloatType>::updatePositionsAndResetForce(const std::vector<std::shared_ptr<kp::Tensor>> &params) {
         uint TILE_SIZE = _config.TILE_SIZE;
         const unsigned int groups = util::ceilDiv<unsigned int>(_config.size, TILE_SIZE);
         kp::Workgroup workgroup{{groups, 1, 1}};
@@ -257,7 +257,7 @@ namespace ppb {
     }
 
     template <typename FloatType>
-    void ImplVulkan<FloatType>::updateVelocities(const std::vector<std::shared_ptr<kp::Tensor>> &params) {
+    void ImplSlangVulkan<FloatType>::updateVelocities(const std::vector<std::shared_ptr<kp::Tensor>> &params) {
         uint TILE_SIZE = _config.TILE_SIZE;
         const unsigned int groups = util::ceilDiv<unsigned int>(_config.size, TILE_SIZE);
         kp::Workgroup workgroup{{groups, 1, 1}};
@@ -277,7 +277,7 @@ namespace ppb {
     }
 
     template <typename FloatType>
-    void ImplVulkan<FloatType>::computeForces(const std::vector<std::shared_ptr<kp::Tensor>> &params) {
+    void ImplSlangVulkan<FloatType>::computeForces(const std::vector<std::shared_ptr<kp::Tensor>> &params) {
         uint TILE_SIZE = _config.TILE_SIZE;
         const unsigned int groups = util::ceilDiv<unsigned int>(_config.size, TILE_SIZE);
         kp::Workgroup workgroup{{groups, 1, 1}};
@@ -297,7 +297,7 @@ namespace ppb {
         _timings.forceUpdateTime += elapsed_nanoseconds;
     }
 
-    template class ImplVulkan<float>;
+    template class ImplSlangVulkan<float>;
 
 } // namespace ppb
 

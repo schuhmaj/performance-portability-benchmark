@@ -6,7 +6,7 @@
 #define GIT_HASH_STRING "unknown"
 #endif
 
-BENCHMARK(ppb::NBodySimulation<ppb::ImplVulkan<float>>::benchmark)
+BENCHMARK(ppb::NBodySimulation<ppb::ImplSlangVulkan<float>>::benchmark)
     ->Name("NBody-Float-Vulkan-Naive")
     ->RangeMultiplier(10)
     ->Range(1e1, 1e5)

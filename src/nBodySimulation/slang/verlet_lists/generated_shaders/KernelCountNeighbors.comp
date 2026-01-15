@@ -1,0 +1,118 @@
+#version 450
+layout(row_major) uniform;
+layout(row_major) buffer;
+
+#line 2 0
+layout(std430, binding = 1) readonly buffer StructuredBuffer_vectorx3Cfloatx2C4x3E_t_0 {
+    vec4 _data[];
+} positions_0;
+
+#line 3
+layout(std430, binding = 2) buffer StructuredBuffer_uint_t_0 {
+    uint _data[];
+} nNeighbors_0;
+
+#line 90 1
+struct GlobalParams_natural_0
+{
+    uint n_0;
+    float radius_0;
+};
+
+
+#line 90
+layout(binding = 0)
+layout(std140) uniform block_GlobalParams_natural_0
+{
+    uint n_0;
+    float radius_0;
+}globalParams_0;
+
+#line 10 0
+layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
+void main()
+{
+
+#line 12
+    uint gid_0 = gl_GlobalInvocationID.x;
+
+#line 12
+    uint _S1 = globalParams_0.n_0;
+
+    if(gid_0 >= (globalParams_0.n_0))
+    {
+
+#line 15
+        return;
+    }
+
+    vec3 _S2 = positions_0._data[uint(gid_0)].xyz;
+
+#line 18
+    uint i_0 = 0U;
+
+#line 18
+    uint neighbors_0 = 0U;
+
+
+    for(;;)
+    {
+
+#line 21
+        if(i_0 < _S1)
+        {
+        }
+        else
+        {
+
+#line 21
+            break;
+        }
+
+#line 22
+        if(i_0 == gid_0)
+        {
+
+#line 22
+            i_0 = i_0 + 1U;
+
+#line 21
+            continue;
+        }
+
+
+        vec3 _S3 = (_S2 - positions_0._data[uint(i_0)].xyz).xyz;
+
+#line 25
+        uint neighbors_1;
+        if((dot(_S3, _S3)) < (globalParams_0.radius_0 * globalParams_0.radius_0))
+        {
+
+#line 26
+            neighbors_1 = neighbors_0 + 1U;
+
+#line 26
+        }
+        else
+        {
+
+#line 26
+            neighbors_1 = neighbors_0;
+
+#line 26
+        }
+
+#line 26
+        neighbors_0 = neighbors_1;
+
+#line 21
+        i_0 = i_0 + 1U;
+
+#line 21
+    }
+
+#line 32
+    nNeighbors_0._data[uint(gid_0)] = neighbors_0;
+    return;
+}
+

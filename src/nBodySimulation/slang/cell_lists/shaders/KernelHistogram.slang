@@ -36,4 +36,6 @@ void computeMain(uint3 threadId : SV_DispatchThreadID)
     int slot;
     InterlockedAdd<uint>(histogram[c], 1, slot);
     particleIdx[i] = int2(c, slot);
+
+    histogram[0] = 99;
 }

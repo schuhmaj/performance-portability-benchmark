@@ -1,4 +1,5 @@
 #include "Impl_Slang_Vulkan.h"
+#include "Impl_Slang_Vulkan_PushConstants.h"
 
 #include "KernelForce.h"
 #include "KernelPosition.h"
@@ -8,7 +9,7 @@
 namespace ppb {
 
     template <typename FloatType>
-    ImplVulkan<FloatType>::ImplVulkan(const ParticleSimulationConfig<FloatType> &config)
+    ImplSlangVulkan<FloatType>::ImplSlangVulkan(const ParticleSimulationConfig<FloatType> &config)
         : _config{config}
         , _timings{}
         , _manager{}
@@ -20,7 +21,7 @@ namespace ppb {
 
 
     template <typename FloatType>
-    std::pair<std::vector<Particle<FloatType>>, ParticleSimulationTimings> ImplVulkan<FloatType>::simulate(const std::vector<Particle<FloatType>> &particles) {
+    std::pair<std::vector<Particle<FloatType>>, ParticleSimulationTimings> ImplSlangVulkan<FloatType>::simulate(const std::vector<Particle<FloatType>> &particles) {
         std::vector<float> positionsHost(particles.size() * 4, 0.0);
         std::vector<float> velocitiesHost(particles.size() * 4, 0.0);
         std::vector<float> forcesHost(particles.size() * 4, 0.0);
@@ -45,9 +46,11 @@ namespace ppb {
         auto velocities = _manager.tensor(velocitiesHost);
         auto forces = _manager.tensor(forcesHost);
         auto oldForces = _manager.tensor(oldForcesHost);
+
         std::vector<std::shared_ptr<kp::Tensor>> params = {positions, velocities, forces, oldForces};
         _sequence->template record<kp::OpTensorSyncDevice>(params)->eval();
         _timings.reset();
+
         for (int i = 0; i < _config.numberTimeSteps; ++i) {
             updatePositionsAndResetForce({positions, velocities, forces, oldForces});
             computeForces({positions, forces});
@@ -55,22 +58,25 @@ namespace ppb {
         }
         _sequence->template record<kp::OpTensorSyncLocal>(params)->eval();
 
+        printBuffer(positions, true);
+
         positionsHost = positions->vector();
         velocitiesHost = velocities->vector();
         forcesHost = forces->vector();
 
         std::vector<Particle<float>> particlesRet{particles};
         for (size_t i = 0; i < particlesRet.size(); ++i) {
-            particlesRet[i].setPosition({positionsHost[i * 3], positionsHost[i * 3 + 1], positionsHost[i * 3 + 2]});
-            particlesRet[i].setVelocity({velocitiesHost[i * 3], velocitiesHost[i * 3 + 1], velocitiesHost[i * 3 + 2]});
-            particlesRet[i].setForce({forcesHost[i * 3], forcesHost[i * 3 + 1], forcesHost[i * 3 + 2]});
+            size_t base = i * 4;
+            particlesRet[i].setPosition({positionsHost[base], positionsHost[base + 1], positionsHost[base + 2]});
+            particlesRet[i].setVelocity({velocitiesHost[base], velocitiesHost[base + 1], velocitiesHost[base + 2]});
+            particlesRet[i].setForce({forcesHost[base], forcesHost[base + 1], forcesHost[base + 2]});
         }
 
         return std::make_pair(particlesRet, _timings);
     }
 
     template <typename FloatType>
-    void ImplVulkan<FloatType>::printBuffer(const std::shared_ptr<kp::Tensor> &buffer, bool floats) {
+    void ImplSlangVulkan<FloatType>::printBuffer(const std::shared_ptr<kp::Tensor> &buffer, bool floats) {
 
         _sequence->record<kp::OpTensorSyncLocal>({ buffer })->eval();
 
@@ -88,18 +94,10 @@ namespace ppb {
     }
 
     template <typename FloatType>
-    void ImplVulkan<FloatType>::updatePositionsAndResetForce(const std::vector<std::shared_ptr<kp::Tensor>> &params) {
-        uint TILE_SIZE = _config.TILE_SIZE;
-        const uint groups = util::ceilDiv<uint>(_config.size, TILE_SIZE);
+    void ImplSlangVulkan<FloatType>::updatePositionsAndResetForce(const std::vector<std::shared_ptr<kp::Tensor>> &params) {
+        constexpr unsigned int TILE_SIZE = 32;
+        const unsigned int groups = util::ceilDiv<unsigned int>(_config.size, TILE_SIZE);
         kp::Workgroup workgroup{{groups, 1, 1}};
-
-        struct PushPos {
-            float globalForce_x;
-            float globalForce_y;
-            float globalForce_z;
-            float dt;
-            uint32_t numParticles;
-        };
 
         PushPos pc{
             _config.globalForce[0],
@@ -116,7 +114,7 @@ namespace ppb {
 
         const auto start = std::chrono::high_resolution_clock::now();
 
-        _sequence->template record<kp::OpAlgoDispatch>(algorithm, pushData);
+        _sequence->template record<kp::OpAlgoDispatch>(algorithm, pushData)->eval();
 
         const auto end = std::chrono::high_resolution_clock::now();
         const double elapsed_nanoseconds =
@@ -126,15 +124,10 @@ namespace ppb {
     }
 
     template <typename FloatType>
-    void ImplVulkan<FloatType>::updateVelocities(const std::vector<std::shared_ptr<kp::Tensor>> &params) {
-        uint TILE_SIZE = _config.TILE_SIZE;
-        const uint groups = util::ceilDiv<uint>(_config.size, TILE_SIZE);
+    void ImplSlangVulkan<FloatType>::updateVelocities(const std::vector<std::shared_ptr<kp::Tensor>> &params) {
+        constexpr unsigned int TILE_SIZE = 32;
+        const unsigned int groups = util::ceilDiv<unsigned int>(_config.size, TILE_SIZE);
         kp::Workgroup workgroup{{groups, 1, 1}};
-
-        struct PushVel {
-            float dt;
-            uint32_t numParticles;
-        };
 
         PushVel pc{
             _config.deltaT,
@@ -148,7 +141,7 @@ namespace ppb {
 
         const auto start = std::chrono::high_resolution_clock::now();
 
-        _sequence->template record<kp::OpAlgoDispatch>(algorithm, pushData);
+        _sequence->template record<kp::OpAlgoDispatch>(algorithm, pushData)->eval();
 
         const auto end = std::chrono::high_resolution_clock::now();
         const double elapsed_nanoseconds =
@@ -158,18 +151,23 @@ namespace ppb {
     }
 
     template <typename FloatType>
-    void ImplVulkan<FloatType>::computeForces(const std::vector<std::shared_ptr<kp::Tensor>> &params) {
-        uint TILE_SIZE = _config.TILE_SIZE;
-        const uint groups = util::ceilDiv<uint>(_config.size, TILE_SIZE);
+    void ImplSlangVulkan<FloatType>::computeForces(const std::vector<std::shared_ptr<kp::Tensor>> &params) {
+        constexpr unsigned int TILE_SIZE = 32;
+        const unsigned int groups = util::ceilDiv<unsigned int>(_config.size, TILE_SIZE);
         kp::Workgroup workgroup{{groups, 1, 1}};
-        
-        std::vector<uint32_t> pushData{_config.size};
+
+        PushFor pc{
+            static_cast<uint32_t>(_config.size),
+        };
+
+        std::vector<uint32_t> pushData((sizeof(PushFor) + 3) / 4);
+        std::memcpy(pushData.data(), &pc, sizeof(PushFor));
 
         auto algorithm = _manager.algorithm(params, _kernelForce, workgroup, {}, pushData);
 
         const auto start = std::chrono::high_resolution_clock::now();
 
-        _sequence->template record<kp::OpAlgoDispatch>(algorithm, pushData);
+        _sequence->template record<kp::OpAlgoDispatch>(algorithm, pushData)->eval();
 
         const auto end = std::chrono::high_resolution_clock::now();
         const double elapsed_nanoseconds =
@@ -178,8 +176,6 @@ namespace ppb {
         _timings.forceUpdateTime += elapsed_nanoseconds;
     }
 
-    template class ImplVulkan<float>;
+    template class ImplSlangVulkan<float>;
 
 } // namespace ppb
-
-

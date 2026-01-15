@@ -1,0 +1,133 @@
+#version 450
+layout(row_major) uniform;
+layout(row_major) buffer;
+
+#line 4 0
+layout(std430, binding = 3) readonly buffer StructuredBuffer_uint_t_0 {
+    uint _data[];
+} neighborsStarts_0;
+
+#line 2
+layout(std430, binding = 1) readonly buffer StructuredBuffer_vectorx3Cfloatx2C4x3E_t_0 {
+    vec4 _data[];
+} positions_0;
+
+#line 3
+layout(std430, binding = 2) buffer StructuredBuffer_uint_t_1 {
+    uint _data[];
+} verletLists_0;
+
+#line 90 1
+struct GlobalParams_natural_0
+{
+    uint numParticles_0;
+    float radius_0;
+};
+
+
+#line 90
+layout(binding = 0)
+layout(std140) uniform block_GlobalParams_natural_0
+{
+    uint numParticles_0;
+    float radius_0;
+}globalParams_0;
+
+#line 11 0
+layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
+void main()
+{
+
+#line 13
+    uint gid_0 = gl_GlobalInvocationID.x;
+
+#line 13
+    uint _S1 = globalParams_0.numParticles_0;
+    if(gid_0 >= (globalParams_0.numParticles_0))
+    {
+
+#line 14
+        return;
+    }
+
+#line 14
+    uint _S2 = neighborsStarts_0._data[uint(gid_0)];
+
+#line 14
+    uint _S3 = neighborsStarts_0._data[uint(gid_0 + 1U)];
+
+#line 19
+    vec3 _S4 = positions_0._data[uint(gid_0)].xyz;
+
+#line 19
+    uint i_0 = 0U;
+
+#line 19
+    uint index_0 = _S2;
+
+    for(;;)
+    {
+
+#line 21
+        if(i_0 < _S1)
+        {
+        }
+        else
+        {
+
+#line 21
+            break;
+        }
+
+#line 22
+        if(i_0 == gid_0)
+        {
+
+#line 22
+            i_0 = i_0 + 1U;
+
+#line 21
+            continue;
+        }
+        if(index_0 == _S3)
+        {
+
+#line 23
+            break;
+        }
+
+        vec3 _S5 = (_S4 - positions_0._data[uint(i_0)].xyz).xyz;
+
+#line 26
+        uint index_1;
+        if((dot(_S5, _S5)) < (globalParams_0.radius_0 * globalParams_0.radius_0))
+        {
+            verletLists_0._data[uint(index_0)] = i_0;
+
+#line 29
+            index_1 = index_0 + 1U;
+
+#line 27
+        }
+        else
+        {
+
+#line 27
+            index_1 = index_0;
+
+#line 27
+        }
+
+#line 27
+        index_0 = index_1;
+
+#line 21
+        i_0 = i_0 + 1U;
+
+#line 21
+    }
+
+#line 33
+    return;
+}
+

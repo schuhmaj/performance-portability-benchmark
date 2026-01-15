@@ -1,4 +1,5 @@
 #include "Impl_Vulkan.h"
+#include "Impl_Vulkan_PushConstants.h"
 
 #include "KernelForce.h"
 #include "KernelPosition.h"
@@ -21,18 +22,24 @@ namespace ppb {
 
     template <typename FloatType>
     std::pair<std::vector<Particle<FloatType>>, ParticleSimulationTimings> ImplVulkan<FloatType>::simulate(const std::vector<Particle<FloatType>> &particles) {
-        std::vector<float> positionsHost(particles.size() * 3, 0.0);
-        std::vector<float> velocitiesHost(particles.size() * 3, 0.0);
-        std::vector<float> forcesHost(particles.size() * 3, 0.0);
-        std::vector<float> oldForcesHost(particles.size() * 3, 0.0);
+        std::vector<float> positionsHost(particles.size() * 4, 0.0);
+        std::vector<float> velocitiesHost(particles.size() * 4, 0.0);
+        std::vector<float> forcesHost(particles.size() * 4, 0.0);
+        std::vector<float> oldForcesHost(particles.size() * 4, 0.0);
 
-        for (size_t i = 0; i < particles.size() * 3; ++i) {
-            const size_t particleIndex = i / 3;
-            const size_t componentIndex = i % 3;
-            positionsHost[i] = particles[particleIndex].getPosition()[componentIndex];
-            velocitiesHost[i] = particles[particleIndex].getVelocity()[componentIndex];
-            forcesHost[i] = particles[particleIndex].getForce()[componentIndex];
-            oldForcesHost[i] = 0.0;
+        for (size_t p = 0; p < particles.size(); ++p) {
+            uint base = 4 * p;
+            positionsHost[base] = particles[p].getPosition()[0];
+            positionsHost[base + 1] = particles[p].getPosition()[1];
+            positionsHost[base + 2] = particles[p].getPosition()[2];
+
+            velocitiesHost[base] = particles[p].getVelocity()[0];
+            velocitiesHost[base + 1] = particles[p].getVelocity()[1];
+            velocitiesHost[base + 2] = particles[p].getVelocity()[2];
+
+            forcesHost[base] = particles[p].getForce()[0];
+            forcesHost[base + 1] = particles[p].getForce()[1];
+            forcesHost[base + 2] = particles[p].getForce()[2];
         }
         
         auto positions = _manager.tensor(positionsHost);
@@ -49,15 +56,18 @@ namespace ppb {
         }
         _sequence->template record<kp::OpTensorSyncLocal>(params)->eval();
 
+        printBuffer(positions, true);
+
         positionsHost = positions->vector();
         velocitiesHost = velocities->vector();
         forcesHost = forces->vector();
 
         std::vector<Particle<float>> particlesRet{particles};
         for (size_t i = 0; i < particlesRet.size(); ++i) {
-            particlesRet[i].setPosition({positionsHost[i * 3], positionsHost[i * 3 + 1], positionsHost[i * 3 + 2]});
-            particlesRet[i].setVelocity({velocitiesHost[i * 3], velocitiesHost[i * 3 + 1], velocitiesHost[i * 3 + 2]});
-            particlesRet[i].setForce({forcesHost[i * 3], forcesHost[i * 3 + 1], forcesHost[i * 3 + 2]});
+            size_t base = i * 4;
+            particlesRet[i].setPosition({positionsHost[base], positionsHost[base + 1], positionsHost[base + 2]});
+            particlesRet[i].setVelocity({velocitiesHost[base], velocitiesHost[base + 1], velocitiesHost[base + 2]});
+            particlesRet[i].setForce({forcesHost[base], forcesHost[base + 1], forcesHost[base + 2]});
         }
 
         return std::make_pair(particlesRet, _timings);
@@ -83,17 +93,26 @@ namespace ppb {
 
     template <typename FloatType>
     void ImplVulkan<FloatType>::updatePositionsAndResetForce(const std::vector<std::shared_ptr<kp::Tensor>> &params) {
-        constexpr unsigned int TILE_SIZE = 32;
+        constexpr unsigned int TILE_SIZE = _config.TILE_SIZE;
         const unsigned int groups = util::ceilDiv<unsigned int>(_config.size, TILE_SIZE);
         kp::Workgroup workgroup{{groups, 1, 1}};
 
-        std::vector<float> pushConstants{_config.globalForce[0], _config.globalForce[1], _config.globalForce[2], _config.deltaT, *reinterpret_cast<float*>(&_config.size)};
+        PushPos pc{
+            _config.globalForce[0],
+            _config.globalForce[1],
+            _config.globalForce[2],
+            _config.deltaT,
+            static_cast<uint32_t>(_config.size)
+        };
 
-        auto algorithm = _manager.algorithm(params, _kernelPosition, workgroup, {}, pushConstants);
+        std::vector<uint32_t> pushData((sizeof(PushPos) + 3) / 4);
+        std::memcpy(pushData.data(), &pc, sizeof(PushPos));
+
+        auto algorithm = _manager.algorithm(params, _kernelPosition, workgroup, {}, pushData);
 
         const auto start = std::chrono::high_resolution_clock::now();
 
-        _sequence->template record<kp::OpAlgoDispatch>(algorithm ,pushConstants)->eval();
+        _sequence->template record<kp::OpAlgoDispatch>(algorithm ,pushData)->eval();
 
         const auto end = std::chrono::high_resolution_clock::now();
         const double elapsed_nanoseconds =
@@ -104,16 +123,23 @@ namespace ppb {
 
     template <typename FloatType>
     void ImplVulkan<FloatType>::updateVelocities(const std::vector<std::shared_ptr<kp::Tensor>> &params) {
-        constexpr unsigned int TILE_SIZE = 32;
+        constexpr unsigned int TILE_SIZE = _config.TILE_SIZE;
         const unsigned int groups = util::ceilDiv<unsigned int>(_config.size, TILE_SIZE);
         kp::Workgroup workgroup{{groups, 1, 1}};
-        std::vector<float> pushConstants({_config.deltaT, *reinterpret_cast<float*>(&_config.size)});
+        
+        PushVel pc{
+            _config.deltaT,
+            static_cast<uint32_t>(_config.size)
+        };
 
-        auto algorithm = _manager.algorithm(params, _kernelVelocity, workgroup, {}, pushConstants);
+        std::vector<uint32_t> pushData((sizeof(PushVel) + 3) / 4);
+        std::memcpy(pushData.data(), &pc, sizeof(PushVel));
+
+        auto algorithm = _manager.algorithm(params, _kernelVelocity, workgroup, {}, pushData);
 
         const auto start = std::chrono::high_resolution_clock::now();
 
-        _sequence->template record<kp::OpAlgoDispatch>(algorithm ,pushConstants)->eval();
+        _sequence->template record<kp::OpAlgoDispatch>(algorithm ,pushData)->eval();
 
         const auto end = std::chrono::high_resolution_clock::now();
         const double elapsed_nanoseconds =
@@ -124,17 +150,22 @@ namespace ppb {
 
     template <typename FloatType>
     void ImplVulkan<FloatType>::computeForces(const std::vector<std::shared_ptr<kp::Tensor>> &params) {
-        constexpr unsigned int TILE_SIZE = 32;
+        constexpr unsigned int TILE_SIZE = _config.TILE_SIZE;
         const unsigned int groups = util::ceilDiv<unsigned int>(_config.size, TILE_SIZE);
         kp::Workgroup workgroup{{groups, 1, 1}};
 
-        std::vector<unsigned int> pushConstants{static_cast<unsigned int>(_config.size)};
+        PushFor pc{
+            static_cast<uint32_t>(_config.size),
+        };
 
-        auto algorithm = _manager.algorithm(params, _kernelForce, workgroup, {}, pushConstants);
+        std::vector<uint32_t> pushData((sizeof(PushFor) + 3) / 4);
+        std::memcpy(pushData.data(), &pc, sizeof(PushFor));
+
+        auto algorithm = _manager.algorithm(params, _kernelForce, workgroup, {}, pushData);
 
         const auto start = std::chrono::high_resolution_clock::now();
 
-        _sequence->template record<kp::OpAlgoDispatch>(algorithm ,pushConstants)->eval();
+        _sequence->template record<kp::OpAlgoDispatch>(algorithm ,pushData)->eval();
 
         const auto end = std::chrono::high_resolution_clock::now();
         const double elapsed_nanoseconds =
@@ -146,5 +177,3 @@ namespace ppb {
     template class ImplVulkan<float>;
 
 } // namespace ppb
-
-
