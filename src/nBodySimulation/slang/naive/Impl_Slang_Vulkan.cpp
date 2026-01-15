@@ -114,7 +114,7 @@ namespace ppb {
 
         const auto start = std::chrono::high_resolution_clock::now();
 
-        _sequence->template record<kp::OpAlgoDispatch>(algorithm, pushData)->eval();
+        _sequence->template record<kp::OpAlgoDispatch>(algorithm, pushData);
 
         const auto end = std::chrono::high_resolution_clock::now();
         const double elapsed_nanoseconds =
@@ -141,7 +141,7 @@ namespace ppb {
 
         const auto start = std::chrono::high_resolution_clock::now();
 
-        _sequence->template record<kp::OpAlgoDispatch>(algorithm, pushData)->eval();
+        _sequence->template record<kp::OpAlgoDispatch>(algorithm, pushData);
 
         const auto end = std::chrono::high_resolution_clock::now();
         const double elapsed_nanoseconds =
@@ -167,7 +167,7 @@ namespace ppb {
 
         const auto start = std::chrono::high_resolution_clock::now();
 
-        _sequence->template record<kp::OpAlgoDispatch>(algorithm, pushData)->eval();
+        _sequence->template record<kp::OpAlgoDispatch>(algorithm, pushData);
 
         const auto end = std::chrono::high_resolution_clock::now();
         const double elapsed_nanoseconds =
