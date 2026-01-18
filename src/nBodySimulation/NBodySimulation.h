@@ -54,12 +54,12 @@ namespace ppb {
         /**
          * Minimum box coordinates of the initial simulation domain (lower-left-corner)
          */
-        std::array<FloatType, 3> boxMin{-1000, -1000, -1000};
+        std::array<FloatType, 3> boxMin{-10, -10, -10};
 
         /**
          * Maximum box coordinates of the initial simulation domain (upper-right-corner)
          */
-        std::array<FloatType, 3> boxMax{1000, 1000, 1000};
+        std::array<FloatType, 3> boxMax{10, 10, 10};
 
         /**
          * Seed to initialize the ParticleGenerator

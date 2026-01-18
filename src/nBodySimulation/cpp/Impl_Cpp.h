@@ -21,7 +21,7 @@ namespace ppb {
      *
      * @tparam FloatType Floating-point type for simulation (float or double).
      */
-    template<typename FloatType>
+    template<typename FloatType, double cutoff = std::numeric_limits<double>::infinity()>
     class ImplCpp {
 
         /**
@@ -33,6 +33,11 @@ namespace ppb {
          * Stores the timings for position, velocity, and force updates
          */
         ParticleSimulationTimings _timings;
+
+        /**
+         * Stores the cutoff radius for force interactions
+         */
+        static constexpr double _cutoff = cutoff;
 
     public:
 

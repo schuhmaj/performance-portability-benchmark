@@ -2,11 +2,11 @@
 
 namespace ppb {
 
-    template <typename FloatType>
-    ImplCpp<FloatType>::ImplCpp(const ParticleSimulationConfig<FloatType> &config) : _config{config} {}
+    template <typename FloatType, double cutoff>
+    ImplCpp<FloatType, cutoff>::ImplCpp(const ParticleSimulationConfig<FloatType> &config) : _config{config} {}
 
-    template <typename FloatType>
-    std::pair<std::vector<Particle<FloatType>>, ParticleSimulationTimings> ImplCpp<FloatType>::simulate(const std::vector<Particle<FloatType>> &particles) {
+    template <typename FloatType, double cutoff>
+    std::pair<std::vector<Particle<FloatType>>, ParticleSimulationTimings> ImplCpp<FloatType, cutoff>::simulate(const std::vector<Particle<FloatType>> &particles) {
         std::vector<Particle<FloatType>> particlesCopy{particles};
         _timings.reset();
         for (int i = 0; i < _config.numberTimeSteps; ++i) {
@@ -17,8 +17,8 @@ namespace ppb {
         return std::make_pair(particlesCopy, _timings);
     }
 
-    template <typename FloatType>
-    void ImplCpp<FloatType>::updatePositionsAndResetForce(std::vector<Particle<FloatType>> &particles) {
+    template <typename FloatType, double cutoff>
+    void ImplCpp<FloatType, cutoff>::updatePositionsAndResetForce(std::vector<Particle<FloatType>> &particles) {
         using ppb::util::operator+, ppb::util::operator*=;
         const auto start = std::chrono::high_resolution_clock::now();
         for (auto &particle : particles) {
@@ -35,8 +35,8 @@ namespace ppb {
         const auto end = std::chrono::high_resolution_clock::now();
         _timings.positionUpdateForceResetTime += static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count());
     }
-    template <typename FloatType>
-    void ImplCpp<FloatType>::updateVelocities(std::vector<Particle<FloatType>> &particles) {
+    template <typename FloatType, double cutoff>
+    void ImplCpp<FloatType, cutoff>::updateVelocities(std::vector<Particle<FloatType>> &particles) {
         using ppb::util::operator+, ppb::util::operator*;
         const auto start = std::chrono::high_resolution_clock::now();
         for (auto &particle : particles) {
@@ -50,8 +50,8 @@ namespace ppb {
         _timings.velocityUpdateTime += static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count());
     }
 
-    template <typename FloatType>
-    void ImplCpp<FloatType>::computeForces(std::vector<Particle<FloatType>> &particles) {
+    template <typename FloatType, double cutoff>
+    void ImplCpp<FloatType, cutoff>::computeForces(std::vector<Particle<FloatType>> &particles) {
         using namespace ppb::util;
         const size_t size = particles.size();
 
@@ -71,6 +71,10 @@ namespace ppb {
                 const auto dr = pi.getPosition() - pj.getPosition();
                 const auto dr2 = dot(dr, dr);
 
+                if (dr2 > cutoff * cutoff) {
+                    continue;
+                }
+
                 const auto invdr2 = 1. / dr2;
                 auto lj6 = sigmaSquared * invdr2;
                 lj6 = lj6 * lj6 * lj6;
@@ -87,8 +91,10 @@ namespace ppb {
     }
 
     /* Explicit Instantiation for float and double */
-    template class ImplCpp<float>;
-    template class ImplCpp<double>;
+    template class ImplCpp<float, std::numeric_limits<double>::infinity()>;
+    template class ImplCpp<double, std::numeric_limits<double>::infinity()>;
+    template class ImplCpp<float, 3.0>;
+    template class ImplCpp<double, 3.0>;
 
 } // namespace ppb
 

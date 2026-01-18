@@ -85,7 +85,7 @@ protected:
                                  {0.0173082f, -0.0628128f, 0.042503f})};
 
 
-    template <typename Implementation>
+    template <typename Implementation, double cutoff = std::numeric_limits<double>::infinity()>
     void runTest(const int size, const double epsilon = EPSILON) {
         using namespace testing;
         using namespace ppb;
@@ -99,7 +99,7 @@ protected:
         // }
 
         ParticleSimulationConfig<float> config{static_cast<size_t>(size), ITERATIONS, 1e-10};
-        NBodySimulation<ImplCpp<float>> cppNBodySim{config};
+        NBodySimulation<ImplCpp<float, cutoff>> cppNBodySim{config};
         NBodySimulation<Implementation> otherNBodySim{config};
         const auto [expectedResult, timings1] = cppNBodySim();
         const auto [actualResult, timings2]  = otherNBodySim();

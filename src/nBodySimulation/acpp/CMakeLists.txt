@@ -1,5 +1,6 @@
 add_library(nbody_acpp_lib STATIC Impl_AdaptiveCpp.h)
 target_compile_features(nbody_acpp_lib PUBLIC cxx_std_20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 if (CMAKE_CXX_COMPILER_ID STREQUAL "IntelLLVM")
     target_compile_options(nbody_acpp_lib PUBLIC -fsycl -fsycl-targets=nvptx64-nvidia-cuda)
     target_link_options(nbody_acpp_lib PUBLIC -fsycl -fsycl-targets=nvptx64-nvidia-cuda)
