@@ -32,8 +32,8 @@ layout(push_constant) uniform ParamsForce {
 
 void main()
 {
-    uint i = gl_GlobalInvocationID.x;
-    if (i >= pc.numParticles) {
+    uint gid = gl_GlobalInvocationID.x;
+    if (gid >= pc.numParticles) {
         return;
     }
     vec3 acc = vec3(0.0);
@@ -42,10 +42,10 @@ void main()
     const float sigmaSquared = sigma * sigma;
     const float epsilon24 = 24.0; // 1.0 * 24.0
 
-    vec3 pi = positions[i].xyz;
+    vec3 pi = positions[gid].xyz;
     int ccxy = pc.cCount_x * pc.cCount_y;
     int ccxyz = ccxy * pc.cCount_z;
-    int c = particleIdx[i].x;
+    int c = particleIdx[gid].x;
     int cz = c / ccxy;
     int rem = c % ccxy;
     int cy = rem / pc.cCount_x;
@@ -66,7 +66,7 @@ void main()
                             else end = pc.numParticles;
                             for (uint u = starts[cell]; u < end; u++) {
                                 uint j = idCells[u];
-                                if (i == j) {
+                                if (gid == j) {
                                     continue;
                                 }
                                 vec3 dr = pi - positions[j].xyz;
@@ -88,5 +88,5 @@ void main()
         }
     }
 
-    forces[i].xyz += acc.xyz;
+    forces[gid].xyz += acc.xyz;
 }

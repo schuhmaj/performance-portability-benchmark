@@ -1,4 +1,5 @@
 #include "Impl_Slang_Vulkan.h"
+#include "Impl_Slang_Vulkan_PushConstants.h"
 
 #include "KernelForce.h"
 #include "KernelPosition.h"
@@ -123,11 +124,6 @@ namespace ppb {
         const uint groups = util::ceilDiv<uint>(_config.size, TILE_SIZE);
         kp::Workgroup workgroup{{groups, 1, 1}};
 
-        struct PushCount {
-            uint32_t numParticles;
-            float radius;
-        };
-
         PushCount pc{
             static_cast<uint32_t>(_config.size),
             static_cast<float>(_config.influenceRadius)
@@ -159,7 +155,13 @@ namespace ppb {
         auto blockSum = _manager.tensor(h);
 
         kp::Workgroup workgroup{{nBlocks, 1, 1}};
-        std::vector<uint32_t> pushData{totalLength, TILE_SIZE};
+
+        PushBlelloch pc{
+            totalLength,
+            TILE_SIZE
+        };
+        std::vector<uint32_t> pushData((sizeof(PushBlelloch) + 3) / 4);
+        std::memcpy(pushData.data(), &pc, sizeof(PushBlelloch));
 
         auto algorithmBlelloch = _manager.algorithm({data, blockSum}, _kernelBlellochScan, workgroup, {}, pushData);
 
@@ -178,7 +180,11 @@ namespace ppb {
             exclusiveScanBlelloch(blockSum, blockSumSize);
 
             // add block offset
-            std::vector<uint32_t> pushData{totalLength};
+            PushBlock pc{
+                totalLength
+            };
+            std::vector<uint32_t> pushData((sizeof(PushBlock) + 3) / 4);
+            std::memcpy(pushData.data(), &pc, sizeof(PushBlock));
 
             auto algorithmBlock = _manager.algorithm({data, blockSum}, _kernelBlockSum, workgroup, {}, pushData);
 
@@ -207,16 +213,10 @@ namespace ppb {
         const uint groups = util::ceilDiv<uint>(_config.size, TILE_SIZE);
         kp::Workgroup workgroup{{groups, 1, 1}};
 
-        struct PushVerlet {
-            uint32_t numParticles;
-            float radius;
-        };
-
         PushVerlet pc{
             static_cast<uint32_t>(_config.size),
             static_cast<float>(_config.influenceRadius)
         };
-
         std::vector<uint32_t> pushData((sizeof(PushVerlet) + 3) / 4);
         std::memcpy(pushData.data(), &pc, sizeof(PushVerlet));
 
@@ -241,13 +241,21 @@ namespace ppb {
         const unsigned int groups = util::ceilDiv<unsigned int>(_config.size, TILE_SIZE);
         kp::Workgroup workgroup{{groups, 1, 1}};
 
-        std::vector<float> pushConstants{_config.globalForce[0], _config.globalForce[1], _config.globalForce[2], _config.deltaT, *reinterpret_cast<float*>(&_config.size)};
+        PushPos pc{
+            _config.globalForce[0],
+            _config.globalForce[1],
+            _config.globalForce[2],
+            _config.deltaT,
+            static_cast<uint32_t>(_config.size)
+        };
+        std::vector<uint32_t> pushData((sizeof(PushPos) + 3) / 4);
+        std::memcpy(pushData.data(), &pc, sizeof(PushPos));
 
-        auto algorithm = _manager.algorithm(params, _kernelPosition, workgroup, {}, pushConstants);
+        auto algorithm = _manager.algorithm(params, _kernelPosition, workgroup, {}, pushData);
 
         const auto start = std::chrono::high_resolution_clock::now();
 
-        _sequence->template record<kp::OpAlgoDispatch>(algorithm ,pushConstants)->eval();
+        _sequence->template record<kp::OpAlgoDispatch>(algorithm ,pushData)->eval();
 
         const auto end = std::chrono::high_resolution_clock::now();
         const double elapsed_nanoseconds =
@@ -261,13 +269,19 @@ namespace ppb {
         uint TILE_SIZE = _config.TILE_SIZE;
         const unsigned int groups = util::ceilDiv<unsigned int>(_config.size, TILE_SIZE);
         kp::Workgroup workgroup{{groups, 1, 1}};
-        std::vector<float> pushConstants({_config.deltaT, *reinterpret_cast<float*>(&_config.size)});
+        
+        PushVel pc{
+            _config.deltaT,
+            static_cast<uint32_t>(_config.size)
+        };
+        std::vector<uint32_t> pushData((sizeof(PushVel) + 3) / 4);
+        std::memcpy(pushData.data(), &pc, sizeof(PushVel));
 
-        auto algorithm = _manager.algorithm(params, _kernelVelocity, workgroup, {}, pushConstants);
+        auto algorithm = _manager.algorithm(params, _kernelVelocity, workgroup, {}, pushData);
 
         const auto start = std::chrono::high_resolution_clock::now();
 
-        _sequence->template record<kp::OpAlgoDispatch>(algorithm ,pushConstants)->eval();
+        _sequence->template record<kp::OpAlgoDispatch>(algorithm ,pushData)->eval();
 
         const auto end = std::chrono::high_resolution_clock::now();
         const double elapsed_nanoseconds =
@@ -282,13 +296,17 @@ namespace ppb {
         const unsigned int groups = util::ceilDiv<unsigned int>(_config.size, TILE_SIZE);
         kp::Workgroup workgroup{{groups, 1, 1}};
 
-        std::vector<unsigned int> pushConstants{static_cast<unsigned int>(_config.size)};
+        PushBlock pc{
+            static_cast<uint32_t>(_config.size)
+        };
+        std::vector<uint32_t> pushData((sizeof(PushBlock) + 3) / 4);
+        std::memcpy(pushData.data(), &pc, sizeof(PushBlock));
 
-        auto algorithm = _manager.algorithm(params, _kernelForce, workgroup, {}, pushConstants);
+        auto algorithm = _manager.algorithm(params, _kernelForce, workgroup, {}, pushData);
 
         const auto start = std::chrono::high_resolution_clock::now();
 
-        _sequence->template record<kp::OpAlgoDispatch>(algorithm ,pushConstants)->eval();
+        _sequence->template record<kp::OpAlgoDispatch>(algorithm ,pushData)->eval();
 
         const auto end = std::chrono::high_resolution_clock::now();
         const double elapsed_nanoseconds =
@@ -300,5 +318,3 @@ namespace ppb {
     template class ImplSlangVulkan<float>;
 
 } // namespace ppb
-
-

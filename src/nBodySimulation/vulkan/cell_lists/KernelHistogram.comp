@@ -33,12 +33,12 @@ layout(push_constant) uniform ParamsForce {
 } pc;
 
 void main() {
-    uint i = gl_GlobalInvocationID.x;
-    if (i >= pc.numParticles) {
+    uint gid = gl_GlobalInvocationID.x;
+    if (gid >= pc.numParticles) {
         return;
     }
 
-    vec3 pi = positions[i].xyz;
+    vec3 pi = positions[gid].xyz;
 
     int gridIdx_x = int(clamp(int((pi.x - pc.bMin_x) / pc.bSize_x * pc.cCount_x), 0, pc.cCount_x - 1));
     int gridIdx_y = int(clamp(int((pi.y - pc.bMin_y) / pc.bSize_y * pc.cCount_y), 0, pc.cCount_y - 1));
@@ -47,6 +47,5 @@ void main() {
 
     int slot = int(atomicAdd(histogram[c], 1));
 
-    particleIdx[i] = ivec2(c, slot);
-
+    particleIdx[gid] = ivec2(c, slot);
 }

@@ -56,8 +56,6 @@ namespace ppb {
         }
         _sequence->template record<kp::OpTensorSyncLocal>(params)->eval();
 
-        printBuffer(positions, true);
-
         positionsHost = positions->vector();
         velocitiesHost = velocities->vector();
         forcesHost = forces->vector();

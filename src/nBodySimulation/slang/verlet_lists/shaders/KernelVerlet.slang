@@ -3,28 +3,32 @@ StructuredBuffer<float4> positions;
 RWStructuredBuffer<uint> verletLists;
 StructuredBuffer<uint> neighborsStarts;
 
-uniform uint numParticles;
-uniform float radius;
+struct GlobalParams
+{
+    uint numParticles;
+    float radius;
+};
+[push_constant] GlobalParams pc;
 
 [shader("compute")]
 [numthreads(256,1,1)]
 void computeMain(uint3 threadId : SV_DispatchThreadID)
 {
     uint gid = threadId.x;
-    if (gid >= numParticles) { return; }
+    if (gid >= pc.numParticles) { return; }
 
     uint index = neighborsStarts[gid];
     uint end = neighborsStarts[gid + 1];
 
     float3 pi = positions[gid].xyz;
     
-    for (uint i = 0; i < numParticles; i++) {
+    for (uint i = 0; i < pc.numParticles; i++) {
         if (i == gid) { continue; }
         if (index == end) { break; }
         // calculate distance to see if this particle is a neighbor
         float3 dr = pi - positions[i].xyz;
         float dr2 = dot(dr.xyz, dr.xyz);
-        if (dr2 < radius * radius) {
+        if (dr2 < pc.radius * pc.radius) {
             // if the particle is close enough, add it
             verletLists[index] = i;
             index += 1;

@@ -4,14 +4,18 @@ RWStructuredBuffer<float4> forces;
 StructuredBuffer<uint> verletLists;
 StructuredBuffer<uint> neighborsStarts;
 
-uniform uint numParticles;
+struct GlobalParams
+{
+    uint numParticles;
+};
+[push_constant] GlobalParams pc;
 
 [shader("compute")]
-[numthreads(1,1,1)]
+[numthreads(256,1,1)]
 void computeMain(uint3 threadId : SV_DispatchThreadID)
 {
     uint gid = threadId.x;
-    if (gid >= numParticles) { return; }
+    if (gid >= pc.numParticles) { return; }
 
     uint start = neighborsStarts[gid];
     uint end = neighborsStarts[gid + 1];

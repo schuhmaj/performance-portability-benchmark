@@ -2,22 +2,7 @@
 layout(row_major) uniform;
 layout(row_major) buffer;
 
-#line 2 0
-layout(std430, binding = 1) readonly buffer StructuredBuffer_vectorx3Cfloatx2C4x3E_t_0 {
-    vec4 _data[];
-} positions_0;
-
-#line 3
-layout(std430, binding = 2) buffer StructuredBuffer_uint_t_0 {
-    uint _data[];
-} histogram_0;
-
-#line 4
-layout(std430, binding = 3) buffer StructuredBuffer_vectorx3Cintx2C2x3E_t_0 {
-    ivec2 _data[];
-} particleIdx_0;
-
-#line 4
+#line 20 0
 struct GlobalParams_natural_0
 {
     uint numParticles_0;
@@ -33,9 +18,9 @@ struct GlobalParams_natural_0
 };
 
 
-#line 4
-layout(binding = 0)
-layout(std140) uniform block_GlobalParams_natural_0
+#line 22
+layout(push_constant)
+layout(std430) uniform block_GlobalParams_natural_0
 {
     uint numParticles_0;
     int cCount_x_0;
@@ -47,32 +32,46 @@ layout(std140) uniform block_GlobalParams_natural_0
     float bSize_x_0;
     float bSize_y_0;
     float bSize_z_0;
-}globalParams_0;
+}pc_0;
 
-#line 22
+#line 2
+layout(std430, binding = 0) readonly buffer StructuredBuffer_vectorx3Cfloatx2C4x3E_t_0 {
+    vec4 _data[];
+} positions_0;
+
+#line 3
+layout(std430, binding = 1) buffer StructuredBuffer_uint_t_0 {
+    uint _data[];
+} histogram_0;
+
+#line 4
+layout(std430, binding = 2) buffer StructuredBuffer_vectorx3Cintx2C2x3E_t_0 {
+    ivec2 _data[];
+} particleIdx_0;
+
+#line 26
 layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
 void main()
 {
 
-#line 24
-    uint i_0 = gl_GlobalInvocationID.x;
-    if(i_0 >= (globalParams_0.numParticles_0))
+#line 28
+    uint gid_0 = gl_GlobalInvocationID.x;
+    if(gid_0 >= (pc_0.numParticles_0))
     {
 
-#line 26
+#line 30
         return;
     }
 
-    vec3 pi_0 = positions_0._data[uint(i_0)].xyz;
+    vec3 pi_0 = positions_0._data[uint(gid_0)].xyz;
 
-#line 34
-    int c_0 = clamp(int((pi_0.x - globalParams_0.bMin_x_0) / globalParams_0.bSize_x_0 * float(globalParams_0.cCount_x_0)), 0, globalParams_0.cCount_x_0 - 1) + clamp(int((pi_0.y - globalParams_0.bMin_y_0) / globalParams_0.bSize_y_0 * float(globalParams_0.cCount_y_0)), 0, globalParams_0.cCount_y_0 - 1) * globalParams_0.cCount_x_0 + clamp(int((pi_0.z - globalParams_0.bMin_z_0) / globalParams_0.bSize_z_0 * float(globalParams_0.cCount_z_0)), 0, globalParams_0.cCount_z_0 - 1) * globalParams_0.cCount_x_0 * globalParams_0.cCount_y_0;
+#line 38
+    int c_0 = clamp(int((pi_0.x - pc_0.bMin_x_0) / pc_0.bSize_x_0 * float(pc_0.cCount_x_0)), 0, pc_0.cCount_x_0 - 1) + clamp(int((pi_0.y - pc_0.bMin_y_0) / pc_0.bSize_y_0 * float(pc_0.cCount_y_0)), 0, pc_0.cCount_y_0 - 1) * pc_0.cCount_x_0 + clamp(int((pi_0.z - pc_0.bMin_z_0) / pc_0.bSize_z_0 * float(pc_0.cCount_z_0)), 0, pc_0.cCount_z_0 - 1) * pc_0.cCount_x_0 * pc_0.cCount_y_0;
 
 
     uint slot_0 = atomicAdd(histogram_0._data[uint(c_0)], 1U);
-    particleIdx_0._data[uint(i_0)] = ivec2(c_0, int(slot_0));
 
-    histogram_0._data[uint(0)] = 99U;
+    particleIdx_0._data[uint(gid_0)] = ivec2(c_0, int(slot_0));
     return;
 }
 

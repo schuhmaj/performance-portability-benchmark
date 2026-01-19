@@ -1,4 +1,5 @@
 #include "Impl_Slang_Vulkan.h"
+#include "Impl_Slang_Vulkan_PushConstants.h"
 
 #include "KernelForce.h"
 #include "KernelPosition.h"
@@ -135,19 +136,6 @@ namespace ppb {
         const uint groups = util::ceilDiv<uint>(_config.size, TILE_SIZE);
         kp::Workgroup workgroup{{groups, 1, 1}};
 
-        struct PushHist {
-            uint32_t numParticles;
-            int32_t cCx;
-            int32_t cCy;
-            int32_t cCz;
-            float bMinx;
-            float bMiny;
-            float bMinz;
-            float bSizex;
-            float bSizey;
-            float bSizez;
-        };
-
         PushHist pc{
             static_cast<uint32_t>(_config.size),
             cellCounts[0],
@@ -187,7 +175,13 @@ namespace ppb {
         auto blockSum = _manager.tensor(h);
 
         kp::Workgroup workgroup{{nBlocks, 1, 1}};
-        std::vector<uint32_t> pushData{totalLength, TILE_SIZE};
+
+        PushBlelloch pc{
+            totalLength,
+            TILE_SIZE
+        };
+        std::vector<uint32_t> pushData((sizeof(PushBlelloch) + 3) / 4);
+        std::memcpy(pushData.data(), &pc, sizeof(PushBlelloch));
 
         auto algorithmBlelloch = _manager.algorithm({data, blockSum}, _kernelBlellochScan, workgroup, {}, pushData);
 
@@ -206,7 +200,11 @@ namespace ppb {
             exclusiveScanBlelloch(blockSum, blockSumSize);
 
             // add block offset
-            std::vector<uint32_t> pushData{totalLength};
+            PushBlock pc{
+                totalLength
+            };
+            std::vector<uint32_t> pushData((sizeof(PushBlock) + 3) / 4);
+            std::memcpy(pushData.data(), &pc, sizeof(PushBlock));
 
             auto algorithmBlock = _manager.algorithm({data, blockSum}, _kernelBlockSum, workgroup, {}, pushData);
 
@@ -228,7 +226,12 @@ namespace ppb {
         uint TILE_SIZE = _config.TILE_SIZE;
         const uint groups = util::ceilDiv<uint>(_config.size, TILE_SIZE);
         kp::Workgroup workgroup{{groups, 1, 1}};
-        std::vector<uint32_t> pushData{ static_cast<uint32_t>(_config.size) };
+
+        PushId pc{
+            static_cast<uint32_t>(_config.size)
+        };
+        std::vector<uint32_t> pushData((sizeof(PushId) + 3) / 4);
+        std::memcpy(pushData.data(), &pc, sizeof(PushId));
 
         auto algorithm = _manager.algorithm(params, _kernelIdCells, workgroup, {}, pushData);
 
@@ -247,7 +250,12 @@ namespace ppb {
     template <typename FloatType>
     void ImplSlangVulkan<FloatType>::resetCells(const std::shared_ptr<kp::Tensor> &cells, uint nBlocks, uint totalLength) {
         kp::Workgroup workgroup{{nBlocks, 1, 1}};
-        std::vector<uint32_t> pushData{ static_cast<uint32_t>(totalLength) };
+        
+        PushBlock pc{
+            totalLength
+        };
+        std::vector<uint32_t> pushData((sizeof(PushBlock) + 3) / 4);
+        std::memcpy(pushData.data(), &pc, sizeof(PushBlock));
 
         auto algorithm = _manager.algorithm({cells}, _kernelResetCells, workgroup, {}, pushData);
 
@@ -268,14 +276,6 @@ namespace ppb {
         const uint groups = util::ceilDiv<uint>(_config.size, TILE_SIZE);
         kp::Workgroup workgroup{{groups, 1, 1}};
 
-        struct PushPos {
-            float globalForce_x;
-            float globalForce_y;
-            float globalForce_z;
-            float dt;
-            uint32_t numParticles;
-        };
-
         PushPos pc{
             _config.globalForce[0],
             _config.globalForce[1],
@@ -283,7 +283,6 @@ namespace ppb {
             _config.deltaT,
             static_cast<uint32_t>(_config.size)
         };
-
         std::vector<uint32_t> pushData((sizeof(PushPos) + 3) / 4);
         std::memcpy(pushData.data(), &pc, sizeof(PushPos));
 
@@ -306,16 +305,10 @@ namespace ppb {
         const uint groups = util::ceilDiv<uint>(_config.size, TILE_SIZE);
         kp::Workgroup workgroup{{groups, 1, 1}};
 
-        struct PushVel {
-            float dt;
-            uint32_t numParticles;
-        };
-
         PushVel pc{
             _config.deltaT,
             static_cast<uint32_t>(_config.size)
         };
-
         std::vector<uint32_t> pushData((sizeof(PushVel) + 3) / 4);
         std::memcpy(pushData.data(), &pc, sizeof(PushVel));
 
@@ -337,13 +330,6 @@ namespace ppb {
         uint TILE_SIZE = _config.TILE_SIZE;
         const uint groups = util::ceilDiv<uint>(_config.size, TILE_SIZE);
         kp::Workgroup workgroup{{groups, 1, 1}};
-        
-        struct PushFor {
-            uint32_t numParticles;
-            int32_t cCx;
-            int32_t cCy;
-            int32_t cCz;
-        };
 
         PushFor pc{
             static_cast<uint32_t>(_config.size),
@@ -351,7 +337,6 @@ namespace ppb {
             cellCounts[1],
             cellCounts[2]
         };
-
         std::vector<uint32_t> pushData((sizeof(PushFor) + 3) / 4);
         std::memcpy(pushData.data(), &pc, sizeof(PushFor));
 

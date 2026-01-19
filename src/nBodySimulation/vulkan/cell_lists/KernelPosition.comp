@@ -26,23 +26,23 @@ layout(push_constant) uniform ParamsPos {
 } pc;
 
 void main() {
-    uint i = gl_GlobalInvocationID.x;
-    if (i >= pc.numParticles) {
+    uint gid = gl_GlobalInvocationID.x;
+    if (gid >= pc.numParticles) {
         return;
     }
 
     float m = 1.0;
 
-    vec3 force = forces[i].xyz;
+    vec3 force = forces[gid].xyz;
 
-    oldForces[i].xyz = force;
+    oldForces[gid].xyz = force;
 
-    forces[i].xyz = vec3(pc.globalForce_x, pc.globalForce_y, pc.globalForce_z);
+    forces[gid].xyz = vec3(pc.globalForce_x, pc.globalForce_y, pc.globalForce_z);
 
-    vec3 velocityPart = velocities[i].xyz * pc.dt;
+    vec3 velocityPart = velocities[gid].xyz * pc.dt;
     float tt2m = (pc.dt * pc.dt) / (2.0 * m);
     vec3 forcePart = force * tt2m;
     vec3 displacement = velocityPart + forcePart;
 
-    positions[i].xyz += displacement.xyz;
+    positions[gid].xyz += displacement.xyz;
 }

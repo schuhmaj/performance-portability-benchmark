@@ -72,7 +72,8 @@ namespace ppb {
         /*
          * Radius at which a particle should be added to the verlet lists.
          * This is a magic number and should still be tested. 
-         * The influence of the Lennard-Jones-Kernel stays close to 0 at a distance of around 3. Therefore the influence radius should not be less than 3. 
+         * The influence of the Lennard-Jones-Kernel stays close to 0 at a distance of around 3. 
+         * Therefore the influence radius should not be less than 3. 
          * https://www.desmos.com/calculator/zrswwcpt4k
          */
         FloatType influenceRadius{4.0};

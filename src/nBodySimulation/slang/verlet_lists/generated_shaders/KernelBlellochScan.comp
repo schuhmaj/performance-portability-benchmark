@@ -3,17 +3,7 @@
 layout(row_major) uniform;
 layout(row_major) buffer;
 
-#line 2 0
-layout(std430, binding = 1) buffer StructuredBuffer_uint_t_0 {
-    uint _data[];
-} data_0;
-
-#line 3
-layout(std430, binding = 2) buffer StructuredBuffer_uint_t_1 {
-    uint _data[];
-} blockSums_0;
-
-#line 3
+#line 8 0
 struct GlobalParams_natural_0
 {
     uint total_size_0;
@@ -21,15 +11,25 @@ struct GlobalParams_natural_0
 };
 
 
-#line 3
-layout(binding = 0)
-layout(std140) uniform block_GlobalParams_natural_0
+#line 10
+layout(push_constant)
+layout(std430) uniform block_GlobalParams_natural_0
 {
     uint total_size_0;
     uint block_size_0;
-}globalParams_0;
+}pc_0;
 
-#line 8
+#line 2
+layout(std430, binding = 0) buffer StructuredBuffer_uint_t_0 {
+    uint _data[];
+} data_0;
+
+#line 3
+layout(std430, binding = 1) buffer StructuredBuffer_uint_t_1 {
+    uint _data[];
+} blockSums_0;
+
+#line 12
 shared uint  tile_0[256];
 
 
@@ -38,161 +38,161 @@ layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
 void main()
 {
 
-#line 12
+#line 16
     uint _S1;
 
     uint gid_0 = gl_GlobalInvocationID.x;
     uint lid_0 = gl_LocalInvocationID.x;
     uint block_0 = gl_WorkGroupID.x;
 
-#line 16
-    uint _S2 = globalParams_0.total_size_0;
+#line 20
+    uint _S2 = pc_0.total_size_0;
 
-    if(gid_0 >= (globalParams_0.total_size_0))
+    if(gid_0 >= (pc_0.total_size_0))
     {
 
-#line 19
+#line 23
         return;
     }
 
-#line 25
+#line 29
     tile_0[lid_0] = data_0._data[uint(gid_0)];
     controlBarrier(gl_ScopeWorkgroup, gl_ScopeWorkgroup, gl_StorageSemanticsShared, gl_SemanticsAcquireRelease);
 
-#line 26
+#line 30
     uint off_0 = 1U;
 
-#line 31
+#line 35
     for(;;)
     {
 
-#line 31
-        uint _S3 = globalParams_0.block_size_0;
+#line 35
+        uint _S3 = pc_0.block_size_0;
 
-#line 31
-        _S1 = globalParams_0.block_size_0;
+#line 35
+        _S1 = pc_0.block_size_0;
 
-#line 31
+#line 35
         if(off_0 < _S3)
         {
         }
         else
         {
 
-#line 31
+#line 35
             break;
         }
 
-#line 32
+#line 36
         uint i_0 = (lid_0 + 1U) * off_0 * 2U - 1U;
         if(i_0 < _S3)
         {
 
-#line 34
+#line 38
             tile_0[i_0] = tile_0[i_0] + tile_0[i_0 - off_0];
 
-#line 33
+#line 37
         }
 
 
         controlBarrier(gl_ScopeWorkgroup, gl_ScopeWorkgroup, gl_StorageSemanticsShared, gl_SemanticsAcquireRelease);
 
-#line 31
+#line 35
         off_0 = off_0 << 1;
 
-#line 31
+#line 35
     }
 
-#line 38
+#line 42
     uint _S4 = _S1 - 1U;
 
-#line 38
+#line 42
     bool _S5 = lid_0 == _S4;
 
-#line 38
+#line 42
     bool _S6;
 
-#line 38
+#line 42
     if(_S5)
     {
 
-#line 38
+#line 42
         _S6 = gid_0 < _S2;
 
-#line 38
+#line 42
     }
     else
     {
 
-#line 38
+#line 42
         _S6 = false;
 
-#line 38
+#line 42
     }
 
-#line 38
+#line 42
     if(_S6)
     {
 
-#line 39
+#line 43
         blockSums_0._data[uint(block_0)] = tile_0[lid_0];
 
-#line 38
+#line 42
     }
 
-#line 45
+#line 49
     if(_S5)
     {
 
-#line 46
+#line 50
         tile_0[_S4] = 0U;
 
-#line 45
+#line 49
     }
 
 
     controlBarrier(gl_ScopeWorkgroup, gl_ScopeWorkgroup, gl_StorageSemanticsShared, gl_SemanticsAcquireRelease);
 
-#line 48
+#line 52
     off_0 = _S1 >> 1;
 
     for(;;)
     {
 
-#line 50
+#line 54
         if(off_0 > 0U)
         {
         }
         else
         {
 
-#line 50
+#line 54
             break;
         }
 
-#line 51
+#line 55
         uint i_1 = (lid_0 + 1U) * off_0 * 2U - 1U;
         if(i_1 < _S1)
         {
 
-#line 53
+#line 57
             uint t_0 = tile_0[i_1 - off_0];
             tile_0[i_1 - off_0] = tile_0[i_1];
             tile_0[i_1] = tile_0[i_1] + t_0;
 
-#line 52
+#line 56
         }
 
-#line 57
+#line 61
         controlBarrier(gl_ScopeWorkgroup, gl_ScopeWorkgroup, gl_StorageSemanticsShared, gl_SemanticsAcquireRelease);
 
-#line 50
+#line 54
         off_0 = off_0 >> 1;
 
-#line 50
+#line 54
     }
 
-#line 63
+#line 67
     data_0._data[uint(gid_0)] = tile_0[lid_0];
     return;
 }

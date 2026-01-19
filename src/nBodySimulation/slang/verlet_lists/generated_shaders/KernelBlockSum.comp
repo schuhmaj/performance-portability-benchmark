@@ -2,42 +2,43 @@
 layout(row_major) uniform;
 layout(row_major) buffer;
 
-#line 2 0
-layout(std430, binding = 1) buffer StructuredBuffer_uint_t_0 {
-    uint _data[];
-} data_0;
-
-#line 3
-layout(std430, binding = 2) readonly buffer StructuredBuffer_uint_t_1 {
-    uint _data[];
-} blockSums_0;
-
-#line 3
+#line 7 0
 struct GlobalParams_natural_0
 {
     uint total_size_0;
 };
 
 
-#line 3
-layout(binding = 0)
-layout(std140) uniform block_GlobalParams_natural_0
+#line 9
+layout(push_constant)
+layout(std430) uniform block_GlobalParams_natural_0
 {
     uint total_size_0;
-}globalParams_0;
+}pc_0;
 
+#line 2
+layout(std430, binding = 0) buffer StructuredBuffer_uint_t_0 {
+    uint _data[];
+} data_0;
+
+#line 3
+layout(std430, binding = 1) readonly buffer StructuredBuffer_uint_t_1 {
+    uint _data[];
+} blockSums_0;
+
+#line 13
 layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
 void main()
 {
 
-#line 11
+#line 15
     uint gid_0 = gl_GlobalInvocationID.x;
     uint block_0 = gl_WorkGroupID.x;
 
-    if(gid_0 >= (globalParams_0.total_size_0))
+    if(gid_0 >= (pc_0.total_size_0))
     {
 
-#line 15
+#line 19
         return;
     }
 
