@@ -1,0 +1,15 @@
+#version 450
+
+layout (local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
+
+layout (std430, set = 0, binding = 0) readonly buffer buf_in_a {vec4 in_a[]; };
+layout (std430, set = 0, binding = 1) readonly buffer buf_in_b {vec4 in_b[]; };
+layout (std430, set = 0, binding = 2) writeonly buffer buf_out_c {vec4 out_c[]; };
+
+void main() {
+    uint index = gl_GlobalInvocationID.x;
+
+    if (index < in_a.length()) {
+        out_c[index] = in_a[index] + in_b[index];
+    }
+}

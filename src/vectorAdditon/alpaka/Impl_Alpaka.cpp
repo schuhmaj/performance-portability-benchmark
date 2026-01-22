@@ -4,7 +4,7 @@
 #include "alpaka/alpaka.hpp"
 #include "alpaka/example/ExecuteForEachAccTag.hpp"
 #include "alpaka/example/ExampleDefaultAcc.hpp"
-#include "VectorAddition.h"
+#include "vectorAdditon/VectorAddition.h"
 
 namespace ppb {
 
@@ -100,7 +100,7 @@ namespace ppb {
             alpaka::enqueue(queue, taskKernel);
             alpaka::wait(queue);
             const auto end = std::chrono::high_resolution_clock::now();
-            const double elapsed_seconds = std::chrono::duration_cast<std::chrono::duration<double>>(end - start).count();
+            const double elapsed_nanoseconds = static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count());
 
             // Create result vector
             std::vector<float_type> result(size);
@@ -108,13 +108,13 @@ namespace ppb {
             alpaka::memcpy(queue, resultView, bufDevC, extent);
             alpaka::wait(queue);
 
-            return std::make_pair(std::move(result), elapsed_seconds);
+            return std::make_pair(std::move(result), elapsed_nanoseconds);
         }
     };
 };
 
 BENCHMARK(ppb::VectorAddition<ppb::AlpakaImpl>::benchmark)
-    ->Name("VecAdd-Alpaka-Float")
+    ->Name("VecAdd-Float-Alpaka")
     ->RangeMultiplier(10)
     ->Range(1e3, 1e8)
 #ifdef PPB_MEASURE_ONLY_KERNEL

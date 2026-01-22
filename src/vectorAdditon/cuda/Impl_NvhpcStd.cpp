@@ -3,7 +3,7 @@
 #include <utility>
 #include <benchmark/benchmark.h>
 #include <execution>
-#include "VectorAddition.h"
+#include "vectorAdditon/VectorAddition.h"
 
 namespace ppb {
     template <typename FloatType>
@@ -15,8 +15,8 @@ namespace ppb {
             std::transform(std::execution::par_unseq, a.begin(), a.end(), b.begin(), result.begin(),
                            std::plus<FloatType>());
             const auto end = std::chrono::high_resolution_clock::now();
-            const double elapsed_seconds = std::chrono::duration_cast<std::chrono::duration<double>>(end - start).count();
-            return std::make_pair(result, elapsed_seconds);
+            const double elapsed_nanoseconds = static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count());
+            return std::make_pair(result, elapsed_nanoseconds);
         }
     };
 
@@ -25,7 +25,7 @@ namespace ppb {
 
 
 BENCHMARK(ppb::VectorAddition<ImplNvHpcStd<float>>::benchmark)
-    ->Name("VecAdd-NvhpcCStd-Float")
+    ->Name("VecAdd-Float-NvhpcCStd")
     ->RangeMultiplier(10)
     ->Range(1e3, 1e8)
 #ifdef PPB_MEASURE_ONLY_KERNEL

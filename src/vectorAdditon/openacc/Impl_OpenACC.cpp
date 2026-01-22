@@ -1,9 +1,9 @@
 #include <algorithm>
 #include <chrono>
 #include <utility>
-#include <benchmark/benchmark.h>
+#include "benchmark/benchmark.h"
 #include <openacc.h>
-#include "VectorAddition.h"
+#include "vectorAdditon/VectorAddition.h"
 
 namespace ppb {
     template <typename FloatType>
@@ -22,8 +22,9 @@ namespace ppb {
                 c[i] = as[i] + bs[i];
             }
             const auto end = std::chrono::high_resolution_clock::now();
-            const auto elapsed_seconds = std::chrono::duration_cast<std::chrono::duration<double>>(end - start).count()
-            return std::make_pair(result, elapsed_seconds);
+            const double elapsed_nanoseconds =
+                static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count());
+            return std::make_pair(result, elapsed_nanoseconds);
         }
     };
 
@@ -32,7 +33,7 @@ namespace ppb {
 
 
 BENCHMARK(ppb::VectorAddition<ppb::ImplOpenAcc<float>>::benchmark)
-    ->Name("VecAdd-OpenACC-Float")
+    ->Name("VecAdd-Float-OpenACC")
     ->RangeMultiplier(10)
     ->Range(1e3, 1e8)
 #ifdef PPB_MEASURE_ONLY_KERNEL

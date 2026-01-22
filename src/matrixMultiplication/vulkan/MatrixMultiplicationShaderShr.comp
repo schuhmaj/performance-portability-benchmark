@@ -1,0 +1,58 @@
+#version 450
+layout (local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
+
+layout(std430, set = 0, binding = 0) readonly buffer ABuffer { float A[]; };
+layout(std430, set = 0, binding = 1) readonly buffer BBuffer { float B[]; };
+layout(std430, set = 0, binding = 2) writeonly buffer CBuffer { float C[]; };
+
+// Matrix dimensions passed via push constants
+layout(push_constant) uniform PushConsts {
+    uint M;
+    uint N;
+    uint K;
+} pc;
+
+// Shared tiles for better locality
+shared float shrA[16][16];
+shared float shrB[16][16];
+
+void main() {
+    const uint row = gl_GlobalInvocationID.y;
+    const uint col = gl_GlobalInvocationID.x;
+
+    if (row >= pc.M || col >= pc.N) {
+        return;
+    }
+
+    const uint lx = gl_LocalInvocationID.x;
+    const uint ly = gl_LocalInvocationID.y;
+
+    float acc = 0.0;
+
+    // Number of tiles along K dimension
+    const uint tiles = (pc.K + 16u - 1u) / 16u;
+    for (uint t = 0u; t < tiles; ++t) {
+        uint kA = t * 16u + lx;
+        uint kB = t * 16u + ly;
+
+        if (kA < pc.K) {
+            shrA[ly][lx] = A[row + kA * pc.M];
+        } else {
+            shrA[ly][lx] = 0.0;
+        }
+        if (kB < pc.K) {
+            shrB[ly][lx] = B[kB + col * pc.K];
+        } else {
+            shrB[ly][lx] = 0.0;
+        }
+
+        barrier();
+
+        for (uint k = 0u; k < 16u; ++k) {
+            acc += shrA[ly][k] * shrB[k][lx];
+        }
+
+        barrier();
+    }
+    C[row + col * pc.M] = acc;
+}

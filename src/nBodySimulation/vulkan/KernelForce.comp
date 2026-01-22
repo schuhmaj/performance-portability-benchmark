@@ -1,0 +1,49 @@
+#version 450
+layout(local_size_x = 32, local_size_y = 1, local_size_z = 1) in;
+
+layout(std430, binding = 0) readonly buffer Positions {
+    vec3 positions[];
+};
+
+layout(std430, binding = 1) buffer Forces {
+    vec3 forces[];
+};
+
+layout(push_constant) uniform ParamsForce {
+    uint numParticles;
+} pc;
+
+void main()
+{
+    uint i = gl_GlobalInvocationID.x;
+    if (i >= pc.numParticles) {
+        return;
+    }
+    vec3 acc = vec3(0.0);
+
+    const float sigma = 1.0;
+    const float sigmaSquared = sigma * sigma;
+    const float epsilon24 = 24.0; // 1.0 * 24.0
+
+    vec3 pi = positions[i];
+
+    for (uint j = 0; j < pc.numParticles; ++j) {
+        if (i == j) {
+            continue;
+        }
+
+        vec3 dr = pi - positions[j];
+        float dr2 = dot(dr.xyz, dr.xyz);
+
+        float invdr2 = 1.0 / dr2;
+        float lj6 = sigmaSquared * invdr2;
+        lj6 = lj6 * lj6 * lj6;
+        float lj12 = lj6 * lj6;
+        float lj12m6 = lj12 - lj6;
+        float fac = epsilon24 * (lj12 + lj12m6) * invdr2;
+
+        acc += dr * fac;
+    }
+
+    forces[i] += acc;
+}

@@ -26,7 +26,7 @@ namespace ppb {
         const unsigned int baseRow = blockIdx.x * TILE_M + tx * ROWS_PER_THREAD;
         const unsigned int column  = blockIdx.y * blockDim.y + ty;
 
-        const unsigned int numTiles = ceilDiv<unsigned int>(K, TILE_K);
+        const unsigned int numTiles = util::ceilDiv<unsigned int>(K, TILE_K);
         float4 acc = make_float4(0.0f, 0.0f, 0.0f, 0.0f);
         for (unsigned int tile = 0; tile < numTiles; ++tile) {
             for (unsigned int kk = ty; kk < TILE_K; kk += blockDim.y) {
@@ -119,7 +119,7 @@ namespace ppb {
         cudaStreamSynchronize(stream);
         cudaEventSynchronize(stop);
         cudaEventElapsedTime(&elapsedTime, start, stop);
-        return std::make_pair(result, elapsedTime * 1e-3);
+        return std::make_pair(result, elapsedTime * 1e6);
     }
 
     template <typename FloatType>
@@ -148,7 +148,7 @@ namespace ppb {
     template <typename FloatType>
     dim3 ImplCuda<FloatType>::getIdealGridSize(const dim3 &blockSize, const int m, const int n) {
         const int rowsPerBlock = static_cast<int>(blockSize.x) * 4;
-        return {ceilDiv<unsigned int>(m, rowsPerBlock), ceilDiv<unsigned int>(n, blockSize.y), 1};
+        return {util::ceilDiv<unsigned int>(m, rowsPerBlock), util::ceilDiv<unsigned int>(n, blockSize.y), 1};
     }
 
 

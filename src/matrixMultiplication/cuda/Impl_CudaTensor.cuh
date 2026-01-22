@@ -2,8 +2,8 @@
 #include <array>
 #include <vector>
 #include <utility>
-#include "Common.cuh"
-#include "MatrixMultiplication.h"
+#include "common/UtilityFloatArithmetic.h"
+#include "matrixMultiplication/MatrixMultiplication.h"
 
 namespace ppb {
 

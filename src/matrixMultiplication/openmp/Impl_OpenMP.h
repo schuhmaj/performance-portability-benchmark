@@ -4,7 +4,7 @@
 #include <utility>
 #include <chrono>
 #include "omp.h"
-#include "MatrixMultiplication.h"
+#include "matrixMultiplication/MatrixMultiplication.h"
 
 namespace ppb {
 

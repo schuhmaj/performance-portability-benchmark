@@ -1,139 +1,108 @@
+#include "Impl_OpenCL.h"
+#include "common/UtilityFloatArithmetic.h"
 #include <benchmark/benchmark.h>
 #include <iostream>
 #include <utility>
-#include "VectorAddition.h"
-#include "opencl/util/OpenCLUtility.h"
 
+template <typename FloatType>
+ppb::ImplOpenCL<FloatType>::ImplOpenCL() {
+    // 0. Get device
+    device = opencl_utility::getFirstGPU();
+
+    // 1. Context & queue
+    cl_int err;
+    context = clCreateContext(0, 1, &device, nullptr, nullptr, &err);
+    queue = clCreateCommandQueue(context, device, CL_QUEUE_PROFILING_ENABLE, &err);
+
+    // 3. OpenCL program & kernel
+    std::string kernelSource;
+    const char *kernelProg = KERNEL_SOURCE;
+    program = clCreateProgramWithSource(context, 1, &kernelProg, nullptr, &err);
+    err = clBuildProgram(program, 0, nullptr, nullptr, nullptr, nullptr);
+    if constexpr (std::is_same_v<FloatType, float>) {
+        kernel = clCreateKernel(program, "matrix_multiplication_float", &err);
+    } else if constexpr (std::is_same_v<FloatType, double>) {
 #ifdef __APPLE__
-#include <OpenCL/opencl.h>
-#else
-#include <CL/cl.h>
+    static_assert(true, "Not possible on the Apple Platform - Metal doesn't have a float64 type!");
 #endif
+        kernel = clCreateKernel(program, "matrix_multiplication_double", &err);
+    }
+    else {
+        static_assert(std::is_same_v<FloatType, float> || std::is_same_v<FloatType, double>, "Unsupported type");
+    }
+}
 
-namespace ppb {
-    template <typename FloatType>
-    struct ImplOpenCL {
-        using float_type = FloatType;
+template <typename FloatType>
+ppb::ImplOpenCL<FloatType>::~ImplOpenCL() {
+    clReleaseProgram(program);
+    clReleaseKernel(kernel);
+    clReleaseCommandQueue(queue);
+    clReleaseContext(context);
+    clReleaseDevice(device);
+}
 
-        cl_context context = nullptr;
-        cl_command_queue queue = nullptr;
-        cl_device_id device = nullptr;
-        cl_program program = nullptr;
-        cl_kernel kernel = nullptr;
+template <typename FloatType>
+std::pair<std::vector<FloatType>, double>
+ppb::ImplOpenCL<FloatType>::operator()(const std::vector<FloatType> &a, const std::vector<FloatType> &b,
+                                       const MatrixMultiplicationConfig &config) {
+    const size_t size = a.size();
+    cl_int err = 0;
+    cl_mem deviceA = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, size * sizeof(FloatType),
+                                    const_cast<FloatType *>(a.data()), &err);
+    cl_mem deviceB = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, size * sizeof(FloatType),
+                                    const_cast<FloatType *>(b.data()), &err);
 
-        static size_t roundUp(int group_size, int global_size) {
-            int r = global_size % group_size;
-            return r == 0 ? global_size : global_size + group_size - r;
-        }
+    std::vector<FloatType> result(size);
+    cl_mem resultBuffer = clCreateBuffer(context, CL_MEM_WRITE_ONLY, size * sizeof(FloatType), nullptr, nullptr);
 
-        ImplOpenCL() {
-            // 0. Get device
-            device = util::getFirstGPU();
+    err = clSetKernelArg(kernel, 0, sizeof(cl_mem), &(deviceA));
+    if (err != CL_SUCCESS)
+        throw std::runtime_error("SetKernelArg Buffer A failed");
+    err = clSetKernelArg(kernel, 1, sizeof(cl_mem), &(deviceB));
+    if (err != CL_SUCCESS)
+        throw std::runtime_error("SetKernelArg Buffer B failed");
+    err = clSetKernelArg(kernel, 2, sizeof(cl_mem), &resultBuffer);
+    if (err != CL_SUCCESS)
+        throw std::runtime_error("SetKernelArg Buffer C failed");
+    err = clSetKernelArg(kernel, 3, sizeof(int), &config.m);
+    if (err != CL_SUCCESS)
+        throw std::runtime_error("SetKernelArg Integer M failed");
+    err = clSetKernelArg(kernel, 4, sizeof(int), &config.n);
+    if (err != CL_SUCCESS)
+        throw std::runtime_error("SetKernelArg Integer N failed");
+    err = clSetKernelArg(kernel, 5, sizeof(int), &config.k);
+    if (err != CL_SUCCESS)
+        throw std::runtime_error("SetKernelArg Integer K failed");
 
-            // 1. Context & queue
-            cl_int err;
-            context = clCreateContext(0, 1, &device, nullptr, nullptr, &err);
-            queue = clCreateCommandQueue(context, device, CL_QUEUE_PROFILING_ENABLE, &err);
-
-            // 3. OpenCL program & kernel
-            std::string kernelSource;
-            if constexpr (std::is_same_v<FloatType, float>) {
-                kernelSource = "__kernel void add_vector(__global const float* a, __global const float* b, __global float* c) {"
-                " int gid = get_global_id(0);"
-                " c[gid] = a[gid] + b[gid];"
-                " }";
-            } else if constexpr (std::is_same_v<FloatType, double>) {
-                kernelSource = "__kernel void add_vector(__global const double* a, __global const double* b, __global double* c) {"
-                " int gid = get_global_id(0);"
-                " c[gid] = a[gid] + b[gid];"
-                " }";
-            } else {
-                static_assert(std::is_same_v<FloatType, float> || std::is_same_v<FloatType, double>, "Unsupported type");
-            }
-            const char* kernelProg = kernelSource.c_str();
-            program = clCreateProgramWithSource(context, 1, &kernelProg, nullptr, &err);
-
-            err = clBuildProgram(program, 0, nullptr, nullptr, nullptr, nullptr);
-            kernel = clCreateKernel(program, "add_vector", &err);
-        }
-
-        ~ImplOpenCL() {
-            clReleaseProgram(program);
-            clReleaseKernel(kernel);
-            clReleaseCommandQueue(queue);
-            clReleaseContext(context);
-        }
-
-        std::pair<std::vector<FloatType>, double> operator()(const std::vector<FloatType> &a, const std::vector<FloatType> &b) {
-            const size_t size = a.size();
-            cl_int err = 0;
-            cl_mem deviceA = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,  size * sizeof(FloatType), const_cast<FloatType*>(a.data()), &err);
-            cl_mem deviceB = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,  size * sizeof(FloatType), const_cast<FloatType*>(b.data()), &err);
-
-            std::vector<FloatType> result(size);
-            cl_mem resultBuffer = clCreateBuffer(context, CL_MEM_WRITE_ONLY, size * sizeof(FloatType), nullptr, nullptr);;
-
-            err = clSetKernelArg(kernel, 0, sizeof(cl_mem), &(deviceA));
-            if (err != CL_SUCCESS) throw std::runtime_error("SetKernelArg 0 failed");
-            err = clSetKernelArg(kernel, 1, sizeof(cl_mem), &(deviceB));
-            if (err != CL_SUCCESS) throw std::runtime_error("SetKernelArg 1 failed");
-            err = clSetKernelArg(kernel, 2, sizeof(cl_mem), &resultBuffer);
-            if (err != CL_SUCCESS) throw std::runtime_error("SetKernelArg 2 failed");
-
-            // 3. Launch kernel and Measure Time
-            cl_event event;
-            cl_ulong start, end;
-            const size_t localWorkSize = 1024;
-            const size_t globalWorkSize = roundUp(localWorkSize, size);
-            err = clEnqueueNDRangeKernel(queue, kernel, 1, nullptr, &globalWorkSize, &localWorkSize, 0, nullptr, &event);
-            if (err != CL_SUCCESS) throw std::runtime_error("EnqueueNDRangeKernel failed");
-
-            // 4. Copy result C back
-            err = clEnqueueReadBuffer(queue, resultBuffer, CL_TRUE, 0, size * sizeof(FloatType), const_cast<FloatType*>(result.data()), 0, nullptr, nullptr);
-            if (err != CL_SUCCESS) throw std::runtime_error("ReadBuffer result failed: ");
-            clFinish(queue);
-
-            clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_START, sizeof(start), &start, nullptr);
-            clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_END, sizeof(end), &end, nullptr);
-            double execution_time = static_cast<double>(end - start) * 1e-9;
-
-            clReleaseMemObject(deviceA);
-            clReleaseMemObject(deviceB);
-            clReleaseMemObject(resultBuffer);
-            clReleaseEvent(event);
-            return std::make_pair(result, execution_time);
-        }
+    // 2D launch configuration
+    const size_t localSize[2] = {32, 32};
+    const size_t globalSize[2] = {
+        util::roundUp<size_t>(config.m, localSize[0]),
+        util::roundUp<size_t>(config.n, localSize[1])
     };
 
-    template class ImplOpenCL<float>;
-    template class ImplOpenCL<double>;
+    // Launch and time
+    cl_event event;
+    cl_ulong start, end;
+    err = clEnqueueNDRangeKernel(queue, kernel, 2, nullptr, globalSize, localSize, 0, nullptr, &event);
+    if (err != CL_SUCCESS) throw std::runtime_error("EnqueueNDRangeKernel failed");
+
+    // Read back C (size M*N)
+    err = clEnqueueReadBuffer(queue, resultBuffer, CL_TRUE, 0,
+                              static_cast<size_t>(config.m) * config.n * sizeof(FloatType),
+                              result.data(), 0, nullptr, nullptr);
+    if (err != CL_SUCCESS) throw std::runtime_error("ReadBuffer result failed");
+    clFinish(queue);
+
+    clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_START, sizeof(start), &start, nullptr);
+    clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_END, sizeof(end), &end, nullptr);
+    double elapsed_nanoseconds = end - start;
+
+    clReleaseMemObject(deviceA);
+    clReleaseMemObject(deviceB);
+    clReleaseMemObject(resultBuffer);
+    clReleaseEvent(event);
+    return std::make_pair(std::move(result), elapsed_nanoseconds);
 }
 
-BENCHMARK(ppb::VectorAddition<ppb::ImplOpenCL<float>>::benchmark)
-    ->Name("VecAdd-OpenCL-Float")
-    ->RangeMultiplier(10)
-    ->Range(1e3, 1e8)
-#ifdef PPB_MEASURE_ONLY_KERNEL
-    ->UseManualTime()
-#endif
-    ->Complexity();
-
-BENCHMARK(ppb::VectorAddition<ppb::ImplOpenCL<double>>::benchmark)
-    ->Name("VecAdd-OpenCL-Double")
-    ->RangeMultiplier(10)
-    ->Range(1e3, 1e8)
-#ifdef PPB_MEASURE_ONLY_KERNEL
-    ->UseManualTime()
-#endif
-    ->Complexity();
-
-int main(int argc, char **argv) {
-    benchmark::MaybeReenterWithoutASLR(argc, argv);
-    
-    auto gpu = util::getFirstGPU();
-    std::cout << "GPU Name: " << util::getDeviceName(gpu) << '\n';
-
-    benchmark::Initialize(&argc, argv);
-    benchmark::RunSpecifiedBenchmarks();
-    benchmark::Shutdown();
-}
+template class ppb::ImplOpenCL<float>;

@@ -16,6 +16,7 @@
 #pragma once
 #include <chrono>
 #include <memory>
+#include <utility>
 
 #include "Particle.h"
 #include "UtilityContainer.h"
@@ -38,7 +39,7 @@ namespace ppb {
         /**
          * Simulation end time.
          */
-        FloatType numberTimeSteps{1000};
+        int numberTimeSteps{1000};
 
         /**
          * Size of the simulation time step.
@@ -51,20 +52,65 @@ namespace ppb {
         std::array<FloatType, 3> globalForce{0, 0, 0};
 
         /**
-         * Minimum coordinates of the simulation bounding box.
+         * Minimum box coordinates of the initial simulation domain (lower-left-corner)
          */
-        std::array<FloatType, 3> boxMin{0, 0, 0};
+        std::array<FloatType, 3> boxMin{-10, -10, -10};
 
         /**
-         * Maximum coordinates of the simulation bounding box.
+         * Maximum box coordinates of the initial simulation domain (upper-right-corner)
          */
-        std::array<FloatType, 3> boxMax{1, 1, 1};
+        std::array<FloatType, 3> boxMax{10, 10, 10};
+
+        /**
+         * Seed to initialize the ParticleGenerator
+         */
+        unsigned int seed{42};
 
         /**
          * Creates a simulation configuration.
          * @param size Number of particles in the simulation.
          */
         explicit ParticleSimulationConfig(const size_t size) : size{size} {}
+
+        ParticleSimulationConfig(const size_t size, const int numberTimeSteps, const FloatType deltaT)
+            : size{size}
+            , numberTimeSteps{numberTimeSteps}
+            , deltaT{deltaT}
+        {}
+    };
+
+
+    struct ParticleSimulationTimings {
+        /** Total accumulated time for position updates and force reset in nanoseconds [ns] */
+        double positionUpdateForceResetTime;
+        /** Total accumulated time for velocity updates in nanoseconds [ns] */
+        double velocityUpdateTime;
+        /** Total accumulated time for force updates in nanoseconds [ns] */
+        double forceUpdateTime;
+        /** Total accumulated time for sorting in nanoseconds [ns] */
+        double sortingTime;
+        /** Total accumulated time for structural work in nanoseconds [ns] */
+        double structuralTime;
+
+        ParticleSimulationTimings operator+(const ParticleSimulationTimings &other) const {
+            return {positionUpdateForceResetTime + other.positionUpdateForceResetTime, velocityUpdateTime + other.velocityUpdateTime, forceUpdateTime + other.forceUpdateTime, sortingTime + other.sortingTime, structuralTime + other.structuralTime};
+        }
+        ParticleSimulationTimings operator+=(const ParticleSimulationTimings &other) {
+            positionUpdateForceResetTime += other.positionUpdateForceResetTime;
+            velocityUpdateTime += other.velocityUpdateTime;
+            forceUpdateTime += other.forceUpdateTime;
+            sortingTime += other.sortingTime;
+            structuralTime += other.structuralTime;
+            return *this;
+        }
+
+        void reset() {
+            positionUpdateForceResetTime = 0.0;
+            velocityUpdateTime = 0.0;
+            forceUpdateTime = 0.0;
+            sortingTime = 0.0;
+            structuralTime = 0.0;
+        }
     };
 
     /**
@@ -83,7 +129,7 @@ namespace ppb {
     concept ParticleSimulationImpl = requires(Impl impl, ParticleSimulationConfig<typename Impl::float_type> config, const std::vector<Particle<typename Impl::float_type>> &particles) {
         typename Impl::float_type;
         {Impl {config}};
-        {impl.simulate(particles) } -> std::convertible_to<std::vector<Particle<typename Impl::float_type>>>;
+        {impl.simulate(particles) } -> std::convertible_to<std::pair<std::vector<Particle<typename Impl::float_type>>, ParticleSimulationTimings>>;
     };
 
     /**
@@ -120,7 +166,7 @@ namespace ppb {
          * @param config The ParticleSimulationConfig<FloatType> holding setup for particle number, box bounds, force, etc.
          */
         explicit NBodySimulation(const ParticleSimulationConfig<FloatType> &config)
-            : _particles{Particle<FloatType>::generateCuboid(config.boxMin, config.boxMax, config.size)}
+            : _particles{Particle<FloatType>::generateUniform(config.boxMin, config.boxMax, config.size, config.seed)}
             , _impl{config}
         {}
 
@@ -136,7 +182,7 @@ namespace ppb {
          *
          * @return the particle vector resulting from the implementation's simulate() call.
          */
-        std::vector<Particle<FloatType>> operator()() {
+        std::pair<std::vector<Particle<FloatType>>, ParticleSimulationTimings> operator()() {
             return _impl.simulate(_particles);
         }
 
@@ -148,10 +194,18 @@ namespace ppb {
             const size_t size = state.range(0);
             NBodySimulation nbodySimulation{size};
 
+            ParticleSimulationTimings totalTimings{};
             for (auto _ : state) {
-                auto result = nbodySimulation();
+                auto [result, iterationTimings] = nbodySimulation();
                 benchmark::DoNotOptimize(result);
+                totalTimings += iterationTimings;
             }
+            const auto&[positionUpdateForceResetTime, velocityUpdateTime, forceUpdateTime, sortingTime, structuralTime] = totalTimings;
+            state.counters["position_update_reset"] = benchmark::Counter(positionUpdateForceResetTime, benchmark::Counter::kAvgIterations);
+            state.counters["velocity_update"] = benchmark::Counter(velocityUpdateTime, benchmark::Counter::kAvgIterations);
+            state.counters["force_update"] = benchmark::Counter(forceUpdateTime, benchmark::Counter::kAvgIterations);
+            state.counters["sorting"] = benchmark::Counter(sortingTime, benchmark::Counter::kAvgIterations);
+            state.counters["structural"] = benchmark::Counter(structuralTime, benchmark::Counter::kAvgIterations);
             state.SetComplexityN(static_cast<long long>(size));
         }
 

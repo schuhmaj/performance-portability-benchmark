@@ -1,18 +1,11 @@
 #include <benchmark/benchmark.h>
 #include "Impl_Cpp.h"
-#include "NBodySimulation.h"
+#include "nBodySimulation/NBodySimulation.h"
 
 BENCHMARK(ppb::NBodySimulation<ppb::ImplCpp<float>>::benchmark)
-    ->Name("NBody-CStd-Float")
+    ->Name("NBody-Float-cpp")
     ->RangeMultiplier(10)
-    ->Range(1e1, 1e4)
-    ->Unit(benchmark::kMillisecond)
-    ->Complexity();
-BENCHMARK(ppb::NBodySimulation<ppb::ImplCpp<double>>::benchmark)
-    ->Name("NBody-CStd-Double")
-    ->RangeMultiplier(10)
-    ->Range(1e1, 1e4)
-    ->Unit(benchmark::kMillisecond)
+    ->Range(1e1, 1e3)
     ->Complexity();
 
 int main(int argc, char** argv) {

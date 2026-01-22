@@ -1,11 +1,11 @@
 #include "benchmark/benchmark.h"
 #include "Impl_Cpp.h"
-#include "MatrixMultiplication.h"
+#include "matrixMultiplication/MatrixMultiplication.h"
 
 BENCHMARK(ppb::MatrixMultiplication<ppb::ImplCpp<float>>::benchmark)
-    ->Name("MatrixMultiplication-CStd-Float")
-    ->Arg(4096)
-    ->Unit(benchmark::kMillisecond)
+    ->Name("MatrixMultiplication-Float-cpp")
+    ->RangeMultiplier(2)
+    ->Range(32, 8192)
 #ifdef PPB_MEASURE_ONLY_KERNEL
     ->UseManualTime()
 #endif

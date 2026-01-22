@@ -6,7 +6,7 @@ set(NBODY_SIMULATION_FILES
 )
 
 add_library(nbody_lib INTERFACE ${NBODY_SIMULATION_FILES})
-target_include_directories(nbody_lib INTERFACE ${NBODY_SIMULATION_ROOT_DIR})
+target_include_directories(nbody_lib INTERFACE ${PPB_SRC_SOURCE_DIRECTORY})
 target_link_libraries(nbody_lib INTERFACE benchmark::benchmark common_lib)
 
 if (${PPB_ENABLE_Kokkos})
@@ -14,29 +14,31 @@ if (${PPB_ENABLE_Kokkos})
 endif ()
 
 if (${PPB_ENABLE_OpenCL})
-    # add_subdirectory(opencl)
-    # add_subdirectory(boost)
+    add_subdirectory(opencl)
+endif()
+
+if (${PPB_ENABLE_Boost})
+    add_subdirectory(boost)
 endif()
 
 if (${PPB_ENABLE_AdaptiveCpp})
     add_subdirectory(acpp)
 endif()
 
+if (CMAKE_CUDA_COMPILER AND PPB_ENABLE_Cuda)
+    add_subdirectory(cuda)
+endif ()
+
+if (${PPB_ENABLE_Alpaka})
+    add_subdirectory(alpaka)
+endif ()
+
 if (${PPB_ENABLE_OpenMP})
-    # add_subdirectory(openmp)
+    add_subdirectory(openmp)
 endif ()
 
-if (${PPB_ENABLE_OpenACC})
-    # add_subdirectory(openacc)
-endif ()
-
-if(CMAKE_CUDA_COMPILER AND PPB_ENABLE_Cuda)
-    # add_subdirectory(cuda)
-    # add_subdirectory(thrust)
-endif ()
-
-if (${PPB_ENABLE_MetalCpp})
-    # add_subdirectory(metal)
+if (${PPB_ENABLE_Vulkan})
+    add_subdirectory(vulkan)
 endif ()
 
 add_subdirectory(cpp)
