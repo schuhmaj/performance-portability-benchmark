@@ -32,7 +32,7 @@ namespace ppb {
     };
 
     template <typename FloatType>
-    class ImplCuda {
+    class ImplSlangCuda {
 
         ParticleSimulationConfig<FloatType> _config;
 
@@ -48,7 +48,7 @@ namespace ppb {
         using float_type = FloatType;
 
 
-        explicit ImplCuda(const ParticleSimulationConfig<FloatType> &config);
+        explicit ImplSlangCuda(const ParticleSimulationConfig<FloatType> &config);
 
         /**
          * Completes the setup of .ptx kernels

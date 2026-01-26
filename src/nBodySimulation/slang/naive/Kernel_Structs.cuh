@@ -2,7 +2,7 @@
 
 namespace ppb {
 
-    struct alignas(8) PushPos {
+    struct PushPos {
         // buffers
         float4* positions;
         float4* velocities;
@@ -17,10 +17,11 @@ namespace ppb {
         uint32_t numParticles;
 
         // padding
-        uint32_t pad[3];
+        uint32_t pad[5];
     };
+    static_assert(sizeof(PushPos) == 72, "PushPos size mismatch!");
 
-    struct alignas(8) PushVel {
+    struct PushVel {
         // buffers
         float4* velocities;
         float4* forces;
@@ -31,10 +32,11 @@ namespace ppb {
         uint32_t numParticles;
 
         // padding
-        uint32_t pad[3];
+        uint32_t pad[5];
     };
+    static_assert(sizeof(PushVel) == 56, "PushPos size mismatch!");
 
-    struct alignas(8) PushFor {
+    struct PushFor {
         // buffers
         float4* positions;
         float4* forces;
@@ -43,7 +45,8 @@ namespace ppb {
         uint32_t numParticles;
 
         // padding
-        uint32_t pad;
+        uint32_t pad[4];
     };
+    static_assert(sizeof(PushFor) == 40, "PushPos size mismatch!");
 
 }

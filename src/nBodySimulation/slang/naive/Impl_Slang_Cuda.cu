@@ -2,6 +2,19 @@
 #include "Kernel_Structs.cuh"
 #include <cuda_runtime.h>
 
+#define CHECK(X)                                                       \
+    do {                                                               \
+        CUresult err = (X);                                            \
+        if (err != CUDA_SUCCESS) {                                     \
+            const char* msg;                                           \
+            cuGetErrorString(err, &msg);                               \
+            fprintf(stderr,                                            \
+                "CUDA Driver error at %s:%d (%s): %s\n",               \
+                __FILE__, __LINE__, #X, msg);                          \
+        }                                                              \
+    } while (0)
+
+
 namespace ppb {
 
     template <typename FloatType>
@@ -72,13 +85,13 @@ namespace ppb {
 
 
     template<typename FloatType>
-    ImplCuda<FloatType>::ImplCuda(const ParticleSimulationConfig<FloatType> &config) : _config{config}, _globalForce{_config.globalForce[0], _config.globalForce[1], _config.globalForce[2]} {
+    ImplSlangCuda<FloatType>::ImplSlangCuda(const ParticleSimulationConfig<FloatType> &config) : _config{config}, _globalForce{_config.globalForce[0], _config.globalForce[1], _config.globalForce[2]} {
         const size_t size = _config.size;
         constexpr unsigned int WRAP_SIZE = _config.TILE_SIZE;
         constexpr unsigned int MAX_THREADS = 1024;
 
         if (size <= MAX_THREADS) {
-            _blockSize = size;
+            _blockSize = _config.TILE_SIZE;
         } else {
             int blockSize = 0;
             int minGridSize = 0;
@@ -87,29 +100,29 @@ namespace ppb {
     }
 
     template <typename FloatType>
-    void ImplCuda<FloatType>::setupKernel(void* pushData, CUmodule* module_, CUfunction* kernel, const char* file, const char* name, const char* params, size_t pushSize) {
-        cuModuleLoad(module_, file);
-        cuModuleGetFunction(kernel, *module_, name);
+    void ImplSlangCuda<FloatType>::setupKernel(void* pushData, CUmodule* module_, CUfunction* kernel, const char* file, const char* name, const char* params, size_t pushSize) {
+        CHECK(cuModuleLoad(module_, file));
+        CHECK(cuModuleGetFunction(kernel, *module_, name));
         CUdeviceptr memory;
         size_t size;
-        cuModuleGetGlobal(
+        CHECK(cuModuleGetGlobal(
             &memory,
             &size,
             *module_,
             params
-        );
-        cuMemcpyHtoD(memory, pushData, pushSize);
+        ));
+        CHECK(cuMemcpyHtoD(memory, pushData, pushSize));
     }
 
     template<typename FloatType>
-    void ImplCuda<FloatType>::updatePositionsAndResetForce(CUfunction* kernel_position) {
+    void ImplSlangCuda<FloatType>::updatePositionsAndResetForce(CUfunction* kernel_position) {
         float elapsedTime;
         cudaEvent_t start, stop;
         cudaEventCreate(&start);
         cudaEventCreate(&stop);
 
         cudaEventRecord(start);
-        cuLaunchKernel(*kernel_position, _gridSize, 1, 1, _blockSize, 1, 1, 0, nullptr, nullptr, nullptr);
+        CHECK(cuLaunchKernel(*kernel_position, _gridSize, 1, 1, _blockSize, 1, 1, 0, nullptr, nullptr, nullptr));
         cudaEventRecord(stop);
 
         cudaEventSynchronize(stop);
@@ -118,14 +131,14 @@ namespace ppb {
     }
 
     template<typename FloatType>
-    void ImplCuda<FloatType>::updateVelocities(CUfunction* kernel_velocity) {
+    void ImplSlangCuda<FloatType>::updateVelocities(CUfunction* kernel_velocity) {
         float elapsedTime;
         cudaEvent_t start, stop;
         cudaEventCreate(&start);
         cudaEventCreate(&stop);
 
         cudaEventRecord(start);
-        cuLaunchKernel(*kernel_velocity, _gridSize, 1, 1, _blockSize, 1, 1, 0, nullptr, nullptr, nullptr);
+        CHECK(cuLaunchKernel(*kernel_velocity, _gridSize, 1, 1, _blockSize, 1, 1, 0, nullptr, nullptr, nullptr));
         cudaEventRecord(stop);
 
         cudaEventSynchronize(stop);
@@ -135,14 +148,14 @@ namespace ppb {
     }
 
     template<typename FloatType>
-    void ImplCuda<FloatType>::computeForces(CUfunction* kernel_force) {
+    void ImplSlangCuda<FloatType>::computeForces(CUfunction* kernel_force) {
         float elapsedTime;
         cudaEvent_t start, stop;
         cudaEventCreate(&start);
         cudaEventCreate(&stop);
 
         cudaEventRecord(start);
-        cuLaunchKernel(*kernel_force, _gridSize, 1, 1, _blockSize, 1, 1, 0, nullptr, nullptr, nullptr);
+        CHECK(cuLaunchKernel(*kernel_force, _gridSize, 1, 1, _blockSize, 1, 1, 0, nullptr, nullptr, nullptr));
         cudaEventRecord(stop);
 
         cudaEventSynchronize(stop);
@@ -151,7 +164,7 @@ namespace ppb {
     }
 
     template<typename FloatType>
-    std::pair<std::vector<Particle<FloatType>>, ParticleSimulationTimings> ImplCuda<FloatType>::simulate(const std::vector<Particle<FloatType>> &particles) {
+    std::pair<std::vector<Particle<FloatType>>, ParticleSimulationTimings> ImplSlangCuda<FloatType>::simulate(const std::vector<Particle<FloatType>> &particles) {
         _timings.reset();
         _particles.emplace(particles);
         auto& soa = *_particles;
@@ -181,24 +194,26 @@ namespace ppb {
 
         CUmodule module_position;
         CUfunction kernel_position;
-        setupKernel(&params_position, &module_position, &kernel_position, "generated_shaders/KernelPosition.ptx", "computePosition", "Params_Position", sizeof(PushPos));
+        setupKernel(&params_position, &module_position, &kernel_position, "/home/moritzbeste/Documents/projects/uni/bachelorarbeit/performance-portability-benchmark/src/nBodySimulation/slang/naive/generated_shaders/KernelPosition.ptx", "computePosition", "Params_Position", sizeof(PushPos));
 
         CUmodule module_velocity;
         CUfunction kernel_velocity;
-        setupKernel(&params_velocity, &module_velocity, &kernel_velocity, "generated_shaders/KernelVelocity.ptx", "computeVelocity", "Params_Velocity", sizeof(PushVel));
+        setupKernel(&params_velocity, &module_velocity, &kernel_velocity, "/home/moritzbeste/Documents/projects/uni/bachelorarbeit/performance-portability-benchmark/src/nBodySimulation/slang/naive/generated_shaders/KernelVelocity.ptx", "computeVelocity", "Params_Velocity", sizeof(PushVel));
 
         CUmodule module_force;
         CUfunction kernel_force;
-        setupKernel(&params_force, &module_force, &kernel_force, "generated_shaders/KernelForce.ptx", "computeForce", "Params_Force", sizeof(PushFor));
+        setupKernel(&params_force, &module_force, &kernel_force, "/home/moritzbeste/Documents/projects/uni/bachelorarbeit/performance-portability-benchmark/src/nBodySimulation/slang/naive/generated_shaders/KernelForce.ptx", "computeForce", "Params_Force", sizeof(PushFor));
 
-        for (int i = 0; i < _config.numberTimeSteps; ++i) {
+        //for (int i = 0; i < _config.numberTimeSteps; ++i) {
+        for (int i = 0; i < 1; ++i) {
             updatePositionsAndResetForce(&kernel_position);
-            computeForces(&kernel_velocity);
-            updateVelocities(&kernel_force);
+            computeForces(&kernel_force);
+            updateVelocities(&kernel_velocity);
         }
+        _particles->print_buffer(soa.positions, _config.size);
         return std::make_pair(_particles->toParticles(), _timings);
     }
 
-    template class ImplCuda<float>;
+    template class ImplSlangCuda<float>;
 
 };
