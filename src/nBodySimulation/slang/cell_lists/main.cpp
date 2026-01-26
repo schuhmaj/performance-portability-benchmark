@@ -7,7 +7,7 @@
 #endif
 
 BENCHMARK(ppb::NBodySimulation<ppb::ImplSlangVulkan<float>>::benchmark)
-    ->Name("NBody-Float-Vulkan-Cell-Lists")
+    ->Name("NBody-Float-Slang-Vulkan-Cell-Lists")
     ->RangeMultiplier(10)
     ->Range(1e1, 1e7)
     ->Repetitions(3)

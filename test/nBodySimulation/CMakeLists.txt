@@ -58,7 +58,7 @@ if (${PPB_ENABLE_Vulkan})
     endif ()
 endif ()
 
-if (${PPB_ENABLE_Slang_Vulkan})
+if (${PPB_ENABLE_Slang_Vulkan} OR ${PPB_ENABLE_Slang_Cuda})
     if (${PPB_ENABLE_NBodySimulation_naive})
         add_subdirectory(slang/naive)
     endif ()

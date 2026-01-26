@@ -9,7 +9,7 @@ struct GlobalParams
 
 [shader("compute")]
 [numthreads(256,1,1)]
-void computeMain(uint3 threadId : SV_DispatchThreadID)
+void computeResetCells(uint3 threadId : SV_DispatchThreadID)
 {
     uint gid = threadId.x;
     if (gid >= pc.total_size) {
