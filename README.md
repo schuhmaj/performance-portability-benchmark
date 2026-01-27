@@ -47,6 +47,9 @@ Requirements that might be necessary:
 - [AdaptiveCpp](https://github.com/AdaptiveCpp/AdaptiveCpp) - This can be automatically set-up by CMake.
   However, due to higher compilation time/ effort, it is recommended to install it on your system/ in you userspace.
 
+## Polyhedral Gravity Model
+
+Please find the code for the polyhedral gravity implementations here: https://github.com/rho2/polyhedral-gravity-parallel
 
 ## Build
 
@@ -59,17 +62,24 @@ with both options.
 By default **all** CMake Targets are disabled. One have
 to explicit enable one technology:
 
-
-| Option Name              | Description                         | Toolchain   |
-|--------------------------|-------------------------------------|-------------|
-| PPB_ENABLE_OpenACC       | Enable OpenACC Target               | NVHPC       |
-| PPB_ENABLE_OpenMP        | Enable OpenMP Target                | LLVM        |
-| PPB_ENABLE_AdaptiveCpp   | Enable AdaptiveCPP/ SYCL Target     | LLVM        |
-| PPB_ENABLE_OpenCL        | Enable OpenCL Targets (incl. Boost) | LLVM, NVHPC |
-| PPB_ENABLE_Kokkos        | Enable Kokkos Target                | LLVM, NVHPC |
-| PPB_ENABLE_Raja          | Enable Raja Target                  | LLVM, NVHPC |
-| PPB_ENABLE_Cuda          | Enable Cuda and Thrust Targets      | LLVM, NVHPC |
-
+| Option Name                      | Description                                     | Toolchain              |
+|----------------------------------|-------------------------------------------------|------------------------|
+| PPB_LOGGING_LEVEL                | Logging Level                                   | N/A                    |
+| PPB_ENABLE_OnlyKernelRuntime     | Only Kernel Runtime (otherwise Wall Clock Time) | N/A                    |
+| PPB_ENABLE_Kokkos                | Kokkos                                          | LLVM, NVHPC            |
+| PPB_ENABLE_AdaptiveCpp           | AdaptiveCpp (needs Boost)                       | LLVM, NVHPC            |
+| PPB_ENABLE_Vulkan                | Vulkan-Kompute                                  | LLVM + Vulkan          |
+| PPB_ENABLE_OpenACC               | OpenACC                                         | NVHPC or LLLVM (clacc) |
+| PPB_ENABLE_OpenMP                | OpenMP                                          | LLVM                   |
+| PPB_ENABLE_OpenCL                | OpenCL                                          | LLVM, NVHPC            |
+| PPB_ENABLE_Boost                 | Boost::Compute (needs OpenCL)                   | LLVM, NVHPC            |
+| PPB_ENABLE_Cuda                  | Cuda                                            | LLVM, NVHPC            |
+| PPB_ENABLE_Alpaka                | Alpaka                                          | LLVM, NVHPC            |
+| PPB_ENABLE_Metal                 | Metal (Apple)                                   | Apple Clang (macOS)    |
+| PPB_ENABLE_VectorAddition        | VectorAddition                                  | N/A                    |
+| PPB_ENABLE_MatrixMultiplication  | MatrixMultiplication                            | N/A                    |
+| PPB_ENABLE_NBodySimulation       | NBodySimulation                                 | N/A                    |
+| PPB_ENABLE_Testing               | Testing                                         | N/A                    |
 
 ### Typically Workflow
 
