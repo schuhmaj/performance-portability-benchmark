@@ -31,6 +31,8 @@ namespace ppb {
             forcesHost[i] = {particles[i].getForce()[0], particles[i].getForce()[1], particles[i].getForce()[2], 0.0};
         }
 
+        CHECK(cuInit(0));
+
         cudaMalloc(&positions, sizeof(float4) * size);
         cudaMalloc(&velocities, sizeof(float4) * size);
         cudaMalloc(&forces, sizeof(float4) * size);
@@ -69,6 +71,7 @@ namespace ppb {
 
     template <typename FloatType>
     void CudaParticleSoA<FloatType>::print_buffer(float4 *buffer, size_t size) {
+        CHECK(cuCtxSynchronize());
         std::vector<float4> host(size);
         cudaMemcpy(host.data(), buffer, sizeof(float4) * size, cudaMemcpyDeviceToHost);
 
@@ -87,15 +90,8 @@ namespace ppb {
     template<typename FloatType>
     ImplSlangCuda<FloatType>::ImplSlangCuda(const ParticleSimulationConfig<FloatType> &config) : _config{config}, _globalForce{_config.globalForce[0], _config.globalForce[1], _config.globalForce[2]} {
         const size_t size = _config.size;
-        constexpr unsigned int WRAP_SIZE = _config.TILE_SIZE;
-        constexpr unsigned int MAX_THREADS = 1024;
+        constexpr unsigned int _blockSize = _config.TILE_SIZE;
 
-        if (size <= MAX_THREADS) {
-            _blockSize = _config.TILE_SIZE;
-        } else {
-            int blockSize = 0;
-            int minGridSize = 0;
-        }
         _gridSize = util::ceilDiv<unsigned int>(size, _blockSize);
     }
 
@@ -167,30 +163,65 @@ namespace ppb {
     std::pair<std::vector<Particle<FloatType>>, ParticleSimulationTimings> ImplSlangCuda<FloatType>::simulate(const std::vector<Particle<FloatType>> &particles) {
         _timings.reset();
         _particles.emplace(particles);
+
+        // =============================================================================
+        //                               Kernel Parameters
+        // =============================================================================
+
         auto& soa = *_particles;
+        CUdeviceptr d_positions  = reinterpret_cast<CUdeviceptr>(soa.positions);
+        CUdeviceptr d_velocities = reinterpret_cast<CUdeviceptr>(soa.velocities);
+        CUdeviceptr d_forces     = reinterpret_cast<CUdeviceptr>(soa.forces);
+        CUdeviceptr d_oldForces  = reinterpret_cast<CUdeviceptr>(soa.oldForces);
+
+        // Parameters for KernelPosition.ptx
+        PosPushConstants pos_pc_host{};
+        pos_pc_host.globalForce_x = _config.globalForce[0];
+        pos_pc_host.globalForce_y = _config.globalForce[1];
+        pos_pc_host.globalForce_z = _config.globalForce[2];
+        pos_pc_host.dt = _config.deltaT;
+        pos_pc_host.numParticles = _config.size;
+        // copying push constants
+        CUdeviceptr pos_pc_ptr;
+        CHECK(cuMemAlloc(&pos_pc_ptr, sizeof(PosPushConstants)));
+        CHECK(cuMemcpyHtoD(pos_pc_ptr, &pos_pc_host, sizeof(PosPushConstants)));
 
         PushPos params_position{};
-        params_position.positions     = soa.positions;
-        params_position.velocities    = soa.velocities;
-        params_position.forces        = soa.forces;
-        params_position.oldForces     = soa.oldForces;
-        params_position.globalForce_x = _config.globalForce[0];
-        params_position.globalForce_y = _config.globalForce[1];
-        params_position.globalForce_z = _config.globalForce[2];
-        params_position.dt            = _config.deltaT;
-        params_position.numParticles  = _config.size;
+        params_position.positions  = ResourceSlot{d_positions, 0};
+        params_position.velocities = ResourceSlot{d_velocities, 0};
+        params_position.forces     = ResourceSlot{d_forces, 0};
+        params_position.oldForces  = ResourceSlot{d_oldForces, 0};
+        params_position.pc         = pos_pc_ptr;
+
+        // Parameters for KernelVelocity.ptx
+        VelPushConstants vel_pc_host{};
+        vel_pc_host.dt = _config.deltaT;
+        vel_pc_host.numParticles = _config.size;
+        // copying push constants
+        CUdeviceptr vel_pc_ptr;
+        CHECK(cuMemAlloc(&vel_pc_ptr, sizeof(VelPushConstants)));
+        CHECK(cuMemcpyHtoD(vel_pc_ptr, &vel_pc_host, sizeof(VelPushConstants)));
 
         PushVel params_velocity{};
-        params_velocity.velocities    = soa.velocities;
-        params_velocity.forces        = soa.forces;
-        params_velocity.oldForces     = soa.oldForces;
-        params_velocity.dt            = _config.deltaT;
-        params_velocity.numParticles  = _config.size;
+        params_velocity.velocities = ResourceSlot{d_velocities, 0};
+        params_velocity.forces     = ResourceSlot{d_forces, 0};
+        params_velocity.oldForces  = ResourceSlot{d_oldForces, 0};
+        params_velocity.pc         = vel_pc_ptr;
+
+        // Parameters for KernelForce.ptx
+        ForPushConstants for_pc_host{};
+        for_pc_host.numParticles = _config.size;
+        // copying push constants
+        CUdeviceptr for_pc_ptr;
+        CHECK(cuMemAlloc(&for_pc_ptr, sizeof(ForPushConstants)));
+        CHECK(cuMemcpyHtoD(for_pc_ptr, &for_pc_host, sizeof(ForPushConstants)));
 
         PushFor params_force{};
-        params_force.positions        = soa.positions;
-        params_force.forces           = soa.forces;
-        params_force.numParticles     = _config.size;
+        params_force.positions     = ResourceSlot{d_positions, 0};
+        params_force.forces        = ResourceSlot{d_forces, 0};
+        params_force.pc            = for_pc_ptr;
+
+        // =============================================================================
 
         CUmodule module_position;
         CUfunction kernel_position;
@@ -204,8 +235,7 @@ namespace ppb {
         CUfunction kernel_force;
         setupKernel(&params_force, &module_force, &kernel_force, "/home/moritzbeste/Documents/projects/uni/bachelorarbeit/performance-portability-benchmark/src/nBodySimulation/slang/naive/generated_shaders/KernelForce.ptx", "computeForce", "Params_Force", sizeof(PushFor));
 
-        //for (int i = 0; i < _config.numberTimeSteps; ++i) {
-        for (int i = 0; i < 1; ++i) {
+        for (int i = 0; i < _config.numberTimeSteps; ++i) {
             updatePositionsAndResetForce(&kernel_position);
             computeForces(&kernel_force);
             updateVelocities(&kernel_velocity);

@@ -2,51 +2,63 @@
 
 namespace ppb {
 
+    struct ResourceSlot {
+        CUdeviceptr buffer_pointer;
+        uint64_t padding;
+    };
+    static_assert(sizeof(ResourceSlot) == 16, "ResourceSlot size mismatch!");
+
     struct PushPos {
         // buffers
-        float4* positions;
-        float4* velocities;
-        float4* forces;
-        float4* oldForces;
+        ResourceSlot positions;
+        ResourceSlot velocities;
+        ResourceSlot forces;
+        ResourceSlot oldForces;
 
         // push constants
+        CUdeviceptr pc;
+    };
+    static_assert(sizeof(PushPos) == 72, "PushPos size mismatch!");
+
+    struct PosPushConstants {
         float globalForce_x;
         float globalForce_y;
         float globalForce_z;
         float dt;
         uint32_t numParticles;
-
-        // padding
-        uint32_t pad[5];
     };
-    static_assert(sizeof(PushPos) == 72, "PushPos size mismatch!");
+    static_assert(sizeof(PosPushConstants) == 20, "posPushConstant size mismatch!");
 
     struct PushVel {
         // buffers
-        float4* velocities;
-        float4* forces;
-        float4* oldForces;
+        ResourceSlot velocities;
+        ResourceSlot forces;
+        ResourceSlot oldForces;
 
         // push constants
-        float dt;
-        uint32_t numParticles;
-
-        // padding
-        uint32_t pad[5];
+        CUdeviceptr pc;
     };
     static_assert(sizeof(PushVel) == 56, "PushPos size mismatch!");
 
+    struct VelPushConstants {
+        float dt;
+        uint32_t numParticles;
+    };
+    static_assert(sizeof(VelPushConstants) == 8, "velPushConstants size mismatch!");
+
     struct PushFor {
         // buffers
-        float4* positions;
-        float4* forces;
+        ResourceSlot positions;
+        ResourceSlot forces;
 
         // push constants
-        uint32_t numParticles;
-
-        // padding
-        uint32_t pad[4];
+        CUdeviceptr pc;
     };
     static_assert(sizeof(PushFor) == 40, "PushPos size mismatch!");
+
+    struct ForPushConstants {
+        uint32_t numParticles;
+    };
+    static_assert(sizeof(ForPushConstants) == 4, "forPushConstants size mismatch!");
 
 }
