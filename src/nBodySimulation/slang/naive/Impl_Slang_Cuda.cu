@@ -88,10 +88,14 @@ namespace ppb {
 
     template<typename FloatType>
     ImplSlangCuda<FloatType>::ImplSlangCuda(const ParticleSimulationConfig<FloatType> &config) : _config{config}, _globalForce{_config.globalForce[0], _config.globalForce[1], _config.globalForce[2]} {
-        const size_t size = _config.size;
         _blockSize = _config.TILE_SIZE;
+    }
 
-        _gridSize = util::ceilDiv<unsigned int>(size, _blockSize);
+    template <typename FloatType>
+    ImplSlangCuda<FloatType>::freeData(CUdeviceptr pc_ptr, CUmodule* module_) {
+        CHECK(cuCtxSynchronize());
+        CHECK(cuMemFree(pc_ptr));
+        CHECK(cuModuleUnload(*module_));
     }
 
     template <typename FloatType>
@@ -110,14 +114,14 @@ namespace ppb {
     }
 
     template<typename FloatType>
-    void ImplSlangCuda<FloatType>::updatePositionsAndResetForce(CUfunction* kernel_position) {
+    void ImplSlangCuda<FloatType>::updatePositionsAndResetForce(CUfunction* kernel_position, const uint gs) {
         float elapsedTime;
         cudaEvent_t start, stop;
         cudaEventCreate(&start);
         cudaEventCreate(&stop);
 
         cudaEventRecord(start);
-        CHECK(cuLaunchKernel(*kernel_position, _gridSize, 1, 1, _blockSize, 1, 1, 0, nullptr, nullptr, nullptr));
+        CHECK(cuLaunchKernel(*kernel_position, gs, 1, 1, _blockSize, 1, 1, 0, nullptr, nullptr, nullptr));
         cudaEventRecord(stop);
 
         cudaEventSynchronize(stop);
@@ -126,14 +130,14 @@ namespace ppb {
     }
 
     template<typename FloatType>
-    void ImplSlangCuda<FloatType>::updateVelocities(CUfunction* kernel_velocity) {
+    void ImplSlangCuda<FloatType>::updateVelocities(CUfunction* kernel_velocity, const uint gs) {
         float elapsedTime;
         cudaEvent_t start, stop;
         cudaEventCreate(&start);
         cudaEventCreate(&stop);
 
         cudaEventRecord(start);
-        CHECK(cuLaunchKernel(*kernel_velocity, _gridSize, 1, 1, _blockSize, 1, 1, 0, nullptr, nullptr, nullptr));
+        CHECK(cuLaunchKernel(*kernel_velocity, gs, 1, 1, _blockSize, 1, 1, 0, nullptr, nullptr, nullptr));
         cudaEventRecord(stop);
 
         cudaEventSynchronize(stop);
@@ -143,14 +147,14 @@ namespace ppb {
     }
 
     template<typename FloatType>
-    void ImplSlangCuda<FloatType>::computeForces(CUfunction* kernel_force) {
+    void ImplSlangCuda<FloatType>::computeForces(CUfunction* kernel_force, const uint gs) {
         float elapsedTime;
         cudaEvent_t start, stop;
         cudaEventCreate(&start);
         cudaEventCreate(&stop);
 
         cudaEventRecord(start);
-        CHECK(cuLaunchKernel(*kernel_force, _gridSize, 1, 1, _blockSize, 1, 1, 0, nullptr, nullptr, nullptr));
+        CHECK(cuLaunchKernel(*kernel_force, gs, 1, 1, _blockSize, 1, 1, 0, nullptr, nullptr, nullptr));
         cudaEventRecord(stop);
 
         cudaEventSynchronize(stop);
@@ -234,12 +238,18 @@ namespace ppb {
         CUfunction kernel_force;
         setupKernel(&params_force, &module_force, &kernel_force, SLANG_PTX_DIR "/KernelForce.ptx", "computeForce", "Params_Force", sizeof(PushFor));
 
+        const uint32_t _gridSize = util::ceilDiv<unsigned int>(size, _blockSize);
+
         for (int i = 0; i < _config.numberTimeSteps; ++i) {
-            updatePositionsAndResetForce(&kernel_position);
-            computeForces(&kernel_force);
-            updateVelocities(&kernel_velocity);
+            updatePositionsAndResetForce(&kernel_position, _gridSize);
+            computeForces(&kernel_force, _gridSize);
+            updateVelocities(&kernel_velocity, _gridSize);
         }
         //_particles->print_buffer(soa.positions, _config.size);
+
+        freeData(pos_pc_ptr, module_position);
+        freeData(vel_pc_ptr, module_velocity);
+        freeData(for_pc_ptr, module_force);
         return std::make_pair(_particles->toParticles(), _timings);
     }
 

@@ -159,13 +159,13 @@ if (${PPB_ENABLE_Slang_Cuda})
         SLANG_FILE KernelBlellochScan.slang
         ENTRY computeBlellochScan
         OUT_HEADER KernelBlellochScan.ptx
-        PARAMS Params_BlellochScan
+        PARAMS Params_ExclusiveScan
     )
     slang_cuda_compile_shader(
         SLANG_FILE KernelBlockSum.slang
         ENTRY computeBlockSum
         OUT_HEADER KernelBlockSum.ptx
-        PARAMS Params_BlockSum
+        PARAMS Params_ExclusiveScan
     )
     slang_cuda_compile_shader(
         SLANG_FILE KernelIdCells.slang

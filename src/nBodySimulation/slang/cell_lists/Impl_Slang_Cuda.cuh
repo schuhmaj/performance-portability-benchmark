@@ -18,9 +18,16 @@ namespace ppb {
         float4 *forces{nullptr};
         float4 *oldForces{nullptr};
 
+        uint32_t *cells{nullptr};
+        int2 *particleIdx{nullptr};
+        uint32_t *idCells{nullptr};
+
         std::vector<float4> positionsHost;
         std::vector<float4> velocitiesHost;
         std::vector<float4> forcesHost;
+
+        std::array<int, 3> cellCounts;
+        uint32_t cellsLength;
 
         explicit CudaParticleSoA(const std::vector<Particle<FloatType>> &particles);
 
@@ -40,15 +47,23 @@ namespace ppb {
 
         ParticleSimulationTimings _timings{};
 
-        unsigned int _blockSize;
-        unsigned int _gridSize;
         float3 _globalForce;
+
+        const uint32_t _blockSize
 
     public:
         using float_type = FloatType;
 
 
         explicit ImplSlangCuda(const ParticleSimulationConfig<FloatType> &config);
+
+        /**
+         * Frees one push constant pointer and unloads one CUmodule.
+         *
+         * @param pc_ptr The pointer to the push constants to be freed.
+         * @param module_ The pointer to the module that is to be unloaded.
+         */
+        void freeData(CUdeviceptr pc_ptr, CUmodule* module_);
 
         /**
          * Completes the setup of .ptx kernels

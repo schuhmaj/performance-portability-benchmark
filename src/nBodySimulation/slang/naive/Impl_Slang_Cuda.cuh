@@ -40,15 +40,23 @@ namespace ppb {
 
         ParticleSimulationTimings _timings{};
 
-        unsigned int _blockSize;
-        unsigned int _gridSize;
         float3 _globalForce;
+
+        const uint32_t _blockSize;
 
     public:
         using float_type = FloatType;
 
 
         explicit ImplSlangCuda(const ParticleSimulationConfig<FloatType> &config);
+
+        /**
+         * Frees one push constant pointer and unloads one CUmodule.
+         *
+         * @param pc_ptr The pointer to the push constants to be freed.
+         * @param module_ The pointer to the module that is to be unloaded.
+         */
+        void freeData(CUdeviceptr pc_ptr, CUmodule* module_);
 
         /**
          * Completes the setup of .ptx kernels
@@ -76,18 +84,18 @@ namespace ppb {
          * Updates positions of all particles on the device using the velocity Verlet integrator,
          * and resets each particle's force to the configured global force in parallel.
          */
-        void updatePositionsAndResetForce(CUfunction* kernel_position);
+        void updatePositionsAndResetForce(CUfunction* kernel_position, const uint gs);
 
         /**
          * Updates velocities of all particles on the device based on forces before and after the integration
          * step, using parallel execution.
          */
-        void updateVelocities(CUfunction* kernel_velocity);
+        void updateVelocities(CUfunction* kernel_velocity, const uint gs);
 
         /**
          * Computes the inter-particle forces using the Lennard-Jones potential for all particles on the device,
          * accumulating the results in parallel.
          */
-        void computeForces(CUfunction* kernel_force);
+        void computeForces(CUfunction* kernel_force, const uint gs);
     };
 } // namespace ppb
