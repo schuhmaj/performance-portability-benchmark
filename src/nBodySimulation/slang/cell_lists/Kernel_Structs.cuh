@@ -38,7 +38,7 @@ namespace ppb {
     static_assert(sizeof(HistPushConstants) == 40, "HistPushConstant size mismatch!");
 
 
-    struct PusExclusive {
+    struct PushExclusive {
         // buffers
         ResourceSlot data;
         ResourceSlot blockSums;
@@ -46,7 +46,7 @@ namespace ppb {
         // push constants
         CUdeviceptr pc;
     };
-    static_assert(sizeof(PusExclusive) == 40, "PusExclusive size mismatch!");
+    static_assert(sizeof(PushExclusive) == 40, "PushExclusive size mismatch!");
 
     struct ExclusivePushConstants {
         uint32_t total_size;
@@ -131,15 +131,21 @@ namespace ppb {
         // buffers
         ResourceSlot positions;
         ResourceSlot forces;
+        ResourceSlot particleIdx;
+        ResourceSlot starts;
+        ResourceSlot idCells;
 
         // push constants
         CUdeviceptr pc;
     };
-    static_assert(sizeof(PushFor) == 40, "PushPos size mismatch!");
+    static_assert(sizeof(PushFor) == 88, "PushPos size mismatch!");
 
     struct ForPushConstants {
         uint32_t numParticles;
+        int32_t cCount_x;
+        int32_t cCount_y;
+        int32_t cCount_z;
     };
-    static_assert(sizeof(ForPushConstants) == 4, "forPushConstants size mismatch!");
+    static_assert(sizeof(ForPushConstants) == 16, "forPushConstants size mismatch!");
 
 }

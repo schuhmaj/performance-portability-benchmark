@@ -32,31 +32,37 @@ namespace ppb {
 
         CHECK(cuInit(0));
 
-        cudaMalloc(&positions, sizeof(float4) * size);
-        cudaMalloc(&velocities, sizeof(float4) * size);
-        cudaMalloc(&forces, sizeof(float4) * size);
-        cudaMalloc(&oldForces, sizeof(float4) * size);
+        CUdevice device;
+        CHECK(cuDeviceGet(&device, 0));
+        CUcontext context;
+        CHECK(cuCtxCreate(&context, 0, device));
 
-        cudaMemcpy(positions, positionsHost.data(), sizeof(float4) * size, cudaMemcpyHostToDevice);
-        cudaMemcpy(velocities, velocitiesHost.data(), sizeof(float4) * size, cudaMemcpyHostToDevice);
-        cudaMemcpy(forces, forcesHost.data(), sizeof(float4) * size, cudaMemcpyHostToDevice);
-        cudaMemset(oldForces, 0.0, sizeof(float4) * size);
+        CHECK(cuMemAlloc(&positions, sizeof(float4) * size));
+        CHECK(cuMemAlloc(&velocities, sizeof(float4) * size));
+        CHECK(cuMemAlloc(&forces, sizeof(float4) * size));
+        CHECK(cuMemAlloc(&oldForces, sizeof(float4) * size));
+
+        CHECK(cuMemcpyHtoD(positions, positionsHost.data(), sizeof(float4) * size));
+        CHECK(cuMemcpyHtoD(velocities, velocitiesHost.data(), sizeof(float4) * size));
+        CHECK(cuMemcpyHtoD(forces, forcesHost.data(), sizeof(float4) * size));
+        CHECK(cuMemsetD8(oldForces, 0, sizeof(float4) * size));
+
     }   
 
     template <typename FloatType>
     CudaParticleSoA<FloatType>::~CudaParticleSoA() {
-        cudaFree(positions);
-        cudaFree(velocities);
-        cudaFree(forces);
-        cudaFree(oldForces);
+        CHECK(cuMemFree(positions));
+        CHECK(cuMemFree(velocities));
+        CHECK(cuMemFree(forces));
+        CHECK(cuMemFree(oldForces));
     }
 
     template <typename FloatType>
     std::vector<Particle<FloatType>> CudaParticleSoA<FloatType>::toParticles() {
         std::vector<Particle<FloatType>> particles{_ref};
-        cudaMemcpy(positionsHost.data(), positions, sizeof(float4) * _ref.size(), cudaMemcpyDeviceToHost);
-        cudaMemcpy(velocitiesHost.data(), velocities, sizeof(float4) * _ref.size(), cudaMemcpyDeviceToHost);
-        cudaMemcpy(forcesHost.data(), forces, sizeof(float4) * _ref.size(), cudaMemcpyDeviceToHost);
+        CHECK(cuMemcpyDtoH(positionsHost.data(), positions, sizeof(float4) * _ref.size()));
+        CHECK(cuMemcpyDtoH(velocitiesHost.data(), velocities, sizeof(float4) * _ref.size()));
+        CHECK(cuMemcpyDtoH(forcesHost.data(), forces, sizeof(float4) * _ref.size()));
         for (size_t i = 0; i < particles.size(); ++i) {
             const float4& position = positionsHost[i];
             const float4& velocity = velocitiesHost[i];
@@ -69,10 +75,10 @@ namespace ppb {
     }
 
     template <typename FloatType>
-    void CudaParticleSoA<FloatType>::print_buffer(float4 *buffer, size_t size) {
+    void CudaParticleSoA<FloatType>::print_buffer(CUdeviceptr buffer, size_t size) {
         CHECK(cuCtxSynchronize());
         std::vector<float4> host(size);
-        cudaMemcpy(host.data(), buffer, sizeof(float4) * size, cudaMemcpyDeviceToHost);
+        CHECK(cuMemcpyDtoH(host.data(), buffer, sizeof(float4) * size));
 
         for (size_t i = 0; i < size; i++) {
             std::cout << i << ": "
@@ -92,7 +98,7 @@ namespace ppb {
     }
 
     template <typename FloatType>
-    ImplSlangCuda<FloatType>::freeData(CUdeviceptr pc_ptr, CUmodule* module_) {
+    void ImplSlangCuda<FloatType>::freeData(CUdeviceptr pc_ptr, CUmodule* module_) {
         CHECK(cuCtxSynchronize());
         CHECK(cuMemFree(pc_ptr));
         CHECK(cuModuleUnload(*module_));
@@ -114,52 +120,25 @@ namespace ppb {
     }
 
     template<typename FloatType>
-    void ImplSlangCuda<FloatType>::updatePositionsAndResetForce(CUfunction* kernel_position, const uint gs) {
+    void ImplSlangCuda<FloatType>::launchKernel(CUfunction* kernel, const uint32_t gs, double* timingField) {
         float elapsedTime;
-        cudaEvent_t start, stop;
-        cudaEventCreate(&start);
-        cudaEventCreate(&stop);
+        CUevent start, stop;
+        CUstream stream;
+        CHECK(cuEventCreate(&start, CU_EVENT_DEFAULT));
+        CHECK(cuEventCreate(&stop, CU_EVENT_DEFAULT));
+        CHECK(cuStreamCreate(&stream, 0));
 
-        cudaEventRecord(start);
-        CHECK(cuLaunchKernel(*kernel_position, gs, 1, 1, _blockSize, 1, 1, 0, nullptr, nullptr, nullptr));
-        cudaEventRecord(stop);
+        CHECK(cuEventRecord(start, stream));
+        CHECK(cuLaunchKernel(*kernel, gs, 1, 1, _blockSize, 1, 1, 0, nullptr, nullptr, nullptr));
+        CHECK(cuEventRecord(stop, stream));
 
-        cudaEventSynchronize(stop);
-        cudaEventElapsedTime(&elapsedTime, start, stop);
-        _timings.positionUpdateForceResetTime += (elapsedTime * 1e6);
-    }
-
-    template<typename FloatType>
-    void ImplSlangCuda<FloatType>::updateVelocities(CUfunction* kernel_velocity, const uint gs) {
-        float elapsedTime;
-        cudaEvent_t start, stop;
-        cudaEventCreate(&start);
-        cudaEventCreate(&stop);
-
-        cudaEventRecord(start);
-        CHECK(cuLaunchKernel(*kernel_velocity, gs, 1, 1, _blockSize, 1, 1, 0, nullptr, nullptr, nullptr));
-        cudaEventRecord(stop);
-
-        cudaEventSynchronize(stop);
-        cudaEventElapsedTime(&elapsedTime, start, stop);
-
-        _timings.velocityUpdateTime += (elapsedTime * 1e6);
-    }
-
-    template<typename FloatType>
-    void ImplSlangCuda<FloatType>::computeForces(CUfunction* kernel_force, const uint gs) {
-        float elapsedTime;
-        cudaEvent_t start, stop;
-        cudaEventCreate(&start);
-        cudaEventCreate(&stop);
-
-        cudaEventRecord(start);
-        CHECK(cuLaunchKernel(*kernel_force, gs, 1, 1, _blockSize, 1, 1, 0, nullptr, nullptr, nullptr));
-        cudaEventRecord(stop);
-
-        cudaEventSynchronize(stop);
-        cudaEventElapsedTime(&elapsedTime, start, stop);
-        _timings.forceUpdateTime += (elapsedTime * 16);
+        CHECK(cuEventSynchronize(stop));
+        CHECK(cuEventElapsedTime(&elapsedTime, start, stop));
+        *timingField += (elapsedTime * 1e6);
+        
+        CHECK(cuEventDestroy(start));
+        CHECK(cuEventDestroy(stop));
+        CHECK(cuStreamDestroy(stream));
     }
 
     template<typename FloatType>
@@ -172,10 +151,6 @@ namespace ppb {
         // =============================================================================
 
         auto& soa = *_particles;
-        CUdeviceptr d_positions  = reinterpret_cast<CUdeviceptr>(soa.positions);
-        CUdeviceptr d_velocities = reinterpret_cast<CUdeviceptr>(soa.velocities);
-        CUdeviceptr d_forces     = reinterpret_cast<CUdeviceptr>(soa.forces);
-        CUdeviceptr d_oldForces  = reinterpret_cast<CUdeviceptr>(soa.oldForces);
 
         // Parameters for KernelPosition.ptx
         PosPushConstants pos_pc_host{};
@@ -190,10 +165,10 @@ namespace ppb {
         CHECK(cuMemcpyHtoD(pos_pc_ptr, &pos_pc_host, sizeof(PosPushConstants)));
 
         PushPos params_position{};
-        params_position.positions  = ResourceSlot{d_positions, 0};
-        params_position.velocities = ResourceSlot{d_velocities, 0};
-        params_position.forces     = ResourceSlot{d_forces, 0};
-        params_position.oldForces  = ResourceSlot{d_oldForces, 0};
+        params_position.positions  = ResourceSlot{soa.positions, 0};
+        params_position.velocities = ResourceSlot{soa.velocities, 0};
+        params_position.forces     = ResourceSlot{soa.forces, 0};
+        params_position.oldForces  = ResourceSlot{soa.oldForces, 0};
         params_position.pc         = pos_pc_ptr;
 
         // Parameters for KernelVelocity.ptx
@@ -206,9 +181,9 @@ namespace ppb {
         CHECK(cuMemcpyHtoD(vel_pc_ptr, &vel_pc_host, sizeof(VelPushConstants)));
 
         PushVel params_velocity{};
-        params_velocity.velocities = ResourceSlot{d_velocities, 0};
-        params_velocity.forces     = ResourceSlot{d_forces, 0};
-        params_velocity.oldForces  = ResourceSlot{d_oldForces, 0};
+        params_velocity.velocities = ResourceSlot{soa.velocities, 0};
+        params_velocity.forces     = ResourceSlot{soa.forces, 0};
+        params_velocity.oldForces  = ResourceSlot{soa.oldForces, 0};
         params_velocity.pc         = vel_pc_ptr;
 
         // Parameters for KernelForce.ptx
@@ -220,8 +195,8 @@ namespace ppb {
         CHECK(cuMemcpyHtoD(for_pc_ptr, &for_pc_host, sizeof(ForPushConstants)));
 
         PushFor params_force{};
-        params_force.positions     = ResourceSlot{d_positions, 0};
-        params_force.forces        = ResourceSlot{d_forces, 0};
+        params_force.positions     = ResourceSlot{soa.positions, 0};
+        params_force.forces        = ResourceSlot{soa.forces, 0};
         params_force.pc            = for_pc_ptr;
 
         // =============================================================================
@@ -238,18 +213,18 @@ namespace ppb {
         CUfunction kernel_force;
         setupKernel(&params_force, &module_force, &kernel_force, SLANG_PTX_DIR "/KernelForce.ptx", "computeForce", "Params_Force", sizeof(PushFor));
 
-        const uint32_t _gridSize = util::ceilDiv<unsigned int>(size, _blockSize);
+        const uint32_t _gridSize = util::ceilDiv<unsigned int>(_config.size, _blockSize);
 
         for (int i = 0; i < _config.numberTimeSteps; ++i) {
-            updatePositionsAndResetForce(&kernel_position, _gridSize);
-            computeForces(&kernel_force, _gridSize);
-            updateVelocities(&kernel_velocity, _gridSize);
+            launchKernel(&kernel_position, _gridSize, &_timings.positionUpdateForceResetTime);
+            launchKernel(&kernel_force, _gridSize, &_timings.forceUpdateTime);
+            launchKernel(&kernel_velocity, _gridSize, &_timings.velocityUpdateTime);
         }
-        //_particles->print_buffer(soa.positions, _config.size);
+        _particles->print_buffer(soa.positions, _config.size);
 
-        freeData(pos_pc_ptr, module_position);
-        freeData(vel_pc_ptr, module_velocity);
-        freeData(for_pc_ptr, module_force);
+        freeData(pos_pc_ptr, &module_position);
+        freeData(vel_pc_ptr, &module_velocity);
+        freeData(for_pc_ptr, &module_force);
         return std::make_pair(_particles->toParticles(), _timings);
     }
 

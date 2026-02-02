@@ -13,10 +13,10 @@ namespace ppb {
 
         const std::vector<Particle<FloatType>> &_ref;
 
-        float4 *positions{nullptr};
-        float4 *velocities{nullptr};
-        float4 *forces{nullptr};
-        float4 *oldForces{nullptr};
+        CUdeviceptr positions;
+        CUdeviceptr velocities;
+        CUdeviceptr forces;
+        CUdeviceptr oldForces;
 
         std::vector<float4> positionsHost;
         std::vector<float4> velocitiesHost;
@@ -28,7 +28,7 @@ namespace ppb {
 
         std::vector<Particle<FloatType>> toParticles();
 
-        void print_buffer(float4 *buffer, size_t size);
+        void print_buffer(CUdeviceptr buffer, size_t size);
     };
 
     template <typename FloatType>
@@ -42,7 +42,7 @@ namespace ppb {
 
         float3 _globalForce;
 
-        const uint32_t _blockSize;
+        uint32_t _blockSize;
 
     public:
         using float_type = FloatType;
@@ -81,21 +81,12 @@ namespace ppb {
         std::pair<std::vector<Particle<FloatType>>, ParticleSimulationTimings> simulate(const std::vector<Particle<FloatType>> &particles);
 
         /**
-         * Updates positions of all particles on the device using the velocity Verlet integrator,
-         * and resets each particle's force to the configured global force in parallel.
+         * launches a kernel and updates a timing field.
+         *
+         * @param kernel The pointer to the CUfunction to be launched.
+         * @param gs the gridsize used by the kernel.
+         * @param timingField the pointer to the timing field to be updated.
          */
-        void updatePositionsAndResetForce(CUfunction* kernel_position, const uint gs);
-
-        /**
-         * Updates velocities of all particles on the device based on forces before and after the integration
-         * step, using parallel execution.
-         */
-        void updateVelocities(CUfunction* kernel_velocity, const uint gs);
-
-        /**
-         * Computes the inter-particle forces using the Lennard-Jones potential for all particles on the device,
-         * accumulating the results in parallel.
-         */
-        void computeForces(CUfunction* kernel_force, const uint gs);
+        void launchKernel(CUfunction* kernel, const uint32_t gs, double* timingField);
     };
 } // namespace ppb
