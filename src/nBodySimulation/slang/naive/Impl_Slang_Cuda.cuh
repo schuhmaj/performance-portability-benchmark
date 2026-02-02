@@ -13,6 +13,8 @@ namespace ppb {
 
         const std::vector<Particle<FloatType>> &_ref;
 
+        CUcontext context;
+
         CUdeviceptr positions;
         CUdeviceptr velocities;
         CUdeviceptr forces;

@@ -34,7 +34,6 @@ namespace ppb {
 
         CUdevice device;
         CHECK(cuDeviceGet(&device, 0));
-        CUcontext context;
         CHECK(cuCtxCreate(&context, 0, device));
 
         CHECK(cuMemAlloc(&positions, sizeof(float4) * size));
@@ -55,6 +54,7 @@ namespace ppb {
         CHECK(cuMemFree(velocities));
         CHECK(cuMemFree(forces));
         CHECK(cuMemFree(oldForces));
+        CHECK(cuCtxDestroy(context));
     }
 
     template <typename FloatType>

@@ -18,6 +18,8 @@ namespace ppb {
         std::array<float, 3> boxSize;
         uint32_t cellsLength;
 
+        CUcontext context;
+
         CUdeviceptr positions;
         CUdeviceptr velocities;
         CUdeviceptr forces;
