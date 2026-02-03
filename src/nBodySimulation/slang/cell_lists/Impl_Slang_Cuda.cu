@@ -1,5 +1,4 @@
 #include "Impl_Slang_Cuda.cuh"
-#include "Kernel_Structs.cuh"
 #include <cuda_runtime.h>
 
 #define CHECK(X)                                                       \
@@ -135,6 +134,29 @@ namespace ppb {
         CHECK(cuModuleUnload(*module_));
     }
 
+    template<typename FloatType>
+    void ImplSlangCuda<FloatType>::freeExclusiveScanCache(ExclusiveScanCache* cache) {
+        if (!cache) {
+            return;
+        }
+        if (cache->cache) {
+            freeExclusiveScanCache(cache->cache);
+        }
+        if (cache->module_blellochScan) {
+            CHECK(cuModuleUnload(cache->module_blellochScan));
+        }
+        if (cache->module_blockSum) {
+            CHECK(cuModuleUnload(cache->module_blockSum));
+        }
+        if (cache->pc) {
+            CHECK(cuMemFree(cache->pc));
+        }
+        if (cache->blockSum) {
+            CHECK(cuMemFree(cache->blockSum));
+        }
+        delete cache;
+    }
+
     template <typename FloatType>
     void ImplSlangCuda<FloatType>::setupKernel(void* pushData, CUmodule* module_, CUfunction* kernel, const char* file, const char* name, const char* params, size_t pushSize) {
         CHECK(cuModuleLoad(module_, file));
@@ -151,7 +173,7 @@ namespace ppb {
     }
 
     template<typename FloatType>
-    void ImplSlangCuda<FloatType>::exclusiveScanBlelloch(CUdeviceptr data, uint32_t totalLength) {
+    ExclusiveScanCache* ImplSlangCuda<FloatType>::setupExclusiveScanCache(CUdeviceptr data, uint32_t totalLength) {
         uint32_t nBlocks = (totalLength + _blockSize - 1) / _blockSize;
         uint32_t blockSumSize = ((nBlocks + _blockSize - 1) / _blockSize) * _blockSize;
         // manage memory for exclusiveScan
@@ -166,36 +188,56 @@ namespace ppb {
         CHECK(cuMemcpyHtoD(excl_pc_ptr, &excl_pc_host, sizeof(ExclusivePushConstants)));
         // instantiate push data
         PushExclusive params_exclusiveScan{};
-        params_exclusiveScan.data = ResourceSlot{data, 0};
+        params_exclusiveScan.data      = ResourceSlot{data, 0};
         params_exclusiveScan.blockSums = ResourceSlot{blockSum, 0};
-        params_exclusiveScan.pc = excl_pc_ptr;
+        params_exclusiveScan.pc        = excl_pc_ptr;
         // setup blellochScan module and kernel
         CUmodule module_blellochScan;
         CUfunction kernel_blellochScan;
         setupKernel(&params_exclusiveScan, &module_blellochScan, &kernel_blellochScan, SLANG_PTX_DIR "/KernelBlellochScan.ptx", "computeBlellochScan", "Params_ExclusiveScan", sizeof(PushExclusive));
 
-        // dispatch blellochScan
-        launchKernel(&kernel_blellochScan, nBlocks, &_timings.neighborSearch);
-        CHECK(cuCtxSynchronize());
-        CHECK(cuModuleUnload(module_blellochScan));
+        ExclusiveScanCache* cache = new ExclusiveScanCache{};
+        cache->pc                  = excl_pc_ptr;
+        cache->blockSum            = blockSum;
+        cache->module_blellochScan = module_blellochScan;
+        cache->kernel_blellochScan = kernel_blellochScan;
 
         if (nBlocks > 1) {
-            // recursively calculate prefix sum
-            exclusiveScanBlelloch(blockSum, blockSumSize);
-            // add block offset
-            // setup blockSum module and kernel
             CUmodule module_blockSum;
             CUfunction kernel_blockSum;
             setupKernel(&params_exclusiveScan, &module_blockSum, &kernel_blockSum, SLANG_PTX_DIR "/KernelBlockSum.ptx", "computeBlockSum", "Params_ExclusiveScan", sizeof(PushExclusive));
-            // dispatch blockSum
-            launchKernel(&kernel_blockSum, nBlocks, &_timings.neighborSearch);
-            CHECK(cuCtxSynchronize());
-            freeData(excl_pc_ptr, &module_blockSum);
+
+            cache->module_blockSum = module_blockSum;
+            cache->kernel_blockSum = kernel_blockSum;
+            
+            cache->cache = setupExclusiveScanCache(blockSum, blockSumSize);
         }
         else {
-            CHECK(cuMemFree(excl_pc_ptr));
+            cache->module_blockSum = nullptr;
+            cache->kernel_blockSum = nullptr;
+            cache->cache           = nullptr;
         }
-        CHECK(cuMemFree(blockSum));
+
+        return cache;
+    }
+
+
+
+    template<typename FloatType>
+    void ImplSlangCuda<FloatType>::exclusiveScanBlelloch(uint32_t totalLength, ExclusiveScanCache* cache) {
+        uint32_t nBlocks = (totalLength + _blockSize - 1) / _blockSize;
+
+        // dispatch blellochScan
+        launchKernel(&cache->kernel_blellochScan, nBlocks, &_timings.neighborSearch);
+
+        if (nBlocks > 1) {
+            uint32_t blockSumSize = ((nBlocks + _blockSize - 1) / _blockSize) * _blockSize;
+            // recursively calculate prefix sum
+            exclusiveScanBlelloch(blockSumSize, cache->cache);
+            // add block offset
+            // dispatch blockSum
+            launchKernel(&cache->kernel_blockSum, nBlocks, &_timings.neighborSearch);
+        }
     }
 
     template<typename FloatType>
@@ -359,13 +401,15 @@ namespace ppb {
         CUfunction kernel_force;
         setupKernel(&params_force, &module_force, &kernel_force, SLANG_PTX_DIR "/KernelForce.ptx", "computeForce", "Params_Force", sizeof(PushFor));
 
+        ExclusiveScanCache* excl_cache = setupExclusiveScanCache(soa.cells, soa.cellsLength);
+
         const uint32_t _gridSizePerParticle = util::ceilDiv<unsigned int>(_config.size, _blockSize);
         const uint32_t _gridSizePerCell = util::ceilDiv<unsigned int>(soa.cellsLength, _blockSize);
 
         for (int i = 0; i < _config.numberTimeSteps; ++i) {
             launchKernel(&kernel_resetCells, _gridSizePerCell, &_timings.neighborSearch);
             launchKernel(&kernel_histogram, _gridSizePerParticle, &_timings.neighborSearch);
-            exclusiveScanBlelloch(soa.cells, soa.cellsLength);
+            exclusiveScanBlelloch(soa.cellsLength, excl_cache);
             launchKernel(&kernel_idCells, _gridSizePerParticle, &_timings.neighborSearch);
 
             launchKernel(&kernel_position, _gridSizePerParticle, &_timings.positionUpdateForceResetTime);
@@ -380,6 +424,7 @@ namespace ppb {
         freeData(pos_pc_ptr, &module_position);
         freeData(vel_pc_ptr, &module_velocity);
         freeData(for_pc_ptr, &module_force);
+        freeExclusiveScanCache(excl_cache);
         return std::make_pair(_particles->toParticles(), _timings);
     }
 

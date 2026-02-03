@@ -4,6 +4,7 @@
 #include "nBodySimulation/Particle.h"
 #include "common/UtilityContainer.h"
 #include "cuda.h"
+#include "Kernel_Structs.cuh"
 
 namespace ppb {
 
@@ -69,6 +70,8 @@ namespace ppb {
          */
         void freeData(CUdeviceptr pc_ptr, CUmodule* module_);
 
+        void freeExclusiveScanCache(ExclusiveScanCache* cache);
+
         /**
          * Completes the setup of .ptx kernels
          *
@@ -91,7 +94,9 @@ namespace ppb {
          */
         std::pair<std::vector<Particle<FloatType>>, ParticleSimulationTimings> simulate(const std::vector<Particle<FloatType>> &particles);
 
-        void exclusiveScanBlelloch(CUdeviceptr data, uint32_t totalLength);
+        ExclusiveScanCache* setupExclusiveScanCache(CUdeviceptr data, uint32_t totalLength);
+
+        void exclusiveScanBlelloch(uint32_t totalLength, ExclusiveScanCache* cache);
 
         /**
          * launches a kernel and updates a timing field.

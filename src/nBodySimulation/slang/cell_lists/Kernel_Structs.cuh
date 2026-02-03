@@ -38,6 +38,17 @@ namespace ppb {
     static_assert(sizeof(HistPushConstants) == 40, "HistPushConstant size mismatch!");
 
 
+    struct ExclusiveScanCache {
+        CUdeviceptr pc;
+        CUdeviceptr blockSum;
+        CUmodule module_blellochScan;
+        CUfunction kernel_blellochScan;
+        CUmodule module_blockSum;
+        CUfunction kernel_blockSum;
+
+        ExclusiveScanCache* cache;
+    };
+
     struct PushExclusive {
         // buffers
         ResourceSlot data;
