@@ -9,35 +9,6 @@ namespace ppb {
     static_assert(sizeof(ResourceSlot) == 16, "ResourceSlot size mismatch!");
 
 
-    struct PushHist {
-        // buffers
-        ResourceSlot positions;
-        ResourceSlot histogram;
-        ResourceSlot particleIdx;
-
-        // push constants
-        CUdeviceptr pc;
-    };
-    static_assert(sizeof(PushHist) == 56, "PushHist size mismatch!");
-
-    struct HistPushConstants {
-        uint32_t numParticles;
-        // cell counts
-        int32_t cCount_x;
-        int32_t cCount_y;
-        int32_t cCount_z;
-        // boxMin
-        float bMin_x;
-        float bMin_y;
-        float bMin_z;
-        // boxSize
-        float bSize_x;
-        float bSize_y;
-        float bSize_z;
-    };
-    static_assert(sizeof(HistPushConstants) == 40, "HistPushConstants size mismatch!");
-
-
     struct ExclusiveScanCache {
         CUdeviceptr pc;
         CUdeviceptr blockSum;
@@ -66,36 +37,39 @@ namespace ppb {
     static_assert(sizeof(ExclusivePushConstants) == 8, "ExclusivePushConstants size mismatch!");
 
 
-    struct PushId {
+    struct PushCount {
         // buffers
-        ResourceSlot particleIdx;
-        ResourceSlot idCells;
-        ResourceSlot starts;
+        ResourceSlot positions;
+        ResourceSlot nNeighbors;
 
         // push constants
         CUdeviceptr pc;
     };
-    static_assert(sizeof(PushId) == 56, "PushId size mismatch!");
+    static_assert(sizeof(PushCount) == 40, "PushCount size mismatch!");
 
-    struct IdPushConstants {
-        uint32_t numParticles;
+    struct CountPushConstants {
+        uint32_t n;
+        float radius;
     };
-    static_assert(sizeof(IdPushConstants) == 4, "IdPushConstants size mismatch!");
+    static_assert(sizeof(CountPushConstants) == 8, "CountPushConstants size mismatch!");
 
 
-    struct PushReset {
+    struct PushVerlet {
         // buffers
-        ResourceSlot cells;
+        ResourceSlot positions;
+        ResourceSlot verletLists;
+        ResourceSlot neighborsStarts;
 
         // push constants
         CUdeviceptr pc;
     };
-    static_assert(sizeof(PushReset) == 24, "PushReset size mismatch!");
+    static_assert(sizeof(PushVerlet) == 56, "PushVerlet size mismatch!");
 
-    struct ResetPushConstants {
+    struct VerletPushConstants {
         uint32_t total_size;
+        float radius;
     };
-    static_assert(sizeof(ResetPushConstants) == 4, "ResetPushConstants size mismatch!");
+    static_assert(sizeof(VerletPushConstants) == 8, "VerletPushConstants size mismatch!");
 
 
     struct PushPos {
@@ -142,21 +116,17 @@ namespace ppb {
         // buffers
         ResourceSlot positions;
         ResourceSlot forces;
-        ResourceSlot particleIdx;
-        ResourceSlot starts;
-        ResourceSlot idCells;
+        ResourceSlot verletLists;
+        ResourceSlot neighborsStarts;
 
         // push constants
         CUdeviceptr pc;
     };
-    static_assert(sizeof(PushFor) == 88, "PushPos size mismatch!");
+    static_assert(sizeof(PushFor) == 72, "PushPos size mismatch!");
 
     struct ForPushConstants {
         uint32_t numParticles;
-        int32_t cCount_x;
-        int32_t cCount_y;
-        int32_t cCount_z;
     };
-    static_assert(sizeof(ForPushConstants) == 16, "ForPushConstants size mismatch!");
+    static_assert(sizeof(ForPushConstants) == 4, "ForPushConstants size mismatch!");
 
 }

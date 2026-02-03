@@ -2,11 +2,11 @@
 #include "gtest/gtest.h"
 
 #include "NBodyTest.h"
-#include "nBodySimulation/slang/verlet_lists/Impl_Slang_Vulkan.h"
+#include "nBodySimulation/slang/verlet_lists/Impl_Slang_Cuda.cuh"
 
-TEST_P(NBodyTest, ImplSlangVulkan_Implementation) {
+TEST_P(NBodyTest, ImplSlangCuda_Implementation) {
     const int size = GetParam();
-    this->runTest<ppb::ImplSlangVulkan<float>>(size, 5);
+    this->runTest<ppb::ImplSlangCuda<float>>(size);
 }
 
 INSTANTIATE_TEST_SUITE_P(BySize, NBodyTest, ::testing::Values(10, 100));
