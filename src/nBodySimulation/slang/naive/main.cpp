@@ -10,6 +10,8 @@ BENCHMARK(ppb::NBodySimulation<ppb::ImplSlangVulkan<float>>::benchmark)
     ->Name("NBody-Float-Slang-Vulkan-Naive")
     ->RangeMultiplier(10)
     ->Range(1e1, 1e5)
+    ->Repetitions(3)
+    ->ReportAggregatesOnly(false)
     ->Complexity();
 
 int main(int argc, char** argv) {

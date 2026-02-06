@@ -52,7 +52,7 @@ namespace ppb {
 
         CUdevice device;
         CHECK(cuDeviceGet(&device, 0));
-        CHECK(cuCtxCreate(&context, 0, device));
+        CHECK(cuCtxCreate(&context, nullptr, 0, device));
 
         CHECK(cuMemAlloc(&positions, sizeof(float4) * size));
         CHECK(cuMemAlloc(&velocities, sizeof(float4) * size));

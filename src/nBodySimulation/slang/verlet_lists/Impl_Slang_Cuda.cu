@@ -44,7 +44,7 @@ namespace ppb {
 
         CUdevice device;
         CHECK(cuDeviceGet(&device, 0));
-        CHECK(cuCtxCreate(&context, 0, device));
+        CHECK(cuCtxCreate(&context, nullptr, 0, device));
 
         CHECK(cuMemAlloc(&positions, sizeof(float4) * size));
         CHECK(cuMemAlloc(&velocities, sizeof(float4) * size));
@@ -389,6 +389,8 @@ namespace ppb {
         CUdeviceptr memory_force = setupKernel(&params_force, &module_force, &kernel_force, SLANG_PTX_DIR "/KernelForce.ptx", "computeForce", "Params_Force", sizeof(PushFor));
 
         ExclusiveScanCache* excl_cache = setupExclusiveScanCache(soa.neighbors, soa.neighborsLength);
+
+        std::cout << soa.neighborsLength << "\n";
 
         const uint32_t _gridSize = util::ceilDiv<unsigned int>(_config.size, _blockSize);
 

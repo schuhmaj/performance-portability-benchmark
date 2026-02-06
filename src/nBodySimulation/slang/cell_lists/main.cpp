@@ -7,9 +7,9 @@
 #endif
 
 BENCHMARK(ppb::NBodySimulation<ppb::ImplSlangVulkan<float>>::benchmark)
-    ->Name("NBody-Float-Slang-Vulkan-Cell-Lists")
+    ->Name("NBody-Float-Slang-Vulkan-Lists")
     ->RangeMultiplier(10)
-    ->Range(1e1, 1e7)
+    ->Range(1e1, 1e6)
     ->Repetitions(3)
     ->ReportAggregatesOnly(false)
     ->Complexity();
