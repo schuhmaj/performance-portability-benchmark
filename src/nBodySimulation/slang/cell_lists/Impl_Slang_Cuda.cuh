@@ -106,5 +106,7 @@ namespace ppb {
          * @param timingField the pointer to the timing field to be updated.
          */
         void launchKernel(CUfunction* kernel, const uint32_t gs, double* timingField);
+
+        void print_buffer_uint(CUdeviceptr buffer, size_t size);
     };
 } // namespace ppb

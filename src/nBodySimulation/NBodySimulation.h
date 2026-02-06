@@ -67,7 +67,7 @@ namespace ppb {
          * The influence of the Lennard-Jones-Kernel stays close to 0 at a distance of around 3. Therefore h should not be less than 3. 
          * https://www.desmos.com/calculator/zrswwcpt4k
          */
-        FloatType h{9.0};
+        FloatType h{2000.0};
 
         /*
          * Radius at which a particle should be added to the verlet lists.

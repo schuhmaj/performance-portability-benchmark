@@ -262,6 +262,18 @@ namespace ppb {
         CHECK(cuStreamDestroy(stream));
     }
 
+    template <typename FloatType>
+    void ImplSlangCuda<FloatType>::print_buffer_uint(CUdeviceptr buffer, size_t size) {
+        CHECK(cuCtxSynchronize());
+        std::vector<uint32_t> host(size);
+        CHECK(cuMemcpyDtoH(host.data(), buffer, sizeof(uint32_t) * size));
+
+        for (size_t i = 0; i < size; i++) {
+            std::cout << host[i] << ", ";
+        }
+        std::cout << "\n";
+    }
+
     template<typename FloatType>
     std::pair<std::vector<Particle<FloatType>>, ParticleSimulationTimings> ImplSlangCuda<FloatType>::simulate(const std::vector<Particle<FloatType>> &particles) {
         _timings.reset();

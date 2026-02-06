@@ -206,6 +206,8 @@ namespace ppb {
         auto data = neighborsStarts->vector<uint>();
         uint nNeighbors = std::max(data[_config.size], 1u);
 
+        std::cout << nNeighbors << "\n";
+
         std::vector<uint> verletListHost(nNeighbors, 0);
         auto verletList = _manager.tensor(verletListHost);
 
