@@ -9,11 +9,18 @@
 namespace ppb {
 
     template <typename FloatType>
+    static uint kernel_calls(const ParticleSimulationConfig<FloatType> &config) {
+        uint number_kernels = 3;
+        int iterations = config.numberTimeSteps;
+        return number_kernels * iterations;
+    }
+
+    template <typename FloatType>
     ImplVulkan<FloatType>::ImplVulkan(const ParticleSimulationConfig<FloatType> &config)
         : _config{config}
         , _timings{}
         , _manager{}
-        , _sequence{_manager.sequence()}
+        , _sequence{_manager.sequence(kernel_calls(config) + 1)} // pass the number of kernel executions +1 to _manager.sequence, so that timestamps are collected WARNING: If the passed number is too small the program will stall
         , _kernelForce{KERNELFORCE_COMP_SPV.begin(), KERNELFORCE_COMP_SPV.end()}
         , _kernelVelocity{KERNELVELOCITY_COMP_SPV.begin(), KERNELVELOCITY_COMP_SPV.end()}
         , _kernelPosition{KERNELPOSITION_COMP_SPV.begin(), KERNELPOSITION_COMP_SPV.end()}
@@ -49,11 +56,13 @@ namespace ppb {
         std::vector<std::shared_ptr<kp::Tensor>> params = {positions, velocities, forces, oldForces};
         _sequence->template record<kp::OpTensorSyncDevice>(params)->eval();
         _timings.reset();
+
         for (int i = 0; i < _config.numberTimeSteps; ++i) {
             updatePositionsAndResetForce({positions, velocities, forces, oldForces});
             computeForces({positions, forces});
             updateVelocities({velocities, forces, oldForces});
         }
+        
         _sequence->template record<kp::OpTensorSyncLocal>(params)->eval();
 
         positionsHost = positions->vector();
@@ -69,6 +78,16 @@ namespace ppb {
         }
 
         return std::make_pair(particlesRet, _timings);
+    }
+
+    template <typename FloatType>
+    long ImplVulkan<FloatType>::retrieve_timestamps() {
+        std::vector<std::uint64_t> timestamps = _sequence->eval()->getTimestamps();
+        if (timestamps.size() > 1) {
+            long dt_ticks = timestamps[timestamps.size() - 1] - timestamps[timestamps.size() - 2];
+            return dt_ticks;
+        }
+        return 0;
     }
 
     template <typename FloatType>
@@ -115,8 +134,13 @@ namespace ppb {
         const auto end = std::chrono::high_resolution_clock::now();
         const double elapsed_nanoseconds =
             static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count());
-
-        _timings.positionUpdateForceResetTime += elapsed_nanoseconds;
+        
+        if (_config.use_kompute_timestamps) {
+            _timings.positionUpdateForceResetTime += retrieve_timestamps();
+        }
+        else {
+            _timings.positionUpdateForceResetTime += elapsed_nanoseconds;
+        }
     }
 
     template <typename FloatType>
@@ -142,8 +166,13 @@ namespace ppb {
         const auto end = std::chrono::high_resolution_clock::now();
         const double elapsed_nanoseconds =
             static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count());
-
-        _timings.velocityUpdateTime += elapsed_nanoseconds;
+        
+        if (_config.use_kompute_timestamps) {
+            _timings.velocityUpdateTime += retrieve_timestamps();
+        }
+        else {
+            _timings.velocityUpdateTime += elapsed_nanoseconds;
+        }
     }
 
     template <typename FloatType>
@@ -168,8 +197,13 @@ namespace ppb {
         const auto end = std::chrono::high_resolution_clock::now();
         const double elapsed_nanoseconds =
             static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count());
-
-        _timings.forceUpdateTime += elapsed_nanoseconds;
+        
+        if (_config.use_kompute_timestamps) {
+            _timings.forceUpdateTime += retrieve_timestamps();
+        }
+        else {
+            _timings.forceUpdateTime += elapsed_nanoseconds;
+        }
     }
 
     template class ImplVulkan<float>;

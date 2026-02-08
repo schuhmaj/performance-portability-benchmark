@@ -12,6 +12,32 @@
 
 namespace ppb {
 
+    static uint blelloch_executions(uint length, uint TILE_SIZE) {
+        uint total_calls = 1;
+        uint nBlocks = (length + TILE_SIZE - 1) / TILE_SIZE;
+        if (nBlocks > 1) {
+            uint blockSumSize = ((nBlocks + TILE_SIZE - 1) / TILE_SIZE) * TILE_SIZE;
+            total_calls += blelloch_executions(blockSumSize, TILE_SIZE) + 1;
+        }
+        return total_calls;
+    }
+
+    template <typename FloatType>
+    static uint kernel_calls(const ParticleSimulationConfig<FloatType> &config) {
+        uint number_kernels_each_frame = 3;
+        int iterations = config.numberTimeSteps;
+        uint interval = config.interval_neighbor_search;
+
+        uint TILE_SIZE = config.TILE_SIZE;
+        uint nBlocks = (config.size + TILE_SIZE) / TILE_SIZE;
+        uint neighborsLength = nBlocks * TILE_SIZE;
+        uint number_kernels_neighbor_search = 3 + blelloch_executions(neighborsLength, TILE_SIZE);
+
+        uint countNeighborSearch = util::ceilDiv<uint>(iterations, interval);
+
+        return number_kernels_each_frame * iterations + countNeighborSearch * number_kernels_neighbor_search;
+    }
+
     template <typename FloatType>
     ImplVulkan<FloatType>::ImplVulkan(const ParticleSimulationConfig<FloatType> &config)
         : _config{config}
@@ -26,7 +52,7 @@ namespace ppb {
         , _kernelBlockSum{KERNELBLOCKSUM_COMP_SPV.begin(), KERNELBLOCKSUM_COMP_SPV.end()}
         , _kernelVerlet{KERNELVERLET_COMP_SPV.begin(), KERNELVERLET_COMP_SPV.end()}
 
-        , _sequence{_manager.sequence(2)}
+        , _sequence{_manager.sequence(kernel_calls(config) + 1)}
     {}
 
 
@@ -72,8 +98,7 @@ namespace ppb {
         std::shared_ptr<kp::Tensor> verletList;
 
         for (int i = 0; i < _config.numberTimeSteps; ++i) {
-            // here 10 is a magic number and should still be experimentally determined.
-            if (i % 10 == 0) {
+            if (i % _config.interval_neighbor_search == 0) {
                 countNeighbors({positions, neighbors});
                 exclusiveScanBlelloch(neighbors, neighborsHost.size());
                 verletList = createVerletList(positions, neighbors);
@@ -98,6 +123,16 @@ namespace ppb {
         }
 
         return std::make_pair(particlesRet, _timings);
+    }
+
+    template <typename FloatType>
+    long ImplVulkan<FloatType>::retrieve_timestamps() {
+        std::vector<std::uint64_t> timestamps = _sequence->getTimestamps();
+        if (timestamps.size() > 1) {
+            long dt_ticks = timestamps[timestamps.size() - 1] - timestamps[timestamps.size() - 2];
+            return dt_ticks;
+        }
+        return 0;
     }
 
     template <typename FloatType>
@@ -141,8 +176,12 @@ namespace ppb {
 
         const double elapsedNanoseconds =
             static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count());
-
-        _timings.neighborSearch += elapsedNanoseconds;
+        if (_config.use_kompute_timestamps) {
+            _timings.neighborSearch += retrieve_timestamps();
+        }
+        else {
+            _timings.neighborSearch += elapsedNanoseconds;
+        }
     }
 
     template <typename FloatType>
@@ -172,8 +211,12 @@ namespace ppb {
 
         const double elapsedNanosecondsBlelloch =
             static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(endBlelloch - startBlelloch).count());
-
-        _timings.neighborSearch += elapsedNanosecondsBlelloch;
+        if (_config.use_kompute_timestamps) {
+            _timings.neighborSearch += retrieve_timestamps();
+        }
+        else {
+            _timings.neighborSearch += elapsedNanosecondsBlelloch;
+        }
 
         // calculate prefix sum of block sum
         if (nBlocks > 1) {
@@ -195,8 +238,14 @@ namespace ppb {
 
             const double elapsedNanosecondsBlock =
                 static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(endBlock - startBlock).count());
+            if (_config.use_kompute_timestamps) {
+                _timings.neighborSearch += retrieve_timestamps();   
+            }
+            else {
+                _timings.neighborSearch += elapsedNanosecondsBlock; 
+            }
 
-            _timings.neighborSearch += elapsedNanosecondsBlock;
+
         }
     }
 
@@ -229,8 +278,12 @@ namespace ppb {
 
         const double elapsedNanoseconds =
             static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count());
-
-        _timings.neighborSearch += elapsedNanoseconds;
+        if (_config.use_kompute_timestamps) {
+            _timings.neighborSearch += retrieve_timestamps();
+        }
+        else {
+            _timings.neighborSearch += elapsedNanoseconds;
+        }
 
         return verletList;
     }
@@ -260,8 +313,12 @@ namespace ppb {
         const auto end = std::chrono::high_resolution_clock::now();
         const double elapsed_nanoseconds =
             static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count());
-
-        _timings.positionUpdateForceResetTime += elapsed_nanoseconds;
+        if (_config.use_kompute_timestamps) {
+            _timings.positionUpdateForceResetTime += retrieve_timestamps();
+        }
+        else {
+            _timings.positionUpdateForceResetTime += elapsed_nanoseconds;
+        }
     }
 
     template <typename FloatType>
@@ -286,8 +343,12 @@ namespace ppb {
         const auto end = std::chrono::high_resolution_clock::now();
         const double elapsed_nanoseconds =
             static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count());
-
-        _timings.velocityUpdateTime += elapsed_nanoseconds;
+        if (_config.use_kompute_timestamps) {
+            _timings.velocityUpdateTime += retrieve_timestamps();
+        }
+        else {
+            _timings.velocityUpdateTime += elapsed_nanoseconds;
+        }
     }
 
     template <typename FloatType>
@@ -311,8 +372,12 @@ namespace ppb {
         const auto end = std::chrono::high_resolution_clock::now();
         const double elapsed_nanoseconds =
             static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count());
-
-        _timings.forceUpdateTime += elapsed_nanoseconds;
+        if (_config.use_kompute_timestamps) {
+            _timings.forceUpdateTime += retrieve_timestamps();
+        }
+        else {
+            _timings.forceUpdateTime += elapsed_nanoseconds;
+        }
     }
 
     template class ImplVulkan<float>;

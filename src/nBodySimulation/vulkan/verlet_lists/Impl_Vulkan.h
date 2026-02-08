@@ -58,6 +58,9 @@ namespace ppb {
         std::pair<std::vector<Particle<FloatType>>, ParticleSimulationTimings> simulate(const std::vector<Particle<FloatType>> &particles);
 
     private:
+
+        long retrieve_timestamps();
+        
         /**
          * Syncs a specified buffer from the GPU and prints it. 
          * The passed bool allows for interpretation of floats and uints. 'true' corresponds to floats 

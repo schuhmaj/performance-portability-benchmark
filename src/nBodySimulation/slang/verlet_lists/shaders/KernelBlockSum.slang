@@ -9,7 +9,7 @@ struct GlobalParams
 [push_constant] GlobalParams pc;
 
 [shader("compute")]
-[numthreads(256,1,1)]
+[numthreads(1024,1,1)]
 void computeBlockSum(uint3 threadId : SV_DispatchThreadID, uint3 groupId : SV_GroupID)
 {
     uint gid = threadId.x;

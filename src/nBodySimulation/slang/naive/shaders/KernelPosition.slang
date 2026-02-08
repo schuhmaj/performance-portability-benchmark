@@ -16,7 +16,7 @@ struct GlobalParams
 [push_constant] GlobalParams pc;
 
 [shader("compute")]
-[numthreads(256,1,1)]
+[numthreads(1024,1,1)]
 void computePosition(uint3 threadId : SV_DispatchThreadID)
 {
     uint i = threadId.x;

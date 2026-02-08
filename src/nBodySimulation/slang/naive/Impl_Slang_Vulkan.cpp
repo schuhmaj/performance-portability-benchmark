@@ -9,11 +9,18 @@
 namespace ppb {
 
     template <typename FloatType>
+    static uint kernel_calls(const ParticleSimulationConfig<FloatType> &config) {
+        uint number_kernels = 3;
+        int iterations = config.numberTimeSteps;
+        return number_kernels * iterations;
+    }
+
+    template <typename FloatType>
     ImplSlangVulkan<FloatType>::ImplSlangVulkan(const ParticleSimulationConfig<FloatType> &config)
         : _config{config}
         , _timings{}
         , _manager{}
-        , _sequence{_manager.sequence()}
+        , _sequence{_manager.sequence(kernel_calls(config) + 1)}
         , _kernelForce{KERNELFORCE_COMP_SPV.begin(), KERNELFORCE_COMP_SPV.end()}
         , _kernelVelocity{KERNELVELOCITY_COMP_SPV.begin(), KERNELVELOCITY_COMP_SPV.end()}
         , _kernelPosition{KERNELPOSITION_COMP_SPV.begin(), KERNELPOSITION_COMP_SPV.end()}
@@ -76,6 +83,16 @@ namespace ppb {
     }
 
     template <typename FloatType>
+    long ImplSlangVulkan<FloatType>::retrieve_timestamps() {
+        std::vector<std::uint64_t> timestamps = _sequence->eval()->getTimestamps();
+        if (timestamps.size() > 1) {
+            long dt_ticks = timestamps[timestamps.size() - 1] - timestamps[timestamps.size() - 2];
+            return dt_ticks;
+        }
+        return 0;
+    }
+
+    template <typename FloatType>
     void ImplSlangVulkan<FloatType>::printBuffer(const std::shared_ptr<kp::Tensor> &buffer, bool floats) {
 
         _sequence->record<kp::OpTensorSyncLocal>({ buffer })->eval();
@@ -120,7 +137,12 @@ namespace ppb {
         const double elapsed_nanoseconds =
             static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count());
 
-        _timings.positionUpdateForceResetTime += elapsed_nanoseconds;
+        if (_config.use_kompute_timestamps) {
+            _timings.positionUpdateForceResetTime += retrieve_timestamps();
+        }
+        else {
+            _timings.positionUpdateForceResetTime += elapsed_nanoseconds;
+        }
     }
 
     template <typename FloatType>
@@ -147,7 +169,12 @@ namespace ppb {
         const double elapsed_nanoseconds =
             static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count());
 
-        _timings.velocityUpdateTime += elapsed_nanoseconds;
+        if (_config.use_kompute_timestamps) {
+            _timings.velocityUpdateTime += retrieve_timestamps();
+        }
+        else {
+            _timings.velocityUpdateTime += elapsed_nanoseconds;
+        }
     }
 
     template <typename FloatType>
@@ -173,7 +200,12 @@ namespace ppb {
         const double elapsed_nanoseconds =
             static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count());
 
-        _timings.forceUpdateTime += elapsed_nanoseconds;
+        if (_config.use_kompute_timestamps) {
+            _timings.forceUpdateTime += retrieve_timestamps();
+        }
+        else {
+            _timings.forceUpdateTime += elapsed_nanoseconds;
+        }
     }
 
     template class ImplSlangVulkan<float>;

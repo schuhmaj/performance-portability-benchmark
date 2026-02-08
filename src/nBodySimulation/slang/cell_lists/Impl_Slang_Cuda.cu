@@ -76,7 +76,7 @@ namespace ppb {
 
     template <typename FloatType>
     CudaParticleSoA<FloatType>::~CudaParticleSoA() {
-        CHECK(cuMemFree(positions));
+        CHECK(cuMemFree(positions)); 
         CHECK(cuMemFree(velocities));
         CHECK(cuMemFree(forces));
         CHECK(cuMemFree(oldForces));
@@ -419,10 +419,12 @@ namespace ppb {
         const uint32_t _gridSizePerCell = util::ceilDiv<unsigned int>(soa.cellsLength, _blockSize);
 
         for (int i = 0; i < _config.numberTimeSteps; ++i) {
-            launchKernel(&kernel_resetCells, _gridSizePerCell, &_timings.neighborSearch);
-            launchKernel(&kernel_histogram, _gridSizePerParticle, &_timings.neighborSearch);
-            exclusiveScanBlelloch(soa.cellsLength, excl_cache);
-            launchKernel(&kernel_idCells, _gridSizePerParticle, &_timings.neighborSearch);
+            if (i % _config.interval_neighbor_search == 0) {
+                launchKernel(&kernel_resetCells, _gridSizePerCell, &_timings.neighborSearch);
+                launchKernel(&kernel_histogram, _gridSizePerParticle, &_timings.neighborSearch);
+                exclusiveScanBlelloch(soa.cellsLength, excl_cache);
+                launchKernel(&kernel_idCells, _gridSizePerParticle, &_timings.neighborSearch);
+            }
 
             launchKernel(&kernel_position, _gridSizePerParticle, &_timings.positionUpdateForceResetTime);
             launchKernel(&kernel_force, _gridSizePerParticle, &_timings.forceUpdateTime);

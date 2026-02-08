@@ -61,13 +61,20 @@ namespace ppb {
          */
         std::array<FloatType, 3> boxMax{1000, 1000, 1000};
 
+
+
+        /**
+         * Flag to decide whether or not to use the kompute timestamps rather than the backend timestamps in vulkan
+         */
+        bool use_kompute_timestamps{true};
+
         /*
          * Used for calculating the number of cells when using cell lists.
          * This is a magic number and should still be tested.
          * The influence of the Lennard-Jones-Kernel stays close to 0 at a distance of around 3. Therefore h should not be less than 3. 
          * https://www.desmos.com/calculator/zrswwcpt4k
          */
-        FloatType h{2000.0};
+        FloatType h{135.0};
 
         /*
          * Radius at which a particle should be added to the verlet lists.
@@ -83,7 +90,14 @@ namespace ppb {
          * NOTE: if updated it should also be updated in the relevant shader files.
          * This is a magic number and should still be tested.
          */
-        static constexpr uint TILE_SIZE{256};
+        static constexpr uint TILE_SIZE{1024};
+
+        /*
+         * compute neighbor search every interval_neighbor_search iterations.
+         * example: if interval_neighbor_search = 1 then compute neighbor search every frame,
+         *    if interval_neighbor_search = 10 then compute neighbor search every 10th frame.
+         */
+        static constexpr uint interval_neighbor_search{10};
 
         /**
          * Seed to initialize the ParticleGenerator

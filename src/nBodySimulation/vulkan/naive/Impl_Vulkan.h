@@ -54,6 +54,8 @@ namespace ppb {
 
     private:
 
+        long retrieve_timestamps();
+
         void printBuffer(const std::shared_ptr<kp::Tensor> &buffer, bool floats);
         
         /**

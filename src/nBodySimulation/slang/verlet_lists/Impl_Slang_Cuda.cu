@@ -236,17 +236,9 @@ namespace ppb {
                                                     const uint32_t gs)  {                                              
         CHECK(cuCtxSynchronize());
         CHECK(cuMemFree(verletList));  
-        std::vector<uint32_t> data(_config.size);
+        std::vector<uint32_t> data(_config.size + 1);
         CHECK(cuMemcpyDtoH(data.data(), neighborsStarts, sizeof(uint32_t) * (_config.size + 1)));
         uint32_t nNeighbors = std::max(data[_config.size], 1u);
-
-        if (nNeighbors > _config.size * _config.size) {
-            std::cout << nNeighbors << "\n";
-            uint32_t TILE_SIZE = _config.TILE_SIZE;
-            uint32_t nBlocks = (_config.size + TILE_SIZE) / TILE_SIZE;
-            print_buffer_uint(neighborsStarts, nBlocks * TILE_SIZE);
-            exit(0);
-        }
 
         CHECK(cuMemAlloc(&verletList, sizeof(uint32_t) * nNeighbors));
         pushData_verlet->verletLists = ResourceSlot{verletList, 0};
@@ -414,7 +406,7 @@ namespace ppb {
 
         for (int i = 0; i < _config.numberTimeSteps; ++i) {
             // here 10 is a magic number and should still be experimentally determined.
-            if (i % 10 == 0) {
+            if (i % _config.interval_neighbor_search == 0) {
                 launchKernel(&kernel_countNeighbors, _gridSize, &_timings.neighborSearch);
                 exclusiveScanBlelloch(soa.neighborsLength, excl_cache);
                 verletList = createVerletList(verletList, soa.neighbors, memory_verlet, &kernel_verlet, &params_verlet, memory_force, &params_force, _gridSize);
