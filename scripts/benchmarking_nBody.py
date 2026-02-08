@@ -249,10 +249,12 @@ def read_benchmark(append=0, name_append=""):
 def run_cmake():
     try:
         build_cmd = r'''
-        if command -v module >/dev/null 2>&1; then
-            module load VulkanSDK
-        else
-            export LD_LIBRARY_PATH=/opt/nvidia/hpc_sdk/Linux_x86_64/25.9/cuda/13.0/targets/x86_64-linux/lib:$LD_LIBRARY_PATH
+        if ! command -v nvrtc >/dev/null 2>&1; then
+            if command -v module >/dev/null 2>&1; then
+                module load VulkanSDK
+            else
+                export LD_LIBRARY_PATH=/opt/nvidia/hpc_sdk/Linux_x86_64/25.9/cuda/13.0/targets/x86_64-linux/lib:$LD_LIBRARY_PATH
+            fi
         fi
 
         cmake --build ../build
