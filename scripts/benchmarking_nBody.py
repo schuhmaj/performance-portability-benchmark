@@ -248,15 +248,17 @@ def read_benchmark(append=0, name_append=""):
 
 def run_cmake():
     try:
-        env = os.environ.copy()
-        env["LD_LIBRARY_PATH"] = "/opt/nvidia/hpc_sdk/Linux_x86_64/25.9/cuda/13.0/targets/x86_64-linux/lib:" + env.get("LD_LIBRARY_PATH", "")
-        cmake = subprocess.run(
-            ["cmake", "--build", "../build"],
-            capture_output=True,
-            text=True,
-            check=True,
-            env=env
-        )
+        build_cmd = r'''
+        if command -v module >/dev/null 2>&1; then
+            module load VulkanSDK
+        else
+            export LD_LIBRARY_PATH=/opt/nvidia/hpc_sdk/Linux_x86_64/25.9/cuda/13.0/targets/x86_64-linux/lib:$LD_LIBRARY_PATH
+        fi
+
+        cmake --build ../build
+        '''
+
+        cmake = subprocess.run(["bash", "-lc", build_cmd], capture_output=True, text=True, check=True)
         print(cmake.stdout, "\n")
     except subprocess.CalledProcessError as e:
         print(e.stdout)

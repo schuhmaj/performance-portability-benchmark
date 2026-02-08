@@ -50,7 +50,7 @@ layout(std430, binding = 2) buffer StructuredBuffer_vectorx3Cintx2C2x3E_t_0 {
 } particleIdx_0;
 
 #line 26
-layout(local_size_x = 1024, local_size_y = 1, local_size_z = 1) in;
+layout(local_size_x = 16, local_size_y = 1, local_size_z = 1) in;
 void main()
 {
 
