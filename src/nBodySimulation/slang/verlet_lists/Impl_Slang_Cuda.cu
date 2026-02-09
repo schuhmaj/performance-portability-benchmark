@@ -1,24 +1,6 @@
 #include "Impl_Slang_Cuda.cuh"
 #include <cuda_runtime.h>
 
-#define CHECK(X)                                                       \
-    do {                                                               \
-        CUresult err = (X);                                            \
-        if (err != CUDA_SUCCESS) {                                     \
-            const char* msg;                                           \
-            cuGetErrorString(err, &msg);                               \
-            fprintf(stderr,                                            \
-                "CUDA Driver error at %s:%d (%s): %s\n",               \
-                __FILE__, __LINE__, #X, msg);                          \
-        }                                                                                                                     \
-    } while (0)
-
-// cudaError_t err = cudaDeviceSynchronize();
-// if (err != cudaSuccess) {
-//     printf("CUDA runtime error before setupLinkedModule: %s\n",
-//         cudaGetErrorString(err));
-// }
-
 namespace ppb {
 
     template <typename FloatType>
@@ -46,39 +28,40 @@ namespace ppb {
         CHECK(cuDeviceGet(&device, 0));
         CHECK(cuCtxCreate(&context, nullptr, 0, device));
 
-        CHECK(cuMemAlloc(&positions, sizeof(float4) * size));
-        CHECK(cuMemAlloc(&velocities, sizeof(float4) * size));
-        CHECK(cuMemAlloc(&forces, sizeof(float4) * size));
-        CHECK(cuMemAlloc(&oldForces, sizeof(float4) * size));
+        positions  = new DeviceMemory(sizeof(float4) * size);
+        velocities = new DeviceMemory(sizeof(float4) * size);
+        forces     = new DeviceMemory(sizeof(float4) * size);
+        oldForces  = new DeviceMemory(sizeof(float4) * size);
 
-        CHECK(cuMemAlloc(&neighbors, sizeof(uint32_t) * neighborsLength));
+        neighbors  = new DeviceMemory(sizeof(uint32_t) * neighborsLength);
 
-        CHECK(cuMemcpyHtoD(positions, positionsHost.data(), sizeof(float4) * size));
-        CHECK(cuMemcpyHtoD(velocities, velocitiesHost.data(), sizeof(float4) * size));
-        CHECK(cuMemcpyHtoD(forces, forcesHost.data(), sizeof(float4) * size));
-        CHECK(cuMemsetD8(oldForces, 0, sizeof(float4) * size));
+        CHECK(cuMemcpyHtoD(positions->ptr, positionsHost.data(), sizeof(float4) * size));
+        CHECK(cuMemcpyHtoD(velocities->ptr, velocitiesHost.data(), sizeof(float4) * size));
+        CHECK(cuMemcpyHtoD(forces->ptr, forcesHost.data(), sizeof(float4) * size));
+        CHECK(cuMemsetD8(oldForces->ptr, 0, sizeof(float4) * size));
 
-        CHECK(cuMemsetD8(neighbors, 0, sizeof(uint32_t) * neighborsLength));
+        CHECK(cuMemsetD8(neighbors->ptr, 0, sizeof(uint32_t) * neighborsLength));
 
     }   
 
     template <typename FloatType>
     CudaParticleSoA<FloatType>::~CudaParticleSoA() {
-        CHECK(cuMemFree(positions));
-        CHECK(cuMemFree(velocities));
-        CHECK(cuMemFree(forces));
-        CHECK(cuMemFree(oldForces));
+        delete positions;
+        delete velocities;
+        delete forces;
+        delete oldForces;
 
-        CHECK(cuMemFree(neighbors));
+        delete neighbors;
+
         CHECK(cuCtxDestroy(context));
     }
 
     template <typename FloatType>
     std::vector<Particle<FloatType>> CudaParticleSoA<FloatType>::toParticles() {
         std::vector<Particle<FloatType>> particles{_ref};
-        CHECK(cuMemcpyDtoH(positionsHost.data(), positions, sizeof(float4) * _ref.size()));
-        CHECK(cuMemcpyDtoH(velocitiesHost.data(), velocities, sizeof(float4) * _ref.size()));
-        CHECK(cuMemcpyDtoH(forcesHost.data(), forces, sizeof(float4) * _ref.size()));
+        CHECK(cuMemcpyDtoH(positionsHost.data(), positions->ptr, sizeof(float4) * _ref.size()));
+        CHECK(cuMemcpyDtoH(velocitiesHost.data(), velocities->ptr, sizeof(float4) * _ref.size()));
+        CHECK(cuMemcpyDtoH(forcesHost.data(), forces->ptr, sizeof(float4) * _ref.size()));
         for (size_t i = 0; i < particles.size(); ++i) {
             const float4& position = positionsHost[i];
             const float4& velocity = velocitiesHost[i];
@@ -113,32 +96,25 @@ namespace ppb {
         _blockSize = _config.TILE_SIZE;
     }
 
-    template <typename FloatType>
-    void ImplSlangCuda<FloatType>::freeData(CUdeviceptr pc_ptr, CUmodule* module_) {
-        CHECK(cuCtxSynchronize());
-        CHECK(cuMemFree(pc_ptr));
-        CHECK(cuModuleUnload(*module_));
-    }
-
     template<typename FloatType>
     void ImplSlangCuda<FloatType>::freeExclusiveScanCache(ExclusiveScanCache* cache) {
         if (!cache) {
             return;
         }
-        if (cache->cache) {
-            freeExclusiveScanCache(cache->cache);
+        if (cache->child) {
+            freeExclusiveScanCache(cache->child);
         }
         if (cache->module_blellochScan) {
-            CHECK(cuModuleUnload(cache->module_blellochScan));
+            delete cache->module_blellochScan;
         }
         if (cache->module_blockSum) {
-            CHECK(cuModuleUnload(cache->module_blockSum));
+            delete cache->module_blockSum;
         }
         if (cache->pc) {
-            CHECK(cuMemFree(cache->pc));
+            delete cache->pc;
         }
         if (cache->blockSum) {
-            CHECK(cuMemFree(cache->blockSum));
+            delete cache->blockSum;
         }
         delete cache;
     }
@@ -164,45 +140,38 @@ namespace ppb {
         uint32_t nBlocks = (totalLength + _blockSize - 1) / _blockSize;
         uint32_t blockSumSize = ((nBlocks + _blockSize - 1) / _blockSize) * _blockSize;
         // manage memory for exclusiveScan
-        CUdeviceptr blockSum;
-        CHECK(cuMemAlloc(&blockSum, sizeof(uint32_t) * blockSumSize));
+        DeviceMemory* blockSum = new DeviceMemory(sizeof(uint32_t) * blockSumSize);
         // instantiate push constants
         ExclusivePushConstants excl_pc_host{};
         excl_pc_host.total_size = totalLength;
         excl_pc_host.block_size = _blockSize;
-        CUdeviceptr excl_pc_ptr;
-        CHECK(cuMemAlloc(&excl_pc_ptr, sizeof(ExclusivePushConstants)));
-        CHECK(cuMemcpyHtoD(excl_pc_ptr, &excl_pc_host, sizeof(ExclusivePushConstants)));
+        DeviceMemory* excl_pc = new DeviceMemory(sizeof(ExclusivePushConstants));
+        CHECK(cuMemcpyHtoD(excl_pc->ptr, &excl_pc_host, sizeof(ExclusivePushConstants)));
         // instantiate push data
         PushExclusive params_exclusiveScan{};
         params_exclusiveScan.data      = ResourceSlot{data, 0};
-        params_exclusiveScan.blockSums = ResourceSlot{blockSum, 0};
-        params_exclusiveScan.pc        = excl_pc_ptr;
+        params_exclusiveScan.blockSums = ResourceSlot{blockSum->ptr, 0};
+        params_exclusiveScan.pc        = excl_pc->ptr;
         // setup blellochScan module and kernel
-        CUmodule module_blellochScan;
-        CUfunction kernel_blellochScan;
-        setupKernel(&params_exclusiveScan, &module_blellochScan, &kernel_blellochScan, SLANG_PTX_DIR "/KernelBlellochScan.ptx", "computeBlellochScan", "Params_ExclusiveScan", sizeof(PushExclusive));
+        DeviceModule* module_blellochScan = new DeviceModule{};
+        setupKernel(&params_exclusiveScan, &module_blellochScan->mod, &module_blellochScan->kernel, SLANG_PTX_DIR "/KernelBlellochScan.ptx", "computeBlellochScan", "Params_ExclusiveScan", sizeof(PushExclusive));
 
-        ExclusiveScanCache* cache = new ExclusiveScanCache{};
-        cache->pc                  = excl_pc_ptr;
+        ExclusiveScanCache* cache  = new ExclusiveScanCache{};
+        cache->pc                  = excl_pc;
         cache->blockSum            = blockSum;
         cache->module_blellochScan = module_blellochScan;
-        cache->kernel_blellochScan = kernel_blellochScan;
 
         if (nBlocks > 1) {
-            CUmodule module_blockSum;
-            CUfunction kernel_blockSum;
-            setupKernel(&params_exclusiveScan, &module_blockSum, &kernel_blockSum, SLANG_PTX_DIR "/KernelBlockSum.ptx", "computeBlockSum", "Params_ExclusiveScan", sizeof(PushExclusive));
+            DeviceModule* module_blockSum = new DeviceModule{};
+            setupKernel(&params_exclusiveScan, &module_blockSum->mod, &module_blockSum->kernel, SLANG_PTX_DIR "/KernelBlockSum.ptx", "computeBlockSum", "Params_ExclusiveScan", sizeof(PushExclusive));
 
             cache->module_blockSum = module_blockSum;
-            cache->kernel_blockSum = kernel_blockSum;
             
-            cache->cache = setupExclusiveScanCache(blockSum, blockSumSize);
+            cache->child = setupExclusiveScanCache(blockSum->ptr, blockSumSize);
         }
         else {
             cache->module_blockSum = nullptr;
-            cache->kernel_blockSum = nullptr;
-            cache->cache           = nullptr;
+            cache->child           = nullptr;
         }
 
         return cache;
@@ -213,20 +182,20 @@ namespace ppb {
         uint32_t nBlocks = (totalLength + _blockSize - 1) / _blockSize;
 
         // dispatch blellochScan
-        launchKernel(&cache->kernel_blellochScan, nBlocks, &_timings.neighborSearch);
+        launchKernel(&cache->module_blellochScan->kernel, nBlocks, &_timings.neighborSearch);
 
         if (nBlocks > 1) {
             uint32_t blockSumSize = ((nBlocks + _blockSize - 1) / _blockSize) * _blockSize;
             // recursively calculate prefix sum
-            exclusiveScanBlelloch(blockSumSize, cache->cache);
+            exclusiveScanBlelloch(blockSumSize, cache->child);
             // add block offset
             // dispatch blockSum
-            launchKernel(&cache->kernel_blockSum, nBlocks, &_timings.neighborSearch);
+            launchKernel(&cache->module_blockSum->kernel, nBlocks, &_timings.neighborSearch);
         }
     }
 
     template<typename FloatType>
-    CUdeviceptr ImplSlangCuda<FloatType>::createVerletList(CUdeviceptr verletList,
+    DeviceMemory* ImplSlangCuda<FloatType>::createVerletList(DeviceMemory* verletList,
                                                     CUdeviceptr neighborsStarts, 
                                                     CUdeviceptr memory_verlet,
                                                     CUfunction* kernel_verlet,
@@ -235,20 +204,20 @@ namespace ppb {
                                                     PushFor* pushData_force,
                                                     const uint32_t gs)  {                                              
         CHECK(cuCtxSynchronize());
-        CHECK(cuMemFree(verletList));  
+        delete verletList;
         std::vector<uint32_t> data(_config.size + 1);
         CHECK(cuMemcpyDtoH(data.data(), neighborsStarts, sizeof(uint32_t) * (_config.size + 1)));
         uint32_t nNeighbors = std::max(data[_config.size], 1u);
 
-        CHECK(cuMemAlloc(&verletList, sizeof(uint32_t) * nNeighbors));
-        pushData_verlet->verletLists = ResourceSlot{verletList, 0};
+        DeviceMemory* newVerletList = new DeviceMemory(sizeof(uint32_t) * nNeighbors);
+        pushData_verlet->verletLists = ResourceSlot{newVerletList->ptr, 0};
         CHECK(cuMemcpyHtoD(memory_verlet, pushData_verlet, sizeof(PushVerlet)));
 
         launchKernel(kernel_verlet, gs, &_timings.neighborSearch);
 
-        pushData_force->verletLists = ResourceSlot{verletList, 0};
+        pushData_force->verletLists = ResourceSlot{newVerletList->ptr, 0};
         CHECK(cuMemcpyHtoD(memory_force, pushData_force, sizeof(PushFor)));
-        return verletList;
+        return newVerletList;
     }
 
     template<typename FloatType>
@@ -295,8 +264,7 @@ namespace ppb {
         // =============================================================================
 
         // allocate a dummy verlet list for initial setup
-        CUdeviceptr verletList;
-        CHECK(cuMemAlloc(&verletList, sizeof(uint32_t) * 1));
+        DeviceMemory* verletList = new DeviceMemory(sizeof(uint32_t) * 1);
 
         auto& soa = *_particles;
 
@@ -305,29 +273,27 @@ namespace ppb {
         count_pc_host.n      = _config.size;
         count_pc_host.radius = _config.influenceRadius;
         // copying push constants
-        CUdeviceptr count_pc_ptr;
-        CHECK(cuMemAlloc(&count_pc_ptr, sizeof(CountPushConstants)));
-        CHECK(cuMemcpyHtoD(count_pc_ptr, &count_pc_host, sizeof(CountPushConstants)));
+        DeviceMemory count_pc(sizeof(CountPushConstants));
+        CHECK(cuMemcpyHtoD(count_pc.ptr, &count_pc_host, sizeof(CountPushConstants)));
 
         PushCount params_countNeighbors{};
-        params_countNeighbors.positions  = ResourceSlot{soa.positions, 0};
-        params_countNeighbors.nNeighbors = ResourceSlot{soa.neighbors, 0};
-        params_countNeighbors.pc         = count_pc_ptr;
+        params_countNeighbors.positions  = ResourceSlot{soa.positions->ptr, 0};
+        params_countNeighbors.nNeighbors = ResourceSlot{soa.neighbors->ptr, 0};
+        params_countNeighbors.pc         = count_pc.ptr;
 
         // Parameters for KernelVerlet.ptx
         VerletPushConstants verlet_pc_host{};
         verlet_pc_host.total_size = _config.size;
         verlet_pc_host.radius     = _config.influenceRadius;
         // copying push constants
-        CUdeviceptr verlet_pc_ptr;
-        CHECK(cuMemAlloc(&verlet_pc_ptr, sizeof(VerletPushConstants)));
-        CHECK(cuMemcpyHtoD(verlet_pc_ptr, &verlet_pc_host, sizeof(VerletPushConstants)));
+        DeviceMemory verlet_pc(sizeof(VerletPushConstants));
+        CHECK(cuMemcpyHtoD(verlet_pc.ptr, &verlet_pc_host, sizeof(VerletPushConstants)));
 
         PushVerlet params_verlet{};
-        params_verlet.positions       = ResourceSlot{soa.positions, 0};
-        params_verlet.verletLists     = ResourceSlot{verletList, 0};
-        params_verlet.neighborsStarts = ResourceSlot{soa.neighbors, 0};
-        params_verlet.pc              = verlet_pc_ptr;
+        params_verlet.positions       = ResourceSlot{soa.positions->ptr, 0};
+        params_verlet.verletLists     = ResourceSlot{verletList->ptr, 0};
+        params_verlet.neighborsStarts = ResourceSlot{soa.neighbors->ptr, 0};
+        params_verlet.pc              = verlet_pc.ptr;
 
         // Parameters for KernelPosition.ptx
         PosPushConstants pos_pc_host{};
@@ -337,93 +303,80 @@ namespace ppb {
         pos_pc_host.dt            = _config.deltaT;
         pos_pc_host.numParticles  = _config.size;
         // copying push constants
-        CUdeviceptr pos_pc_ptr;
-        CHECK(cuMemAlloc(&pos_pc_ptr, sizeof(PosPushConstants)));
-        CHECK(cuMemcpyHtoD(pos_pc_ptr, &pos_pc_host, sizeof(PosPushConstants)));
+        DeviceMemory pos_pc(sizeof(PosPushConstants));
+        CHECK(cuMemcpyHtoD(pos_pc.ptr, &pos_pc_host, sizeof(PosPushConstants)));
 
         PushPos params_position{};
-        params_position.positions  = ResourceSlot{soa.positions, 0};
-        params_position.velocities = ResourceSlot{soa.velocities, 0};
-        params_position.forces     = ResourceSlot{soa.forces, 0};
-        params_position.oldForces  = ResourceSlot{soa.oldForces, 0};
-        params_position.pc         = pos_pc_ptr;
+        params_position.positions  = ResourceSlot{soa.positions->ptr, 0};
+        params_position.velocities = ResourceSlot{soa.velocities->ptr, 0};
+        params_position.forces     = ResourceSlot{soa.forces->ptr, 0};
+        params_position.oldForces  = ResourceSlot{soa.oldForces->ptr, 0};
+        params_position.pc         = pos_pc.ptr;
 
         // Parameters for KernelVelocity.ptx
         VelPushConstants vel_pc_host{};
         vel_pc_host.dt = _config.deltaT;
         vel_pc_host.numParticles = _config.size;
         // copying push constants
-        CUdeviceptr vel_pc_ptr;
-        CHECK(cuMemAlloc(&vel_pc_ptr, sizeof(VelPushConstants)));
-        CHECK(cuMemcpyHtoD(vel_pc_ptr, &vel_pc_host, sizeof(VelPushConstants)));
+        DeviceMemory vel_pc(sizeof(VelPushConstants));
+        CHECK(cuMemcpyHtoD(vel_pc.ptr, &vel_pc_host, sizeof(VelPushConstants)));
 
         PushVel params_velocity{};
-        params_velocity.velocities = ResourceSlot{soa.velocities, 0};
-        params_velocity.forces     = ResourceSlot{soa.forces, 0};
-        params_velocity.oldForces  = ResourceSlot{soa.oldForces, 0};
-        params_velocity.pc         = vel_pc_ptr;
+        params_velocity.velocities = ResourceSlot{soa.velocities->ptr, 0};
+        params_velocity.forces     = ResourceSlot{soa.forces->ptr, 0};
+        params_velocity.oldForces  = ResourceSlot{soa.oldForces->ptr, 0};
+        params_velocity.pc         = vel_pc.ptr;
 
         // Parameters for KernelForce.ptx
         ForPushConstants for_pc_host{};
         for_pc_host.numParticles = _config.size;
         // copying push constants
-        CUdeviceptr for_pc_ptr;
-        CHECK(cuMemAlloc(&for_pc_ptr, sizeof(ForPushConstants)));
-        CHECK(cuMemcpyHtoD(for_pc_ptr, &for_pc_host, sizeof(ForPushConstants)));
+        DeviceMemory for_pc(sizeof(ForPushConstants));
+        CHECK(cuMemcpyHtoD(for_pc.ptr, &for_pc_host, sizeof(ForPushConstants)));
 
         PushFor params_force{};
-        params_force.positions       = ResourceSlot{soa.positions, 0};
-        params_force.forces          = ResourceSlot{soa.forces, 0};
-        params_force.verletLists     = ResourceSlot{verletList, 0};
-        params_force.neighborsStarts = ResourceSlot{soa.neighbors, 0};
-        params_force.pc              = for_pc_ptr;
+        params_force.positions       = ResourceSlot{soa.positions->ptr, 0};
+        params_force.forces          = ResourceSlot{soa.forces->ptr, 0};
+        params_force.verletLists     = ResourceSlot{verletList->ptr, 0};
+        params_force.neighborsStarts = ResourceSlot{soa.neighbors->ptr, 0};
+        params_force.pc              = for_pc.ptr;
 
         // =============================================================================
 
-        CUmodule module_countNeighbors;
-        CUfunction kernel_countNeighbors;
-        setupKernel(&params_countNeighbors, &module_countNeighbors, &kernel_countNeighbors, SLANG_PTX_DIR "/KernelCountNeighbors.ptx", "computeCountNeighbors", "Params_CountNeighbors", sizeof(PushCount));
+        DeviceModule module_countNeighbors;
+        setupKernel(&params_countNeighbors, &module_countNeighbors.mod, &module_countNeighbors.kernel, SLANG_PTX_DIR "/KernelCountNeighbors.ptx", "computeCountNeighbors", "Params_CountNeighbors", sizeof(PushCount));
 
-        CUmodule module_verlet;
-        CUfunction kernel_verlet;
-        CUdeviceptr memory_verlet = setupKernel(&params_verlet, &module_verlet, &kernel_verlet, SLANG_PTX_DIR "/KernelVerlet.ptx", "computeVerlet", "Params_Verlet", sizeof(PushVerlet));
+        DeviceModule module_verlet;
+        CUdeviceptr memory_verlet = setupKernel(&params_verlet, &module_verlet.mod, &module_verlet.kernel, SLANG_PTX_DIR "/KernelVerlet.ptx", "computeVerlet", "Params_Verlet", sizeof(PushVerlet));
 
-        CUmodule module_position;
-        CUfunction kernel_position;
-        setupKernel(&params_position, &module_position, &kernel_position, SLANG_PTX_DIR "/KernelPosition.ptx", "computePosition", "Params_Position", sizeof(PushPos));
+        DeviceModule module_position;
+        setupKernel(&params_position, &module_position.mod, &module_position.kernel, SLANG_PTX_DIR "/KernelPosition.ptx", "computePosition", "Params_Position", sizeof(PushPos));
 
-        CUmodule module_velocity;
-        CUfunction kernel_velocity;
-        setupKernel(&params_velocity, &module_velocity, &kernel_velocity, SLANG_PTX_DIR "/KernelVelocity.ptx", "computeVelocity", "Params_Velocity", sizeof(PushVel));
+        DeviceModule module_velocity;
+        setupKernel(&params_velocity, &module_velocity.mod, &module_velocity.kernel, SLANG_PTX_DIR "/KernelVelocity.ptx", "computeVelocity", "Params_Velocity", sizeof(PushVel));
 
-        CUmodule module_force;
-        CUfunction kernel_force;
-        CUdeviceptr memory_force = setupKernel(&params_force, &module_force, &kernel_force, SLANG_PTX_DIR "/KernelForce.ptx", "computeForce", "Params_Force", sizeof(PushFor));
+        DeviceModule module_force;
+        CUdeviceptr memory_force = setupKernel(&params_force, &module_force.mod, &module_force.kernel, SLANG_PTX_DIR "/KernelForce.ptx", "computeForce", "Params_Force", sizeof(PushFor));
 
-        ExclusiveScanCache* excl_cache = setupExclusiveScanCache(soa.neighbors, soa.neighborsLength);
+        ExclusiveScanCache* excl_cache = setupExclusiveScanCache(soa.neighbors->ptr, soa.neighborsLength);
 
         const uint32_t _gridSize = util::ceilDiv<unsigned int>(_config.size, _blockSize);
 
         for (int i = 0; i < _config.numberTimeSteps; ++i) {
             // here 10 is a magic number and should still be experimentally determined.
             if (i % _config.interval_neighbor_search == 0) {
-                launchKernel(&kernel_countNeighbors, _gridSize, &_timings.neighborSearch);
+                launchKernel(&module_countNeighbors.kernel, _gridSize, &_timings.neighborSearch);
                 exclusiveScanBlelloch(soa.neighborsLength, excl_cache);
-                verletList = createVerletList(verletList, soa.neighbors, memory_verlet, &kernel_verlet, &params_verlet, memory_force, &params_force, _gridSize);
+                verletList = createVerletList(verletList, soa.neighbors->ptr, memory_verlet, &module_verlet.kernel, &params_verlet, memory_force, &params_force, _gridSize);
             }
 
-            launchKernel(&kernel_position, _gridSize, &_timings.positionUpdateForceResetTime);
-            launchKernel(&kernel_force, _gridSize, &_timings.forceUpdateTime);
-            launchKernel(&kernel_velocity, _gridSize, &_timings.velocityUpdateTime);
+            launchKernel(&module_position.kernel, _gridSize, &_timings.positionUpdateForceResetTime);
+            launchKernel(&module_force.kernel, _gridSize, &_timings.forceUpdateTime);
+            launchKernel(&module_velocity.kernel, _gridSize, &_timings.velocityUpdateTime);
         }
-        //_particles->print_buffer(soa.positions, _config.size);
+        //_particles->print_buffer(soa.positions->ptr, _config.size);
 
-        CHECK(cuMemFree(verletList));
-        freeData(count_pc_ptr, &module_countNeighbors);
-        freeData(verlet_pc_ptr, &module_verlet);
-        freeData(pos_pc_ptr, &module_position);
-        freeData(vel_pc_ptr, &module_velocity);
-        freeData(for_pc_ptr, &module_force);
+        delete verletList;
         freeExclusiveScanCache(excl_cache);
         return std::make_pair(_particles->toParticles(), _timings);
     }

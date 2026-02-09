@@ -4,6 +4,7 @@
 #include "nBodySimulation/Particle.h"
 #include "common/UtilityContainer.h"
 #include "cuda.h"
+
 #include "Kernel_Structs.cuh"
 
 namespace ppb {
@@ -21,14 +22,14 @@ namespace ppb {
 
         CUcontext context;
 
-        CUdeviceptr positions;
-        CUdeviceptr velocities;
-        CUdeviceptr forces;
-        CUdeviceptr oldForces;
+        DeviceMemory* positions;
+        DeviceMemory* velocities;
+        DeviceMemory* forces;
+        DeviceMemory* oldForces;
 
-        CUdeviceptr cells;
-        CUdeviceptr particleIdx;
-        CUdeviceptr idCells;
+        DeviceMemory* cells;
+        DeviceMemory* particleIdx;
+        DeviceMemory* idCells;
 
         std::vector<float4> positionsHost;
         std::vector<float4> velocitiesHost;
@@ -61,14 +62,6 @@ namespace ppb {
 
 
         explicit ImplSlangCuda(const ParticleSimulationConfig<FloatType> &config);
-
-        /**
-         * Frees one push constant pointer and unloads one CUmodule.
-         *
-         * @param pc_ptr The pointer to the push constants to be freed.
-         * @param module_ The pointer to the module that is to be unloaded.
-         */
-        void freeData(CUdeviceptr pc_ptr, CUmodule* module_);
 
         void freeExclusiveScanCache(ExclusiveScanCache* cache);
 

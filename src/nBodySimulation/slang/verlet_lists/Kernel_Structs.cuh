@@ -1,6 +1,42 @@
 #pragma once
 
+#define CHECK(X)                                                       \
+    do {                                                               \
+        CUresult err = (X);                                            \
+        if (err != CUDA_SUCCESS) {                                     \
+            const char* msg;                                           \
+            cuGetErrorString(err, &msg);                               \
+            fprintf(stderr,                                            \
+                "CUDA Driver error at %s:%d (%s): %s\n",               \
+                __FILE__, __LINE__, #X, msg);                          \
+        }                                                                                                                     \
+    } while (0)
+
 namespace ppb {
+
+    struct DeviceMemory {
+        CUdeviceptr ptr = 0;
+
+        DeviceMemory(size_t bytes) {
+            CHECK(cuMemAlloc(&ptr, bytes));
+        }
+        ~DeviceMemory() {
+            if (ptr) {
+                CHECK(cuMemFree(ptr));
+            }
+        }
+    };
+
+    struct DeviceModule {
+        CUmodule mod      = nullptr;
+        CUfunction kernel = nullptr;
+
+        ~DeviceModule() {
+            if (mod) {
+                CHECK(cuModuleUnload(mod));
+            }
+        }
+    };
 
     struct ResourceSlot {
         CUdeviceptr buffer_pointer;
@@ -10,14 +46,13 @@ namespace ppb {
 
 
     struct ExclusiveScanCache {
-        CUdeviceptr pc;
-        CUdeviceptr blockSum;
-        CUmodule module_blellochScan;
-        CUfunction kernel_blellochScan;
-        CUmodule module_blockSum;
-        CUfunction kernel_blockSum;
+        DeviceMemory* pc;
+        DeviceMemory* blockSum;
 
-        ExclusiveScanCache* cache;
+        DeviceModule* module_blellochScan;
+        DeviceModule* module_blockSum;
+
+        ExclusiveScanCache* child;
     };
 
     struct PushExclusive {

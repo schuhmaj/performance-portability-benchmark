@@ -1,24 +1,6 @@
 #include "Impl_Slang_Cuda.cuh"
 #include <cuda_runtime.h>
 
-#define CHECK(X)                                                       \
-    do {                                                               \
-        CUresult err = (X);                                            \
-        if (err != CUDA_SUCCESS) {                                     \
-            const char* msg;                                           \
-            cuGetErrorString(err, &msg);                               \
-            fprintf(stderr,                                            \
-                "CUDA Driver error at %s:%d (%s): %s\n",               \
-                __FILE__, __LINE__, #X, msg);                          \
-        }                                                                                                                     \
-    } while (0)
-
-// cudaError_t err = cudaDeviceSynchronize();
-// if (err != cudaSuccess) {
-//     printf("CUDA runtime error before setupLinkedModule: %s\n",
-//         cudaGetErrorString(err));
-// }
-
 namespace ppb {
 
     template <typename FloatType>
@@ -54,45 +36,46 @@ namespace ppb {
         CHECK(cuDeviceGet(&device, 0));
         CHECK(cuCtxCreate(&context, nullptr, 0, device));
 
-        CHECK(cuMemAlloc(&positions, sizeof(float4) * size));
-        CHECK(cuMemAlloc(&velocities, sizeof(float4) * size));
-        CHECK(cuMemAlloc(&forces, sizeof(float4) * size));
-        CHECK(cuMemAlloc(&oldForces, sizeof(float4) * size));
+        positions   = new DeviceMemory(sizeof(float4) * size);
+        velocities  = new DeviceMemory(sizeof(float4) * size);
+        forces      = new DeviceMemory(sizeof(float4) * size);
+        oldForces   = new DeviceMemory(sizeof(float4) * size);
 
-        CHECK(cuMemAlloc(&cells, sizeof(uint32_t) * cellsLength));
-        CHECK(cuMemAlloc(&particleIdx, sizeof(int2) * size));
-        CHECK(cuMemAlloc(&idCells, sizeof(uint32_t) * size));
+        cells       = new DeviceMemory(sizeof(uint32_t) * cellsLength);
+        particleIdx = new DeviceMemory(sizeof(int2) * size);
+        idCells     = new DeviceMemory(sizeof(uint32_t) * size);
 
-        CHECK(cuMemcpyHtoD(positions, positionsHost.data(), sizeof(float4) * size));
-        CHECK(cuMemcpyHtoD(velocities, velocitiesHost.data(), sizeof(float4) * size));
-        CHECK(cuMemcpyHtoD(forces, forcesHost.data(), sizeof(float4) * size));
-        CHECK(cuMemsetD8(oldForces, 0, sizeof(float4) * size));
+        CHECK(cuMemcpyHtoD(positions->ptr, positionsHost.data(), sizeof(float4) * size));
+        CHECK(cuMemcpyHtoD(velocities->ptr, velocitiesHost.data(), sizeof(float4) * size));
+        CHECK(cuMemcpyHtoD(forces->ptr, forcesHost.data(), sizeof(float4) * size));
+        CHECK(cuMemsetD8(oldForces->ptr, 0, sizeof(float4) * size));
 
-        CHECK(cuMemsetD8(cells, 0, sizeof(uint32_t) * cellsLength));
-        CHECK(cuMemsetD8(particleIdx, 0, sizeof(int2) * size));
-        CHECK(cuMemsetD8(idCells, 0, sizeof(uint32_t) * size));
+        CHECK(cuMemsetD8(cells->ptr, 0, sizeof(uint32_t) * cellsLength));
+        CHECK(cuMemsetD8(particleIdx->ptr, 0, sizeof(int2) * size));
+        CHECK(cuMemsetD8(idCells->ptr, 0, sizeof(uint32_t) * size));
 
     }   
 
     template <typename FloatType>
     CudaParticleSoA<FloatType>::~CudaParticleSoA() {
-        CHECK(cuMemFree(positions)); 
-        CHECK(cuMemFree(velocities));
-        CHECK(cuMemFree(forces));
-        CHECK(cuMemFree(oldForces));
+        delete positions;
+        delete velocities;
+        delete forces;
+        delete oldForces;
 
-        CHECK(cuMemFree(cells));
-        CHECK(cuMemFree(particleIdx));
-        CHECK(cuMemFree(idCells));
+        delete cells;
+        delete particleIdx;
+        delete idCells;
+
         CHECK(cuCtxDestroy(context));
     }
 
     template <typename FloatType>
     std::vector<Particle<FloatType>> CudaParticleSoA<FloatType>::toParticles() {
         std::vector<Particle<FloatType>> particles{_ref};
-        CHECK(cuMemcpyDtoH(positionsHost.data(), positions, sizeof(float4) * _ref.size()));
-        CHECK(cuMemcpyDtoH(velocitiesHost.data(), velocities, sizeof(float4) * _ref.size()));
-        CHECK(cuMemcpyDtoH(forcesHost.data(), forces, sizeof(float4) * _ref.size()));
+        CHECK(cuMemcpyDtoH(positionsHost.data(), positions->ptr, sizeof(float4) * _ref.size()));
+        CHECK(cuMemcpyDtoH(velocitiesHost.data(), velocities->ptr, sizeof(float4) * _ref.size()));
+        CHECK(cuMemcpyDtoH(forcesHost.data(), forces->ptr, sizeof(float4) * _ref.size()));
         for (size_t i = 0; i < particles.size(); ++i) {
             const float4& position = positionsHost[i];
             const float4& velocity = velocitiesHost[i];
@@ -127,32 +110,25 @@ namespace ppb {
         _blockSize = _config.TILE_SIZE;
     }
 
-    template <typename FloatType>
-    void ImplSlangCuda<FloatType>::freeData(CUdeviceptr pc_ptr, CUmodule* module_) {
-        CHECK(cuCtxSynchronize());
-        CHECK(cuMemFree(pc_ptr));
-        CHECK(cuModuleUnload(*module_));
-    }
-
     template<typename FloatType>
     void ImplSlangCuda<FloatType>::freeExclusiveScanCache(ExclusiveScanCache* cache) {
         if (!cache) {
             return;
         }
-        if (cache->cache) {
-            freeExclusiveScanCache(cache->cache);
+        if (cache->child) {
+            freeExclusiveScanCache(cache->child);
         }
         if (cache->module_blellochScan) {
-            CHECK(cuModuleUnload(cache->module_blellochScan));
+            delete cache->module_blellochScan;
         }
         if (cache->module_blockSum) {
-            CHECK(cuModuleUnload(cache->module_blockSum));
+            delete cache->module_blockSum;
         }
         if (cache->pc) {
-            CHECK(cuMemFree(cache->pc));
+            delete cache->pc;
         }
         if (cache->blockSum) {
-            CHECK(cuMemFree(cache->blockSum));
+            delete cache->blockSum;
         }
         delete cache;
     }
@@ -177,66 +153,57 @@ namespace ppb {
         uint32_t nBlocks = (totalLength + _blockSize - 1) / _blockSize;
         uint32_t blockSumSize = ((nBlocks + _blockSize - 1) / _blockSize) * _blockSize;
         // manage memory for exclusiveScan
-        CUdeviceptr blockSum;
-        CHECK(cuMemAlloc(&blockSum, sizeof(uint32_t) * blockSumSize));
+        DeviceMemory* blockSum = new DeviceMemory(sizeof(uint32_t) * blockSumSize);
         // instantiate push constants
         ExclusivePushConstants excl_pc_host{};
         excl_pc_host.total_size = totalLength;
         excl_pc_host.block_size = _blockSize;
-        CUdeviceptr excl_pc_ptr;
-        CHECK(cuMemAlloc(&excl_pc_ptr, sizeof(ExclusivePushConstants)));
-        CHECK(cuMemcpyHtoD(excl_pc_ptr, &excl_pc_host, sizeof(ExclusivePushConstants)));
+        DeviceMemory* excl_pc = new DeviceMemory(sizeof(ExclusivePushConstants));
+        CHECK(cuMemcpyHtoD(excl_pc->ptr, &excl_pc_host, sizeof(ExclusivePushConstants)));
         // instantiate push data
         PushExclusive params_exclusiveScan{};
         params_exclusiveScan.data      = ResourceSlot{data, 0};
-        params_exclusiveScan.blockSums = ResourceSlot{blockSum, 0};
-        params_exclusiveScan.pc        = excl_pc_ptr;
+        params_exclusiveScan.blockSums = ResourceSlot{blockSum->ptr, 0};
+        params_exclusiveScan.pc        = excl_pc->ptr;
         // setup blellochScan module and kernel
-        CUmodule module_blellochScan;
-        CUfunction kernel_blellochScan;
-        setupKernel(&params_exclusiveScan, &module_blellochScan, &kernel_blellochScan, SLANG_PTX_DIR "/KernelBlellochScan.ptx", "computeBlellochScan", "Params_ExclusiveScan", sizeof(PushExclusive));
+        DeviceModule* module_blellochScan = new DeviceModule{};
+        setupKernel(&params_exclusiveScan, &module_blellochScan->mod, &module_blellochScan->kernel, SLANG_PTX_DIR "/KernelBlellochScan.ptx", "computeBlellochScan", "Params_ExclusiveScan", sizeof(PushExclusive));
 
-        ExclusiveScanCache* cache = new ExclusiveScanCache{};
-        cache->pc                  = excl_pc_ptr;
+        ExclusiveScanCache* cache  = new ExclusiveScanCache{};
+        cache->pc                  = excl_pc;
         cache->blockSum            = blockSum;
         cache->module_blellochScan = module_blellochScan;
-        cache->kernel_blellochScan = kernel_blellochScan;
 
         if (nBlocks > 1) {
-            CUmodule module_blockSum;
-            CUfunction kernel_blockSum;
-            setupKernel(&params_exclusiveScan, &module_blockSum, &kernel_blockSum, SLANG_PTX_DIR "/KernelBlockSum.ptx", "computeBlockSum", "Params_ExclusiveScan", sizeof(PushExclusive));
+            DeviceModule* module_blockSum = new DeviceModule{};
+            setupKernel(&params_exclusiveScan, &module_blockSum->mod, &module_blockSum->kernel, SLANG_PTX_DIR "/KernelBlockSum.ptx", "computeBlockSum", "Params_ExclusiveScan", sizeof(PushExclusive));
 
             cache->module_blockSum = module_blockSum;
-            cache->kernel_blockSum = kernel_blockSum;
             
-            cache->cache = setupExclusiveScanCache(blockSum, blockSumSize);
+            cache->child = setupExclusiveScanCache(blockSum->ptr, blockSumSize);
         }
         else {
             cache->module_blockSum = nullptr;
-            cache->kernel_blockSum = nullptr;
-            cache->cache           = nullptr;
+            cache->child           = nullptr;
         }
 
         return cache;
     }
-
-
 
     template<typename FloatType>
     void ImplSlangCuda<FloatType>::exclusiveScanBlelloch(uint32_t totalLength, ExclusiveScanCache* cache) {
         uint32_t nBlocks = (totalLength + _blockSize - 1) / _blockSize;
 
         // dispatch blellochScan
-        launchKernel(&cache->kernel_blellochScan, nBlocks, &_timings.neighborSearch);
+        launchKernel(&cache->module_blellochScan->kernel, nBlocks, &_timings.neighborSearch);
 
         if (nBlocks > 1) {
             uint32_t blockSumSize = ((nBlocks + _blockSize - 1) / _blockSize) * _blockSize;
             // recursively calculate prefix sum
-            exclusiveScanBlelloch(blockSumSize, cache->cache);
+            exclusiveScanBlelloch(blockSumSize, cache->child);
             // add block offset
             // dispatch blockSum
-            launchKernel(&cache->kernel_blockSum, nBlocks, &_timings.neighborSearch);
+            launchKernel(&cache->module_blockSum->kernel, nBlocks, &_timings.neighborSearch);
         }
     }
 
@@ -289,13 +256,12 @@ namespace ppb {
         ResetPushConstants reset_pc_host{};
         reset_pc_host.total_size = soa.cellsLength;
         // copying push constants
-        CUdeviceptr reset_pc_ptr;
-        CHECK(cuMemAlloc(&reset_pc_ptr, sizeof(ResetPushConstants)));
-        CHECK(cuMemcpyHtoD(reset_pc_ptr, &reset_pc_host, sizeof(ResetPushConstants)));
+        DeviceMemory reset_pc(sizeof(ResetPushConstants));
+        CHECK(cuMemcpyHtoD(reset_pc.ptr, &reset_pc_host, sizeof(ResetPushConstants)));
 
         PushReset params_resetCells{};
-        params_resetCells.cells = ResourceSlot{soa.cells, 0};
-        params_resetCells.pc    = reset_pc_ptr;
+        params_resetCells.cells = ResourceSlot{soa.cells->ptr, 0};
+        params_resetCells.pc    = reset_pc.ptr;
 
         // Parameters for KernelHistogram.ptx
         HistPushConstants hist_pc_host{};
@@ -310,29 +276,27 @@ namespace ppb {
         hist_pc_host.bSize_y      = soa.boxSize[1];
         hist_pc_host.bSize_z      = soa.boxSize[2];
         // copying push constants
-        CUdeviceptr hist_pc_ptr;
-        CHECK(cuMemAlloc(&hist_pc_ptr, sizeof(HistPushConstants)));
-        CHECK(cuMemcpyHtoD(hist_pc_ptr, &hist_pc_host, sizeof(HistPushConstants)));
+        DeviceMemory hist_pc(sizeof(HistPushConstants));
+        CHECK(cuMemcpyHtoD(hist_pc.ptr, &hist_pc_host, sizeof(HistPushConstants)));
 
         PushHist params_histogram{};
-        params_histogram.positions     = ResourceSlot{soa.positions, 0};
-        params_histogram.histogram     = ResourceSlot{soa.cells, 0};
-        params_histogram.particleIdx   = ResourceSlot{soa.particleIdx, 0};
-        params_histogram.pc            = hist_pc_ptr;
+        params_histogram.positions     = ResourceSlot{soa.positions->ptr, 0};
+        params_histogram.histogram     = ResourceSlot{soa.cells->ptr, 0};
+        params_histogram.particleIdx   = ResourceSlot{soa.particleIdx->ptr, 0};
+        params_histogram.pc            = hist_pc.ptr;
 
         // Parameters for KernelIdCells.ptx
         IdPushConstants id_pc_host{};
         id_pc_host.numParticles = _config.size;
         // copying push constants
-        CUdeviceptr id_pc_ptr;
-        CHECK(cuMemAlloc(&id_pc_ptr, sizeof(IdPushConstants)));
-        CHECK(cuMemcpyHtoD(id_pc_ptr, &id_pc_host, sizeof(IdPushConstants)));
+        DeviceMemory id_pc(sizeof(IdPushConstants));
+        CHECK(cuMemcpyHtoD(id_pc.ptr, &id_pc_host, sizeof(IdPushConstants)));
 
         PushId params_idCells{};
-        params_idCells.particleIdx = ResourceSlot{soa.particleIdx, 0};
-        params_idCells.idCells     = ResourceSlot{soa.idCells, 0};
-        params_idCells.starts      = ResourceSlot{soa.cells, 0};
-        params_idCells.pc          = id_pc_ptr;
+        params_idCells.particleIdx = ResourceSlot{soa.particleIdx->ptr, 0};
+        params_idCells.idCells     = ResourceSlot{soa.idCells->ptr, 0};
+        params_idCells.starts      = ResourceSlot{soa.cells->ptr, 0};
+        params_idCells.pc          = id_pc.ptr;
 
         // Parameters for KernelPosition.ptx
         PosPushConstants pos_pc_host{};
@@ -342,31 +306,29 @@ namespace ppb {
         pos_pc_host.dt            = _config.deltaT;
         pos_pc_host.numParticles  = _config.size;
         // copying push constants
-        CUdeviceptr pos_pc_ptr;
-        CHECK(cuMemAlloc(&pos_pc_ptr, sizeof(PosPushConstants)));
-        CHECK(cuMemcpyHtoD(pos_pc_ptr, &pos_pc_host, sizeof(PosPushConstants)));
+        DeviceMemory pos_pc(sizeof(PosPushConstants));
+        CHECK(cuMemcpyHtoD(pos_pc.ptr, &pos_pc_host, sizeof(PosPushConstants)));
 
         PushPos params_position{};
-        params_position.positions  = ResourceSlot{soa.positions, 0};
-        params_position.velocities = ResourceSlot{soa.velocities, 0};
-        params_position.forces     = ResourceSlot{soa.forces, 0};
-        params_position.oldForces  = ResourceSlot{soa.oldForces, 0};
-        params_position.pc         = pos_pc_ptr;
+        params_position.positions  = ResourceSlot{soa.positions->ptr, 0};
+        params_position.velocities = ResourceSlot{soa.velocities->ptr, 0};
+        params_position.forces     = ResourceSlot{soa.forces->ptr, 0};
+        params_position.oldForces  = ResourceSlot{soa.oldForces->ptr, 0};
+        params_position.pc         = pos_pc.ptr;
 
         // Parameters for KernelVelocity.ptx
         VelPushConstants vel_pc_host{};
         vel_pc_host.dt = _config.deltaT;
         vel_pc_host.numParticles = _config.size;
         // copying push constants
-        CUdeviceptr vel_pc_ptr;
-        CHECK(cuMemAlloc(&vel_pc_ptr, sizeof(VelPushConstants)));
-        CHECK(cuMemcpyHtoD(vel_pc_ptr, &vel_pc_host, sizeof(VelPushConstants)));
+        DeviceMemory vel_pc(sizeof(VelPushConstants));
+        CHECK(cuMemcpyHtoD(vel_pc.ptr, &vel_pc_host, sizeof(VelPushConstants)));
 
         PushVel params_velocity{};
-        params_velocity.velocities = ResourceSlot{soa.velocities, 0};
-        params_velocity.forces     = ResourceSlot{soa.forces, 0};
-        params_velocity.oldForces  = ResourceSlot{soa.oldForces, 0};
-        params_velocity.pc         = vel_pc_ptr;
+        params_velocity.velocities = ResourceSlot{soa.velocities->ptr, 0};
+        params_velocity.forces     = ResourceSlot{soa.forces->ptr, 0};
+        params_velocity.oldForces  = ResourceSlot{soa.oldForces->ptr, 0};
+        params_velocity.pc         = vel_pc.ptr;
 
         // Parameters for KernelForce.ptx
         ForPushConstants for_pc_host{};
@@ -375,69 +337,56 @@ namespace ppb {
         for_pc_host.cCount_y     = soa.cellCounts[1];
         for_pc_host.cCount_z     = soa.cellCounts[2];
         // copying push constants
-        CUdeviceptr for_pc_ptr;
-        CHECK(cuMemAlloc(&for_pc_ptr, sizeof(ForPushConstants)));
-        CHECK(cuMemcpyHtoD(for_pc_ptr, &for_pc_host, sizeof(ForPushConstants)));
+        DeviceMemory for_pc(sizeof(ForPushConstants));
+        CHECK(cuMemcpyHtoD(for_pc.ptr, &for_pc_host, sizeof(ForPushConstants)));
 
         PushFor params_force{};
-        params_force.positions   = ResourceSlot{soa.positions, 0};
-        params_force.forces      = ResourceSlot{soa.forces, 0};
-        params_force.particleIdx = ResourceSlot{soa.particleIdx, 0};
-        params_force.starts      = ResourceSlot{soa.cells, 0};
-        params_force.idCells     = ResourceSlot{soa.idCells, 0};
-        params_force.pc          = for_pc_ptr;
+        params_force.positions   = ResourceSlot{soa.positions->ptr, 0};
+        params_force.forces      = ResourceSlot{soa.forces->ptr, 0};
+        params_force.particleIdx = ResourceSlot{soa.particleIdx->ptr, 0};
+        params_force.starts      = ResourceSlot{soa.cells->ptr, 0};
+        params_force.idCells     = ResourceSlot{soa.idCells->ptr, 0};
+        params_force.pc          = for_pc.ptr;
 
         // =============================================================================
 
-        CUmodule module_resetCells;
-        CUfunction kernel_resetCells;
-        setupKernel(&params_resetCells, &module_resetCells, &kernel_resetCells, SLANG_PTX_DIR "/KernelResetCells.ptx", "computeResetCells", "Params_ResetCells", sizeof(PushReset));
+        DeviceModule module_resetCells;
+        setupKernel(&params_resetCells, &module_resetCells.mod, &module_resetCells.kernel, SLANG_PTX_DIR "/KernelResetCells.ptx", "computeResetCells", "Params_ResetCells", sizeof(PushReset));
 
-        CUmodule module_histogram;
-        CUfunction kernel_histogram;
-        setupKernel(&params_histogram, &module_histogram, &kernel_histogram, SLANG_PTX_DIR "/KernelHistogram.ptx", "computeHistogram", "Params_Histogram", sizeof(PushHist));
+        DeviceModule module_histogram;
+        setupKernel(&params_histogram, &module_histogram.mod, &module_histogram.kernel, SLANG_PTX_DIR "/KernelHistogram.ptx", "computeHistogram", "Params_Histogram", sizeof(PushHist));
 
-        CUmodule module_idCells;
-        CUfunction kernel_idCells;
-        setupKernel(&params_idCells, &module_idCells, &kernel_idCells, SLANG_PTX_DIR "/KernelIdCells.ptx", "computeIdCells", "Params_IdCells", sizeof(PushId));
+        DeviceModule module_idCells;
+        setupKernel(&params_idCells, &module_idCells.mod, &module_idCells.kernel, SLANG_PTX_DIR "/KernelIdCells.ptx", "computeIdCells", "Params_IdCells", sizeof(PushId));
 
-        CUmodule module_position;
-        CUfunction kernel_position;
-        setupKernel(&params_position, &module_position, &kernel_position, SLANG_PTX_DIR "/KernelPosition.ptx", "computePosition", "Params_Position", sizeof(PushPos));
+        DeviceModule module_position;
+        setupKernel(&params_position, &module_position.mod, &module_position.kernel, SLANG_PTX_DIR "/KernelPosition.ptx", "computePosition", "Params_Position", sizeof(PushPos));
 
-        CUmodule module_velocity;
-        CUfunction kernel_velocity;
-        setupKernel(&params_velocity, &module_velocity, &kernel_velocity, SLANG_PTX_DIR "/KernelVelocity.ptx", "computeVelocity", "Params_Velocity", sizeof(PushVel));
+        DeviceModule module_velocity;
+        setupKernel(&params_velocity, &module_velocity.mod, &module_velocity.kernel, SLANG_PTX_DIR "/KernelVelocity.ptx", "computeVelocity", "Params_Velocity", sizeof(PushVel));
 
-        CUmodule module_force;
-        CUfunction kernel_force;
-        setupKernel(&params_force, &module_force, &kernel_force, SLANG_PTX_DIR "/KernelForce.ptx", "computeForce", "Params_Force", sizeof(PushFor));
+        DeviceModule module_force;
+        setupKernel(&params_force, &module_force.mod, &module_force.kernel, SLANG_PTX_DIR "/KernelForce.ptx", "computeForce", "Params_Force", sizeof(PushFor));
 
-        ExclusiveScanCache* excl_cache = setupExclusiveScanCache(soa.cells, soa.cellsLength);
+        ExclusiveScanCache* excl_cache = setupExclusiveScanCache(soa.cells->ptr, soa.cellsLength);
 
         const uint32_t _gridSizePerParticle = util::ceilDiv<unsigned int>(_config.size, _blockSize);
         const uint32_t _gridSizePerCell = util::ceilDiv<unsigned int>(soa.cellsLength, _blockSize);
 
         for (int i = 0; i < _config.numberTimeSteps; ++i) {
             if (i % _config.interval_neighbor_search == 0) {
-                launchKernel(&kernel_resetCells, _gridSizePerCell, &_timings.neighborSearch);
-                launchKernel(&kernel_histogram, _gridSizePerParticle, &_timings.neighborSearch);
+                launchKernel(&module_resetCells.kernel, _gridSizePerCell, &_timings.neighborSearch);
+                launchKernel(&module_histogram.kernel, _gridSizePerParticle, &_timings.neighborSearch);
                 exclusiveScanBlelloch(soa.cellsLength, excl_cache);
-                launchKernel(&kernel_idCells, _gridSizePerParticle, &_timings.neighborSearch);
+                launchKernel(&module_idCells.kernel, _gridSizePerParticle, &_timings.neighborSearch);
             }
 
-            launchKernel(&kernel_position, _gridSizePerParticle, &_timings.positionUpdateForceResetTime);
-            launchKernel(&kernel_force, _gridSizePerParticle, &_timings.forceUpdateTime);
-            launchKernel(&kernel_velocity, _gridSizePerParticle, &_timings.velocityUpdateTime);
+            launchKernel(&module_position.kernel, _gridSizePerParticle, &_timings.positionUpdateForceResetTime);
+            launchKernel(&module_force.kernel, _gridSizePerParticle, &_timings.forceUpdateTime);
+            launchKernel(&module_velocity.kernel, _gridSizePerParticle, &_timings.velocityUpdateTime);
         }
-        //_particles->print_buffer(soa.positions, _config.size);
+        //_particles->print_buffer(soa.positions->ptr, _config.size);
 
-        freeData(reset_pc_ptr, &module_resetCells);
-        freeData(hist_pc_ptr, &module_histogram);
-        freeData(id_pc_ptr, &module_idCells);
-        freeData(pos_pc_ptr, &module_position);
-        freeData(vel_pc_ptr, &module_velocity);
-        freeData(for_pc_ptr, &module_force);
         freeExclusiveScanCache(excl_cache);
         return std::make_pair(_particles->toParticles(), _timings);
     }
