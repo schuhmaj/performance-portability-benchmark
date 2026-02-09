@@ -27,6 +27,7 @@ namespace ppb {
         CUdevice device;
         CHECK(cuDeviceGet(&device, 0));
         CHECK(cuCtxCreate(&context, nullptr, 0, device));
+        CHECK(cuCtxSetCurrent(context));
 
         positions  = new DeviceMemory(sizeof(float4) * size);
         velocities = new DeviceMemory(sizeof(float4) * size);
@@ -230,7 +231,7 @@ namespace ppb {
         CHECK(cuStreamCreate(&stream, 0));
 
         CHECK(cuEventRecord(start, stream));
-        CHECK(cuLaunchKernel(*kernel, gs, 1, 1, _blockSize, 1, 1, 0, nullptr, nullptr, nullptr));
+        CHECK(cuLaunchKernel(*kernel, gs, 1, 1, _blockSize, 1, 1, 0, stream, nullptr, nullptr));
         CHECK(cuEventRecord(stop, stream));
 
         CHECK(cuEventSynchronize(stop));
