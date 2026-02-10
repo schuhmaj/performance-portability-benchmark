@@ -52,7 +52,7 @@ namespace ppb {
         , _kernelBlockSum{KERNELBLOCKSUM_COMP_SPV.begin(), KERNELBLOCKSUM_COMP_SPV.end()}
         , _kernelVerlet{KERNELVERLET_COMP_SPV.begin(), KERNELVERLET_COMP_SPV.end()}
 
-        , _sequence{_manager.sequence(kernel_calls(config) + 1)}
+        , _sequence{_manager.sequence(config.use_kompute_timestamps ? kernel_calls(config) + 1 : 0)}
     {}
 
 

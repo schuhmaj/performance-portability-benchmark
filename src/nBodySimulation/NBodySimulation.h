@@ -66,7 +66,7 @@ namespace ppb {
         /**
          * Flag to decide whether or not to use the kompute timestamps rather than the backend timestamps in vulkan
          */
-        bool use_kompute_timestamps{true};
+        bool use_kompute_timestamps{false};
 
         /*
          * Used for calculating the number of cells when using cell lists.
