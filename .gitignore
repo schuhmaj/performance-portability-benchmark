@@ -3,3 +3,5 @@ cmake-build-*
 build*
 scripts/__pycache__/
 .vscode
+src/nBodySimulation/slang/*/generated_shaders/
+results/*.json
