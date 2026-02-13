@@ -16,7 +16,7 @@ struct GlobalParams
 
 [shader("compute")]
 [numthreads(256,1,1)]
-void computeForce(uint3 threadId : SV_DispatchThreadID)
+void computeMain(uint3 threadId : SV_DispatchThreadID)
 {
     uint gid = threadId.x;
     if (gid >= pc.numParticles) {

@@ -135,16 +135,16 @@ namespace ppb {
     }
 
     template <typename FloatType>
-    void ImplSlangCuda<FloatType>::setupKernel(void* pushData, CUmodule* module_, CUfunction* kernel, const char* file, const char* name, const char* params, size_t pushSize) {
+    void ImplSlangCuda<FloatType>::setupKernel(void* pushData, CUmodule* module_, CUfunction* kernel, const char* file, size_t pushSize) {
         CHECK(cuModuleLoad(module_, file));
-        CHECK(cuModuleGetFunction(kernel, *module_, name));
+        CHECK(cuModuleGetFunction(kernel, *module_, "computeMain"));
         CUdeviceptr memory;
         size_t size;
         CHECK(cuModuleGetGlobal(
             &memory,
             &size,
             *module_,
-            params
+            "SLANG_globalParams"
         ));
         CHECK(cuMemcpyHtoD(memory, pushData, pushSize));
     }
@@ -168,7 +168,7 @@ namespace ppb {
         params_exclusiveScan.pc        = excl_pc->ptr;
         // setup blellochScan module and kernel
         DeviceModule* module_blellochScan = new DeviceModule{};
-        setupKernel(&params_exclusiveScan, &module_blellochScan->mod, &module_blellochScan->kernel, SLANG_PTX_DIR "/KernelBlellochScan.ptx", "computeBlellochScan", "Params_ExclusiveScan", sizeof(PushExclusive));
+        setupKernel(&params_exclusiveScan, &module_blellochScan->mod, &module_blellochScan->kernel, SLANG_PTX_DIR "/KernelBlellochScan.ptx", sizeof(PushExclusive));
 
         ExclusiveScanCache* cache  = new ExclusiveScanCache{};
         cache->pc                  = excl_pc;
@@ -177,7 +177,7 @@ namespace ppb {
 
         if (nBlocks > 1) {
             DeviceModule* module_blockSum = new DeviceModule{};
-            setupKernel(&params_exclusiveScan, &module_blockSum->mod, &module_blockSum->kernel, SLANG_PTX_DIR "/KernelBlockSum.ptx", "computeBlockSum", "Params_ExclusiveScan", sizeof(PushExclusive));
+            setupKernel(&params_exclusiveScan, &module_blockSum->mod, &module_blockSum->kernel, SLANG_PTX_DIR "/KernelBlockSum.ptx", sizeof(PushExclusive));
 
             cache->module_blockSum = module_blockSum;
             
@@ -352,22 +352,22 @@ namespace ppb {
         // =============================================================================
 
         DeviceModule module_resetCells;
-        setupKernel(&params_resetCells, &module_resetCells.mod, &module_resetCells.kernel, SLANG_PTX_DIR "/KernelResetCells.ptx", "computeResetCells", "Params_ResetCells", sizeof(PushReset));
+        setupKernel(&params_resetCells, &module_resetCells.mod, &module_resetCells.kernel, SLANG_PTX_DIR "/KernelResetCells.ptx", sizeof(PushReset));
 
         DeviceModule module_histogram;
-        setupKernel(&params_histogram, &module_histogram.mod, &module_histogram.kernel, SLANG_PTX_DIR "/KernelHistogram.ptx", "computeHistogram", "Params_Histogram", sizeof(PushHist));
+        setupKernel(&params_histogram, &module_histogram.mod, &module_histogram.kernel, SLANG_PTX_DIR "/KernelHistogram.ptx", sizeof(PushHist));
 
         DeviceModule module_idCells;
-        setupKernel(&params_idCells, &module_idCells.mod, &module_idCells.kernel, SLANG_PTX_DIR "/KernelIdCells.ptx", "computeIdCells", "Params_IdCells", sizeof(PushId));
+        setupKernel(&params_idCells, &module_idCells.mod, &module_idCells.kernel, SLANG_PTX_DIR "/KernelIdCells.ptx", sizeof(PushId));
 
         DeviceModule module_position;
-        setupKernel(&params_position, &module_position.mod, &module_position.kernel, SLANG_PTX_DIR "/KernelPosition.ptx", "computePosition", "Params_Position", sizeof(PushPos));
+        setupKernel(&params_position, &module_position.mod, &module_position.kernel, SLANG_PTX_DIR "/KernelPosition.ptx", sizeof(PushPos));
 
         DeviceModule module_velocity;
-        setupKernel(&params_velocity, &module_velocity.mod, &module_velocity.kernel, SLANG_PTX_DIR "/KernelVelocity.ptx", "computeVelocity", "Params_Velocity", sizeof(PushVel));
+        setupKernel(&params_velocity, &module_velocity.mod, &module_velocity.kernel, SLANG_PTX_DIR "/KernelVelocity.ptx", sizeof(PushVel));
 
         DeviceModule module_force;
-        setupKernel(&params_force, &module_force.mod, &module_force.kernel, SLANG_PTX_DIR "/KernelForce.ptx", "computeForce", "Params_Force", sizeof(PushFor));
+        setupKernel(&params_force, &module_force.mod, &module_force.kernel, SLANG_PTX_DIR "/KernelForce.ptx", sizeof(PushFor));
 
         ExclusiveScanCache* excl_cache = setupExclusiveScanCache(soa.cells->ptr, soa.cellsLength);
 
@@ -386,7 +386,7 @@ namespace ppb {
             launchKernel(&module_force.kernel, _gridSizePerParticle, &_timings.forceUpdateTime);
             launchKernel(&module_velocity.kernel, _gridSizePerParticle, &_timings.velocityUpdateTime);
         }
-        //_particles->print_buffer(soa.positions->ptr, _config.size);
+        _particles->print_buffer(soa.positions->ptr, _config.size);
 
         freeExclusiveScanCache(excl_cache);
         return std::make_pair(_particles->toParticles(), _timings);

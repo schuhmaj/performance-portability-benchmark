@@ -88,16 +88,16 @@ namespace ppb {
 
 
     template <typename FloatType>
-    void ImplSlangCuda<FloatType>::setupKernel(void* pushData, CUmodule* module_, CUfunction* kernel, const char* file, const char* name, const char* params, size_t pushSize) {
+    void ImplSlangCuda<FloatType>::setupKernel(void* pushData, CUmodule* module_, CUfunction* kernel, const char* file, size_t pushSize) {
         CHECK(cuModuleLoad(module_, file));
-        CHECK(cuModuleGetFunction(kernel, *module_, name));
+        CHECK(cuModuleGetFunction(kernel, *module_, "computeMain"));
         CUdeviceptr memory;
         size_t size;
         CHECK(cuModuleGetGlobal(
             &memory,
             &size,
             *module_,
-            params
+            "SLANG_globalParams"
         ));
         CHECK(cuMemcpyHtoD(memory, pushData, pushSize));
     }
@@ -182,13 +182,13 @@ namespace ppb {
         // =============================================================================
 
         DeviceModule module_position;
-        setupKernel(&params_position, &module_position.mod, &module_position.kernel, SLANG_PTX_DIR "/KernelPosition.ptx", "computePosition", "Params_Position", sizeof(PushPos));
+        setupKernel(&params_position, &module_position.mod, &module_position.kernel, SLANG_PTX_DIR "/KernelPosition.ptx", sizeof(PushPos));
 
         DeviceModule module_velocity;
-        setupKernel(&params_velocity, &module_velocity.mod, &module_velocity.kernel, SLANG_PTX_DIR "/KernelVelocity.ptx", "computeVelocity", "Params_Velocity", sizeof(PushVel));
+        setupKernel(&params_velocity, &module_velocity.mod, &module_velocity.kernel, SLANG_PTX_DIR "/KernelVelocity.ptx", sizeof(PushVel));
 
         DeviceModule module_force;
-        setupKernel(&params_force, &module_force.mod, &module_force.kernel, SLANG_PTX_DIR "/KernelForce.ptx", "computeForce", "Params_Force", sizeof(PushFor));
+        setupKernel(&params_force, &module_force.mod, &module_force.kernel, SLANG_PTX_DIR "/KernelForce.ptx", sizeof(PushFor));
 
         const uint32_t _gridSize = util::ceilDiv<unsigned int>(_config.size, _blockSize);
 

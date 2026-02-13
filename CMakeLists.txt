@@ -63,7 +63,7 @@ message(STATUS "Kokkos                          ${PPB_ENABLE_Kokkos}")
 message(STATUS "AdaptiveCpp (needs Boost)       ${PPB_ENABLE_AdaptiveCpp}")
 message(STATUS "Vulkan-Kompute                  ${PPB_ENABLE_Vulkan}")
 message(STATUS "Slang-Vulkan-Kompute            ${PPB_ENABLE_Slang_Vulkan}")
-message(STATUS "Slang-Cuda                      ${PPB_ENABLE_Slang_Vulkan}")
+message(STATUS "Slang-Cuda                      ${PPB_ENABLE_Slang_Cuda}")
 message(STATUS "OpenACC                         ${PPB_ENABLE_OpenACC}")
 message(STATUS "OpenMP                          ${PPB_ENABLE_OpenMP}")
 message(STATUS "OpenCL                          ${PPB_ENABLE_OpenCL}")
@@ -151,6 +151,10 @@ endif ()
 # Vulkan Inclusion
 if (${PPB_ENABLE_Vulkan})
     include(vulkan)
+endif ()
+
+if (${PPB_ENABLE_Slang_Cuda} OR ${PPB_ENABLE_Slang_Vulkan})
+    include(slang_compiling)
 endif ()
 
 #######################################################

@@ -71,7 +71,7 @@ namespace ppb {
          * @param params The name of the parameters in the .ptx file.
          * @param pushSize The size of the pushData struct.
          */
-        CUdeviceptr setupKernel(void* pushData, CUmodule* module_, CUfunction* kernel, const char* file, const char* name, const char* params, size_t pushSize);
+        CUdeviceptr setupKernel(void* pushData, CUmodule* module_, CUfunction* kernel, const char* file, size_t pushSize);
 
         /**
          * Runs the simulation for the configured total time using parallel Kokkos kernels to update

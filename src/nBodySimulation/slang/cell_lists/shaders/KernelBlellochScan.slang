@@ -13,7 +13,7 @@ groupshared uint tile[256];
 
 [shader("compute")]
 [numthreads(256,1,1)]
-void computeBlellochScan(uint3 threadId : SV_DispatchThreadID, uint3 threadIdInGroup : SV_GroupThreadID, uint3 groupId : SV_GroupID)
+void computeMain(uint3 threadId : SV_DispatchThreadID, uint3 threadIdInGroup : SV_GroupThreadID, uint3 groupId : SV_GroupID)
 {
     uint gid = threadId.x;
     uint lid = threadIdInGroup.x;
