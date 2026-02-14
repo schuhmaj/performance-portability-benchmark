@@ -47,6 +47,12 @@ namespace ppb {
 
     template <typename FloatType>
     CudaParticleSoA<FloatType>::~CudaParticleSoA() {
+        positions  = DeviceMemory{};
+        velocities = DeviceMemory{};
+        forces     = DeviceMemory{};
+        oldForces  = DeviceMemory{};
+        neighbors  = DeviceMemory{};
+
         CHECK(cuCtxDestroy(context));
     }
 
