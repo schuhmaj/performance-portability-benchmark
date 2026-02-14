@@ -13,7 +13,7 @@ namespace ppb {
 
         const std::vector<Particle<FloatType>> &_ref;
 
-        CUcontext context;
+        CudaContext context;
 
         DeviceMemory positions;
         DeviceMemory velocities;
@@ -25,8 +25,6 @@ namespace ppb {
         std::vector<float4> forcesHost;
 
         explicit CudaParticleSoA(const std::vector<Particle<FloatType>> &particles);
-
-        ~CudaParticleSoA();
 
         std::vector<Particle<FloatType>> toParticles();
 

@@ -19,10 +19,8 @@ namespace ppb {
 
         CHECK(cuInit(0));
 
-        CUdevice device;
-        CHECK(cuDeviceGet(&device, 0));
-        CHECK(cuCtxCreate(&context, nullptr, 0, device));
-        CHECK(cuCtxSetCurrent(context));
+        context.create();
+        CHECK(cuCtxSetCurrent(context.ctx));
 
         positions.alloc(sizeof(float4) * size);
         velocities.alloc(sizeof(float4) * size);
@@ -35,16 +33,6 @@ namespace ppb {
         CHECK(cuMemsetD8(oldForces.ptr, 0, sizeof(float4) * size));
 
     }   
-
-    template <typename FloatType>
-    CudaParticleSoA<FloatType>::~CudaParticleSoA() {
-        positions  = DeviceMemory{};
-        velocities = DeviceMemory{};
-        forces     = DeviceMemory{};
-        oldForces  = DeviceMemory{};
-
-        CHECK(cuCtxDestroy(context));
-    }
 
     template <typename FloatType>
     std::vector<Particle<FloatType>> CudaParticleSoA<FloatType>::toParticles() {

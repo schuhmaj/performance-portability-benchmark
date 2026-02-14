@@ -26,8 +26,27 @@
 
 namespace ppb {
     // ============================================================================================
-    // RAII structs to allocate- and free allocated Device memory / modules 
+    // RAII structs to allocate- and free allocated Device context / memory / modules 
     // ============================================================================================
+
+    struct CudaContext {
+        CUcontext ctx = nullptr;
+
+        void create() {
+            if (ctx) {
+                CHECK(cuCtxDestroy(ctx));
+            }
+            CUdevice device;
+            CHECK(cuDeviceGet(&device, 0));
+            CHECK(cuCtxCreate(&ctx, nullptr, 0, device));
+        }
+
+        ~CudaContext() {
+            if (ctx) {
+                CHECK(cuCtxDestroy(ctx));
+            }
+        }
+    };
 
     struct DeviceMemory {
         CUdeviceptr ptr = 0;

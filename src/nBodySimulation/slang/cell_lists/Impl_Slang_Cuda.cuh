@@ -18,7 +18,7 @@ namespace ppb {
         std::array<float, 3> boxSize;
         uint32_t cellsLength;
 
-        CUcontext context;
+        CudaContext context;
 
         DeviceMemory positions;
         DeviceMemory velocities;
@@ -34,8 +34,6 @@ namespace ppb {
         std::vector<float4> forcesHost;
 
         explicit CudaParticleSoA(const std::vector<Particle<FloatType>> &particles, const ParticleSimulationConfig<FloatType> &config);
-
-        ~CudaParticleSoA();
 
         std::vector<Particle<FloatType>> toParticles();
 
