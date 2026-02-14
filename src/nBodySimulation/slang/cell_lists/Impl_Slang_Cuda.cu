@@ -386,7 +386,7 @@ namespace ppb {
             launchKernel(&module_force.kernel, _gridSizePerParticle, &_timings.forceUpdateTime);
             launchKernel(&module_velocity.kernel, _gridSizePerParticle, &_timings.velocityUpdateTime);
         }
-        _particles->print_buffer(soa.positions->ptr, _config.size);
+        //_particles->print_buffer(soa.positions->ptr, _config.size);
 
         freeExclusiveScanCache(excl_cache);
         return std::make_pair(_particles->toParticles(), _timings);

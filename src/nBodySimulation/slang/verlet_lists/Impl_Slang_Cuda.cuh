@@ -3,7 +3,6 @@
 #include "nBodySimulation/NBodySimulation.h"
 #include "nBodySimulation/Particle.h"
 #include "common/UtilityContainer.h"
-#include "cuda.h"
 #include "Kernel_Structs.cuh"
 
 namespace ppb {

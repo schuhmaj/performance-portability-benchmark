@@ -1,5 +1,6 @@
 #include "Impl_Vulkan.h"
-#include "Impl_Vulkan_PushConstants.h"
+#include "Push_Constants.h"
+#include "Common_Push_Constants.h"
 
 #include "KernelForce.h"
 #include "KernelPosition.h"
@@ -209,13 +210,14 @@ namespace ppb {
 
         const double elapsedNanoseconds =
             static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count());
-        
+
         if (_config.use_kompute_timestamps) {
             _timings.neighborSearch += retrieve_timestamps();
         }
         else {
             _timings.neighborSearch += elapsedNanoseconds;
         }
+    
     }
 
     template <typename FloatType>
@@ -245,13 +247,14 @@ namespace ppb {
 
         const double elapsedNanosecondsBlelloch =
             static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(endBlelloch - startBlelloch).count());
-        
+
         if (_config.use_kompute_timestamps) {
             _timings.neighborSearch += retrieve_timestamps();
         }
         else {
             _timings.neighborSearch += elapsedNanosecondsBlelloch;
         }
+    
 
         // calculate prefix sum of block sum
         if (nBlocks > 1) {
@@ -273,13 +276,14 @@ namespace ppb {
 
             const double elapsedNanosecondsBlock =
                 static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(endBlock - startBlock).count());
-            
+
             if (_config.use_kompute_timestamps) {
-                _timings.neighborSearch += retrieve_timestamps();            
+                _timings.neighborSearch += retrieve_timestamps();
             }
             else {
-                _timings.neighborSearch += elapsedNanosecondsBlock;
+                _timings.neighborSearch += elapsedNanosecondsBlock;            
             }
+
         }
     }
 
@@ -305,13 +309,14 @@ namespace ppb {
 
         const double elapsedNanoseconds =
             static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count());
-        
+
         if (_config.use_kompute_timestamps) {
             _timings.neighborSearch += retrieve_timestamps();
         }
         else {
             _timings.neighborSearch += elapsedNanoseconds;
         }
+    
     }
 
 
@@ -334,13 +339,14 @@ namespace ppb {
 
         const double elapsedNanoseconds =
             static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count());
-        
+
         if (_config.use_kompute_timestamps) {
             _timings.neighborSearch += retrieve_timestamps();
         }
         else {
             _timings.neighborSearch += elapsedNanoseconds;
         }
+    
     }
 
     template <typename FloatType>
@@ -368,13 +374,14 @@ namespace ppb {
         const auto end = std::chrono::high_resolution_clock::now();
         const double elapsed_nanoseconds =
             static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count());
-        
+
         if (_config.use_kompute_timestamps) {
             _timings.positionUpdateForceResetTime += retrieve_timestamps();
         }
         else {
             _timings.positionUpdateForceResetTime += elapsed_nanoseconds;
         }
+    
     }
 
     template <typename FloatType>
@@ -399,13 +406,14 @@ namespace ppb {
         const auto end = std::chrono::high_resolution_clock::now();
         const double elapsed_nanoseconds =
             static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count());
-        
+
         if (_config.use_kompute_timestamps) {
             _timings.velocityUpdateTime += retrieve_timestamps();
         }
         else {
             _timings.velocityUpdateTime += elapsed_nanoseconds;
         }
+    
     }
 
     template <typename FloatType>
@@ -432,13 +440,14 @@ namespace ppb {
         const auto end = std::chrono::high_resolution_clock::now();
         const double elapsed_nanoseconds =
             static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count());
-        
+
         if (_config.use_kompute_timestamps) {
             _timings.forceUpdateTime += retrieve_timestamps();
         }
         else {
             _timings.forceUpdateTime += elapsed_nanoseconds;
         }
+    
     }
 
     template class ImplVulkan<float>;

@@ -1,5 +1,6 @@
 #include "Impl_Vulkan.h"
-#include "Impl_Vulkan_PushConstants.h"
+#include "Push_Constants.h"
+#include "Common_Push_Constants.h"
 
 #include "KernelForce.h"
 #include "KernelPosition.h"
@@ -64,6 +65,8 @@ namespace ppb {
         }
         
         _sequence->template record<kp::OpTensorSyncLocal>(params)->eval();
+
+        //printBuffer(positions, true);
 
         positionsHost = positions->vector();
         velocitiesHost = velocities->vector();

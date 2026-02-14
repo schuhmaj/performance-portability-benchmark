@@ -6,8 +6,9 @@ set(KERNELS
 
 if (${PPB_ENABLE_Slang_Vulkan})
 
+    set(NAIVE_DIR ${NBODY_SIMULATION_ROOT_DIR}/vulkan/naive)
     add_library(nbody_slang_vulkan_naive_lib STATIC
-        Impl_Slang_Vulkan.h Impl_Slang_Vulkan.cpp
+        ${NAIVE_DIR}/Impl_Vulkan.h ${NAIVE_DIR}/Impl_Vulkan.cpp ${NAIVE_DIR}/Push_Constants.h
         "${CMAKE_CURRENT_BINARY_DIR}/KernelForce.h"
         "${CMAKE_CURRENT_BINARY_DIR}/KernelVelocity.h"
         "${CMAKE_CURRENT_BINARY_DIR}/KernelPosition.h"
@@ -23,7 +24,7 @@ if (${PPB_ENABLE_Slang_Vulkan})
     target_link_libraries(nbody_slang_vulkan_naive_lib PUBLIC nbody_lib kompute::kompute common_vulkan_lib)
     target_include_directories(nbody_slang_vulkan_naive_lib PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>)
 
-    add_executable(nbody_slang_vulkan_naive main.cpp)
+    add_executable(nbody_slang_vulkan_naive ${NAIVE_DIR}/main.cpp)
     target_link_libraries(nbody_slang_vulkan_naive PRIVATE nbody_slang_vulkan_naive_lib)
 endif()
 

@@ -11,30 +11,31 @@ set(KERNELS
 
 if (${PPB_ENABLE_Slang_Vulkan})
 
-        add_library(nbody_slang_vulkan_cells_lib STATIC
-                Impl_Slang_Vulkan.h Impl_Slang_Vulkan.cpp
-                "${CMAKE_CURRENT_BINARY_DIR}/KernelForce.h"
-                "${CMAKE_CURRENT_BINARY_DIR}/KernelVelocity.h"
-                "${CMAKE_CURRENT_BINARY_DIR}/KernelPosition.h"
-                "${CMAKE_CURRENT_BINARY_DIR}/KernelBlellochScan.h"
-                "${CMAKE_CURRENT_BINARY_DIR}/KernelBlockSum.h"
-                "${CMAKE_CURRENT_BINARY_DIR}/KernelHistogram.h"
-                "${CMAKE_CURRENT_BINARY_DIR}/KernelIdCells.h"
-                "${CMAKE_CURRENT_BINARY_DIR}/KernelResetCells.h"
-        )
+    set(CELLS_DIR ${NBODY_SIMULATION_ROOT_DIR}/vulkan/cell_lists)
+    add_library(nbody_slang_vulkan_cells_lib STATIC
+            ${CELLS_DIR}/Impl_Vulkan.h ${CELLS_DIR}/Impl_Vulkan.cpp ${CELLS_DIR}/Push_Constants.h
+            "${CMAKE_CURRENT_BINARY_DIR}/KernelForce.h"
+            "${CMAKE_CURRENT_BINARY_DIR}/KernelVelocity.h"
+            "${CMAKE_CURRENT_BINARY_DIR}/KernelPosition.h"
+            "${CMAKE_CURRENT_BINARY_DIR}/KernelBlellochScan.h"
+            "${CMAKE_CURRENT_BINARY_DIR}/KernelBlockSum.h"
+            "${CMAKE_CURRENT_BINARY_DIR}/KernelHistogram.h"
+            "${CMAKE_CURRENT_BINARY_DIR}/KernelIdCells.h"
+            "${CMAKE_CURRENT_BINARY_DIR}/KernelResetCells.h"
+    )
 
-        # compile slang -> vulkan
-        foreach(kernel IN LISTS KERNELS)
-            slang_vulkan_compile_shaders(${kernel} cells ppb)
-            add_dependencies(nbody_slang_vulkan_cells_lib generate_cells_${kernel}.comp)
-        endforeach()
+    # compile slang -> vulkan
+    foreach(kernel IN LISTS KERNELS)
+        slang_vulkan_compile_shaders(${kernel} cells ppb)
+        add_dependencies(nbody_slang_vulkan_cells_lib generate_cells_${kernel}.comp)
+    endforeach()
 
-        target_compile_features(nbody_slang_vulkan_cells_lib PUBLIC cxx_std_20)
-        target_link_libraries(nbody_slang_vulkan_cells_lib PUBLIC nbody_lib kompute::kompute common_vulkan_lib)
-        target_include_directories(nbody_slang_vulkan_cells_lib PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>)
+    target_compile_features(nbody_slang_vulkan_cells_lib PUBLIC cxx_std_20)
+    target_link_libraries(nbody_slang_vulkan_cells_lib PUBLIC nbody_lib kompute::kompute common_vulkan_lib)
+    target_include_directories(nbody_slang_vulkan_cells_lib PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>)
 
-        add_executable(nbody_slang_vulkan_cells main.cpp)
-        target_link_libraries(nbody_slang_vulkan_cells PRIVATE nbody_slang_vulkan_cells_lib)
+    add_executable(nbody_slang_vulkan_cells ${CELLS_DIR}/main.cpp)
+    target_link_libraries(nbody_slang_vulkan_cells PRIVATE nbody_slang_vulkan_cells_lib)
 endif ()
 
 if (${PPB_ENABLE_Slang_Cuda})
