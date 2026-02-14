@@ -113,7 +113,7 @@ namespace ppb {
 
     template <typename FloatType>
     void ImplVulkan<FloatType>::updatePositionsAndResetForce(const std::vector<std::shared_ptr<kp::Tensor>> &params) {
-        constexpr unsigned int TILE_SIZE = _config.TILE_SIZE;
+        constexpr unsigned int TILE_SIZE = ParticleSimulationConfig<FloatType>::TILE_SIZE;
         const unsigned int groups = util::ceilDiv<unsigned int>(_config.size, TILE_SIZE);
         kp::Workgroup workgroup{{groups, 1, 1}};
 
@@ -138,7 +138,7 @@ namespace ppb {
         const double elapsed_nanoseconds =
             static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count());
         
-        if (_config.use_kompute_timestamps) {
+        if (ParticleSimulationConfig<FloatType>::use_kompute_timestamps) {
             _timings.positionUpdateForceResetTime += retrieve_timestamps();
         }
         else {
@@ -148,7 +148,7 @@ namespace ppb {
 
     template <typename FloatType>
     void ImplVulkan<FloatType>::updateVelocities(const std::vector<std::shared_ptr<kp::Tensor>> &params) {
-        constexpr unsigned int TILE_SIZE = _config.TILE_SIZE;
+        constexpr unsigned int TILE_SIZE = ParticleSimulationConfig<FloatType>::TILE_SIZE;
         const unsigned int groups = util::ceilDiv<unsigned int>(_config.size, TILE_SIZE);
         kp::Workgroup workgroup{{groups, 1, 1}};
         
@@ -170,7 +170,7 @@ namespace ppb {
         const double elapsed_nanoseconds =
             static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count());
         
-        if (_config.use_kompute_timestamps) {
+        if (ParticleSimulationConfig<FloatType>::use_kompute_timestamps) {
             _timings.velocityUpdateTime += retrieve_timestamps();
         }
         else {
@@ -180,7 +180,7 @@ namespace ppb {
 
     template <typename FloatType>
     void ImplVulkan<FloatType>::computeForces(const std::vector<std::shared_ptr<kp::Tensor>> &params) {
-        constexpr unsigned int TILE_SIZE = _config.TILE_SIZE;
+        constexpr unsigned int TILE_SIZE = ParticleSimulationConfig<FloatType>::TILE_SIZE;
         const unsigned int groups = util::ceilDiv<unsigned int>(_config.size, TILE_SIZE);
         kp::Workgroup workgroup{{groups, 1, 1}};
 
@@ -201,7 +201,7 @@ namespace ppb {
         const double elapsed_nanoseconds =
             static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count());
         
-        if (_config.use_kompute_timestamps) {
+        if (ParticleSimulationConfig<FloatType>::use_kompute_timestamps) {
             _timings.forceUpdateTime += retrieve_timestamps();
         }
         else {

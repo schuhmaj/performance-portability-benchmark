@@ -11,24 +11,16 @@ set(KERNELS
 
 if (${PPB_ENABLE_Slang_Vulkan})
 
+    # compile slang -> vulkan
+    slang_vulkan_compile_shaders(${CMAKE_CURRENT_SOURCE_DIR}/shaders TARGETS HEADERS cells ppb)
+
     set(CELLS_DIR ${NBODY_SIMULATION_ROOT_DIR}/vulkan/cell_lists)
     add_library(nbody_slang_vulkan_cells_lib STATIC
             ${CELLS_DIR}/Impl_Vulkan.h ${CELLS_DIR}/Impl_Vulkan.cpp ${CELLS_DIR}/Push_Constants.h
-            "${CMAKE_CURRENT_BINARY_DIR}/KernelForce.h"
-            "${CMAKE_CURRENT_BINARY_DIR}/KernelVelocity.h"
-            "${CMAKE_CURRENT_BINARY_DIR}/KernelPosition.h"
-            "${CMAKE_CURRENT_BINARY_DIR}/KernelBlellochScan.h"
-            "${CMAKE_CURRENT_BINARY_DIR}/KernelBlockSum.h"
-            "${CMAKE_CURRENT_BINARY_DIR}/KernelHistogram.h"
-            "${CMAKE_CURRENT_BINARY_DIR}/KernelIdCells.h"
-            "${CMAKE_CURRENT_BINARY_DIR}/KernelResetCells.h"
+            ${HEADERS}
     )
 
-    # compile slang -> vulkan
-    foreach(kernel IN LISTS KERNELS)
-        slang_vulkan_compile_shaders(${kernel} cells ppb)
-        add_dependencies(nbody_slang_vulkan_cells_lib generate_cells_${kernel}.comp)
-    endforeach()
+    add_dependencies(nbody_slang_vulkan_cells_lib ${TARGETS})
 
     target_compile_features(nbody_slang_vulkan_cells_lib PUBLIC cxx_std_20)
     target_link_libraries(nbody_slang_vulkan_cells_lib PUBLIC nbody_lib kompute::kompute common_vulkan_lib)
@@ -36,6 +28,7 @@ if (${PPB_ENABLE_Slang_Vulkan})
 
     add_executable(nbody_slang_vulkan_cells ${CELLS_DIR}/main.cpp)
     target_link_libraries(nbody_slang_vulkan_cells PRIVATE nbody_slang_vulkan_cells_lib)
+
 endif ()
 
 if (${PPB_ENABLE_Slang_Cuda})
@@ -45,10 +38,8 @@ if (${PPB_ENABLE_Slang_Cuda})
     )
 
     # compile slang -> ptx
-    foreach(kernel IN LISTS KERNELS)
-        slang_ptx_compile_shaders(${kernel} cells)
-        add_dependencies(nbody_slang_cuda_cells_lib generate_cells_${kernel}.ptx)
-    endforeach()
+    slang_ptx_compile_shaders(${CMAKE_CURRENT_SOURCE_DIR}/shaders TARGETS cells)
+    add_dependencies(nbody_slang_cuda_cells_lib ${TARGETS})
 
     target_compile_definitions(nbody_slang_cuda_cells_lib PRIVATE
         SLANG_PTX_DIR="${CMAKE_CURRENT_BINARY_DIR}/generated_shaders"
@@ -69,4 +60,5 @@ if (${PPB_ENABLE_Slang_Cuda})
             CUDA_SEPARABLE_COMPILATION ON
             CUDA_ARCHITECTURES native
     )
+
 endif()

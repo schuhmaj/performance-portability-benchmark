@@ -6,7 +6,7 @@ set(NBODY_SIMULATION_FILES
 )
 
 add_library(nbody_lib INTERFACE ${NBODY_SIMULATION_FILES})
-target_include_directories(nbody_lib INTERFACE ${PPB_SRC_SOURCE_DIRECTORY} ${NBODY_SIMULATION_ROOT_DIR})
+target_include_directories(nbody_lib INTERFACE ${PPB_SRC_SOURCE_DIRECTORY} ${NBODY_SIMULATION_ROOT_DIR}/vulkan)
 target_link_libraries(nbody_lib INTERFACE benchmark::benchmark common_lib)
 
 execute_process(

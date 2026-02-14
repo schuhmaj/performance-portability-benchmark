@@ -18,7 +18,7 @@ namespace ppb {
             forcesHost[i] = {particles[i].getForce()[0], particles[i].getForce()[1], particles[i].getForce()[2], 0.0};
         }
 
-        uint32_t TILE_SIZE = _config.TILE_SIZE;
+        uint32_t TILE_SIZE = ParticleSimulationConfig<FloatType>::TILE_SIZE;
         uint32_t nBlocks = (particles.size() + TILE_SIZE) / TILE_SIZE;
         neighborsLength = nBlocks * TILE_SIZE;
 
@@ -29,40 +29,33 @@ namespace ppb {
         CHECK(cuCtxCreate(&context, nullptr, 0, device));
         CHECK(cuCtxSetCurrent(context));
 
-        positions  = new DeviceMemory(sizeof(float4) * size);
-        velocities = new DeviceMemory(sizeof(float4) * size);
-        forces     = new DeviceMemory(sizeof(float4) * size);
-        oldForces  = new DeviceMemory(sizeof(float4) * size);
+        positions.alloc(sizeof(float4) * size);
+        velocities.alloc(sizeof(float4) * size);
+        forces.alloc(sizeof(float4) * size);
+        oldForces.alloc(sizeof(float4) * size);
 
-        neighbors  = new DeviceMemory(sizeof(uint32_t) * neighborsLength);
+        neighbors.alloc(sizeof(uint32_t) * neighborsLength);
 
-        CHECK(cuMemcpyHtoD(positions->ptr, positionsHost.data(), sizeof(float4) * size));
-        CHECK(cuMemcpyHtoD(velocities->ptr, velocitiesHost.data(), sizeof(float4) * size));
-        CHECK(cuMemcpyHtoD(forces->ptr, forcesHost.data(), sizeof(float4) * size));
-        CHECK(cuMemsetD8(oldForces->ptr, 0, sizeof(float4) * size));
+        CHECK(cuMemcpyHtoD(positions.ptr, positionsHost.data(), sizeof(float4) * size));
+        CHECK(cuMemcpyHtoD(velocities.ptr, velocitiesHost.data(), sizeof(float4) * size));
+        CHECK(cuMemcpyHtoD(forces.ptr, forcesHost.data(), sizeof(float4) * size));
+        CHECK(cuMemsetD8(oldForces.ptr, 0, sizeof(float4) * size));
 
-        CHECK(cuMemsetD8(neighbors->ptr, 0, sizeof(uint32_t) * neighborsLength));
+        CHECK(cuMemsetD8(neighbors.ptr, 0, sizeof(uint32_t) * neighborsLength));
 
     }   
 
     template <typename FloatType>
     CudaParticleSoA<FloatType>::~CudaParticleSoA() {
-        delete positions;
-        delete velocities;
-        delete forces;
-        delete oldForces;
-
-        delete neighbors;
-
         CHECK(cuCtxDestroy(context));
     }
 
     template <typename FloatType>
     std::vector<Particle<FloatType>> CudaParticleSoA<FloatType>::toParticles() {
         std::vector<Particle<FloatType>> particles{_ref};
-        CHECK(cuMemcpyDtoH(positionsHost.data(), positions->ptr, sizeof(float4) * _ref.size()));
-        CHECK(cuMemcpyDtoH(velocitiesHost.data(), velocities->ptr, sizeof(float4) * _ref.size()));
-        CHECK(cuMemcpyDtoH(forcesHost.data(), forces->ptr, sizeof(float4) * _ref.size()));
+        CHECK(cuMemcpyDtoH(positionsHost.data(), positions.ptr, sizeof(float4) * _ref.size()));
+        CHECK(cuMemcpyDtoH(velocitiesHost.data(), velocities.ptr, sizeof(float4) * _ref.size()));
+        CHECK(cuMemcpyDtoH(forcesHost.data(), forces.ptr, sizeof(float4) * _ref.size()));
         for (size_t i = 0; i < particles.size(); ++i) {
             const float4& position = positionsHost[i];
             const float4& velocity = velocitiesHost[i];
@@ -94,7 +87,7 @@ namespace ppb {
 
     template<typename FloatType>
     ImplSlangCuda<FloatType>::ImplSlangCuda(const ParticleSimulationConfig<FloatType> &config) : _config{config}, _globalForce{_config.globalForce[0], _config.globalForce[1], _config.globalForce[2]} {
-        _blockSize = _config.TILE_SIZE;
+        _blockSize = ParticleSimulationConfig<FloatType>::TILE_SIZE;
     }
 
     template<typename FloatType>
@@ -272,28 +265,28 @@ namespace ppb {
         // Parameters for KernelCountNeighbors.ptx
         CountPushConstants count_pc_host{};
         count_pc_host.n      = _config.size;
-        count_pc_host.radius = _config.influenceRadius;
+        count_pc_host.radius = ParticleSimulationConfig<FloatType>::influenceRadius;
         // copying push constants
         DeviceMemory count_pc(sizeof(CountPushConstants));
         CHECK(cuMemcpyHtoD(count_pc.ptr, &count_pc_host, sizeof(CountPushConstants)));
 
         PushCount params_countNeighbors{};
-        params_countNeighbors.positions  = ResourceSlot{soa.positions->ptr, 0};
-        params_countNeighbors.nNeighbors = ResourceSlot{soa.neighbors->ptr, 0};
+        params_countNeighbors.positions  = ResourceSlot{soa.positions.ptr, 0};
+        params_countNeighbors.nNeighbors = ResourceSlot{soa.neighbors.ptr, 0};
         params_countNeighbors.pc         = count_pc.ptr;
 
         // Parameters for KernelVerlet.ptx
         VerletPushConstants verlet_pc_host{};
         verlet_pc_host.total_size = _config.size;
-        verlet_pc_host.radius     = _config.influenceRadius;
+        verlet_pc_host.radius     = ParticleSimulationConfig<FloatType>::influenceRadius;
         // copying push constants
         DeviceMemory verlet_pc(sizeof(VerletPushConstants));
         CHECK(cuMemcpyHtoD(verlet_pc.ptr, &verlet_pc_host, sizeof(VerletPushConstants)));
 
         PushVerlet params_verlet{};
-        params_verlet.positions       = ResourceSlot{soa.positions->ptr, 0};
+        params_verlet.positions       = ResourceSlot{soa.positions.ptr, 0};
         params_verlet.verletLists     = ResourceSlot{verletList->ptr, 0};
-        params_verlet.neighborsStarts = ResourceSlot{soa.neighbors->ptr, 0};
+        params_verlet.neighborsStarts = ResourceSlot{soa.neighbors.ptr, 0};
         params_verlet.pc              = verlet_pc.ptr;
 
         // Parameters for KernelPosition.ptx
@@ -308,10 +301,10 @@ namespace ppb {
         CHECK(cuMemcpyHtoD(pos_pc.ptr, &pos_pc_host, sizeof(PosPushConstants)));
 
         PushPos params_position{};
-        params_position.positions  = ResourceSlot{soa.positions->ptr, 0};
-        params_position.velocities = ResourceSlot{soa.velocities->ptr, 0};
-        params_position.forces     = ResourceSlot{soa.forces->ptr, 0};
-        params_position.oldForces  = ResourceSlot{soa.oldForces->ptr, 0};
+        params_position.positions  = ResourceSlot{soa.positions.ptr, 0};
+        params_position.velocities = ResourceSlot{soa.velocities.ptr, 0};
+        params_position.forces     = ResourceSlot{soa.forces.ptr, 0};
+        params_position.oldForces  = ResourceSlot{soa.oldForces.ptr, 0};
         params_position.pc         = pos_pc.ptr;
 
         // Parameters for KernelVelocity.ptx
@@ -323,9 +316,9 @@ namespace ppb {
         CHECK(cuMemcpyHtoD(vel_pc.ptr, &vel_pc_host, sizeof(VelPushConstants)));
 
         PushVel params_velocity{};
-        params_velocity.velocities = ResourceSlot{soa.velocities->ptr, 0};
-        params_velocity.forces     = ResourceSlot{soa.forces->ptr, 0};
-        params_velocity.oldForces  = ResourceSlot{soa.oldForces->ptr, 0};
+        params_velocity.velocities = ResourceSlot{soa.velocities.ptr, 0};
+        params_velocity.forces     = ResourceSlot{soa.forces.ptr, 0};
+        params_velocity.oldForces  = ResourceSlot{soa.oldForces.ptr, 0};
         params_velocity.pc         = vel_pc.ptr;
 
         // Parameters for KernelForce.ptx
@@ -336,10 +329,10 @@ namespace ppb {
         CHECK(cuMemcpyHtoD(for_pc.ptr, &for_pc_host, sizeof(ForPushConstants)));
 
         PushFor params_force{};
-        params_force.positions       = ResourceSlot{soa.positions->ptr, 0};
-        params_force.forces          = ResourceSlot{soa.forces->ptr, 0};
+        params_force.positions       = ResourceSlot{soa.positions.ptr, 0};
+        params_force.forces          = ResourceSlot{soa.forces.ptr, 0};
         params_force.verletLists     = ResourceSlot{verletList->ptr, 0};
-        params_force.neighborsStarts = ResourceSlot{soa.neighbors->ptr, 0};
+        params_force.neighborsStarts = ResourceSlot{soa.neighbors.ptr, 0};
         params_force.pc              = for_pc.ptr;
 
         // =============================================================================
@@ -359,23 +352,23 @@ namespace ppb {
         DeviceModule module_force;
         CUdeviceptr memory_force = setupKernel(&params_force, &module_force.mod, &module_force.kernel, SLANG_PTX_DIR "/KernelForce.ptx", sizeof(PushFor));
 
-        ExclusiveScanCache* excl_cache = setupExclusiveScanCache(soa.neighbors->ptr, soa.neighborsLength);
+        ExclusiveScanCache* excl_cache = setupExclusiveScanCache(soa.neighbors.ptr, soa.neighborsLength);
 
         const uint32_t _gridSize = util::ceilDiv<unsigned int>(_config.size, _blockSize);
 
         for (int i = 0; i < _config.numberTimeSteps; ++i) {
-            // here 10 is a magic number and should still be experimentally determined.
-            if (i % _config.interval_neighbor_search == 0) {
+            if (i % ParticleSimulationConfig<FloatType>::interval_neighbor_search == 0) {
                 launchKernel(&module_countNeighbors.kernel, _gridSize, &_timings.neighborSearch);
                 exclusiveScanBlelloch(soa.neighborsLength, excl_cache);
-                verletList = createVerletList(verletList, soa.neighbors->ptr, memory_verlet, &module_verlet.kernel, &params_verlet, memory_force, &params_force, _gridSize);
+                verletList = createVerletList(verletList, soa.neighbors.ptr, memory_verlet, &module_verlet.kernel, &params_verlet, memory_force, &params_force, _gridSize);
             }
 
             launchKernel(&module_position.kernel, _gridSize, &_timings.positionUpdateForceResetTime);
             launchKernel(&module_force.kernel, _gridSize, &_timings.forceUpdateTime);
             launchKernel(&module_velocity.kernel, _gridSize, &_timings.velocityUpdateTime);
         }
-        //_particles->print_buffer(soa.positions->ptr, _config.size);
+        
+        //_particles->print_buffer(soa.positions.ptr, _config.size);
 
         delete verletList;
         freeExclusiveScanCache(excl_cache);

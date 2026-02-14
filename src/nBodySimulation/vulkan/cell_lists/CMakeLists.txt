@@ -1,61 +1,8 @@
-vulkan_compile_shader(
-        INFILE KernelPosition.comp
-        OUTFILE KernelPosition.h
-        NAMESPACE "ppb"
-        RELATIVE_PATH "${kompute_SOURCE_DIR}/cmake"
-)
-vulkan_compile_shader(
-        INFILE KernelForce.comp
-        OUTFILE KernelForce.h
-        NAMESPACE "ppb"
-        RELATIVE_PATH "${kompute_SOURCE_DIR}/cmake"
-)
-vulkan_compile_shader(
-        INFILE KernelVelocity.comp
-        OUTFILE KernelVelocity.h
-        NAMESPACE "ppb"
-        RELATIVE_PATH "${kompute_SOURCE_DIR}/cmake"
-)
-vulkan_compile_shader(
-        INFILE KernelHistogram.comp
-        OUTFILE KernelHistogram.h
-        NAMESPACE "ppb"
-        RELATIVE_PATH "${kompute_SOURCE_DIR}/cmake"
-)
-vulkan_compile_shader(
-        INFILE KernelBlellochScan.comp
-        OUTFILE KernelBlellochScan.h
-        NAMESPACE "ppb"
-        RELATIVE_PATH "${kompute_SOURCE_DIR}/cmake"
-)
-vulkan_compile_shader(
-        INFILE KernelBlockSum.comp
-        OUTFILE KernelBlockSum.h
-        NAMESPACE "ppb"
-        RELATIVE_PATH "${kompute_SOURCE_DIR}/cmake"
-)
-vulkan_compile_shader(
-        INFILE KernelIdCells.comp
-        OUTFILE KernelIdCells.h
-        NAMESPACE "ppb"
-        RELATIVE_PATH "${kompute_SOURCE_DIR}/cmake"
-)
-vulkan_compile_shader(
-        INFILE KernelResetCells.comp
-        OUTFILE KernelResetCells.h
-        NAMESPACE "ppb"
-        RELATIVE_PATH "${kompute_SOURCE_DIR}/cmake"
-)
+vulkan_compile_shaders_path(${CMAKE_CURRENT_SOURCE_DIR}/shaders HEADERS ppb)
+
 add_library(nbody_vulkan_cells_lib STATIC
         Impl_Vulkan.h Impl_Vulkan.cpp
-        "${CMAKE_CURRENT_BINARY_DIR}/KernelForce.h"
-        "${CMAKE_CURRENT_BINARY_DIR}/KernelVelocity.h"
-        "${CMAKE_CURRENT_BINARY_DIR}/KernelPosition.h"
-        "${CMAKE_CURRENT_BINARY_DIR}/KernelBlellochScan.h"
-        "${CMAKE_CURRENT_BINARY_DIR}/KernelBlockSum.h"
-        "${CMAKE_CURRENT_BINARY_DIR}/KernelHistogram.h"
-        "${CMAKE_CURRENT_BINARY_DIR}/KernelIdCells.h"
-        "${CMAKE_CURRENT_BINARY_DIR}/KernelResetCells.h"
+        ${HEADERS}
 )
 
 target_compile_features(nbody_vulkan_cells_lib PUBLIC cxx_std_20)

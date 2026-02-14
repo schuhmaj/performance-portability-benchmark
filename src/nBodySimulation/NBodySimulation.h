@@ -66,7 +66,7 @@ namespace ppb {
         /**
          * Flag to decide whether or not to use the kompute timestamps rather than the backend timestamps in vulkan
          */
-        bool use_kompute_timestamps{false};
+        static constexpr bool use_kompute_timestamps{false};
 
         /*
          * Used for calculating the number of cells when using cell lists.
@@ -74,7 +74,7 @@ namespace ppb {
          * The influence of the Lennard-Jones-Kernel stays close to 0 at a distance of around 3. Therefore h should not be less than 3. 
          * https://www.desmos.com/calculator/zrswwcpt4k
          */
-        FloatType h{9.0};
+        static constexpr FloatType h{9.0};
 
         /*
          * Radius at which a particle should be added to the verlet lists.
@@ -83,7 +83,7 @@ namespace ppb {
          * Therefore the influence radius should not be less than 3. 
          * https://www.desmos.com/calculator/zrswwcpt4k
          */
-        FloatType influenceRadius{4.0};
+        static constexpr FloatType influenceRadius{4.0};
 
         /*
          * size of workgroups. 

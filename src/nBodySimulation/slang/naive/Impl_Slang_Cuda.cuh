@@ -15,10 +15,10 @@ namespace ppb {
 
         CUcontext context;
 
-        DeviceMemory* positions;
-        DeviceMemory* velocities;
-        DeviceMemory* forces;
-        DeviceMemory* oldForces;
+        DeviceMemory positions;
+        DeviceMemory velocities;
+        DeviceMemory forces;
+        DeviceMemory oldForces;
 
         std::vector<float4> positionsHost;
         std::vector<float4> velocitiesHost;

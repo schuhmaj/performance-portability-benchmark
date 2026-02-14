@@ -79,7 +79,7 @@ namespace ppb {
             forcesHost[base + 2] = particles[p].getForce()[2];
         }
 
-        uint TILE_SIZE = _config.TILE_SIZE;
+        uint TILE_SIZE = ParticleSimulationConfig<FloatType>::TILE_SIZE;
         uint nBlocks = (particles.size() + TILE_SIZE) / TILE_SIZE;
         uint neighborsLength = nBlocks * TILE_SIZE;
 
@@ -99,7 +99,7 @@ namespace ppb {
         std::shared_ptr<kp::Tensor> verletList;
 
         for (int i = 0; i < _config.numberTimeSteps; ++i) {
-            if (i % _config.interval_neighbor_search == 0) {
+            if (i % ParticleSimulationConfig<FloatType>::interval_neighbor_search == 0) {
                 countNeighbors({positions, neighbors});
                 exclusiveScanBlelloch(neighbors, neighborsHost.size());
                 verletList = createVerletList(positions, neighbors);
@@ -158,13 +158,13 @@ namespace ppb {
 
     template <typename FloatType>
     void ImplVulkan<FloatType>::countNeighbors(const std::vector<std::shared_ptr<kp::Tensor>> &params) {
-        uint TILE_SIZE = _config.TILE_SIZE;
+        uint TILE_SIZE = ParticleSimulationConfig<FloatType>::TILE_SIZE;
         const uint groups = util::ceilDiv<uint>(_config.size, TILE_SIZE);
         kp::Workgroup workgroup{{groups, 1, 1}};
 
         PushCount pc{
             static_cast<uint32_t>(_config.size),
-            static_cast<float>(_config.influenceRadius)
+            static_cast<float>(ParticleSimulationConfig<FloatType>::influenceRadius)
         };
 
         std::vector<uint32_t> pushData((sizeof(PushCount) + 3) / 4);
@@ -179,7 +179,7 @@ namespace ppb {
 
         const double elapsedNanoseconds =
             static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count());
-        if (_config.use_kompute_timestamps) {
+        if (ParticleSimulationConfig<FloatType>::use_kompute_timestamps) {
             _timings.neighborSearch += retrieve_timestamps();
         }
         else {
@@ -189,7 +189,7 @@ namespace ppb {
 
     template <typename FloatType>
     void ImplVulkan<FloatType>::exclusiveScanBlelloch(const std::shared_ptr<kp::Tensor> &data, const uint totalLength) {
-        uint TILE_SIZE = _config.TILE_SIZE;
+        uint TILE_SIZE = ParticleSimulationConfig<FloatType>::TILE_SIZE;
         // init blockSum buffer
         uint nBlocks = (totalLength + TILE_SIZE - 1) / TILE_SIZE;
         uint blockSumSize = ((nBlocks + TILE_SIZE - 1) / TILE_SIZE) * TILE_SIZE;
@@ -214,7 +214,7 @@ namespace ppb {
 
         const double elapsedNanosecondsBlelloch =
             static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(endBlelloch - startBlelloch).count());
-        if (_config.use_kompute_timestamps) {
+        if (ParticleSimulationConfig<FloatType>::use_kompute_timestamps) {
             _timings.neighborSearch += retrieve_timestamps();
         }
         else {
@@ -241,7 +241,7 @@ namespace ppb {
 
             const double elapsedNanosecondsBlock =
                 static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(endBlock - startBlock).count());
-            if (_config.use_kompute_timestamps) {
+            if (ParticleSimulationConfig<FloatType>::use_kompute_timestamps) {
                 _timings.neighborSearch += retrieve_timestamps();   
             }
             else {
@@ -261,13 +261,13 @@ namespace ppb {
         std::vector<uint> verletListHost(nNeighbors, 0);
         auto verletList = _manager.tensor(verletListHost);
 
-        uint TILE_SIZE = _config.TILE_SIZE;
+        uint TILE_SIZE = ParticleSimulationConfig<FloatType>::TILE_SIZE;
         const uint groups = util::ceilDiv<uint>(_config.size, TILE_SIZE);
         kp::Workgroup workgroup{{groups, 1, 1}};
 
         PushVerlet pc{
             static_cast<uint32_t>(_config.size),
-            static_cast<float>(_config.influenceRadius)
+            static_cast<float>(ParticleSimulationConfig<FloatType>::influenceRadius)
         };
         std::vector<uint32_t> pushData((sizeof(PushVerlet) + 3) / 4);
         std::memcpy(pushData.data(), &pc, sizeof(PushVerlet));
@@ -281,7 +281,7 @@ namespace ppb {
 
         const double elapsedNanoseconds =
             static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count());
-        if (_config.use_kompute_timestamps) {
+        if (ParticleSimulationConfig<FloatType>::use_kompute_timestamps) {
             _timings.neighborSearch += retrieve_timestamps();
         }
         else {
@@ -293,7 +293,7 @@ namespace ppb {
 
     template <typename FloatType>
     void ImplVulkan<FloatType>::updatePositionsAndResetForce(const std::vector<std::shared_ptr<kp::Tensor>> &params) {
-        uint TILE_SIZE = _config.TILE_SIZE;
+        uint TILE_SIZE = ParticleSimulationConfig<FloatType>::TILE_SIZE;
         const unsigned int groups = util::ceilDiv<unsigned int>(_config.size, TILE_SIZE);
         kp::Workgroup workgroup{{groups, 1, 1}};
 
@@ -316,7 +316,7 @@ namespace ppb {
         const auto end = std::chrono::high_resolution_clock::now();
         const double elapsed_nanoseconds =
             static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count());
-        if (_config.use_kompute_timestamps) {
+        if (ParticleSimulationConfig<FloatType>::use_kompute_timestamps) {
             _timings.positionUpdateForceResetTime += retrieve_timestamps();
         }
         else {
@@ -326,7 +326,7 @@ namespace ppb {
 
     template <typename FloatType>
     void ImplVulkan<FloatType>::updateVelocities(const std::vector<std::shared_ptr<kp::Tensor>> &params) {
-        uint TILE_SIZE = _config.TILE_SIZE;
+        uint TILE_SIZE = ParticleSimulationConfig<FloatType>::TILE_SIZE;
         const unsigned int groups = util::ceilDiv<unsigned int>(_config.size, TILE_SIZE);
         kp::Workgroup workgroup{{groups, 1, 1}};
         
@@ -346,7 +346,7 @@ namespace ppb {
         const auto end = std::chrono::high_resolution_clock::now();
         const double elapsed_nanoseconds =
             static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count());
-        if (_config.use_kompute_timestamps) {
+        if (ParticleSimulationConfig<FloatType>::use_kompute_timestamps) {
             _timings.velocityUpdateTime += retrieve_timestamps();
         }
         else {
@@ -356,7 +356,7 @@ namespace ppb {
 
     template <typename FloatType>
     void ImplVulkan<FloatType>::computeForces(const std::vector<std::shared_ptr<kp::Tensor>> &params) {
-        uint TILE_SIZE = _config.TILE_SIZE;
+        uint TILE_SIZE = ParticleSimulationConfig<FloatType>::TILE_SIZE;
         const unsigned int groups = util::ceilDiv<unsigned int>(_config.size, TILE_SIZE);
         kp::Workgroup workgroup{{groups, 1, 1}};
 
@@ -375,7 +375,7 @@ namespace ppb {
         const auto end = std::chrono::high_resolution_clock::now();
         const double elapsed_nanoseconds =
             static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count());
-        if (_config.use_kompute_timestamps) {
+        if (ParticleSimulationConfig<FloatType>::use_kompute_timestamps) {
             _timings.forceUpdateTime += retrieve_timestamps();
         }
         else {

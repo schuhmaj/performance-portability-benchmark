@@ -9,24 +9,17 @@ set(KERNELS
 )
 
 if (${PPB_ENABLE_Slang_Vulkan})
+
+    # compile slang -> vulkan
+    slang_vulkan_compile_shaders(${CMAKE_CURRENT_SOURCE_DIR}/shaders TARGETS HEADERS verlet ppb)
     
     set(VERLET_DIR ${NBODY_SIMULATION_ROOT_DIR}/vulkan/verlet_lists)
     add_library(nbody_slang_vulkan_verlet_lib STATIC
             ${VERLET_DIR}/Impl_Vulkan.h ${VERLET_DIR}/Impl_Vulkan.cpp ${VERLET_DIR}/Push_Constants.h
-            "${CMAKE_CURRENT_BINARY_DIR}/KernelForce.h"
-            "${CMAKE_CURRENT_BINARY_DIR}/KernelVelocity.h"
-            "${CMAKE_CURRENT_BINARY_DIR}/KernelPosition.h"
-            "${CMAKE_CURRENT_BINARY_DIR}/KernelBlellochScan.h"
-            "${CMAKE_CURRENT_BINARY_DIR}/KernelBlockSum.h"
-            "${CMAKE_CURRENT_BINARY_DIR}/KernelCountNeighbors.h"
-            "${CMAKE_CURRENT_BINARY_DIR}/KernelVerlet.h"
+            ${HEADERS}
     )
 
-    # compile slang -> vulkan
-    foreach(kernel IN LISTS KERNELS)
-        slang_vulkan_compile_shaders(${kernel} verlet ppb)
-        add_dependencies(nbody_slang_vulkan_verlet_lib generate_verlet_${kernel}.comp)
-    endforeach()
+    add_dependencies(nbody_slang_vulkan_verlet_lib ${TARGETS})
 
     target_compile_features(nbody_slang_vulkan_verlet_lib PUBLIC cxx_std_20)
     target_link_libraries(nbody_slang_vulkan_verlet_lib PUBLIC nbody_lib kompute::kompute common_vulkan_lib)
@@ -44,10 +37,8 @@ if (${PPB_ENABLE_Slang_Cuda})
     )
 
     # compile slang -> ptx
-    foreach(kernel IN LISTS KERNELS)
-        slang_ptx_compile_shaders(${kernel} verlet)
-        add_dependencies(nbody_slang_cuda_verlet_lib generate_verlet_${kernel}.ptx)
-    endforeach()
+    slang_ptx_compile_shaders(${CMAKE_CURRENT_SOURCE_DIR}/shaders TARGETS verlet)
+    add_dependencies(nbody_slang_cuda_verlet_lib ${TARGETS})
 
     target_compile_definitions(nbody_slang_cuda_verlet_lib PRIVATE
         SLANG_PTX_DIR="${CMAKE_CURRENT_BINARY_DIR}/generated_shaders"

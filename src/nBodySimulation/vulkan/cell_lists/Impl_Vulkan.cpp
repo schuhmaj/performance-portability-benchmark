@@ -36,9 +36,9 @@ namespace ppb {
         std::array<float, 3> boxMax = config.boxMax;
         std::array<float, 3> boxSize = { boxMax[0] - boxMin[0], boxMax[1] - boxMin[1], boxMax[2] - boxMin[2] };
         std::array<int, 3> cellCounts = { 
-            util::ceilDiv<int>(boxSize[0], config.h), 
-            util::ceilDiv<int>(boxSize[1], config.h), 
-            util::ceilDiv<int>(boxSize[2], config.h) };
+            util::ceilDiv<int>(boxSize[0], ParticleSimulationConfig<FloatType>::h), 
+            util::ceilDiv<int>(boxSize[1], ParticleSimulationConfig<FloatType>::h), 
+            util::ceilDiv<int>(boxSize[2], ParticleSimulationConfig<FloatType>::h) };
         uint nCells = cellCounts[0] * cellCounts[1] * cellCounts[2] + 1;
         uint TILE_SIZE = config.TILE_SIZE;
         uint nBlocks = (nCells + TILE_SIZE - 1) / TILE_SIZE;
@@ -94,11 +94,11 @@ namespace ppb {
         std::array<float, 3> boxMax = _config.boxMax;
         std::array<float, 3> boxSize = { boxMax[0] - boxMin[0], boxMax[1] - boxMin[1], boxMax[2] - boxMin[2] };
         std::array<int, 3> cellCounts = { 
-            util::ceilDiv<int>(boxSize[0], _config.h), 
-            util::ceilDiv<int>(boxSize[1], _config.h), 
-            util::ceilDiv<int>(boxSize[2], _config.h) };
+            util::ceilDiv<int>(boxSize[0], ParticleSimulationConfig<FloatType>::h), 
+            util::ceilDiv<int>(boxSize[1], ParticleSimulationConfig<FloatType>::h), 
+            util::ceilDiv<int>(boxSize[2], ParticleSimulationConfig<FloatType>::h) };
         uint nCells = cellCounts[0] * cellCounts[1] * cellCounts[2] + 1;
-        uint TILE_SIZE = _config.TILE_SIZE;
+        uint TILE_SIZE = ParticleSimulationConfig<FloatType>::TILE_SIZE;
         uint nBlocks = (nCells + TILE_SIZE - 1) / TILE_SIZE;
         uint cellsLength = nBlocks * TILE_SIZE;
 
@@ -120,7 +120,7 @@ namespace ppb {
         _timings.reset();
 
         for (int i = 0; i < _config.numberTimeSteps; ++i) {
-            if (i % _config.interval_neighbor_search == 0) {
+            if (i % ParticleSimulationConfig<FloatType>::interval_neighbor_search == 0) {
                 resetCells(cells, nBlocks, cellsLength);
                 calculateHistogram({positions, cells, particleIdx}, cellCounts, boxMin, boxSize);
                 exclusiveScanBlelloch(cells, cellsLength);
@@ -181,7 +181,7 @@ namespace ppb {
 
     template <typename FloatType>
     void ImplVulkan<FloatType>::calculateHistogram(const std::vector<std::shared_ptr<kp::Tensor>> &params, std::array<int, 3> cellCounts, std::array<float, 3> boxMin, std::array<float, 3> boxSize) {
-        uint TILE_SIZE = _config.TILE_SIZE;
+        uint TILE_SIZE = ParticleSimulationConfig<FloatType>::TILE_SIZE;
         const uint groups = util::ceilDiv<uint>(_config.size, TILE_SIZE);
         kp::Workgroup workgroup{{groups, 1, 1}};
 
@@ -211,7 +211,7 @@ namespace ppb {
         const double elapsedNanoseconds =
             static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count());
 
-        if (_config.use_kompute_timestamps) {
+        if (ParticleSimulationConfig<FloatType>::use_kompute_timestamps) {
             _timings.neighborSearch += retrieve_timestamps();
         }
         else {
@@ -222,7 +222,7 @@ namespace ppb {
 
     template <typename FloatType>
     void ImplVulkan<FloatType>::exclusiveScanBlelloch(const std::shared_ptr<kp::Tensor> &data, const uint totalLength) {
-        uint TILE_SIZE = _config.TILE_SIZE;
+        uint TILE_SIZE = ParticleSimulationConfig<FloatType>::TILE_SIZE;
         // init blockSum buffer
         uint nBlocks = (totalLength + TILE_SIZE - 1) / TILE_SIZE;
         uint blockSumSize = ((nBlocks + TILE_SIZE - 1) / TILE_SIZE) * TILE_SIZE;
@@ -248,7 +248,7 @@ namespace ppb {
         const double elapsedNanosecondsBlelloch =
             static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(endBlelloch - startBlelloch).count());
 
-        if (_config.use_kompute_timestamps) {
+        if (ParticleSimulationConfig<FloatType>::use_kompute_timestamps) {
             _timings.neighborSearch += retrieve_timestamps();
         }
         else {
@@ -277,7 +277,7 @@ namespace ppb {
             const double elapsedNanosecondsBlock =
                 static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(endBlock - startBlock).count());
 
-            if (_config.use_kompute_timestamps) {
+            if (ParticleSimulationConfig<FloatType>::use_kompute_timestamps) {
                 _timings.neighborSearch += retrieve_timestamps();
             }
             else {
@@ -290,7 +290,7 @@ namespace ppb {
 
     template <typename FloatType>
     void ImplVulkan<FloatType>::calculateIdCells(const std::vector<std::shared_ptr<kp::Tensor>> &params) {
-        uint TILE_SIZE = _config.TILE_SIZE;
+        uint TILE_SIZE = ParticleSimulationConfig<FloatType>::TILE_SIZE;
         const uint groups = util::ceilDiv<uint>(_config.size, TILE_SIZE);
         kp::Workgroup workgroup{{groups, 1, 1}};
 
@@ -310,7 +310,7 @@ namespace ppb {
         const double elapsedNanoseconds =
             static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count());
 
-        if (_config.use_kompute_timestamps) {
+        if (ParticleSimulationConfig<FloatType>::use_kompute_timestamps) {
             _timings.neighborSearch += retrieve_timestamps();
         }
         else {
@@ -340,7 +340,7 @@ namespace ppb {
         const double elapsedNanoseconds =
             static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count());
 
-        if (_config.use_kompute_timestamps) {
+        if (ParticleSimulationConfig<FloatType>::use_kompute_timestamps) {
             _timings.neighborSearch += retrieve_timestamps();
         }
         else {
@@ -351,7 +351,7 @@ namespace ppb {
 
     template <typename FloatType>
     void ImplVulkan<FloatType>::updatePositionsAndResetForce(const std::vector<std::shared_ptr<kp::Tensor>> &params) {
-        uint TILE_SIZE = _config.TILE_SIZE;
+        uint TILE_SIZE = ParticleSimulationConfig<FloatType>::TILE_SIZE;
         const uint groups = util::ceilDiv<uint>(_config.size, TILE_SIZE);
         kp::Workgroup workgroup{{groups, 1, 1}};
 
@@ -375,7 +375,7 @@ namespace ppb {
         const double elapsed_nanoseconds =
             static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count());
 
-        if (_config.use_kompute_timestamps) {
+        if (ParticleSimulationConfig<FloatType>::use_kompute_timestamps) {
             _timings.positionUpdateForceResetTime += retrieve_timestamps();
         }
         else {
@@ -386,7 +386,7 @@ namespace ppb {
 
     template <typename FloatType>
     void ImplVulkan<FloatType>::updateVelocities(const std::vector<std::shared_ptr<kp::Tensor>> &params) {
-        uint TILE_SIZE = _config.TILE_SIZE;
+        uint TILE_SIZE = ParticleSimulationConfig<FloatType>::TILE_SIZE;
         const uint groups = util::ceilDiv<uint>(_config.size, TILE_SIZE);
         kp::Workgroup workgroup{{groups, 1, 1}};
 
@@ -407,7 +407,7 @@ namespace ppb {
         const double elapsed_nanoseconds =
             static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count());
 
-        if (_config.use_kompute_timestamps) {
+        if (ParticleSimulationConfig<FloatType>::use_kompute_timestamps) {
             _timings.velocityUpdateTime += retrieve_timestamps();
         }
         else {
@@ -418,7 +418,7 @@ namespace ppb {
 
     template <typename FloatType>
     void ImplVulkan<FloatType>::computeForces(const std::vector<std::shared_ptr<kp::Tensor>> &params, std::array<int, 3> cellCounts) {
-        uint TILE_SIZE = _config.TILE_SIZE;
+        uint TILE_SIZE = ParticleSimulationConfig<FloatType>::TILE_SIZE;
         const uint groups = util::ceilDiv<uint>(_config.size, TILE_SIZE);
         kp::Workgroup workgroup{{groups, 1, 1}};
 
@@ -441,7 +441,7 @@ namespace ppb {
         const double elapsed_nanoseconds =
             static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count());
 
-        if (_config.use_kompute_timestamps) {
+        if (ParticleSimulationConfig<FloatType>::use_kompute_timestamps) {
             _timings.forceUpdateTime += retrieve_timestamps();
         }
         else {

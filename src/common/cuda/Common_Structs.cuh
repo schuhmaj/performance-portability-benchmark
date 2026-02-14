@@ -32,9 +32,19 @@ namespace ppb {
     struct DeviceMemory {
         CUdeviceptr ptr = 0;
 
+        DeviceMemory() = default;
+
         DeviceMemory(size_t bytes) {
             CHECK(cuMemAlloc(&ptr, bytes));
         }
+
+        void alloc(size_t bytes) {
+            if (ptr) {
+                CHECK(cuMemFree(ptr));
+            }
+            CHECK(cuMemAlloc(&ptr, bytes));
+        }
+
         ~DeviceMemory() {
             if (ptr) {
                 CHECK(cuMemFree(ptr));
@@ -58,9 +68,7 @@ namespace ppb {
     //
     // When Slang compiles to PTX, each buffer pointer (CUdeviceptr) in the parameter block
     // is aligned to 16 bytes. This means that every 8 byte CUdeviceptr (pointing to a buffer)
-    // is followed by 8 bytes of padding. The CUdeviceptr pointing to global push constants is not
-    // followed by padding.
-    // After the ResourceSlots for the buffers comes a CUdeviceptr to Push Data.
+    // is followed by 8 bytes of padding. 
     //
     // Note:
     //  - When compiling from Slang -> PTX, the output .ptx file will include a line similar to
@@ -112,7 +120,7 @@ namespace ppb {
     };
 
     // ============================================================================================
-    // Structs used for matching memory layout between host and device.
+    // Structs used for matching memory layout between host and device for specific shaders.
     // ============================================================================================
 
     struct PushExclusive {
