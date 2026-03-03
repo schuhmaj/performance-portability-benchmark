@@ -21,8 +21,7 @@ layout(push_constant) uniform ParamsForce {
     uint numParticles;
 } pc;
 
-void main()
-{
+void main() {
     uint gid = gl_GlobalInvocationID.x;
     if (gid >= pc.numParticles) { return; }
 

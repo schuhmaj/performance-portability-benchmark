@@ -39,28 +39,17 @@ void computeMain(uint3 threadId : SV_DispatchThreadID)
 
     for (int dx = -1; dx <= 1; dx++) {
         int nx = cx + dx;
-        if (nx < 0 || nx >= pc.cCount_x) {
-            continue;
-        }
+        if (nx < 0 || nx >= pc.cCount_x) continue;
         for (int dy = -1; dy <= 1; dy++) {
             int ny = cy + dy;
-            if (ny < 0 || ny >= pc.cCount_y) {
-                continue;
-            }
+            if (ny < 0 || ny >= pc.cCount_y) continue;
             for (int dz = -1; dz <= 1; dz++) {
                 int nz = cz + dz;
-                if (nz < 0 || nz >= pc.cCount_z) {
-                    continue;
-                }
+                if (nz < 0 || nz >= pc.cCount_z) continue;
                 int cell = nx + ny * pc.cCount_x + nz * ccxy;
-                uint end;
-                if (cell + 1 < ccxyz) end = starts[cell + 1];
-                else end = pc.numParticles;
-                for (uint u = starts[cell]; u < end; u++) {
+                for (uint u = starts[cell]; u < starts[cell + 1]; u++) {
                     uint j = idCells[u];
-                    if (gid == j) {
-                        continue;
-                    }
+                    if (gid == j) continue;
                     float3 dr = pi - positions[j].xyz;
                     float dr2 = dot(dr.xyz, dr.xyz);
 
