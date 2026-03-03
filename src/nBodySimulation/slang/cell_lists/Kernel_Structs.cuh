@@ -38,14 +38,16 @@ namespace ppb {
 
     struct PushId {
         // buffers
+        ResourceSlot positions;
         ResourceSlot particleIdx;
-        ResourceSlot idCells;
         ResourceSlot starts;
+        ResourceSlot idCells;
+        ResourceSlot particleCells;
 
         // push constants
         CUdeviceptr pc;
     };
-    static_assert(sizeof(PushId) == 56, "PushId size mismatch!");
+    static_assert(sizeof(PushId) == 88, "PushId size mismatch!");
 
     struct IdPushConstants {
         uint32_t numParticles;
@@ -74,11 +76,12 @@ namespace ppb {
         ResourceSlot particleIdx;
         ResourceSlot starts;
         ResourceSlot idCells;
+        ResourceSlot particleCells;
 
         // push constants
         CUdeviceptr pc;
     };
-    static_assert(sizeof(PushFor) == 88, "PushPos size mismatch!");
+    static_assert(sizeof(PushFor) == 104, "PushPos size mismatch!");
 
     struct ForPushConstants {
         uint32_t numParticles;

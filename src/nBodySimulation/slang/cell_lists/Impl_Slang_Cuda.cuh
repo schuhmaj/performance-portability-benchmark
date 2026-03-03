@@ -28,6 +28,7 @@ namespace ppb {
         DeviceMemory cells;
         DeviceMemory particleIdx;
         DeviceMemory idCells;
+        DeviceMemory particleCells;
 
         std::vector<float4> positionsHost;
         std::vector<float4> velocitiesHost;

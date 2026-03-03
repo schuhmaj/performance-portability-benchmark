@@ -4,6 +4,7 @@ RWStructuredBuffer<float4> forces;
 StructuredBuffer<int2> particleIdx;
 StructuredBuffer<uint> starts;
 StructuredBuffer<uint> idCells;
+StructuredBuffer<float4> particleCells;
 
 struct GlobalParams
 {
@@ -50,7 +51,7 @@ void computeMain(uint3 threadId : SV_DispatchThreadID)
                 for (uint u = starts[cell]; u < starts[cell + 1]; u++) {
                     uint j = idCells[u];
                     if (gid == j) continue;
-                    float3 dr = pi - positions[j].xyz;
+                    float3 dr = pi - particleCells[u].xyz;
                     float dr2 = dot(dr.xyz, dr.xyz);
 
                     float invdr2 = 1.0 / dr2;

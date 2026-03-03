@@ -1,8 +1,9 @@
 // KernelIdCells.slang
+StructuredBuffer<float4> positions;
 StructuredBuffer<int2> particleIdx;
-RWStructuredBuffer<uint> idCells;
 StructuredBuffer<uint> starts;
-
+RWStructuredBuffer<uint> idCells;
+RWStructuredBuffer<float4> particleCells;
 
 struct GlobalParams
 {
@@ -26,4 +27,5 @@ void computeMain(uint3 threadId : SV_DispatchThreadID)
     uint idx = starts[cell] + slot;
 
     idCells[idx] = gid;
+    particleCells[idx].xyz = positions[gid].xyz;
 }

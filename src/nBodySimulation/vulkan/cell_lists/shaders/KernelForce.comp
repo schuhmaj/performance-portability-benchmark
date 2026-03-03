@@ -23,6 +23,10 @@ layout(std430, binding = 4) readonly buffer IdCells {
     uint idCells[];
 };
 
+layout(std430, binding = 5) readonly buffer ParticleCells {
+    vec4 particleCells[];
+};
+
 layout(push_constant) uniform ParamsForce {
     uint numParticles;
     int cCount_x;
@@ -63,7 +67,7 @@ void main() {
                 for (uint u = starts[cell]; u < starts[cell + 1]; u++) {
                     uint j = idCells[u];
                     if (gid == j) continue;
-                    vec3 dr = pi - positions[j].xyz;
+                    vec3 dr = pi - particleCells[u].xyz;
                     float dr2 = dot(dr.xyz, dr.xyz);
 
                     float invdr2 = 1.0 / dr2;

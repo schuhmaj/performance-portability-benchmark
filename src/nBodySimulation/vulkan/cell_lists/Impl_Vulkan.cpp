@@ -105,6 +105,7 @@ namespace ppb {
         std::vector<uint> cellsHost(cellsLength, 0);
         std::vector<int> particleIdxHost(particles.size() * 2, 0);
         std::vector<uint> idCellsHost(particles.size(), 0);
+        std::vector<float> particleCellsHost(particles.size() * 4, 0.0);
 
         auto positions = _manager.tensor(positionsHost);
         auto velocities = _manager.tensor(velocitiesHost);
@@ -114,22 +115,21 @@ namespace ppb {
         auto cells = _manager.tensor(cellsHost);
         auto particleIdx = _manager.tensor(particleIdxHost);
         auto idCells = _manager.tensor(idCellsHost);
+        auto particleCells = _manager.tensor(particleCellsHost);
 
-        std::vector<std::shared_ptr<kp::Tensor>> params = {positions, velocities, forces, oldForces, cells, particleIdx, idCells};
+        std::vector<std::shared_ptr<kp::Tensor>> params = {positions, velocities, forces, oldForces, cells, particleIdx, idCells, particleCells};
         _sequence->template record<kp::OpTensorSyncDevice>(params)->eval();
         _timings.reset();
 
         for (int i = 0; i < _config.numberTimeSteps; ++i) {
             updatePositionsAndResetForce({positions, velocities, forces, oldForces});
             
-            if (i % ParticleSimulationConfig<FloatType>::interval_neighbor_search == 0) {
-                resetCells(cells, nBlocks, cellsLength);
-                calculateHistogram({positions, cells, particleIdx}, cellCounts, boxMin, boxSize);
-                exclusiveScanBlelloch(cells, cellsLength);
-                calculateIdCells({particleIdx, idCells, cells});
-            }
+            resetCells(cells, nBlocks, cellsLength);
+            calculateHistogram({positions, cells, particleIdx}, cellCounts, boxMin, boxSize);
+            exclusiveScanBlelloch(cells, cellsLength);
+            calculateIdCells({positions, particleIdx, cells, idCells, particleCells});
 
-            computeForces({positions, forces, particleIdx, cells, idCells}, cellCounts);
+            computeForces({positions, forces, particleIdx, cells, idCells, particleCells}, cellCounts);
             updateVelocities({velocities, forces, oldForces});
         }
 

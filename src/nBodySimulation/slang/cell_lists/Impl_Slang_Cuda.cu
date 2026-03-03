@@ -43,6 +43,7 @@ namespace ppb {
         cells.alloc(sizeof(uint32_t) * cellsLength);
         particleIdx.alloc(sizeof(int2) * size);
         idCells.alloc(sizeof(uint32_t) * size);
+        particleCells.alloc(sizeof(float4) * size);
 
         CHECK(cuMemcpyHtoD(positions.ptr, positionsHost.data(), sizeof(float4) * size));
         CHECK(cuMemcpyHtoD(velocities.ptr, velocitiesHost.data(), sizeof(float4) * size));
@@ -52,6 +53,7 @@ namespace ppb {
         CHECK(cuMemsetD8(cells.ptr, 0, sizeof(uint32_t) * cellsLength));
         CHECK(cuMemsetD8(particleIdx.ptr, 0, sizeof(int2) * size));
         CHECK(cuMemsetD8(idCells.ptr, 0, sizeof(uint32_t) * size));
+        CHECK(cuMemsetD8(particleCells.ptr, 0, sizeof(float4) * size));
 
     }   
 
@@ -278,10 +280,12 @@ namespace ppb {
         CHECK(cuMemcpyHtoD(id_pc.ptr, &id_pc_host, sizeof(IdPushConstants)));
 
         PushId params_idCells{};
-        params_idCells.particleIdx = ResourceSlot{soa.particleIdx.ptr, 0};
-        params_idCells.idCells     = ResourceSlot{soa.idCells.ptr, 0};
-        params_idCells.starts      = ResourceSlot{soa.cells.ptr, 0};
-        params_idCells.pc          = id_pc.ptr;
+        params_idCells.positions     = ResourceSlot{soa.positions.ptr, 0};
+        params_idCells.particleIdx   = ResourceSlot{soa.particleIdx.ptr, 0};
+        params_idCells.starts        = ResourceSlot{soa.cells.ptr, 0};
+        params_idCells.idCells       = ResourceSlot{soa.idCells.ptr, 0};
+        params_idCells.particleCells = ResourceSlot{soa.particleCells.ptr, 0};
+        params_idCells.pc            = id_pc.ptr;
 
         // Parameters for KernelPosition.ptx
         PosPushConstants pos_pc_host{};
@@ -326,12 +330,13 @@ namespace ppb {
         CHECK(cuMemcpyHtoD(for_pc.ptr, &for_pc_host, sizeof(ForPushConstants)));
 
         PushFor params_force{};
-        params_force.positions   = ResourceSlot{soa.positions.ptr, 0};
-        params_force.forces      = ResourceSlot{soa.forces.ptr, 0};
-        params_force.particleIdx = ResourceSlot{soa.particleIdx.ptr, 0};
-        params_force.starts      = ResourceSlot{soa.cells.ptr, 0};
-        params_force.idCells     = ResourceSlot{soa.idCells.ptr, 0};
-        params_force.pc          = for_pc.ptr;
+        params_force.positions     = ResourceSlot{soa.positions.ptr, 0};
+        params_force.forces        = ResourceSlot{soa.forces.ptr, 0};
+        params_force.particleIdx   = ResourceSlot{soa.particleIdx.ptr, 0};
+        params_force.starts        = ResourceSlot{soa.cells.ptr, 0};
+        params_force.idCells       = ResourceSlot{soa.idCells.ptr, 0};
+        params_force.particleCells = ResourceSlot{soa.particleCells.ptr, 0};
+        params_force.pc            = for_pc.ptr;
 
         // =============================================================================
 
@@ -361,12 +366,10 @@ namespace ppb {
         for (int i = 0; i < _config.numberTimeSteps; ++i) {
             launchKernel(&module_position.kernel, _gridSizePerParticle, &_timings.positionUpdateForceResetTime);
             
-            if (i % ParticleSimulationConfig<FloatType>::interval_neighbor_search == 0) {
-                launchKernel(&module_resetCells.kernel, _gridSizePerCell, &_timings.neighborSearch);
-                launchKernel(&module_histogram.kernel, _gridSizePerParticle, &_timings.neighborSearch);
-                exclusiveScanBlelloch(soa.cellsLength, excl_cache);
-                launchKernel(&module_idCells.kernel, _gridSizePerParticle, &_timings.neighborSearch);
-            }
+            launchKernel(&module_resetCells.kernel, _gridSizePerCell, &_timings.neighborSearch);
+            launchKernel(&module_histogram.kernel, _gridSizePerParticle, &_timings.neighborSearch);
+            exclusiveScanBlelloch(soa.cellsLength, excl_cache);
+            launchKernel(&module_idCells.kernel, _gridSizePerParticle, &_timings.neighborSearch);
 
             launchKernel(&module_force.kernel, _gridSizePerParticle, &_timings.forceUpdateTime);
             launchKernel(&module_velocity.kernel, _gridSizePerParticle, &_timings.velocityUpdateTime);
