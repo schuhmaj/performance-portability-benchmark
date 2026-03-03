@@ -359,6 +359,8 @@ namespace ppb {
         const uint32_t _gridSizePerCell = util::ceilDiv<unsigned int>(soa.cellsLength, _blockSize);
 
         for (int i = 0; i < _config.numberTimeSteps; ++i) {
+            launchKernel(&module_position.kernel, _gridSizePerParticle, &_timings.positionUpdateForceResetTime);
+            
             if (i % ParticleSimulationConfig<FloatType>::interval_neighbor_search == 0) {
                 launchKernel(&module_resetCells.kernel, _gridSizePerCell, &_timings.neighborSearch);
                 launchKernel(&module_histogram.kernel, _gridSizePerParticle, &_timings.neighborSearch);
@@ -366,7 +368,6 @@ namespace ppb {
                 launchKernel(&module_idCells.kernel, _gridSizePerParticle, &_timings.neighborSearch);
             }
 
-            launchKernel(&module_position.kernel, _gridSizePerParticle, &_timings.positionUpdateForceResetTime);
             launchKernel(&module_force.kernel, _gridSizePerParticle, &_timings.forceUpdateTime);
             launchKernel(&module_velocity.kernel, _gridSizePerParticle, &_timings.velocityUpdateTime);
         }

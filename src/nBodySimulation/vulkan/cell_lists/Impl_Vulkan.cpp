@@ -120,6 +120,8 @@ namespace ppb {
         _timings.reset();
 
         for (int i = 0; i < _config.numberTimeSteps; ++i) {
+            updatePositionsAndResetForce({positions, velocities, forces, oldForces});
+            
             if (i % ParticleSimulationConfig<FloatType>::interval_neighbor_search == 0) {
                 resetCells(cells, nBlocks, cellsLength);
                 calculateHistogram({positions, cells, particleIdx}, cellCounts, boxMin, boxSize);
@@ -127,7 +129,6 @@ namespace ppb {
                 calculateIdCells({particleIdx, idCells, cells});
             }
 
-            updatePositionsAndResetForce({positions, velocities, forces, oldForces});
             computeForces({positions, forces, particleIdx, cells, idCells}, cellCounts);
             updateVelocities({velocities, forces, oldForces});
         }

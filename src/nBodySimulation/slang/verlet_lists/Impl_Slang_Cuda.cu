@@ -350,13 +350,14 @@ namespace ppb {
         const uint32_t _gridSize = util::ceilDiv<unsigned int>(_config.size, _blockSize);
 
         for (int i = 0; i < _config.numberTimeSteps; ++i) {
+            launchKernel(&module_position.kernel, _gridSize, &_timings.positionUpdateForceResetTime);
+            
             if (i % ParticleSimulationConfig<FloatType>::interval_neighbor_search == 0) {
                 launchKernel(&module_countNeighbors.kernel, _gridSize, &_timings.neighborSearch);
                 exclusiveScanBlelloch(soa.neighborsLength, excl_cache);
                 verletList = createVerletList(verletList, soa.neighbors.ptr, memory_verlet, &module_verlet.kernel, &params_verlet, memory_force, &params_force, _gridSize);
             }
 
-            launchKernel(&module_position.kernel, _gridSize, &_timings.positionUpdateForceResetTime);
             launchKernel(&module_force.kernel, _gridSize, &_timings.forceUpdateTime);
             launchKernel(&module_velocity.kernel, _gridSize, &_timings.velocityUpdateTime);
         }

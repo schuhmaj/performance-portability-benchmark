@@ -99,13 +99,14 @@ namespace ppb {
         std::shared_ptr<kp::Tensor> verletList;
 
         for (int i = 0; i < _config.numberTimeSteps; ++i) {
+            updatePositionsAndResetForce({positions, velocities, forces, oldForces});
+            
             if (i % ParticleSimulationConfig<FloatType>::interval_neighbor_search == 0) {
                 countNeighbors({positions, neighbors});
                 exclusiveScanBlelloch(neighbors, neighborsHost.size());
                 verletList = createVerletList(positions, neighbors);
             }
 
-            updatePositionsAndResetForce({positions, velocities, forces, oldForces});
             computeForces({positions, forces, verletList, neighbors});
             updateVelocities({velocities, forces, oldForces});
         }
