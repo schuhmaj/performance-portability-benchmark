@@ -62,7 +62,7 @@ function(slang_ptx_compile_shaders DIR_PATH OUT_TARGETS TARGET_NAME)
                 -target ptx
                 -entry computeMain
                 -o ${CMAKE_CURRENT_BINARY_DIR}/generated_shaders/${PTX_FILE}
-            DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/shaders/${SLANG_SLANG_FILE}
+            DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/shaders/${SLANG_FILE}
             COMMENT "Slang -> CUDA header (.ptx): ${stem}"
         )
         add_custom_target(generate_${TARGET_NAME}_${PTX_FILE} DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/generated_shaders/${PTX_FILE})

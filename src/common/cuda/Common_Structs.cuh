@@ -38,6 +38,8 @@ namespace ppb {
             }
             CUdevice device;
             CHECK(cuDeviceGet(&device, 0));
+            // WARNING: in older API versions, this command will not build. Instead try this:
+            // CHECK(cuCtxCreate(&ctx, 0, device));
             CHECK(cuCtxCreate(&ctx, nullptr, 0, device));
         }
 
