@@ -54,15 +54,15 @@ void main() {
     int cy = rem / pc.cCount_x;
     int cx = rem % pc.cCount_x;
 
-    for (int dx = -1; dx <= 1; dx++) {
-        int nx = cx + dx;
-        if (nx < 0 || nx >= pc.cCount_x) continue;
+    for (int dz = -1; dz <= 1; dz++) {
+        int nz = cz + dz;
+        if (nz < 0 || nz >= pc.cCount_z) continue;
         for (int dy = -1; dy <= 1; dy++) {
             int ny = cy + dy;
             if (ny < 0 || ny >= pc.cCount_y) continue;
-            for (int dz = -1; dz <= 1; dz++) {
-                int nz = cz + dz;
-                if (nz < 0 || nz >= pc.cCount_z) continue;
+            for (int dx = -1; dx <= 1; dx++) {
+                int nx = cx + dx;
+                if (nx < 0 || nx >= pc.cCount_x) continue;
                 int cell = nx + ny * pc.cCount_x + nz * ccxy;
                 for (uint u = starts[cell]; u < starts[cell + 1]; u++) {
                     uint j = idCells[u];

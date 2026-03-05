@@ -2,7 +2,7 @@
 StructuredBuffer<float4> positions;
 RWStructuredBuffer<float4> forces;
 StructuredBuffer<uint> verletLists;
-StructuredBuffer<uint> neighborsStarts;
+StructuredBuffer<uint> starts;
 
 struct GlobalParams
 {
@@ -17,8 +17,8 @@ void computeMain(uint3 threadId : SV_DispatchThreadID)
     uint gid = threadId.x;
     if (gid >= pc.numParticles) { return; }
 
-    uint start = neighborsStarts[gid];
-    uint end = neighborsStarts[gid + 1];
+    uint start = starts[gid];
+    uint end = starts[gid + 1];
 
     float3 acc = float3(0.0);
 

@@ -1,7 +1,7 @@
 // KernelVerlet.slang
 StructuredBuffer<float4> positions;
 RWStructuredBuffer<uint> verletLists;
-StructuredBuffer<uint> neighborsStarts;
+StructuredBuffer<uint> starts;
 
 struct GlobalParams
 {
@@ -17,8 +17,8 @@ void computeMain(uint3 threadId : SV_DispatchThreadID)
     uint gid = threadId.x;
     if (gid >= pc.numParticles) { return; }
 
-    uint index = neighborsStarts[gid];
-    uint end = neighborsStarts[gid + 1];
+    uint index = starts[gid];
+    uint end = starts[gid + 1];
 
     float3 pi = positions[gid].xyz;
     

@@ -10,7 +10,7 @@ layout(std430, binding = 1) buffer VerletLists {
 };
 
 layout(std430, binding = 2) readonly buffer NieghborsStarts {
-    uint neighborsStarts[];
+    uint starts[];
 };
 
 layout(push_constant) uniform ParamsPos {
@@ -22,8 +22,8 @@ void main() {
     uint gid = gl_GlobalInvocationID.x;
     if (gid >= pc.numParticles) { return; }
 
-    uint index = neighborsStarts[gid];
-    uint end = neighborsStarts[gid + 1];
+    uint index = starts[gid];
+    uint end = starts[gid + 1];
 
     vec3 pi = positions[gid].xyz;
     
