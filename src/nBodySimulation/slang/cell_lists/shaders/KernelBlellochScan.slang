@@ -19,14 +19,15 @@ void computeMain(uint3 threadId : SV_DispatchThreadID, uint3 threadIdInGroup : S
     uint lid = threadIdInGroup.x;
     uint block = groupId.x;
 
-    if (gid >= pc.total_size) {
-        return;
+    uint value = 0;
+    if (gid < pc.total_size) {
+        value = data[gid];
     }
 
     // -----------------------------------------------------------------------------------
     // load batch into shared memory
     // -----------------------------------------------------------------------------------
-    tile[lid] = data[gid];
+    tile[lid] = value;
     GroupMemoryBarrierWithGroupSync();
 
     // -----------------------------------------------------------------------------------
@@ -46,7 +47,6 @@ void computeMain(uint3 threadId : SV_DispatchThreadID, uint3 threadIdInGroup : S
     // -----------------------------------------------------------------------------------
     // downsweep
     // -----------------------------------------------------------------------------------
-    
     if (lid == pc.block_size - 1) {
         tile[pc.block_size - 1] = 0;
     }
@@ -65,5 +65,8 @@ void computeMain(uint3 threadId : SV_DispatchThreadID, uint3 threadIdInGroup : S
     // -----------------------------------------------------------------------------------
     // write back
     // -----------------------------------------------------------------------------------
-    data[gid] = tile[lid]; 
+    if (gid >= pc.total_size) {
+        return;
+    }
+    data[gid] = tile[lid];
 }
