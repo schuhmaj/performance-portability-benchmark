@@ -52,7 +52,7 @@ void computeMain(uint3 threadId : SV_DispatchThreadID)
                     uint j = idCells[u];
                     if (gid == j) continue;
                     float3 dr = pi - particleCells[u].xyz;
-                    float dr2 = dot(dr.xyz, dr.xyz);
+                    float dr2 = dot(dr, dr);
 
                     float invdr2 = 1.0 / dr2;
                     float lj6 = sigmaSquared * invdr2;
@@ -67,5 +67,5 @@ void computeMain(uint3 threadId : SV_DispatchThreadID)
         }
     }
 
-    forces[gid].xyz += acc.xyz;
+    forces[gid].xyz += acc;
 }

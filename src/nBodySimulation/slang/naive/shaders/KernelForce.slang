@@ -30,7 +30,7 @@ void computeMain(uint3 threadId : SV_DispatchThreadID)
         }
 
         float3 dr = pi - positions[j].xyz;
-        float dr2 = dot(dr.xyz, dr.xyz);
+        float dr2 = dot(dr, dr);
 
         float invdr2 = 1.0 / dr2;
         float lj6 = sigmaSquared * invdr2;
