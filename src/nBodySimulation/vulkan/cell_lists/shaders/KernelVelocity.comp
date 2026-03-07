@@ -31,5 +31,5 @@ void main() {
     float t2m = pc.dt / (2.0 * m);
     vec3 velChange = force * t2m;
 
-    velocities[gid].xyz += velChange.xyz;
+    velocities[gid].xyz += velChange;
 }

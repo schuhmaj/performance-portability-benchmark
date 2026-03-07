@@ -44,5 +44,5 @@ void main() {
     vec3 forcePart = force * tt2m;
     vec3 displacement = velocityPart + forcePart;
 
-    positions[gid].xyz += displacement.xyz;
+    positions[gid].xyz += displacement;
 }

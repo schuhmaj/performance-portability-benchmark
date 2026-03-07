@@ -36,5 +36,5 @@ void computeMain(uint3 threadId : SV_DispatchThreadID)
     float3 forcePart = force * tt2m;
     float3 displacement = velocityPart + forcePart;
 
-    positions[gid].xyz += displacement.xyz;
+    positions[gid].xyz += displacement;
 }

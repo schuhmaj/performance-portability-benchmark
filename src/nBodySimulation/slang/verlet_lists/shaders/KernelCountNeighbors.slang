@@ -26,7 +26,7 @@ void computeMain(uint3 threadId : SV_DispatchThreadID)
         if (i == gid) { continue; }
         // calculate distance to see if this particle is a neighbor
         float3 dr = pi - positions[i].xyz;
-        float dr2 = dot(dr.xyz, dr.xyz);
+        float dr2 = dot(dr, dr);
         if (dr2 < pc.radius * pc.radius) {
             // if the particle is close enough, add it
             neighbors += 1;

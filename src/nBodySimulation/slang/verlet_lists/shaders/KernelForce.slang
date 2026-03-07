@@ -43,5 +43,5 @@ void computeMain(uint3 threadId : SV_DispatchThreadID)
         acc += dr * fac;
     }
 
-    forces[gid].xyz += acc;
+    forces[gid].xyz = acc;
 }

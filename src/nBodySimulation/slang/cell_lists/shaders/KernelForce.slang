@@ -67,5 +67,5 @@ void computeMain(uint3 threadId : SV_DispatchThreadID)
         }
     }
 
-    forces[gid].xyz += acc;
+    forces[gid].xyz = acc;
 }
