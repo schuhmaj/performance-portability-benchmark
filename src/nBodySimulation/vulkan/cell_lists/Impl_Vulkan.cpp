@@ -30,7 +30,6 @@ namespace ppb {
     static uint kernel_calls(const ParticleSimulationConfig<FloatType> &config) {
         uint number_kernels_each_frame = 3;
         int iterations = config.numberTimeSteps;
-        uint interval = config.interval_neighbor_search;
 
         std::array<float, 3> boxMin = config.boxMin;
         std::array<float, 3> boxMax = config.boxMax;
@@ -45,9 +44,7 @@ namespace ppb {
         uint cellsLength = nBlocks * TILE_SIZE;
         uint number_kernels_neighbor_search = 3 + blelloch_executions(cellsLength, TILE_SIZE);
 
-        uint countNeighborSearch = util::ceilDiv<uint>(iterations, interval);
-
-        return number_kernels_each_frame * iterations + countNeighborSearch * number_kernels_neighbor_search;
+        return (number_kernels_each_frame + number_kernels_neighbor_search) * iterations;
     }
 
     template <typename FloatType>
