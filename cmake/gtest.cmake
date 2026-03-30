@@ -1,13 +1,8 @@
 include(FetchContent)
-
-message(STATUS "Setting up gtest")
-
-include(FetchContent)
-
 message(STATUS "Setting up Google Benchmark")
 set(GOOGLE_TEST_VERSION 1.17.0)
 
-find_package(GTest ${GOOGLE_BENCHMARK_VERSION} QUIET)
+find_package(GTest ${GOOGLE_TEST_VERSION} QUIET)
 
 if (${GTest_FOUND})
         message(STATUS "Found existing Google Test: ${GTEST_INCLUDE_DIRS}")
