@@ -6,7 +6,7 @@
 #SBATCH --mail-type=ALL
 #SBATCH -o log_%j.out
 #SBATCH -e log_%j.err
-#SBATCH --container-images=/dss/dsshome1/0B/ge25zov/enroot/nvhpc-dev.sqsh
+#SBATCH --container-image=/dss/dsshome1/0B/ge25zov/enroot/nvhpc-dev.sqsh
 #SBATCH --container-mounts=/dss/dsshome1/0B/ge25zov/performance-portability-benchmark:/home/schuhmaj/performance-portability-benchmark,/dss/dsshome1/0B/ge25zov/tmp/.acpp:/home/schuhmaj/.acpp,/dss/dsshome1/0B/ge25zov/tmp/.cache:/home/schuhmaj/.cache
 
 
