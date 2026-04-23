@@ -1,0 +1,471 @@
+#version 450
+#extension GL_EXT_shader_atomic_float : require
+
+#ifndef FloatType
+#define FloatType double
+#define FloatType3 dvec3
+#define FloatType4 dvec4
+#define FloatTypeM dmat3
+#define FloatTypeM23 dmat2x3
+#endif
+
+layout (local_size_x = 32) in;
+shared FloatType partialSumPotential[32];
+shared FloatType3 partialSumAcceleration[32];
+shared FloatType partialSumGradiometricTensor[6 * 32];
+
+layout(binding = 0) readonly buffer bufVertices { FloatType3 vertices[]; };
+layout(binding = 1) readonly buffer bufFaces { uvec3 faces[]; };
+
+layout(binding = 2) readonly buffer bufNormals {  FloatType3 normals[]; };
+layout(binding = 3) readonly buffer bufSegmentVectors {  FloatTypeM segmentVectors[]; };
+layout(binding = 4) readonly buffer bufSegmentNormals { FloatTypeM segmentNormals[]; };
+
+layout(binding = 5) buffer bufPotential { FloatType potential; };
+layout(binding = 6) buffer bufAcceleration { FloatType3 acceleration; };
+layout(binding = 7) buffer bufGradiometricTensor { FloatType gradiometricTensor[]; };
+
+layout(push_constant) uniform PushConstants {
+    FloatType3 point;
+    uint num_faces;
+} push_const;
+
+struct Distance {
+    FloatType l1;
+    FloatType l2;
+    FloatType s1;
+    FloatType s2;
+};
+
+struct TranscendentalExpression {
+    FloatType ln;
+    FloatType an;
+};
+
+struct Singularity {
+    FloatType a;
+    FloatType3 b;
+};
+
+FloatType3 normal(FloatType3 first, FloatType3 second) {
+    return normalize(cross(first, second));
+}
+
+const FloatType EPSILON_ZERO_OFFSET =  1e-14;
+const FloatType PI = 3.1415926535897932384626433832795028841971693993751058209749445923;
+const FloatType PI2 = 6.2831853071795864769252867665590057683943387987502116419498891846;
+const FloatType PI_2 = 1.5707963267948966192313216916397514420985846996875529104874722961;
+
+int sgn(FloatType val) {
+    return val < -EPSILON_ZERO_OFFSET ? -1 : val > EPSILON_ZERO_OFFSET ? 1 : 0;
+}
+
+Singularity compute_singularities(
+    uint face_index,
+    ivec3 segmentNormalOrientations,
+    FloatType3 projectionPointVertexNorms,
+    FloatType planeDistance,
+    int planeNormalOrientation
+) {
+    Singularity singularities;
+
+    if (
+        segmentNormalOrientations[0] == 1 &&
+        segmentNormalOrientations[1] == 1 &&
+        segmentNormalOrientations[2] == 1
+    ) {
+        //sing alpha = -2pi*h_p
+        singularities.a = -1.0 * PI2 * planeDistance;
+
+        //sing beta  = -2pi*sigma_p*N_p
+        singularities.b = normals[face_index] * (-1.0 * PI2 * planeNormalOrientation);
+        return singularities;
+    }
+
+    // 2. Case: If sigma_pq == 0 AND norm(P' - v1) < norm(G_ij) && norm(P' - v2) < norm(G_ij) with G_ij
+    // as the vector of v1 and v2
+    // then P' is located on one line segment G_p of plane p, but not on any of its vertices
+    bvec3 onLine;
+    for (int i = 0; i < 3; ++i) {
+        if (segmentNormalOrientations[i] != 0) {
+            onLine[i] = false;
+            continue;
+        }
+        FloatType segmentVectorNorm = length(segmentVectors[face_index][i]);
+        onLine[i] = projectionPointVertexNorms[(i + 1) % 3] < segmentVectorNorm && projectionPointVertexNorms[i] < segmentVectorNorm;
+    }
+
+    if (any(onLine)) {
+        singularities.a = -1.0 * PI * planeDistance;                        //sing alpha = -pi*h_p
+        singularities.b = normals[face_index] * (-1.0 * PI * planeNormalOrientation);//sing beta  = -pi*sigma_p*N_p
+        return singularities;
+    }
+
+    // 3. Case If sigma_pq == 0 AND norm(P' - v1) < 0 || norm(P' - v2) < 0
+    // then P' is located at one of G_p's vertices
+    for (int i = 0; i < 3; ++i) {
+        if (segmentNormalOrientations[i] != 0) {
+            continue;
+        }
+
+        FloatType r1Norm = projectionPointVertexNorms[(i + 1) % 3];
+        FloatType r2Norm = projectionPointVertexNorms[i];
+
+        if (!(r1Norm < EPSILON_ZERO_OFFSET || r2Norm < EPSILON_ZERO_OFFSET)) {
+            continue;
+        }
+
+        FloatType3 g1 = r1Norm == 0.0 ? segmentVectors[face_index][i] : segmentVectors[face_index][(i - 1 + 3) % 3];
+        FloatType3 g2 = r1Norm == 0.0 ? segmentVectors[face_index][(i + 1) % 3] : segmentVectors[face_index][i];
+        // theta = arcos((G_2 * -G_1) / (|G_2| * |G_1|))
+        FloatType gdot = dot(g1 * -1.0, g2);
+
+        // MARKER: FloatType -> float conversion
+        FloatType theta = gdot == 0.0 ? PI_2 : acos(float(gdot / (length(g1) * length(g2))));
+
+        singularities.a = -1.0 * theta * planeDistance;                        //sing alpha = -theta*h_p
+        singularities.b = normals[face_index] * (-1.0 * theta * planeNormalOrientation);//sing beta  = -theta*sigma_p*N_p
+        return singularities;
+    }
+
+    singularities.a = 0.0;
+    singularities.b = FloatType3(0.0, 0.0, 0.0);
+    return singularities;
+}
+
+void main() {
+    uint face_index = gl_GlobalInvocationID.x;
+    uint localId = gl_LocalInvocationID.x;
+
+    if (face_index >= push_const.num_faces) {
+//        partialSumPotential[localId] = 0.0;
+//        partialSumAcceleration[localId] = FloatType3(0.0, 0.0, 0.0);
+        return;
+    }
+
+    FloatType3 face[3] = {
+        vertices[faces[face_index][0]] - push_const.point,
+        vertices[faces[face_index][1]] - push_const.point,
+        vertices[faces[face_index][2]] - push_const.point
+    };
+
+    // 1-04 Step: Compute Plane Normal Orientation sigma_p
+    int planeNormalOrientation = sgn(dot(normals[face_index], face[0]));
+
+    // 1-05 Step: Compute Hessian Normal Plane Representation
+    FloatType4 hessianPlane;
+    {
+        FloatType3 origin = FloatType3(0.0, 0.0, 0.0);
+        FloatType3 crossProduct = cross(face[0] - face[1], face[0] - face[2]);
+        FloatType3 res = (origin - face[0]) * crossProduct;
+        FloatType d = res[0] + res[1] + res[2];
+
+        hessianPlane.xyz = crossProduct;
+        hessianPlane.w = d;
+    }
+
+    // 1-06 Step: Compute distance h_p between P and P'
+    FloatType planeDistance = abs(hessianPlane.w / sqrt(hessianPlane.x * hessianPlane.x + hessianPlane.y * hessianPlane.y + hessianPlane.z * hessianPlane.z));
+
+    // 1-07 Step: Compute the actual position of P' (projection of P on the plane)
+
+    //Calculate the projection point by (22) P'_ = N_i / norm(N_i) * h_i
+    // norm(N_i) is always 1 since N_i is a "normed" vector --> we do not need this division
+    FloatType3 orthogonalProjectionPointOnPlane = normals[face_index] * planeDistance;
+    {
+        //Calculate alpha, beta and gamma as D/A, D/B and D/C (Notice that we "forget" the minus before those
+        // divisions. In consequence, the conditions for signs are reversed below!!!)
+        // These values represent the intersections of each polygonal plane with the axes
+        // Comparison x == 0.0 is ok, since we only want to avoid nan values
+        FloatType3 intersections = FloatType3(
+            hessianPlane.x == 0.0 ? 0.0 : hessianPlane.w / hessianPlane.x,
+            hessianPlane.y == 0.0 ? 0.0 : hessianPlane.w / hessianPlane.y,
+            hessianPlane.z == 0.0 ? 0.0 : hessianPlane.w / hessianPlane.z
+        );
+
+        //Determine the signs of the coordinates of P' according to the intersection values alpha, beta, gamma
+        // denoted as __ below, i.e. -alpha, -beta, -gamma denoted -__
+        for(int i=0;i<3;++i) {
+            if (intersections[i] < 0) {
+                //If -__ >= 0 --> __ < 0 then coordinates are positive, we calculate abs(orthogonalProjectionPoint[..])
+                orthogonalProjectionPointOnPlane[i] = abs(orthogonalProjectionPointOnPlane[i]);
+            } else {
+                //The coordinates need to be controlled
+                if (orthogonalProjectionPointOnPlane[i] > 0) {
+                    //If -__ < 0 --> __ >= 0 then the coordinate is negative -orthogonalProjectionPoint[..]
+                    orthogonalProjectionPointOnPlane[i] = -1.0 * orthogonalProjectionPointOnPlane[i];
+                } else {
+                    //Else the coordinate is positive orthogonalProjectionPoint[..]
+                    orthogonalProjectionPointOnPlane[i] = orthogonalProjectionPointOnPlane[i];
+                }
+            }
+        }
+    }
+
+    // 1-08 Step: Compute the segment normal orientation sigma_pq (direction of n_pq in relation to P')
+    ivec3 segmentNormalOrientations;
+    for(int i=0;i<3;++i) {
+        segmentNormalOrientations[i] = -sgn(dot(segmentNormals[face_index][i], orthogonalProjectionPointOnPlane - face[i]));
+    }
+
+    // 1-09 Step: Compute the orthogonal projection point P'' of P' on each segment
+    FloatTypeM orthogonalProjectionPointsOnSegmentsForPlane;
+    for(int i=0;i<3;++i) {
+        if (segmentNormalOrientations[i] == 0) {
+            // Geometrically trivial case, in neither of the half space --> already on segment
+            orthogonalProjectionPointsOnSegmentsForPlane[i] = orthogonalProjectionPointOnPlane;
+        } else {
+            // In one of the half space, evaluate the projection point P'' for the segment with the endpoints v1 and v2
+            FloatType3 vertex1 = face[i];
+            FloatType3 vertex2 = face[(i + 1) % 3];
+
+            FloatType3 matrixRow1 = vertex2 - vertex1;
+            FloatType3 matrixRow2 = cross(vertex1 - orthogonalProjectionPointOnPlane, matrixRow1);
+            FloatType3 matrixRow3 = cross(matrixRow2, matrixRow1);
+
+            FloatType3 d = FloatType3(
+                dot(matrixRow1, orthogonalProjectionPointOnPlane),
+                dot(matrixRow2, orthogonalProjectionPointOnPlane),
+                dot(matrixRow3, vertex1)
+            );
+
+            FloatTypeM columnMatrix = transpose(FloatTypeM(matrixRow1, matrixRow2, matrixRow3));
+
+            // Calculation and solving the equations of above
+            FloatType det = determinant(columnMatrix);
+
+            if (det != 0.0) {
+                orthogonalProjectionPointsOnSegmentsForPlane[i] = FloatType3(
+                determinant(FloatTypeM(d, columnMatrix[1], columnMatrix[2])),
+                determinant(FloatTypeM(columnMatrix[0], d, columnMatrix[2])),
+                determinant(FloatTypeM(columnMatrix[0], columnMatrix[1], d))
+                ) / det;
+            }
+        }
+    }
+
+    // 1-10 Step: Compute the segment distances h_pq between P'' and P'
+    FloatType3 segmentDistances;
+    for(int i=0;i<3;++i) {
+        segmentDistances[i] = length(orthogonalProjectionPointsOnSegmentsForPlane[i] - orthogonalProjectionPointOnPlane);
+    }
+
+    // 1-11 Step: Compute the 3D distances l1, l2 (between P and vertices) and 1D distances s1, s2 (between P'' and vertices)
+    Distance distances[3];
+    for(int i=0;i<3;++i) {
+        // Calculate the 3D distances between P (0, 0, 0) and
+        // the segment endpoints face[j] and face[(j + 1) % 3])
+        distances[i].l1 = length(face[i]);
+        distances[i].l2 = length(face[(i + 1) % 3]);
+
+        // Calculate the 1D distances between P'' (every segment has its own) and
+        // the segment endpoints face[j] and face[(j + 1) % 3])
+        distances[i].s1 = length(orthogonalProjectionPointsOnSegmentsForPlane[i] - face[i]);
+        distances[i].s2 = length(orthogonalProjectionPointsOnSegmentsForPlane[i] - face[(i + 1) % 3]);
+
+        /*
+         * Additional remark:
+         * Details on these conditions are in the second paper referenced in the README.md (Tsoulis, 2021)
+         * The numbering of these conditions is equal to the numbering scheme of the paper
+         * Assign a sign to those magnitudes depending on the relative position of P'' to the two
+         * segment endpoints
+        */
+
+        //4. Option: |s1 - l1| == 0 && |s2 - l2| == 0 Computation point P is located from the beginning on
+        // the direction of a specific segment (P coincides with P' and P'')
+        if (abs(distances[i].s1 - distances[i].l1) < EPSILON_ZERO_OFFSET &&
+            abs(distances[i].s2 - distances[i].l2) < EPSILON_ZERO_OFFSET) {
+            //4. Option - Case 2: P is located on the segment from its right side
+            // s1 = -|s1|, s2 = -|s2|, l1 = -|l1|, l2 = -|l2|
+            if (distances[i].s2 < distances[i].s1) {
+                distances[i].s1 *= -1.0;
+                distances[i].s2 *= -1.0;
+                distances[i].l1 *= -1.0;
+                distances[i].l2 *= -1.0;
+            } else if (abs(distances[i].s2 - distances[i].s1) < EPSILON_ZERO_OFFSET) {
+            //4. Option - Case 1: P is located inside the segment (s2 == s1)
+            // s1 = -|s1|, s2 = |s2|, l1 = -|l1|, l2 = |l2|
+            distances[i].s1 *= -1.0;
+            distances[i].l1 *= -1.0;
+            }
+            //4. Option - Case 3: P is located on the segment from its left side
+            // s1 = |s1|, s2 = |s2|, l1 = |l1|, l2 = |l2| --> Nothing to do!
+            } else {
+            const FloatType norm = length(segmentVectors[face_index][i]);
+            if (distances[i].s1 < norm && distances[i].s2 < norm) {
+                //1. Option: |s1| < |G_ij| && |s2| < |G_ij| Point P'' is situated inside the segment
+                // s1 = -|s1|, s2 = |s2|, l1 = |l1|, l2 = |l2|
+                distances[i].s1 *= -1.0;
+            } else if (distances[i].s2 < distances[i].s1) {
+                //2. Option: |s2| < |s1| Point P'' is on the right side of the segment
+                // s1 = -|s1|, s2 = -|s2|, l1 = |l1|, l2 = |l2|
+                distances[i].s1 *= -1.0;
+                distances[i].s2 *= -1.0;
+            }
+            //3. Option: |s1| < |s2| Point P'' is on the left side of the segment
+            // s1 = |s1|, s2 = |s2|, l1 = |l1|, l2 = |l2| --> Nothing to do!
+            }
+    }
+
+    // 1-12 Step: Compute the euclidian Norms of the vectors consisting of P and the vertices they are later used for determining the position of P in relation to the plane
+    FloatType3 projectionPointVertexNorms = FloatType3(
+        length(orthogonalProjectionPointOnPlane - face[0]),
+        length(orthogonalProjectionPointOnPlane - face[1]),
+        length(orthogonalProjectionPointOnPlane - face[2])
+    );
+
+    TranscendentalExpression transcendentalExpressions[3];
+
+    for(int i=0;i<3;++i) {
+        // Computation of the norm of P' and segment endpoints
+        // If the one of the norms == 0 then P' lies on the corresponding vertex and coincides with P''
+        FloatType r1Norm = projectionPointVertexNorms[(i + 1) % 3];
+        FloatType r2Norm = projectionPointVertexNorms[i];
+
+        //Compute LN_pq according to (14)
+        // If sigma_pq == 0 && either of the distances of P' to the two segment endpoints == 0 OR
+        // the 1D and 3D distances are smaller than some EPSILON
+        // then LN_pq can be set to zero
+        if ((segmentNormalOrientations[i] == 0 && (r1Norm < EPSILON_ZERO_OFFSET || r2Norm < EPSILON_ZERO_OFFSET)) ||
+                (abs(distances[i].s1 + distances[i].s2) < EPSILON_ZERO_OFFSET &&
+        abs(distances[i].l1 + distances[i].l2) < EPSILON_ZERO_OFFSET)) {
+        transcendentalExpressions[i].ln = 0.0;
+        } else {
+        //Implementation of
+        // log((s2_pq + l2_pq) / (s1_pq + l1_pq))
+            FloatType inner_num = distances[i].s2 + distances[i].l2;
+            FloatType inner_denom = distances[i].s1 + distances[i].l1;
+
+
+            if (inner_num <= 0.0 || inner_denom <= 0.0) { // TODO: figure out why, to avoid -inf and -nan
+                transcendentalExpressions[i].ln = 0.0;
+            } else {
+                FloatType log_val = inner_num / inner_denom;
+
+                // MARKER: FloatType -> float conversion
+                transcendentalExpressions[i].ln = log(float(log_val));
+            }
+        }
+
+        //Compute AN_pq according to (15)
+        // If h_p == 0 or h_pq == 0 then AN_pq is zero, too (distances are always positive!)
+        if (planeDistance < EPSILON_ZERO_OFFSET || segmentDistances[i] < EPSILON_ZERO_OFFSET) {
+            transcendentalExpressions[i].an = 0.0;
+        } else {
+            //Implementation of:
+            // atan(h_p * s2_pq / h_pq * l2_pq) - atan(h_p * s1_pq / h_pq * l1_pq)
+
+            FloatType frac1 = (planeDistance * distances[i].s2) / (segmentDistances[i] * distances[i].l2);
+            FloatType frac2 = (planeDistance * distances[i].s1) / (segmentDistances[i] * distances[i].l1);
+
+            // MARKER: FloatType -> float conversion
+            transcendentalExpressions[i].an = atan(float(frac1)) - atan(float(frac2));
+        }
+    }
+
+    //    1-14 Step: Compute the singularities sing A and sing B if P' is located in the plane, on any vertex, or on one segment (G_pq)
+    bvec3 onLine;
+    for (int i = 0; i < 3; ++i) {
+        if (segmentNormalOrientations[i] != 0) {
+            continue;
+        }
+        const FloatType segmentVectorNorm = length(segmentVectors[face_index][i]);
+        onLine[i] = projectionPointVertexNorms[(i + 1) % 3] < segmentVectorNorm && projectionPointVertexNorms[i] < segmentVectorNorm;
+    }
+
+    Singularity singularities = compute_singularities(
+        face_index,
+        segmentNormalOrientations,
+        projectionPointVertexNorms,
+        planeDistance,
+        planeNormalOrientation
+    );
+
+    // 2. Step: Compute Sum 1 used for potential and acceleration (first derivative)
+    // sum over: sigma_pq * h_pq * LN_pq
+    // --> Equation 11/12 the first summation in the brackets
+    FloatType sum1PotentialAcceleration = 0.0;
+    for (int i = 0; i < 3; ++i)
+        sum1PotentialAcceleration += segmentNormalOrientations[i] * segmentDistances[i] * transcendentalExpressions[i].ln;
+
+
+    // 3. Step: Compute Sum 1 used for the gradiometric tensor (second derivative)
+    // sum over: n_pq * LN_pq
+    // --> Equation 13 the first summation in the brackets
+    FloatType3 sum1Tensor = FloatType3(0.0, 0.0, 0.0);
+    for (int i = 0; i < 3; ++i)
+        sum1Tensor = sum1Tensor + segmentNormals[face_index][i] * transcendentalExpressions[i].ln;
+
+    // 4. Step: Compute Sum 2 which is the same for every result parameter
+    FloatType sum2 = 0.0;
+    for (int i = 0; i < 3; ++i)
+        sum2 += segmentNormalOrientations[i] * transcendentalExpressions[i].an;
+
+    // 5. Step: Sum for potential and acceleration
+    // consisting of: sum1 + h_p * sum2 + sing A
+    // --> Equation 11/12 the total sum of the brackets
+    const FloatType planeSumPotentialAcceleration = sum1PotentialAcceleration + planeDistance * sum2 + singularities.a;
+
+    // 6. Step: Sum for tensor
+    // consisting of: sum1 + sigma_p * N_p * sum2 + sing B
+    // --> Equation 13 the total sum of the brackets
+    const FloatType3 subSum = (sum1Tensor + ( normals[face_index] * (planeNormalOrientation * sum2))) + singularities.b;
+    // first component: trivial case Vxx, Vyy, Vzz --> just N_p * subSum
+    // 00, 11, 22 --> xx, yy, zz with x as 0, y as 1, z as 2
+    const FloatType3 first =  normals[face_index] * subSum;
+    // second component: reordering required to build Vxy, Vxz, Vyz
+    // 01, 02, 12 --> xy, xz, yz with x as 0, y as 1, z as 2
+    const FloatType3 reorderedNp = { normals[face_index][0],  normals[face_index][0],  normals[face_index][1]};
+    const FloatType3 reorderedSubSum = {subSum[1], subSum[2], subSum[2]};
+    const FloatType3 second = reorderedNp * reorderedSubSum;
+
+    // 7. Step: Multiply with prefix
+    // Equation (11): sigma_p * h_p * sum
+    FloatType r_potential = planeNormalOrientation * planeDistance * planeSumPotentialAcceleration;
+
+    FloatType3 r_acceleration = normals[face_index] * planeSumPotentialAcceleration;
+
+    uint groupSize = gl_WorkGroupSize.x;
+    partialSumPotential[localId] = r_potential;
+    partialSumAcceleration[localId] = r_acceleration;
+
+    partialSumGradiometricTensor[localId * 6 + 0] = first[0];
+    partialSumGradiometricTensor[localId * 6 + 1] = first[1];
+    partialSumGradiometricTensor[localId * 6 + 2] = first[2];
+
+    partialSumGradiometricTensor[localId * 6 + 3] = second[0];
+    partialSumGradiometricTensor[localId * 6 + 4] = second[1];
+    partialSumGradiometricTensor[localId * 6 + 5] = second[2];
+
+    barrier();
+
+    for (uint stride = groupSize / 2; stride > 0; stride /= 2) {
+        if (localId < stride) {
+            partialSumPotential[localId] += partialSumPotential[localId + stride];
+            partialSumAcceleration[localId] += partialSumAcceleration[localId + stride];
+            for (int i = 0; i < 6; ++i)
+                partialSumGradiometricTensor[localId * 6 + i] += partialSumGradiometricTensor[(localId + stride) * 6 + 1];
+        }
+        barrier();
+    }
+
+    if (localId == 0) {
+        atomicAdd(potential, partialSumPotential[0]);
+
+        atomicAdd(acceleration.x, partialSumAcceleration[0].x);
+        atomicAdd(acceleration.y, partialSumAcceleration[0].y);
+        atomicAdd(acceleration.z, partialSumAcceleration[0].z);
+
+        for (int i = 0; i < 6; ++i)
+            atomicAdd(gradiometricTensor[i], partialSumGradiometricTensor[i]);
+    }
+
+    // Equation (12): N_p * sum
+//    results[face_index].acceleration = normals[face_index] * planeSumPotentialAcceleration;
+
+//    atomicAdd(accResult, r);
+
+
+    //    results[face_index].potential = planeNormalOrientation * planeDistance * planeSumPotentialAcceleration;
+    //    results[face_index].acceleration = normals[face_index] * planeSumPotentialAcceleration;
+}

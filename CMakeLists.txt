@@ -68,6 +68,7 @@ option(PPB_ENABLE_Alpaka "Enable Alpaka" OFF)
 option(PPB_ENABLE_VectorAddition "Enable VectorAddition Benchmarks" ON)
 option(PPB_ENABLE_MatrixMultiplication "Enable MatrixMultiplication Benchmarks" ON)
 option(PPB_ENABLE_NBodySimulation "Enable NBodySimulation Benchmarks" OFF)
+option(PPB_ENABLE_PolyhedralGravity "Enable PolyhedralGravity Benchmarks" OFF)
 option(PPB_ENABLE_Testing "Enable Testing" ON)
 
 message(STATUS "####################################################")
@@ -89,6 +90,7 @@ message(STATUS "####################################################")
 message(STATUS "VectorAddition                  ${PPB_ENABLE_VectorAddition}")
 message(STATUS "MatrixMultiplication            ${PPB_ENABLE_MatrixMultiplication}")
 message(STATUS "NBodySimulation                 ${PPB_ENABLE_NBodySimulation}")
+message(STATUS "PolyhedralGravity               ${PPB_ENABLE_PolyhedralGravity}")
 message(STATUS "Testing                         ${PPB_ENABLE_Testing}")
 message(STATUS "####################################################")
 
@@ -115,17 +117,31 @@ if (${PPB_ENABLE_Boost} OR ${PPB_ENABLE_AdaptiveCpp})
     include(boost)
 endif ()
 
-# OpenCL Inclusion
 if (${PPB_ENABLE_OpenCL})
     find_package(OpenCL REQUIRED)
+    if (APPLE AND TARGET OpenCL::OpenCL)
+        # Inject the Homebrew C++ headers into the OpenCL target
+        find_path(OpenCL_CXX_INCLUDE_DIR
+                NAMES CL/opencl.hpp
+                HINTS
+                /opt/homebrew/opt/opencl-clhpp-headers/include
+                /opt/homebrew/include
+                /usr/local/include
+                /opt/local/include
+        )
+        if (OpenCL_CXX_INCLUDE_DIR)
+            message(STATUS "Found OpenCL C++ bindings at: ${OpenCL_CXX_INCLUDE_DIR}")
+            target_include_directories(OpenCL::OpenCL INTERFACE "${OpenCL_CXX_INCLUDE_DIR}")
+        else()
+            message(WARNING "Could not find CL/opencl.hpp. Please install opencl-clhpp-headers.")
+        endif()
+    endif()
 endif()
 
-# OpenMP Inclusion
 if (${PPB_ENABLE_OpenMP})
     find_package(OpenMP REQUIRED)
 endif ()
 
-# OpenACC Inclusion
 if (${PPB_ENABLE_OpenACC})
     if(CMAKE_CXX_COMPILER_ID STREQUAL "NVHPC")
         find_package(OpenACC REQUIRED)
@@ -134,22 +150,18 @@ if (${PPB_ENABLE_OpenACC})
     endif ()
 endif ()
 
-# Kokkos Inclusion
 if (${PPB_ENABLE_Kokkos})
     include(kokkos)
 endif()
 
-# Kokkos Inclusion
 if (${PPB_ENABLE_Raja})
     include(raja)
 endif()
 
-# AdaptiveCPP Inclusion
 if (${PPB_ENABLE_AdaptiveCpp} AND NOT CMAKE_CXX_COMPILER_ID STREQUAL "IntelLLVM")
     include(adaptive_cpp)
 endif ()
 
-# AdaptiveCPP Inclusion
 if (${PPB_ENABLE_Metal})
     include(metal)
 endif ()

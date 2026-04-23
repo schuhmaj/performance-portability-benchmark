@@ -9,3 +9,7 @@ endif ()
 if (${PPB_ENABLE_MatrixMultiplication})
     add_subdirectory(matrixMultiplication)
 endif ()
+
+if (${PPB_ENABLE_PolyhedralGravity})
+    add_subdirectory(polyhedralGravity)
+endif ()

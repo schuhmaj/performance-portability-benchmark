@@ -1,6 +1,5 @@
 set(VECTOR_ADDITION_ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR})
-set(VECTOR_ADDITION_FILES VectorAddition.h
-        alpaka/Impl_Alpaka.cpp)
+set(VECTOR_ADDITION_FILES VectorAddition.h)
 
 add_library(vec_lib INTERFACE ${VECTOR_ADDITION_FILES})
 target_link_libraries(vec_lib INTERFACE benchmark::benchmark common_lib)

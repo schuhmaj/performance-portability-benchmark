@@ -1,7 +1,7 @@
 message(STATUS "Setting up Kokkos")
 set(Kokkos_VERSION 4.7.01)
 
-find_package(Kokkos ${Kokkos_VERSION} CONFIG QUIET)
+find_package(Kokkos ${Kokkos_VERSION} QUIET)
 
 if (${Kokkos_FOUND})
     message(STATUS "Found existing Kokkos libraries: ${Kokkos_DIR}")
