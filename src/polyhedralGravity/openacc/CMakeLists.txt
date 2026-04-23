@@ -2,7 +2,7 @@ add_library(polyhedral_acc_lib STATIC Impl_OpenACC.cpp)
 target_compile_features(polyhedral_acc_lib PUBLIC cxx_std_17)
 target_link_libraries(polyhedral_acc_lib
         PUBLIC
-        matMul_lib
+        polyhedral_lib
         OpenACC::OpenACC_CXX
 )
 
