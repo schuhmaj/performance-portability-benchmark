@@ -1,6 +1,12 @@
 #include "polyhedralGravity/PolyhedralGravityDefinitions.h"
 
-#include <cl/opencl.hpp>
+#include <CL/cl.h>
+#include <CL/cl_ext.h>
+#undef cl_khr_command_buffer
+#undef cl_khr_command_buffer_multi_device
+#undef cl_khr_command_buffer_mutable_dispatch
+
+#include <CL/cl.hpp>
 
 #include "opencl_eval.h"
 #include "opencl_init.h"

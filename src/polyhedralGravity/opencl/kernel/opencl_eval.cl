@@ -274,7 +274,7 @@ kernel void vecadd(
 
     FloatType sing_theta = compute_singularities(face_index, segmentNormalOrientations, projectionPointVertexNorms, segmentVectors);
     FloatType sing_alpha = -planeDistance * sing_theta;
-    FloatType3 sing_beta = normals[face_index] * (-1.0 * sing_theta * planeNormalOrientation);
+    FloatType3 sing_beta = normals[face_index] * ((FloatType) -1.0 * sing_theta * planeNormalOrientation);
 
     FloatType sum1PotentialAcceleration = 0.0;
     for (unsigned int index = 0; index < 3; ++index)
