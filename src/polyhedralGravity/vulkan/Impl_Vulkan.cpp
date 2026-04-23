@@ -1,17 +1,13 @@
-#include "common.h"
+#include "polyhedralGravity/PolyhedralGravityDefinitions.h"
 #include <glm/glm.hpp>
 #include <vulkan/vulkan.hpp>
 #include <vulkan/vulkan_raii.hpp>
 
-static uint32_t vulkan_init[] =
-#include "shader/init.hpp"
-        ;
-const uint32_t vulkan_init_len = sizeof(vulkan_init);
+#include "vulkan_init.h"
+#include "vulkan_eval.h"
 
-static uint32_t kompute_eval[] =
-#include "shader/eval.hpp"
-        ;
-const uint32_t kompute_eval_len = sizeof(kompute_eval);
+const uint32_t vulkan_init_len = sizeof(ppb::INIT_SPRIV);
+const uint32_t kompute_eval_len = sizeof(ppb::EVAL_SPIRV);
 
 // uint32_t kompute_eval[] = #include "shader/eval.hpp";
 
@@ -351,12 +347,12 @@ public:
         vk::ShaderModuleCreateInfo ShaderModuleCreateInfoInit(
                 vk::ShaderModuleCreateFlags(),
                 vulkan_init_len,
-                reinterpret_cast<uint32_t *>(vulkan_init));
+                ppb::INIT_SPRIV);
 
         vk::ShaderModuleCreateInfo ShaderModuleCreateInfoEval(
                 vk::ShaderModuleCreateFlags(),
                 kompute_eval_len,
-                reinterpret_cast<uint32_t *>(kompute_eval));
+                ppb::EVAL_SPIRV);
 
         _shaderModuleInit = _device.createShaderModule(ShaderModuleCreateInfoInit);
         _shaderModuleEval = _device.createShaderModule(ShaderModuleCreateInfoEval);

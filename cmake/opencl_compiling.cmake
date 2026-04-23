@@ -56,7 +56,7 @@ function(compile_opencl)
             -D "OUTPUT_FILE=${OUTPUT_PATH}"
             -D "VAR_NAME=${COMPILE_OCL_VAR_NAME}"
             -D "NAMESPACE=${COMPILE_OCL_NAMESPACE}"
-            -P "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/opencl_to_header.cmake"
+            -P "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/scripts/opencl_to_header.cmake"
             DEPENDS "${INPUT_PATH}"
             COMMENT "Generating OpenCL header ${COMPILE_OCL_OUTFILE}"
             VERBATIM

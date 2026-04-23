@@ -171,6 +171,8 @@ if (${PPB_ENABLE_Alpaka})
 endif ()
 
 if (${PPB_ENABLE_Vulkan})
+    include(glm)
+    include(vulkan_compiling)
     include(vulkan)
 endif ()
 
