@@ -1,4 +1,4 @@
-#include "common.h"
+#include "polyhedralGravity/PolyhedralGravityDefinitions.h"
 #include <cuda_runtime.h>
 #include <vector_types.h>
 
