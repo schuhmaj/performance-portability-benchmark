@@ -1,4 +1,4 @@
-#include "common.h"
+#include "polyhedralGravity/PolyhedralGravityDefinitions.h"
 #include <glm/glm.hpp>
 #include <vulkan/vulkan.hpp>
 #include <vulkan/vulkan_raii.hpp>

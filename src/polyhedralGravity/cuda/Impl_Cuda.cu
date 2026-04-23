@@ -8,7 +8,7 @@
 #if FLOAT_BITS == 32
 using VectorType = float3;
 using VectorType4 = float4;
-#include "polyhedralGravity/cuda/helper_math.h"
+#include "common/cuda/helper_math.h"
 inline __device__ VectorType4 make4(FloatType x, FloatType y, FloatType z, FloatType w) {
     return make_float4(x, y, z, w);
 }
@@ -24,7 +24,7 @@ inline __device__ VectorType4 make4(FloatType x, FloatType y, FloatType z, Float
 inline __device__ VectorType4 make4(VectorType xyz, FloatType w) {
     return make_double4(xyz.x, xyz.y, xyz.z, w);
 }
-#include "polyhedralGravity/cuda/helper_math_double.h"
+#include "common/cuda/helper_math_double.h"
 #else
 #error "Invliad float bits size"
 #endif

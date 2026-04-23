@@ -46,26 +46,28 @@ function(slang_compile_shader infile)
     )
 endfunction()
 
-slang_compile_shader(shader/eval.slang)
+if (${PPB_ENABLE_Slang_Vulkan} OR ${PPB_ENABLE_Slang_Cuda})
+    slang_compile_shader(shader/eval.slang)
+endif()
 
-add_library(compute_shader_slang INTERFACE
-    "${CMAKE_CURRENT_BINARY_DIR}/shader/eval.hpp"
-)
 
-add_library(cuda_slang INTERFACE
-    "${CMAKE_CURRENT_BINARY_DIR}/shader/eval.cuh"
-)
 
-find_package(Vulkan REQUIRED)
-add_exe(slang_vulkan LIBS compute_shader_slang glm::glm Vulkan::Vulkan ${CMAKE_DL_LIBS})
-target_include_directories(lib_slang_vulkan PUBLIC "${CMAKE_CURRENT_BINARY_DIR}")
+# VULKAN
+if (${PPB_ENABLE_Slang_Vulkan})
+    add_library(polyhedral_slang_vulkan_lib STATIC Impl_Slang_Vulkan.cpp "${CMAKE_CURRENT_BINARY_DIR}/shader/eval.hpp")
+    target_compile_features(polyhedral_slang_vulkan_lib PUBLIC cxx_std_17)
+    target_link_libraries(polyhedral_slang_vulkan_lib PUBLIC polyhedral_lib kompute::kompute glm::glm common_vulkan_lib)
+    target_include_directories(polyhedral_slang_vulkan_lib PUBLIC "${CMAKE_CURRENT_BINARY_DIR}")
 
-find_package(CUDAToolkit REQUIRED)
+    add_executable(polyhedral_slang_vulkan ${POLYHEDRAL_GRAVITY_ROOT_DIR}/main.cpp)
+    target_link_libraries(polyhedral_slang_vulkan PRIVATE polyhedral_slang_vulkan_lib)
+endif ()
+# CUDA
+if (${PPB_ENABLE_Slang_Cuda})
+    add_library(polyhedral_slang_cuda_lib STATIC Impl_Slang_Cuda.cu wrapper_eval.cu "${CMAKE_CURRENT_BINARY_DIR}/shader/eval.cuh")
+    target_include_directories(polyhedral_slang_cuda_lib PUBLIC "${CMAKE_CURRENT_BINARY_DIR}")
+    target_link_libraries(polyhedral_slang_cuda_lib PUBLIC polyhedral_lib)
 
-add_library(slang_cuda_wrapper STATIC wrapper_eval.cu)
-target_link_libraries(slang_cuda_wrapper PUBLIC cuda_slang CUDA::cudart)
-target_compile_definitions(slang_cuda_wrapper PUBLIC -DFLOAT_BITS=${FLOAT_BITS})
-target_include_directories(slang_cuda_wrapper PUBLIC "${CMAKE_CURRENT_BINARY_DIR}" ${CMAKE_SOURCE_DIR}/inc)
-
-add_exe(slang_cuda EXT cu  LIBS cuda_slang slang_cuda_wrapper glm::glm CUDA::cudart)
-target_include_directories(lib_slang_cuda PUBLIC "${CMAKE_CURRENT_BINARY_DIR}" "${CMAKE_SOURCE_DIR}/implementations/cuda/inc")
+    add_executable(polyhedral_slang_cuda ${POLYHEDRAL_GRAVITY_ROOT_DIR}/main.cpp)
+    target_link_libraries(polyhedral_slang_cuda PRIVATE polyhedral_slang_cuda_lib)
+endif ()

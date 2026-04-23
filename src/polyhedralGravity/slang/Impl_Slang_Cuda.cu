@@ -1,4 +1,4 @@
-#include "common.h"
+#include "polyhedralGravity/PolyhedralGravityDefinitions.h"
 
 #include <cuda_runtime.h>
 #include <thrust/device_ptr.h>
@@ -7,11 +7,11 @@
 #if FLOAT_BITS == 32
 using VectorType = float3;
 using VectorType4 = float4;
-#include <helper_math.h>
+#include "common/cuda/helper_math.h"
 #elif FLOAT_BITS == 64
 using VectorType = double3;
 using VectorType4 = double4;
-#include <helper_math_double.h>
+#include "common/cuda/helper_math_double.h"
 #else
 #error "Invliad float bits size"
 #endif

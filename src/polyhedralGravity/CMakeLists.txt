@@ -27,6 +27,10 @@ if (${PPB_ENABLE_AdaptiveCpp})
     add_subdirectory(acpp)
 endif()
 
+if (${PPB_ENABLE_Slang_Vulkan} OR ${PPB_ENABLE_Slang_Cuda})
+    add_subdirectory(slang)
+endif()
+
 if (${PPB_ENABLE_OpenMP})
     add_subdirectory(openmp)
 endif ()
