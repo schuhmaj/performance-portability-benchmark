@@ -66,10 +66,49 @@ namespace ppb {
          */
         std::array<FloatType, 3> boxMax{1000, 1000, 1000};
 
+
+
+        /**
+         * Flag to decide whether or not to use the kompute timestamps rather than the backend timestamps in vulkan
+         */
+        static constexpr bool use_kompute_timestamps{false};
+
+        /*
+         * Used for calculating the number of cells when using cell lists.
+         * This is a magic number and should still be tested.
+         * The influence of the Lennard-Jones-Kernel stays close to 0 at a distance of around 3. Therefore h should not be less than 3. 
+         * https://www.desmos.com/calculator/zrswwcpt4k
+         */
+        static constexpr FloatType h{9.0};
+
+        /*
+         * Radius at which a particle should be added to the verlet lists.
+         * This is a magic number and should still be tested. 
+         * The influence of the Lennard-Jones-Kernel stays close to 0 at a distance of around 3. 
+         * Therefore the influence radius should not be less than 3. 
+         * https://www.desmos.com/calculator/zrswwcpt4k
+         */
+        static constexpr FloatType influenceRadius{4.0};
+
+        /*
+         * size of workgroups. 
+         * NOTE: if updated it should also be updated in the relevant shader files.
+         * This is a magic number and should still be tested.
+         */
+        static constexpr uint TILE_SIZE{256};
+
+        /*
+         * compute neighbor search every interval_neighbor_search iterations.
+         * example: if interval_neighbor_search = 1 then compute neighbor search every frame,
+         *    if interval_neighbor_search = 10 then compute neighbor search every 10th frame.
+         */
+        static constexpr uint interval_neighbor_search{10};
+
         /**
          * Seed to initialize the ParticleGenerator
          */
         unsigned int seed{42};
+
 
         /**
          * Creates a simulation configuration.
@@ -86,6 +125,8 @@ namespace ppb {
 
 
     struct ParticleSimulationTimings {
+        /** Total accumulated time for setting up idCells in nanoseconds [ns] */
+        double neighborSearch;
         /** Total accumulated time for position updates and force reset in nanoseconds [ns] */
         double positionUpdateForceResetTime;
         /** Total accumulated time for velocity updates in nanoseconds [ns] */
@@ -94,9 +135,10 @@ namespace ppb {
         double forceUpdateTime;
 
         ParticleSimulationTimings operator+(const ParticleSimulationTimings &other) const {
-            return {positionUpdateForceResetTime + other.positionUpdateForceResetTime, velocityUpdateTime + other.velocityUpdateTime, forceUpdateTime + other.forceUpdateTime};
+            return {neighborSearch + other.neighborSearch, positionUpdateForceResetTime + other.positionUpdateForceResetTime, velocityUpdateTime + other.velocityUpdateTime, forceUpdateTime + other.forceUpdateTime};
         }
         ParticleSimulationTimings operator+=(const ParticleSimulationTimings &other) {
+            neighborSearch += other.neighborSearch;
             positionUpdateForceResetTime += other.positionUpdateForceResetTime;
             velocityUpdateTime += other.velocityUpdateTime;
             forceUpdateTime += other.forceUpdateTime;
@@ -104,6 +146,7 @@ namespace ppb {
         }
 
         void reset() {
+            neighborSearch = 0.0;
             positionUpdateForceResetTime = 0.0;
             velocityUpdateTime = 0.0;
             forceUpdateTime = 0.0;
@@ -197,7 +240,8 @@ namespace ppb {
                 benchmark::DoNotOptimize(result);
                 totalTimings += iterationTimings;
             }
-            const auto&[positionUpdateForceResetTime, velocityUpdateTime, forceUpdateTime] = totalTimings;
+            const auto&[neighborSearch, positionUpdateForceResetTime, velocityUpdateTime, forceUpdateTime] = totalTimings;
+            state.counters["neighbor_search"] = benchmark::Counter(neighborSearch, benchmark::Counter::kAvgIterations);
             state.counters["position_update_reset"] = benchmark::Counter(positionUpdateForceResetTime, benchmark::Counter::kAvgIterations);
             state.counters["velocity_update"] = benchmark::Counter(velocityUpdateTime, benchmark::Counter::kAvgIterations);
             state.counters["force_update"] = benchmark::Counter(forceUpdateTime, benchmark::Counter::kAvgIterations);

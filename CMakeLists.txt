@@ -57,7 +57,9 @@ option(PPB_ENABLE_OnlyKernelRuntime "Only measures the actual GPU Kernel runtime
 option(PPB_ENABLE_OpenACC "Enable OpenACC Target" OFF)
 option(PPB_ENABLE_OpenMP "Enable OpenMP Target" OFF)
 option(PPB_ENABLE_AdaptiveCpp "Enable AdaptiveCPP Target" OFF)
-option(PPB_ENABLE_Vulkan "Enable Vulkan Kompute Target" OFF)
+option(PPB_ENABLE_Vulkan "Enable Vulkan-Kompute Target" OFF)
+option(PPB_ENABLE_Slang_Vulkan "Enable Slang-Vulkan Target" OFF)
+option(PPB_ENABLE_Slang_Cuda "Enable Slang-Cuda Target" OFF)
 option(PPB_ENABLE_OpenCL "Enable OpenCL Targets" OFF)
 option(PPB_ENABLE_Boost "Enable Boost::Compute Target (requires OpenCL)" OFF)
 option(PPB_ENABLE_Kokkos "Enable Kokkos Target" OFF)
@@ -71,6 +73,10 @@ option(PPB_ENABLE_NBodySimulation "Enable NBodySimulation Benchmarks" OFF)
 option(PPB_ENABLE_PolyhedralGravity "Enable PolyhedralGravity Benchmarks" OFF)
 option(PPB_ENABLE_Testing "Enable Testing" ON)
 
+cmake_dependent_option(PPB_ENABLE_NBodySimulation_naive  "Enable naive nBodySimulation"  OFF "PPB_ENABLE_NBodySimulation" OFF)
+cmake_dependent_option(PPB_ENABLE_NBodySimulation_cells  "Enable cells nBodySimulation"  OFF "PPB_ENABLE_NBodySimulation" OFF)
+cmake_dependent_option(PPB_ENABLE_NBodySimulation_verlet  "Enable verlet nBodySimulation"  OFF "PPB_ENABLE_NBodySimulation" OFF)
+
 message(STATUS "####################################################")
 message(STATUS "Build Type                      ${CMAKE_BUILD_TYPE}")
 message(STATUS "Logging Level                   ${PPB_LOGGING_LEVEL}")
@@ -79,6 +85,8 @@ message(STATUS "####################################################")
 message(STATUS "Kokkos                          ${PPB_ENABLE_Kokkos}")
 message(STATUS "AdaptiveCpp (needs Boost)       ${PPB_ENABLE_AdaptiveCpp}")
 message(STATUS "Vulkan-Kompute                  ${PPB_ENABLE_Vulkan}")
+message(STATUS "Slang-Vulkan                    ${PPB_ENABLE_Slang_Vulkan}")
+message(STATUS "Slang-Cuda                      ${PPB_ENABLE_Slang_Cuda}")
 message(STATUS "OpenACC                         ${PPB_ENABLE_OpenACC}")
 message(STATUS "OpenMP                          ${PPB_ENABLE_OpenMP}")
 message(STATUS "OpenCL                          ${PPB_ENABLE_OpenCL}")
@@ -92,6 +100,10 @@ message(STATUS "MatrixMultiplication            ${PPB_ENABLE_MatrixMultiplicatio
 message(STATUS "NBodySimulation                 ${PPB_ENABLE_NBodySimulation}")
 message(STATUS "PolyhedralGravity               ${PPB_ENABLE_PolyhedralGravity}")
 message(STATUS "Testing                         ${PPB_ENABLE_Testing}")
+message(STATUS "####################################################")
+message(STATUS "naive nBodySimulation           ${PPB_ENABLE_NBodySimulation_naive}")
+message(STATUS "cells nBodySimulation           ${PPB_ENABLE_NBodySimulation_cells}")
+message(STATUS "verlet nBodySimulation          ${PPB_ENABLE_NBodySimulation_verlet}")
 message(STATUS "####################################################")
 
 #######################################################
@@ -170,10 +182,15 @@ if (${PPB_ENABLE_Alpaka})
     include(alpaka)
 endif ()
 
+# Vulkan Inclusion
 if (${PPB_ENABLE_Vulkan})
     include(glm)
     include(vulkan_compiling)
     include(vulkan)
+endif ()
+
+if (${PPB_ENABLE_Slang_Cuda} OR ${PPB_ENABLE_Slang_Vulkan})
+    include(slang_compiling)
 endif ()
 
 #######################################################

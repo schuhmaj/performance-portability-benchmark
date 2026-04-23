@@ -30,3 +30,31 @@ else ()
 endif ()
 
 list(APPEND CMAKE_PREFIX_PATH "${kompute_SOURCE_DIR}/cmake")
+
+# function for compiling vulkan shaders in a directory using kompute
+# note
+#  - all files in the specified directory are expected to be .comp files
+function(vulkan_compile_shaders_path DIR_PATH OUT_HEADERS NAMESPACE)
+    file(GLOB files CONFIGURE_DEPENDS "${DIR_PATH}/*")
+    set(HEADERS "")
+
+    foreach(file IN LISTS files)
+        get_filename_component(kernel "${file}" NAME_WE)
+        set(COMP_FILE ${kernel}.comp)
+        set(OUT_HEADER ${kernel}.h)
+
+        vulkan_compile_shader(
+            INFILE shaders/${COMP_FILE}
+            OUTFILE ${OUT_HEADER}
+            NAMESPACE ${NAMESPACE}
+            RELATIVE_PATH "${kompute_SOURCE_DIR}/cmake"
+        )
+        list(APPEND HEADERS "${CMAKE_CURRENT_BINARY_DIR}/${OUT_HEADER}")
+    endforeach()
+
+    set(${OUT_HEADERS} "${HEADERS}" PARENT_SCOPE)
+    set_source_files_properties(${CMAKE_CURRENT_BINARY_DIR}/${OUT_HEADER}
+        PROPERTIES GENERATED TRUE
+    )
+
+endfunction()

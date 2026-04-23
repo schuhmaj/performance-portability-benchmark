@@ -6,8 +6,17 @@ set(NBODY_SIMULATION_FILES
 )
 
 add_library(nbody_lib INTERFACE ${NBODY_SIMULATION_FILES})
-target_include_directories(nbody_lib INTERFACE ${PPB_SRC_SOURCE_DIRECTORY})
+target_include_directories(nbody_lib INTERFACE ${PPB_SRC_SOURCE_DIRECTORY} ${NBODY_SIMULATION_ROOT_DIR}/vulkan)
 target_link_libraries(nbody_lib INTERFACE benchmark::benchmark common_lib)
+
+execute_process(
+    COMMAND git rev-parse --short HEAD
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    OUTPUT_VARIABLE GIT_HASH
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+
+add_definitions(-DGIT_HASH_STRING="${GIT_HASH}")
 
 if (${PPB_ENABLE_Kokkos})
     add_subdirectory(kokkos)
@@ -38,7 +47,27 @@ if (${PPB_ENABLE_OpenMP})
 endif ()
 
 if (${PPB_ENABLE_Vulkan})
-    add_subdirectory(vulkan)
+    if (${PPB_ENABLE_NBodySimulation_naive})
+        add_subdirectory(vulkan/naive)
+    endif ()
+    if (${PPB_ENABLE_NBodySimulation_cells})
+        add_subdirectory(vulkan/cell_lists)
+    endif ()
+    if (${PPB_ENABLE_NBodySimulation_verlet})
+        add_subdirectory(vulkan/verlet_lists)
+    endif ()
+endif ()
+
+if (${PPB_ENABLE_Slang_Vulkan} OR ${PPB_ENABLE_Slang_Cuda})
+    if (${PPB_ENABLE_NBodySimulation_naive})
+        add_subdirectory(slang/naive)
+    endif ()
+    if (${PPB_ENABLE_NBodySimulation_cells})
+        add_subdirectory(slang/cell_lists)
+    endif ()
+    if (${PPB_ENABLE_NBodySimulation_verlet})
+        add_subdirectory(slang/verlet_lists)
+    endif ()
 endif ()
 
 if (${PPB_ENABLE_OpenACC})

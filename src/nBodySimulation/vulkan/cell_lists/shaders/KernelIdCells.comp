@@ -1,0 +1,45 @@
+#version 450
+layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
+
+layout(std430, binding = 0) readonly buffer Positions {
+    vec4 positions[];
+};
+
+layout(std430, binding = 1) readonly buffer ParticleIdx {
+    ivec2 particleIdx[];
+    // idx 0 : cellIdx
+    // idx 1 : slot
+};
+
+layout(std430, binding = 2) readonly buffer Starts {
+    uint starts[];
+};
+
+layout(std430, binding = 3) buffer IdCells {
+    uint idCells[];
+};
+
+
+layout(std430, binding = 4) buffer ParticleCells {
+    vec4 particleCells[];
+};
+
+layout(push_constant) uniform ParamsPos {
+    uint numParticles;
+} pc;
+
+void main() {
+    uint gid = gl_GlobalInvocationID.x;
+    if (gid >= pc.numParticles) {
+        return;
+    }
+
+    ivec2 data = particleIdx[gid];
+    int cell = data.x;
+    int slot = data.y;
+
+    uint idx = starts[cell] + slot;
+
+    idCells[idx] = gid;
+    particleCells[idx].xyz = positions[gid].xyz;
+}

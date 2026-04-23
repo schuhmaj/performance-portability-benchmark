@@ -40,31 +40,25 @@ function(vulkan_compile_opengl)
 
     set(tmp_num "${CMAKE_CURRENT_BINARY_DIR}/shader/${stem}.num")
 
-    # 1. Compile to list of comma-separated hex numbers
+
     add_custom_command(
-            OUTPUT "${tmp_num}"
+            OUTPUT "${OUTPUT_PATH}" "${tmp_num}"
+            # Compile the Shader to SPIRV representation
             COMMAND ${GLS_LANG_COMPILER_PATH}
             ${extra_arg}
             -mfmt=num
             -O
             -o "${tmp_num}"
             "${INPUT_PATH}"
-            DEPENDS "${INPUT_PATH}"
-            COMMENT "Compiling Vulkan shader ${COMPILE_VULKAN_VAR_NAME} to SPIR-V"
-            VERBATIM
-    )
-
-    # 2. Wrap the hex numbers into a C++ header file
-    add_custom_command(
-            OUTPUT "${OUTPUT_PATH}"
+            # Create a header file with the SPIRV representation
             COMMAND ${CMAKE_COMMAND}
             -D "INPUT_FILE=${tmp_num}"
             -D "OUTPUT_FILE=${OUTPUT_PATH}"
             -D "VAR_NAME=${COMPILE_VULKAN_VAR_NAME}"
             -D "NAMESPACE=${COMPILE_VULKAN_NAMESPACE}"
             -P "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/scripts/vulkan_to_header.cmake"
-            DEPENDS "${tmp_num}"
-            COMMENT "Generating Vulkan header ${OUTPUT_PATH}"
+            DEPENDS "${INPUT_PATH}" "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/scripts/vulkan_to_header.cmake"
+            COMMENT "Compiling and generating Vulkan header ${OUTPUT_PATH}"
             VERBATIM
     )
 endfunction()
