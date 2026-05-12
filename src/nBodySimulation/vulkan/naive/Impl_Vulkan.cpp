@@ -22,9 +22,9 @@ namespace ppb {
         , _timings{}
         , _manager{}
         , _sequence{_manager.sequence(config.use_kompute_timestamps ? kernel_calls(config) + 1 : 0)} // pass the number of kernel executions +1 to _manager.sequence, so that timestamps are collected WARNING: If the passed number is too small the program will stall
-        , _kernelForce{KERNELFORCE_COMP_SPV.begin(), KERNELFORCE_COMP_SPV.end()}
-        , _kernelVelocity{KERNELVELOCITY_COMP_SPV.begin(), KERNELVELOCITY_COMP_SPV.end()}
-        , _kernelPosition{KERNELPOSITION_COMP_SPV.begin(), KERNELPOSITION_COMP_SPV.end()}
+        , _kernelForce{std::begin(KernelForce), std::end(KernelForce)}
+        , _kernelVelocity{std::begin(KernelVelocity), std::end(KernelVelocity)}
+        , _kernelPosition{std::begin(KernelPosition), std::end(KernelPosition)}
     {}
 
 

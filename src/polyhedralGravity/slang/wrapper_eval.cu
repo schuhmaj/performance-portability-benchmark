@@ -2,7 +2,7 @@
 #include <stdexcept>
 
 #define SLANG_CUDA_STRUCTURED_BUFFER_NO_COUNT
-#include "shader/eval.cuh"
+#include "eval.cuh"
 
 #if FLOAT_BITS == 32
 using FloatType = float;

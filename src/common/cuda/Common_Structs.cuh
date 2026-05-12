@@ -39,8 +39,11 @@ namespace ppb {
             CUdevice device;
             CHECK(cuDeviceGet(&device, 0));
             // WARNING: in older API versions, this command will not build. Instead try this:
-            // CHECK(cuCtxCreate(&ctx, 0, device));
+#if CUDA_VERSION >= 13000
             CHECK(cuCtxCreate(&ctx, nullptr, 0, device));
+#else
+            CHECK(cuCtxCreate(&ctx, 0, device));
+#endif
         }
 
         ~CudaContext() {

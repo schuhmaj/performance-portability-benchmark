@@ -4,12 +4,10 @@ set(POLYHEDRAL_GRAVITY_FILES PolyhedralGravityDefinitions.h)
 set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
 include(tetgen)
 
-set(POLYHEDRAL_FLOAT_TYPE 32)
-
 add_library(polyhedral_lib INTERFACE ${POLYHEDRAL_GRAVITY_FILES})
 target_link_libraries(polyhedral_lib INTERFACE benchmark::benchmark tetgen::tetgen common_lib)
 target_include_directories(polyhedral_lib INTERFACE ${PPB_SRC_SOURCE_DIRECTORY})
-target_compile_definitions(polyhedral_lib INTERFACE FLOAT_BITS=${POLYHEDRAL_FLOAT_TYPE})
+target_compile_definitions(polyhedral_lib INTERFACE FLOAT_BITS=${PPB_Polyhedral_FloatType})
 
 if (${PPB_ENABLE_Kokkos})
     add_subdirectory(kokkos)

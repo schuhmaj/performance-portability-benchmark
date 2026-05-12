@@ -77,6 +77,10 @@ cmake_dependent_option(PPB_ENABLE_NBodySimulation_naive  "Enable naive nBodySimu
 cmake_dependent_option(PPB_ENABLE_NBodySimulation_cells  "Enable cells nBodySimulation"  OFF "PPB_ENABLE_NBodySimulation" OFF)
 cmake_dependent_option(PPB_ENABLE_NBodySimulation_verlet  "Enable verlet nBodySimulation"  OFF "PPB_ENABLE_NBodySimulation" OFF)
 
+
+set(PPB_Polyhedral_FloatType "32" CACHE STRING "Choose the floating point precision (32 or 64 bits)")
+set_property(CACHE PPB_Polyhedral_FloatType PROPERTY STRINGS "32" "64")
+
 message(STATUS "####################################################")
 message(STATUS "Build Type                      ${CMAKE_BUILD_TYPE}")
 message(STATUS "Logging Level                   ${PPB_LOGGING_LEVEL}")
@@ -104,6 +108,8 @@ message(STATUS "####################################################")
 message(STATUS "naive nBodySimulation           ${PPB_ENABLE_NBodySimulation_naive}")
 message(STATUS "cells nBodySimulation           ${PPB_ENABLE_NBodySimulation_cells}")
 message(STATUS "verlet nBodySimulation          ${PPB_ENABLE_NBodySimulation_verlet}")
+message(STATUS "####################################################")
+message(STATUS "Polyhedral Float Type           ${PPB_Polyhedral_FloatType}")
 message(STATUS "####################################################")
 
 #######################################################
@@ -190,6 +196,7 @@ if (${PPB_ENABLE_Vulkan})
 endif ()
 
 if (${PPB_ENABLE_Slang_Cuda} OR ${PPB_ENABLE_Slang_Vulkan})
+    include(slang)
     include(slang_compiling)
 endif ()
 

@@ -3,9 +3,9 @@
 #include <vulkan/vulkan.hpp>
 #include <vulkan/vulkan_raii.hpp>
 
-#include "shader/eval.hpp"
+#include "eval.h"
 
-const auto &shd_eval = std::vector<uint32_t>{std::begin(shader_eval), std::end(shader_eval)};
+const auto &shd_eval = std::vector<uint32_t>{std::begin(polyhedral_eval_kernel), std::end(polyhedral_eval_kernel)};
 
 const uint32_t workgroupSize = 32;
 
