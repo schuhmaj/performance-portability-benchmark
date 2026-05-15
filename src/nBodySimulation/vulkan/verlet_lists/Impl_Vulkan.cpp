@@ -44,14 +44,14 @@ namespace ppb {
         : _config{config}
         , _timings{}
         , _manager{}
-        , _kernelForce{KERNELFORCE_COMP_SPV.begin(), KERNELFORCE_COMP_SPV.end()}
-        , _kernelVelocity{KERNELVELOCITY_COMP_SPV.begin(), KERNELVELOCITY_COMP_SPV.end()}
-        , _kernelPosition{KERNELPOSITION_COMP_SPV.begin(), KERNELPOSITION_COMP_SPV.end()}
+        , _kernelForce{std::begin(KernelForce), std::end(KernelForce)}
+        , _kernelVelocity{std::begin(KernelVelocity), std::end(KernelVelocity)}
+        , _kernelPosition{std::begin(KernelPosition), std::end(KernelPosition)}
 
-        , _kernelCountNeighbors{KERNELCOUNTNEIGHBORS_COMP_SPV.begin(), KERNELCOUNTNEIGHBORS_COMP_SPV.end()}
-        , _kernelBlellochScan{KERNELBLELLOCHSCAN_COMP_SPV.begin(), KERNELBLELLOCHSCAN_COMP_SPV.end()}
-        , _kernelBlockSum{KERNELBLOCKSUM_COMP_SPV.begin(), KERNELBLOCKSUM_COMP_SPV.end()}
-        , _kernelVerlet{KERNELVERLET_COMP_SPV.begin(), KERNELVERLET_COMP_SPV.end()}
+        , _kernelCountNeighbors{std::begin(KernelCountNeighbors), std::end(KernelCountNeighbors)}
+        , _kernelBlellochScan{std::begin(KernelBlellochScan), std::end(KernelBlellochScan)}
+        , _kernelBlockSum{std::begin(KernelBlockSum), std::end(KernelBlockSum)}
+        , _kernelVerlet{std::begin(KernelVerlet), std::end(KernelVerlet)}
 
         , _sequence{_manager.sequence(config.use_kompute_timestamps ? kernel_calls(config) + 1 : 0)}
     {}

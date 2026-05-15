@@ -1,25 +1,25 @@
-set(KERNELS
-    KernelPosition
-    KernelForce
-    KernelVelocity
-    KernelBlellochScan
-    KernelBlockSum
-    KernelCountNeighbors
-    KernelVerlet
+set(SLANG_SOURCE_FILES
+        ${CMAKE_CURRENT_SOURCE_DIR}/shaders/KernelForce.slang
+        ${CMAKE_CURRENT_SOURCE_DIR}/shaders/KernelVelocity.slang
+        ${CMAKE_CURRENT_SOURCE_DIR}/shaders/KernelPosition.slang
+        ${CMAKE_CURRENT_SOURCE_DIR}/shaders/KernelBlellochScan.slang
+        ${CMAKE_CURRENT_SOURCE_DIR}/shaders/KernelBlockSum.slang
+        ${CMAKE_CURRENT_SOURCE_DIR}/shaders/KernelVerlet.slang
 )
 
 if (${PPB_ENABLE_Slang_Vulkan})
-
-    # compile slang -> vulkan
-    slang_vulkan_compile_shaders(${CMAKE_CURRENT_SOURCE_DIR}/shaders TARGETS HEADERS verlet ppb)
+    compile_slang(
+            LANGUAGE SPIR-V
+            INFILE ${SLANG_SOURCE_FILES}
+            PATH ${CMAKE_CURRENT_BINARY_DIR}
+            OUT_HEADERS SLANG_VULKAN_HEADERS
+    )
     
     set(VERLET_DIR ${NBODY_SIMULATION_ROOT_DIR}/vulkan/verlet_lists)
     add_library(nbody_slang_vulkan_verlet_lib STATIC
             ${VERLET_DIR}/Impl_Vulkan.h ${VERLET_DIR}/Impl_Vulkan.cpp ${VERLET_DIR}/Push_Constants.h
-            ${HEADERS}
+            ${SLANG_VULKAN_HEADERS}
     )
-
-    add_dependencies(nbody_slang_vulkan_verlet_lib ${TARGETS})
 
     target_compile_features(nbody_slang_vulkan_verlet_lib PUBLIC cxx_std_20)
     target_link_libraries(nbody_slang_vulkan_verlet_lib PUBLIC nbody_lib kompute::kompute common_vulkan_lib)
@@ -31,17 +31,18 @@ if (${PPB_ENABLE_Slang_Vulkan})
 endif()
 
 if (${PPB_ENABLE_Slang_Cuda})
-
+    compile_slang(
+            LANGUAGE PTX
+            INFILE ${SLANG_SOURCE_FILES}
+            PATH ${CMAKE_CURRENT_BINARY_DIR}
+            OUT_HEADERS SLANG_PTX_FILES
+    )
     add_library(nbody_slang_cuda_verlet_lib STATIC
-        Impl_Slang_Cuda.cuh Impl_Slang_Cuda.cu
+        Impl_Slang_Cuda.cuh Impl_Slang_Cuda.cu ${SLANG_PTX_FILES}
     )
 
-    # compile slang -> ptx
-    slang_ptx_compile_shaders(${CMAKE_CURRENT_SOURCE_DIR}/shaders TARGETS verlet)
-    add_dependencies(nbody_slang_cuda_verlet_lib ${TARGETS})
-
     target_compile_definitions(nbody_slang_cuda_verlet_lib PRIVATE
-        SLANG_PTX_DIR="${CMAKE_CURRENT_BINARY_DIR}/generated_shaders"
+        SLANG_PTX_DIR="${CMAKE_CURRENT_BINARY_DIR}"
     )
 
     target_compile_features(nbody_slang_cuda_verlet_lib PUBLIC cxx_std_20)
@@ -51,7 +52,6 @@ if (${PPB_ENABLE_Slang_Cuda})
             CUDA_SEPARABLE_COMPILATION ON
             CUDA_ARCHITECTURES native
     )
-
 
     add_executable(nbody_slang_cuda_verlet main.cu)
     target_compile_features(nbody_slang_cuda_verlet PUBLIC cxx_std_20)

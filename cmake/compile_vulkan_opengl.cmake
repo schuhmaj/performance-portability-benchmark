@@ -25,7 +25,7 @@ find_program(GLS_LANG_COMPILER_PATH NAMES glslc REQUIRED)
 #   ${PATH}/<input_file_stem>.h
 #
 # The generated files are stored in <output_variable> and marked as GENERATED.
-function(compile_vulkan)
+function(compile_vulkan_opengl)
     set(options)
     set(oneValueArgs PATH OUT_HEADERS NAMESPACE)
     set(multiValueArgs INFILE KERNEL_NAME DEFINITIONS)
@@ -89,9 +89,9 @@ function(compile_vulkan)
                 -D "OUTPUT_FILE=${out_file}"
                 -D "VAR_NAME=${KERNEL_NAME}"
                 -D "NAMESPACE=${ARG_NAMESPACE}"
-                -P "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/scripts/vulkan_to_header.cmake"
+                -P "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/scripts/spirv_into_header.cmake"
                 COMMAND_EXPAND_LISTS
-                DEPENDS "${abs_path}" "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/scripts/vulkan_to_header.cmake"
+                DEPENDS "${abs_path}" "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/scripts/spirv_into_header.cmake"
                 COMMENT "GLSL -> SPIR-V: ${stem}.h"
                 VERBATIM
         )

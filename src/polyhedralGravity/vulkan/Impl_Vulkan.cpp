@@ -3,11 +3,11 @@
 #include <vulkan/vulkan.hpp>
 #include <vulkan/vulkan_raii.hpp>
 
-#include "vulkan_init.h"
-#include "vulkan_eval.h"
+#include "init.h"
+#include "eval.h"
 
-const uint32_t vulkan_init_len = sizeof(ppb::INIT_SPRIV);
-const uint32_t kompute_eval_len = sizeof(ppb::EVAL_SPIRV);
+const uint32_t vulkan_init_len = sizeof(INIT_SPRIV);
+const uint32_t kompute_eval_len = sizeof(EVAL_SPIRV);
 
 // uint32_t kompute_eval[] = #include "shader/eval.hpp";
 
@@ -347,12 +347,12 @@ public:
         vk::ShaderModuleCreateInfo ShaderModuleCreateInfoInit(
                 vk::ShaderModuleCreateFlags(),
                 vulkan_init_len,
-                ppb::INIT_SPRIV);
+                INIT_SPRIV);
 
         vk::ShaderModuleCreateInfo ShaderModuleCreateInfoEval(
                 vk::ShaderModuleCreateFlags(),
                 kompute_eval_len,
-                ppb::EVAL_SPIRV);
+                EVAL_SPIRV);
 
         _shaderModuleInit = _device.createShaderModule(ShaderModuleCreateInfoInit);
         _shaderModuleEval = _device.createShaderModule(ShaderModuleCreateInfoEval);

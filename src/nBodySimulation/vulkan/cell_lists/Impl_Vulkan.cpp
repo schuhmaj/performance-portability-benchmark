@@ -53,15 +53,15 @@ namespace ppb {
         , _timings{}
         , _manager{}
         , _sequence{_manager.sequence(config.use_kompute_timestamps ? kernel_calls(config) + 1 : 0)}
-        , _kernelForce{KERNELFORCE_COMP_SPV.begin(), KERNELFORCE_COMP_SPV.end()}
-        , _kernelVelocity{KERNELVELOCITY_COMP_SPV.begin(), KERNELVELOCITY_COMP_SPV.end()}
-        , _kernelPosition{KERNELPOSITION_COMP_SPV.begin(), KERNELPOSITION_COMP_SPV.end()}
+        , _kernelForce{std::begin(KernelForce), std::end(KernelForce)}
+        , _kernelVelocity{std::begin(KernelVelocity), std::end(KernelVelocity)}
+        , _kernelPosition{std::begin(KernelPosition), std::end(KernelPosition)}
 
-        , _kernelHistogram{KERNELHISTOGRAM_COMP_SPV.begin(), KERNELHISTOGRAM_COMP_SPV.end()}
-        , _kernelBlellochScan{KERNELBLELLOCHSCAN_COMP_SPV.begin(), KERNELBLELLOCHSCAN_COMP_SPV.end()}
-        , _kernelBlockSum{KERNELBLOCKSUM_COMP_SPV.begin(), KERNELBLOCKSUM_COMP_SPV.end()}
-        , _kernelIdCells{KERNELIDCELLS_COMP_SPV.begin(), KERNELIDCELLS_COMP_SPV.end()}
-        , _kernelResetCells{KERNELRESETCELLS_COMP_SPV.begin(), KERNELRESETCELLS_COMP_SPV.end()}
+        , _kernelHistogram{std::begin(KernelHistogram), std::end(KernelHistogram)}
+        , _kernelBlellochScan{std::begin(KernelBlellochScan), std::end(KernelBlellochScan)}
+        , _kernelBlockSum{std::begin(KernelBlockSum), std::end(KernelBlockSum)}
+        , _kernelIdCells{std::begin(KernelIdCells), std::end(KernelIdCells)}
+        , _kernelResetCells{std::begin(KernelResetCells), std::end(KernelResetCells)}
     {}
 
 

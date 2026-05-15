@@ -1,8 +1,18 @@
-vulkan_compile_shaders_path(${CMAKE_CURRENT_SOURCE_DIR}/shaders HEADERS ppb)
+set(SHADER_SOURCE_FILES
+        ${CMAKE_CURRENT_SOURCE_DIR}/shaders/KernelForce.comp
+        ${CMAKE_CURRENT_SOURCE_DIR}/shaders/KernelVelocity.comp
+        ${CMAKE_CURRENT_SOURCE_DIR}/shaders/KernelPosition.comp
+)
+
+compile_vulkan(
+        INFILE ${SHADER_SOURCE_FILES}
+        PATH ${CMAKE_CURRENT_BINARY_DIR}
+        OUT_HEADERS OPENGL_HEADERS
+)
 
 add_library(nbody_vulkan_naive_lib STATIC
         Impl_Vulkan.h Impl_Vulkan.cpp
-        ${HEADERS}
+        ${OPENGL_HEADERS}
 )
 
 target_compile_features(nbody_vulkan_naive_lib PUBLIC cxx_std_20)

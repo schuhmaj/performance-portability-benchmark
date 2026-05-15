@@ -6,7 +6,6 @@
 #define FloatType3 dvec3
 #define FloatType4 dvec4
 #define FloatTypeM dmat3
-#define FloatTypeM23 dmat2x3
 #endif
 
 layout (local_size_x = 32) in;
