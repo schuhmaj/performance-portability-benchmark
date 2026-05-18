@@ -28,6 +28,7 @@ if (${PPB_ENABLE_Slang_Vulkan})
     target_include_directories(nbody_slang_vulkan_cells_lib PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>)
 
     add_executable(nbody_slang_vulkan_cells ${CELLS_DIR}/main.cpp)
+    target_compile_definitions(nbody_slang_vulkan_cells PRIVATE PARADIGM="Slang-Vulkan")
     target_link_libraries(nbody_slang_vulkan_cells PRIVATE nbody_slang_vulkan_cells_lib)
 
 endif ()

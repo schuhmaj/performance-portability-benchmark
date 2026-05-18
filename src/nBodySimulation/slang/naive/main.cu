@@ -2,24 +2,14 @@
 #include "Impl_Slang_Cuda.cuh"
 #include "nBodySimulation/NBodySimulation.h"
 
-#ifndef GIT_HASH_STRING
-#define GIT_HASH_STRING "unknown"
-#endif
-
-BENCHMARK(ppb::NBodySimulation<ppb::ImplSlangCuda<float>>::benchmark)
-    ->Name("NBody-Float-Slang-Cuda-Naive")
+BENCHMARK(ppb::NBodySimulation<ppb::ImplSlangCuda<ppb::NBodyBenchmarkConf::float_type>>::benchmark)
+    ->Name("NBody-Naive")
     ->RangeMultiplier(10)
-    ->Range(1e1, 1e5)
-    ->Repetitions(3)
-    ->ReportAggregatesOnly(false)
+    ->Range(ppb::NBodyBenchmarkConf::MIN_SIZE, ppb::NBodyBenchmarkConf::MAX_SIZE)
     ->Complexity();
 
 int main(int argc, char** argv) {
-    benchmark::AddCustomContext("git_hash", GIT_HASH_STRING);
-
-    const uint32_t wg = ppb::ParticleSimulationConfig<float>::TILE_SIZE;
-    benchmark::AddCustomContext("workgroup_size", std::to_string(wg));
-    
+    ppb::NBodyBenchmarkConf::addContext("Slang-Cuda");
     benchmark::MaybeReenterWithoutASLR(argc, argv);
     benchmark::Initialize(&argc, argv);
     benchmark::RunSpecifiedBenchmarks();

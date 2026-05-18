@@ -25,8 +25,13 @@
 namespace ppb {
 
     namespace NBodyBenchmarkConf {
+        using float_type = float;
         constexpr double MIN_SIZE = 1e1;
         constexpr double MAX_SIZE = 1e4;
+        inline void addContext(const char* paradigm) {
+            benchmark::AddCustomContext("paradigm", paradigm);
+            benchmark::AddCustomContext("float_type", util::to_string<float_type>());
+        }
     }
 
     /**

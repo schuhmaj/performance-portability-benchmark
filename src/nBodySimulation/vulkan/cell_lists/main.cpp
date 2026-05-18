@@ -2,23 +2,18 @@
 #include "Impl_Vulkan.h"
 #include "nBodySimulation/NBodySimulation.h"
 
-#ifndef GIT_HASH_STRING
-#define GIT_HASH_STRING "unknown"
+#ifndef PARADIGM
+#define PARADIGM "Vulkan"
 #endif
 
-BENCHMARK(ppb::NBodySimulation<ppb::ImplVulkan<float>>::benchmark)
-    ->Name("NBody-Float-Vulkan-Lists")
+BENCHMARK(ppb::NBodySimulation<ppb::ImplVulkan<ppb::NBodyBenchmarkConf::float_type>>::benchmark)
+    ->Name("NBody-LinkedCells")
     ->RangeMultiplier(10)
     ->Range(ppb::NBodyBenchmarkConf::MIN_SIZE, ppb::NBodyBenchmarkConf::MAX_SIZE)
     ->Complexity();
 
 int main(int argc, char** argv) {
-
-    benchmark::AddCustomContext("git_hash", GIT_HASH_STRING);
-
-    const uint32_t wg = ppb::ParticleSimulationConfig<float>::TILE_SIZE;
-    benchmark::AddCustomContext("workgroup_size", std::to_string(wg));
-
+    ppb::NBodyBenchmarkConf::addContext(PARADIGM);
     benchmark::MaybeReenterWithoutASLR(argc, argv);
     benchmark::Initialize(&argc, argv);
     benchmark::RunSpecifiedBenchmarks();
