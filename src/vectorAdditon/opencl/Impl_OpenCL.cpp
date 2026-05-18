@@ -100,8 +100,8 @@ namespace ppb {
     template class ImplOpenCL<double>;
 }
 
-BENCHMARK(ppb::VectorAddition<ppb::ImplOpenCL<float>>::benchmark)
-    ->Name("VecAdd-Float-OpenCL")
+BENCHMARK(ppb::VectorAddition<ppb::ImplOpenCL<ppb::VectorAdditionBenchmarkConf::float_type>>::benchmark)
+    ->Name("VecAdd")
     ->RangeMultiplier(10)
     ->Range(ppb::VectorAdditionBenchmarkConf::MIN_SIZE, ppb::VectorAdditionBenchmarkConf::MAX_SIZE)
 #ifdef PPB_MEASURE_ONLY_KERNEL
@@ -109,20 +109,8 @@ BENCHMARK(ppb::VectorAddition<ppb::ImplOpenCL<float>>::benchmark)
 #endif
     ->Complexity();
 
-// Apple Metal Devices don't support Double Precision (as of 29.09.2025 - tested with M1 Pro)
-// Hence, building the Kernel will fail on an Apple Chip
-// #ifndef __APPLE__
-// BENCHMARK(ppb::VectorAddition<ppb::ImplOpenCL<double>>::benchmark)
-//     ->Name("VecAdd-Double-OpenCL")
-//     ->RangeMultiplier(10)
-//     ->Range(ppb::VectorAdditionBenchmarkConf::MIN_SIZE, ppb::VectorAdditionBenchmarkConf::MAX_SIZE)
-// #ifdef PPB_MEASURE_ONLY_KERNEL
-//     ->UseManualTime()
-// #endif
-//     ->Complexity();
-// #endif
-
 int main(int argc, char **argv) {
+    ppb::VectorAdditionBenchmarkConf::addContext("OpenCL");
     benchmark::MaybeReenterWithoutASLR(argc, argv);
     benchmark::Initialize(&argc, argv);
     benchmark::RunSpecifiedBenchmarks();

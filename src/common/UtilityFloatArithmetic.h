@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <string>
 #include <type_traits>
 
 namespace ppb::util {
@@ -93,4 +94,29 @@ namespace ppb::util {
         return r == 0 ? a : a + b - r;
     }
 
+    /**
+     * Converts a floating-point type to its string representation at compile time.
+     *
+     * This function provides a compile-time mechanism to obtain a human-readable string
+     * representation of floating-point types. It is particularly useful for logging,
+     * debugging, or generating type-specific identifiers in template code.
+     *
+     * @tparam T The floating-point type to convert to a string. Should be float or double.
+     *           Other types will return "unknown".
+     *
+     * @return A pointer to a constant character string representing the type name:
+     *         - "float" if T is float
+     *         - "double" if T is double
+     *         - "unknown" for any other type
+     */
+    template <typename T>
+    constexpr inline const char* to_string() {
+        if constexpr (std::is_same_v<T, float>) {
+            return "float";
+        } else if constexpr (std::is_same_v<T, double>) {
+            return "double";
+        } else {
+            return "unknown";
+        }
+    }
 }

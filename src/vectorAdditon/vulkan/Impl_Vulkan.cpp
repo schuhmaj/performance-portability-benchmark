@@ -63,8 +63,8 @@ namespace ppb {
     template class ImplVulkan<float>;
 };
 
-BENCHMARK(ppb::VectorAddition<ppb::ImplVulkan<float>>::benchmark)
-    ->Name("VecAdd-Float-Vulkan")
+BENCHMARK(ppb::VectorAddition<ppb::ImplVulkan<ppb::VectorAdditionBenchmarkConf::float_type>>::benchmark)
+    ->Name("VecAdd")
     ->RangeMultiplier(10)
     ->Range(ppb::VectorAdditionBenchmarkConf::MIN_SIZE, ppb::VectorAdditionBenchmarkConf::MAX_SIZE)
 #ifdef PPB_MEASURE_ONLY_KERNEL
@@ -73,6 +73,7 @@ BENCHMARK(ppb::VectorAddition<ppb::ImplVulkan<float>>::benchmark)
     ->Complexity();
 
 int main(int argc, char **argv) {
+    ppb::VectorAdditionBenchmarkConf::addContext("Vulkan");
     benchmark::MaybeReenterWithoutASLR(argc, argv);
     benchmark::Initialize(&argc, argv);
     benchmark::RunSpecifiedBenchmarks();

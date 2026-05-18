@@ -1,6 +1,7 @@
 #pragma once
 
 #include "benchmark/benchmark.h"
+#include "common/UtilityFloatArithmetic.h"
 
 #include <vector>
 #include <algorithm>
@@ -16,8 +17,14 @@
 namespace ppb {
 
     namespace VectorAdditionBenchmarkConf {
+        using float_type = float;
         constexpr double MIN_SIZE = 1e3;
         constexpr double MAX_SIZE = 1e8;
+
+        inline void addContext(const char* paradigm) {
+            benchmark::AddCustomContext("paradigm", paradigm);
+            benchmark::AddCustomContext("float_type", util::to_string<float_type>());
+        }
     }
 
     /**
