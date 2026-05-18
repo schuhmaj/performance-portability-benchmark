@@ -19,6 +19,7 @@ if (${PPB_ENABLE_Slang_Vulkan})
     target_include_directories(polyhedral_slang_vulkan_lib PUBLIC "${CMAKE_CURRENT_BINARY_DIR}")
 
     add_executable(polyhedral_slang_vulkan ${POLYHEDRAL_GRAVITY_ROOT_DIR}/main.cpp)
+    target_compile_definitions(polyhedral_slang_vulkan PRIVATE PARADIGM="Slang-Vulkan")
     target_link_libraries(polyhedral_slang_vulkan PRIVATE polyhedral_slang_vulkan_lib)
 endif ()
 
@@ -36,5 +37,6 @@ if (${PPB_ENABLE_Slang_Cuda})
     target_link_libraries(polyhedral_slang_cuda_lib PUBLIC polyhedral_lib)
 
     add_executable(polyhedral_slang_cuda ${POLYHEDRAL_GRAVITY_ROOT_DIR}/main.cpp)
+    target_compile_definitions(polyhedral_slang_cuda PRIVATE PARADIGM="Slang-Cuda")
     target_link_libraries(polyhedral_slang_cuda PRIVATE polyhedral_slang_cuda_lib)
 endif ()

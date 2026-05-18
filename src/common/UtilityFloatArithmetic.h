@@ -112,9 +112,9 @@ namespace ppb::util {
     template <typename T>
     constexpr inline const char* to_string() {
         if constexpr (std::is_same_v<T, float>) {
-            return "float";
+            return "32";
         } else if constexpr (std::is_same_v<T, double>) {
-            return "double";
+            return "64";
         } else {
             return "unknown";
         }

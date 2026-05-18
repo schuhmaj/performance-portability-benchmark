@@ -32,4 +32,5 @@ target_include_directories(polyhedral_ocl_lib PUBLIC ${CMAKE_CURRENT_BINARY_DIR}
 
 
 add_executable(polyhedral_ocl ${POLYHEDRAL_GRAVITY_ROOT_DIR}/main.cpp)
+target_compile_definitions(polyhedral_ocl PRIVATE PARADIGM="OpenCL")
 target_link_libraries(polyhedral_ocl polyhedral_ocl_lib)

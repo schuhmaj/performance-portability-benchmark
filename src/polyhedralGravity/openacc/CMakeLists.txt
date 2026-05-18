@@ -7,4 +7,5 @@ target_link_libraries(polyhedral_acc_lib
 )
 
 add_executable(polyhedral_acc ${POLYHEDRAL_GRAVITY_ROOT_DIR}/main.cpp)
+target_compile_definitions(polyhedral_acc PRIVATE PARADIGM="OpenACC")
 target_link_libraries(polyhedral_acc PUBLIC polyhedral_acc_lib)

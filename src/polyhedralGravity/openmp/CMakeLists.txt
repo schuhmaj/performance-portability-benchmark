@@ -12,4 +12,5 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
 endif ()
 
 add_executable(polyhedral_omp ${POLYHEDRAL_GRAVITY_ROOT_DIR}/main.cpp)
+target_compile_definitions(polyhedral_omp PRIVATE PARADIGM="OpenMP")
 target_link_libraries(polyhedral_omp PUBLIC polyhedral_omp_lib)

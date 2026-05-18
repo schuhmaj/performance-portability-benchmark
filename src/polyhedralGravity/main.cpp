@@ -1,6 +1,13 @@
 #include <benchmark/benchmark.h>
 #include "PolyhedralGravityDefinitions.h"
 
+#define STR(x) #x
+#define XSTR(x) STR(x)
+
+#ifndef PARADIGM
+#define PARADIGM "unknown"
+#endif
+
 static void BM_Eros(benchmark::State &state) {
     std::vector<Array3> Vertices;
     std::vector<IndexArray3> Faces;
@@ -16,7 +23,7 @@ static void BM_Eros(benchmark::State &state) {
     state.counters["NumFaces"] = Faces.size();
 }
 
-BENCHMARK(BM_Eros);
+BENCHMARK(BM_Eros)->Name("Polyhedral-Eros");
 
 template<class... Args>
 void BM_obj(benchmark::State &state, Args &&...args) {
@@ -35,9 +42,9 @@ void BM_obj(benchmark::State &state, Args &&...args) {
     state.counters["NumFaces"] = Faces.size();
 }
 
-BENCHMARK_CAPTURE(BM_obj, 67P_ESA_NAVCAM_Jul2015data_256k, std::string("67P_ESA_NAVCAM_Jul2015data_256k"));
-BENCHMARK_CAPTURE(BM_obj, 25143_Itokawa_200k, std::string("25143_Itokawa_200k"));
-BENCHMARK_CAPTURE(BM_obj, a8567, std::string("a8567.tab"));
+BENCHMARK_CAPTURE(BM_obj, 67P_ESA_NAVCAM_Jul2015data_256k, std::string("67P_ESA_NAVCAM_Jul2015data_256k"))->Name("Polyhedral-67P_ESA_NAVCAM_Jul2015data_256k");
+BENCHMARK_CAPTURE(BM_obj, 25143_Itokawa_200k, std::string("25143_Itokawa_200k"))->Name("Polyhedral-25143_Itokawa_200k");
+BENCHMARK_CAPTURE(BM_obj, a8567, std::string("a8567.tab"))->Name("Polyhedral-a8567");
 // BENCHMARK_CAPTURE(BM_obj, SHAPE_SFM_3M_v20180804, std::string("SHAPE_SFM_3M_v20180804"));
 // BENCHMARK_CAPTURE(BM_obj, 4179toutatis, std::string("4179toutatis.tab"));
 // BENCHMARK_CAPTURE(BM_obj, hartley2_2012_cart, std::string("hartley2_2012_cart"));
@@ -128,6 +135,9 @@ static void generate_sphere(std::vector<Array3> &Vertices, std::vector<IndexArra
 
 int main(int argc, char **argv) {
     GlobalResources Resources(argc, argv);
+
+    benchmark::AddCustomContext("paradigm", PARADIGM);
+    benchmark::AddCustomContext("float_type", XSTR(FLOAT_BITS));
 
     benchmark::Initialize(&argc, argv);
     benchmark::RunSpecifiedBenchmarks();

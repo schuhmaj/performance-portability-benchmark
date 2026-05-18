@@ -9,6 +9,7 @@ set_target_properties(polyhedral_cuda_lib PROPERTIES
 
 
 add_executable(polyhedral_cuda ${POLYHEDRAL_GRAVITY_ROOT_DIR}/main.cpp)
+target_compile_definitions(polyhedral_cuda PRIVATE PARADIGM="Cuda")
 target_link_libraries(polyhedral_cuda PRIVATE polyhedral_cuda_lib)
 target_compile_features(polyhedral_cuda PUBLIC cxx_std_17)
 target_compile_options(polyhedral_cuda PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:--ptxas-options=-v>)

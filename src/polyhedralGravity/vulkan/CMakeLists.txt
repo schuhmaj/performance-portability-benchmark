@@ -18,4 +18,5 @@ target_link_libraries(polyhedral_vulkan_lib PUBLIC polyhedral_lib kompute::kompu
 target_include_directories(polyhedral_vulkan_lib PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
 
 add_executable(polyhedral_vulkan ${POLYHEDRAL_GRAVITY_ROOT_DIR}/main.cpp)
+target_compile_definitions(polyhedral_vulkan PRIVATE PARADIGM="Vulkan")
 target_link_libraries(polyhedral_vulkan PRIVATE polyhedral_vulkan_lib)
