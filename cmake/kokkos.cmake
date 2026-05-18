@@ -1,5 +1,5 @@
 message(STATUS "Setting up Kokkos")
-set(Kokkos_VERSION 4.7.01)
+set(Kokkos_VERSION 5.1.1)
 
 find_package(Kokkos ${Kokkos_VERSION} QUIET)
 
@@ -17,13 +17,10 @@ else ()
             URL https://github.com/kokkos/kokkos/archive/refs/tags/${Kokkos_VERSION}.tar.gz
     )
     FetchContent_MakeAvailable(Kokkos)
+endif ()
 
-    # Mark all CMake variables of the Kokkos project as advanced for this project expect the main backend selection
-#    get_cmake_property(_vars CACHE_VARIABLES)
-#    foreach(_var ${_vars})
-#        if(_var MATCHES "^Kokkos_" AND
-#                NOT _var MATCHES "^Kokkos_ENABLE_(SERIAL|OPENMP|THREADS|HPX|CUDA|HIP|SYCL|OPENMPTARGET|OPENACC)$")
-#            mark_as_advanced(${_var})
-#        endif()
-#    endforeach()
+# Enable CUDA backend if CUDA language is enabled
+get_property(languages GLOBAL PROPERTY ENABLED_LANGUAGES)
+if ("CUDA" IN_LIST languages)
+    set(Kokkos_ENABLE_CUDA ON CACHE BOOL "Enable Kokkos CUDA backend" FORCE)
 endif ()

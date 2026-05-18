@@ -15,3 +15,9 @@ else ()
     )
     FetchContent_MakeAvailable(Alpaka)
 endif ()
+
+# Enable CUDA backend if CUDA language is enabled
+get_property(languages GLOBAL PROPERTY ENABLED_LANGUAGES)
+if ("CUDA" IN_LIST languages)
+    set(alpaka_ACC_GPU_CUDA_ENABLE ON CACHE BOOL "Enable Alpaka CUDA backend" FORCE)
+endif ()

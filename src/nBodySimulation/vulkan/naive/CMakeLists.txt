@@ -4,7 +4,7 @@ set(SHADER_SOURCE_FILES
         ${CMAKE_CURRENT_SOURCE_DIR}/shaders/KernelPosition.comp
 )
 
-compile_vulkan(
+compile_vulkan_opengl(
         INFILE ${SHADER_SOURCE_FILES}
         PATH ${CMAKE_CURRENT_BINARY_DIR}
         OUT_HEADERS OPENGL_HEADERS

@@ -8,7 +8,7 @@ set(OPENGL_SOURCE_FILES
         ${CMAKE_CURRENT_SOURCE_DIR}/shaders/KernelCountNeighbors.comp
 )
 
-compile_vulkan(
+compile_vulkan_opengl(
         INFILE ${OPENGL_SOURCE_FILES}
         PATH ${CMAKE_CURRENT_BINARY_DIR}
         OUT_HEADERS OPENGL_HEADERS
