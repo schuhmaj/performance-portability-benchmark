@@ -101,15 +101,14 @@ message(STATUS "Metal (Apple)                   ${PPB_ENABLE_Metal}")
 message(STATUS "####################################################")
 message(STATUS "VectorAddition                  ${PPB_ENABLE_VectorAddition}")
 message(STATUS "MatrixMultiplication            ${PPB_ENABLE_MatrixMultiplication}")
-message(STATUS "NBodySimulation                 ${PPB_ENABLE_NBodySimulation}")
 message(STATUS "PolyhedralGravity               ${PPB_ENABLE_PolyhedralGravity}")
+message(STATUS " ⮑ Polyhedral Float Type       ${PPB_Polyhedral_FloatType}")
+message(STATUS "NBodySimulation                 ${PPB_ENABLE_NBodySimulation}")
+message(STATUS " ⮑ Naive                       ${PPB_ENABLE_NBodySimulation_naive}")
+message(STATUS " ⮑ LinkedCells                 ${PPB_ENABLE_NBodySimulation_cells}")
+message(STATUS " ⮑ VerletLists                 ${PPB_ENABLE_NBodySimulation_verlet}")
+message(STATUS "####################################################")
 message(STATUS "Testing                         ${PPB_ENABLE_Testing}")
-message(STATUS "####################################################")
-message(STATUS "naive nBodySimulation           ${PPB_ENABLE_NBodySimulation_naive}")
-message(STATUS "cells nBodySimulation           ${PPB_ENABLE_NBodySimulation_cells}")
-message(STATUS "verlet nBodySimulation          ${PPB_ENABLE_NBodySimulation_verlet}")
-message(STATUS "####################################################")
-message(STATUS "Polyhedral Float Type           ${PPB_Polyhedral_FloatType}")
 message(STATUS "####################################################")
 
 #######################################################
@@ -126,7 +125,6 @@ list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 
 # We always requires Google Benchmark
 include(gbench)
-include(opencl_compiling)
 
 if (${PPB_ENABLE_Boost} OR ${PPB_ENABLE_AdaptiveCpp})
     # std::random_shuffle was removed in C++17 and deprecated in C++14 - Boost uses it if we don't enable
@@ -154,6 +152,7 @@ if (${PPB_ENABLE_OpenCL})
             message(WARNING "Could not find CL/opencl.hpp. Please install opencl-clhpp-headers.")
         endif()
     endif()
+    include(compile_opencl)
 endif()
 
 if (${PPB_ENABLE_OpenMP})
@@ -191,13 +190,12 @@ endif ()
 # Vulkan Inclusion
 if (${PPB_ENABLE_Vulkan})
     include(glm)
-    include(vulkan_compiling)
+    include(compile_vulkan_opengl)
     include(vulkan)
 endif ()
 
 if (${PPB_ENABLE_Slang_Cuda} OR ${PPB_ENABLE_Slang_Vulkan})
     include(slang)
-    include(slang_compiling)
 endif ()
 
 #######################################################
