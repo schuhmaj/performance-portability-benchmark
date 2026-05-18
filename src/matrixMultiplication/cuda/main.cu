@@ -6,7 +6,7 @@
 #include "matrixMultiplication/MatrixMultiplication.h"
 #include "benchmark/benchmark.h"
 
-BENCHMARK(ppb::MatrixMultiplication<ppb::ImplCublas<float>>::benchmark)
+BENCHMARK(ppb::MatrixMultiplication<ppb::ImplCublas<ppb::MatrixMultiplicationBenchmarkConf::float_type>>::benchmark)
     ->Name("MatrixMultiplication-Float-Cublas")
     ->RangeMultiplier(2)
     ->Range(ppb::MatrixMultiplicationBenchmarkConf::MIN_SIZE, ppb::MatrixMultiplicationBenchmarkConf::MAX_SIZE)
@@ -15,8 +15,8 @@ BENCHMARK(ppb::MatrixMultiplication<ppb::ImplCublas<float>>::benchmark)
 #endif
     ->Complexity();
 
-BENCHMARK(ppb::MatrixMultiplication<ppb::ImplCudaNaive<float>>::benchmark)
-    ->Name("MatrixMultiplication-Float-Cuda-Naive")
+BENCHMARK(ppb::MatrixMultiplication<ppb::ImplCudaNaive<ppb::MatrixMultiplicationBenchmarkConf::float_type>>::benchmark)
+    ->Name("MatrixMultiplication-Naive")
     ->RangeMultiplier(2)
     ->Range(ppb::MatrixMultiplicationBenchmarkConf::MIN_SIZE, ppb::MatrixMultiplicationBenchmarkConf::MAX_SIZE)
 #ifdef PPB_MEASURE_ONLY_KERNEL
@@ -24,8 +24,8 @@ BENCHMARK(ppb::MatrixMultiplication<ppb::ImplCudaNaive<float>>::benchmark)
 #endif
     ->Complexity();
 
-BENCHMARK(ppb::MatrixMultiplication<ppb::ImplCuda<float>>::benchmark)
-    ->Name("MatrixMultiplication-Float-Cuda-SharedMemory")
+BENCHMARK(ppb::MatrixMultiplication<ppb::ImplCuda<ppb::MatrixMultiplicationBenchmarkConf::float_type>>::benchmark)
+    ->Name("MatrixMultiplication-SharedMemory")
     ->RangeMultiplier(2)
     ->Range(ppb::MatrixMultiplicationBenchmarkConf::MIN_SIZE, ppb::MatrixMultiplicationBenchmarkConf::MAX_SIZE)
 #ifdef PPB_MEASURE_ONLY_KERNEL
@@ -34,7 +34,7 @@ BENCHMARK(ppb::MatrixMultiplication<ppb::ImplCuda<float>>::benchmark)
     ->Complexity();
 
 // BENCHMARK(ppb::MatrixMultiplication<ppb::ImplCudaBuffer<float>>::benchmark)
-//     ->Name("MatrixMultiplication-Float-Cuda-Buffer")
+//     ->Name("MatrixMultiplication-Buffer")
 //     ->RangeMultiplier(2)
 //     ->Range(ppb::MatrixMultiplicationBenchmarkConf::MIN_SIZE, ppb::MatrixMultiplicationBenchmarkConf::MAX_SIZE)
 // #ifdef PPB_MEASURE_ONLY_KERNEL
@@ -42,8 +42,8 @@ BENCHMARK(ppb::MatrixMultiplication<ppb::ImplCuda<float>>::benchmark)
 // #endif
 //     ->Complexity();
 
-BENCHMARK(ppb::MatrixMultiplication<ppb::ImplCudaTensor<float>>::benchmark)
-    ->Name("MatrixMultiplication-Float-Cuda-Tensor")
+BENCHMARK(ppb::MatrixMultiplication<ppb::ImplCudaTensor<ppb::MatrixMultiplicationBenchmarkConf::float_type>>::benchmark)
+    ->Name("MatrixMultiplication-Tensor")
     ->RangeMultiplier(2)
     ->Range(ppb::MatrixMultiplicationBenchmarkConf::MIN_SIZE, ppb::MatrixMultiplicationBenchmarkConf::MAX_SIZE)
 #ifdef PPB_MEASURE_ONLY_KERNEL
@@ -52,6 +52,7 @@ BENCHMARK(ppb::MatrixMultiplication<ppb::ImplCudaTensor<float>>::benchmark)
     ->Complexity();
 
 int main(int argc, char** argv) {
+    ppb::MatrixMultiplicationBenchmarkConf::addContext("Cuda");
     benchmark::MaybeReenterWithoutASLR(argc, argv);
     benchmark::Initialize(&argc, argv);
     benchmark::RunSpecifiedBenchmarks();

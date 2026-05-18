@@ -3,8 +3,8 @@
 #include "Impl_AdaptiveCppShr.h"
 #include "matrixMultiplication/MatrixMultiplication.h"
 
-BENCHMARK(ppb::MatrixMultiplication<ppb::ImplAdaptiveCpp<float>>::benchmark)
-    ->Name("MatrixMultiplication-Float-AdaptiveCpp-Naive")
+BENCHMARK(ppb::MatrixMultiplication<ppb::ImplAdaptiveCpp<ppb::MatrixMultiplicationBenchmarkConf::float_type>>::benchmark)
+    ->Name("MatrixMultiplication-Naive")
     ->RangeMultiplier(2)
     ->Range(ppb::MatrixMultiplicationBenchmarkConf::MIN_SIZE, ppb::MatrixMultiplicationBenchmarkConf::MAX_SIZE)
 #ifdef PPB_MEASURE_ONLY_KERNEL
@@ -12,8 +12,8 @@ BENCHMARK(ppb::MatrixMultiplication<ppb::ImplAdaptiveCpp<float>>::benchmark)
 #endif
     ->Complexity();
 
-BENCHMARK(ppb::MatrixMultiplication<ppb::ImplAdaptiveCppShr<float>>::benchmark)
-    ->Name("MatrixMultiplication-Float-AdaptiveCpp-SharedMemory")
+BENCHMARK(ppb::MatrixMultiplication<ppb::ImplAdaptiveCppShr<ppb::MatrixMultiplicationBenchmarkConf::float_type>>::benchmark)
+    ->Name("MatrixMultiplication-SharedMemory")
     ->RangeMultiplier(2)
     ->Range(ppb::MatrixMultiplicationBenchmarkConf::MIN_SIZE, ppb::MatrixMultiplicationBenchmarkConf::MAX_SIZE)
 #ifdef PPB_MEASURE_ONLY_KERNEL
@@ -22,6 +22,7 @@ BENCHMARK(ppb::MatrixMultiplication<ppb::ImplAdaptiveCppShr<float>>::benchmark)
     ->Complexity();
 
 int main(int argc, char** argv) {
+    ppb::MatrixMultiplicationBenchmarkConf::addContext("AdaptiveCpp");
     benchmark::MaybeReenterWithoutASLR(argc, argv);
     benchmark::Initialize(&argc, argv);
     benchmark::RunSpecifiedBenchmarks();
