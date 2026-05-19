@@ -46,6 +46,18 @@
       }
     },
     {
+      "name": "lrz-beast-gh-llvm",
+      "inherits": "linux-cuda-llvm",
+      "displayName": "LRZ Beast Grace-Hopper LLVM",
+      "description": "Enables all paradigms that can run on a Linux machine with CUDA support and LLVM as compiler",
+      "binaryDir": "${sourceDir}/cmake-build-gh-llvm",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_CXX_COMPILER": "clang++",
+        "CMAKE_CUDA_COMPILER": "nvcc"
+      }
+    },
+    {
       "name": "linux-cuda-nvhpc",
       "inherits": "abstract-base",
       "displayName": "Linux CUDA with NVHPC",
@@ -64,7 +76,18 @@
         "PPB_ENABLE_Cuda": "ON",
         "PPB_ENABLE_Alpaka": "ON",
         "PPB_ENABLE_Metal": "OFF"
-
+      }
+    },
+    {
+      "name": "lrz-beast-gh-nvhpc",
+      "inherits": "linux-cuda-nvhpc",
+      "displayName": "LRZ Beast Grace-Hopper NVHPC",
+      "description": "Enables all paradigms that can run on a Linux machine with CUDA support and NVHPC as compiler",
+      "binaryDir": "${sourceDir}/cmake-build-gh-nvhpc",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "nvc",
+        "CMAKE_CXX_COMPILER": "nvc++",
+        "CMAKE_CUDA_COMPILER": "nvcc"
       }
     },
     {
@@ -87,20 +110,6 @@
         "PPB_ENABLE_Alpaka": "ON",
         "PPB_ENABLE_Metal": "ON"
       }
-    }
-  ],
-  "buildPresets": [
-    {
-      "name": "linux-cuda-llvm",
-      "configurePreset": "linux-cuda-llvm"
-    },
-    {
-      "name": "linux-cuda-nvhpc",
-      "configurePreset": "linux-cuda-nvhpc"
-    },
-    {
-      "name": "macos-all",
-      "configurePreset": "macos-all"
     }
   ]
 }
