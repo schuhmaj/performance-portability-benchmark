@@ -72,7 +72,7 @@
       "inherits": "abstract-base",
       "displayName": "macOS",
       "description": "Enables everything that can run on macOS natively (including Metal, OpenCL, Vulkan, etc.). Excludes CUDA/OpenACC.",
-      "binaryDir": "${sourceDir}/build/macos-all",
+      "binaryDir": "${sourceDir}/cmake-build-macos",
       "cacheVariables": {
         "PPB_ENABLE_OpenACC": "OFF",
         "PPB_ENABLE_OpenMP": "ON",

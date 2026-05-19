@@ -24,3 +24,7 @@ get_property(languages GLOBAL PROPERTY ENABLED_LANGUAGES)
 if ("CUDA" IN_LIST languages)
     set(Kokkos_ENABLE_CUDA ON CACHE BOOL "Enable Kokkos CUDA backend" FORCE)
 endif ()
+# Enable OpenMP if on the Apple platform
+if (APPLE)
+    set(Kokkos_ENABLE_OPENMP ON CACHE BOOL "Enable Kokkos OpenMP backend" FORCE)
+endif ()
