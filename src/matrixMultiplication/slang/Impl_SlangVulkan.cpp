@@ -4,14 +4,16 @@
 #include "common/UtilityFloatArithmetic.h"
 #include "matrixMultiplication/MatrixMultiplication.h"
 
+#include "MatrixMultiplicationShader.h"
+
 namespace ppb {
 
     template<typename FloatType>
-    ImplVulkan<FloatType>::ImplVulkan() : manager{}, shader{MATRIXMULTIPLICATIONSHADER_COMP_SPV.begin(), MATRIXMULTIPLICATIONSHADER_COMP_SPV.end()}, sequence{manager.sequence()}{}
+    ImplSlangVulkan<FloatType>::ImplSlangVulkan() : manager{}, shader{std::begin(matmul_kernel), std::end(matmul_kernel)}, sequence{manager.sequence()}{}
 
     template <typename FloatType>
     std::pair<std::vector<FloatType>, double>
-    ImplVulkan<FloatType>::operator()(const std::vector<FloatType> &a, const std::vector<FloatType> &b,
+    ImplSlangVulkan<FloatType>::operator()(const std::vector<FloatType> &a, const std::vector<FloatType> &b,
                                      const MatrixMultiplicationConfig &config) {
         const size_t resultSize = config.m * config.n;
         std::vector<FloatType> result(resultSize, 0.0);
@@ -46,5 +48,5 @@ namespace ppb {
         return std::make_pair(result, elapsed_nanoseconds);
     }
 
-    template class ImplVulkan<float>;
+    template class ImplSlangVulkan<float>;
 } // namespace ppb

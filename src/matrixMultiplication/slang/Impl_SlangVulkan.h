@@ -9,7 +9,7 @@
 namespace ppb {
 
     template<typename FloatType>
-    class ImplVulkan {
+    class ImplSlangVulkan {
 
     public:
 
@@ -21,7 +21,7 @@ namespace ppb {
         std::vector<uint32_t> shader;
         std::shared_ptr<kp::Sequence> sequence;
 
-        ImplVulkan();
+        ImplSlangVulkan();
 
         std::pair<std::vector<FloatType>, double> operator()(const std::vector<FloatType> &a, const std::vector<FloatType> &b, const MatrixMultiplicationConfig &config);
 

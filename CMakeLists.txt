@@ -198,7 +198,7 @@ if (${PPB_ENABLE_Vulkan})
 endif ()
 
 if (${PPB_ENABLE_Slang_Cuda} OR ${PPB_ENABLE_Slang_Vulkan})
-    include(slang)
+    include(compile_slang)
 endif ()
 
 #######################################################

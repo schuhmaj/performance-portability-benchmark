@@ -7,7 +7,7 @@ endif ()
 if (${PPB_ENABLE_Slang_Vulkan})
     compile_slang(
             LANGUAGE SPIR-V
-            INFILE ${CMAKE_CURRENT_SOURCE_DIR}/MatrixMultiplicationShrShader.slang
+            INFILE ${CMAKE_CURRENT_SOURCE_DIR}/MatrixMultiplicationShader.slang
             KERNEL_NAME matmul_kernel
             PATH ${CMAKE_CURRENT_BINARY_DIR}
             OUT_HEADERS SLANG_VULKAN_HEADERS

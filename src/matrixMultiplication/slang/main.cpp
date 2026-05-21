@@ -1,8 +1,8 @@
 #include "benchmark/benchmark.h"
-#include "matrixMultiplication/vulkan/Impl_Vulkan.h"
+#include "matrixMultiplication/slang/Impl_SlangVulkan.h"
 #include "matrixMultiplication/MatrixMultiplication.h"
 
-BENCHMARK(ppb::MatrixMultiplication<ppb::ImplVulkan<ppb::MatrixMultiplicationBenchmarkConf::float_type>>::benchmark)
+BENCHMARK(ppb::MatrixMultiplication<ppb::ImplSlangVulkan<ppb::MatrixMultiplicationBenchmarkConf::float_type>>::benchmark)
     ->Name("MatrixMultiplication")
     ->RangeMultiplier(2)
     ->Range(ppb::MatrixMultiplicationBenchmarkConf::MIN_SIZE, ppb::MatrixMultiplicationBenchmarkConf::MAX_SIZE)
@@ -12,7 +12,7 @@ BENCHMARK(ppb::MatrixMultiplication<ppb::ImplVulkan<ppb::MatrixMultiplicationBen
     ->Complexity();
 
 int main(int argc, char** argv) {
-    ppb::MatrixMultiplicationBenchmarkConf::addContext("Vulkan");
+    ppb::MatrixMultiplicationBenchmarkConf::addContext("Slang-Vulkan");
     benchmark::MaybeReenterWithoutASLR(argc, argv);
     benchmark::Initialize(&argc, argv);
     benchmark::RunSpecifiedBenchmarks();
