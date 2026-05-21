@@ -50,4 +50,8 @@ if (${PPB_ENABLE_Vulkan})
     add_subdirectory(vulkan)
 endif ()
 
+if (${PPB_ENABLE_Slang_Vulkan} OR ${PPB_ENABLE_Slang_Cuda})
+    add_subdirectory(slang)
+endif ()
+
 add_subdirectory(cpp)

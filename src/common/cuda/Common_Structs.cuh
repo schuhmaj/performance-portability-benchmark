@@ -120,6 +120,7 @@ namespace ppb {
 
     struct ResourceSlot {
         CUdeviceptr buffer_pointer;
+        // TODO: This is likely not a useless value, but the size of the pointer for Slang's GetDimensions function
         uint64_t padding; // required for 16 byte alignment
     };
     static_assert(sizeof(ResourceSlot) == 16, "ResourceSlot size mismatch!");
