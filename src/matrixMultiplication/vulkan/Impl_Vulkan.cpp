@@ -7,7 +7,7 @@
 namespace ppb {
 
     template<typename FloatType>
-    ImplVulkan<FloatType>::ImplVulkan() : manager{}, shader{MATRIXMULTIPLICATIONSHADER_COMP_SPV.begin(), MATRIXMULTIPLICATIONSHADER_COMP_SPV.end()}, sequence{manager.sequence()}{}
+    ImplVulkan<FloatType>::ImplVulkan() : manager{}, shader{std::begin(matmul_kernel), std::end(matmul_kernel)}, sequence{manager.sequence()}{}
 
     template <typename FloatType>
     std::pair<std::vector<FloatType>, double>
