@@ -1,0 +1,335 @@
+#include "Impl_Cuda.cuh"
+#include <cuda_runtime.h>
+#include <math.h>
+
+namespace ppb {
+
+    template <typename FloatType>
+    CudaParticleSoA<FloatType>::CudaParticleSoA(const std::vector<Particle<FloatType>> &particles, float cell_size, float cutoff_radius)
+        : positionsHost{particles.size()}
+        , velocitiesHost{particles.size()}
+        , forcesHost{particles.size()}
+        , _ref{particles}
+        , cell_size{cell_size}
+        , cutoff_radius{cutoff_radius}
+    {
+        const size_t size = particles.size();
+        const size_t num_cells = 
+            ((boxMax[0] - boxMin[0]) / cell_size) * 
+            ((boxMax[1] - boxMin[1]) / cell_size) * 
+            ((boxMax[2] - boxMin[2]) / cell_size);
+        for (size_t i = 0; i < size; ++i) {
+            positionsHost[i] = {particles[i].getPosition()[0], particles[i].getPosition()[1], particles[i].getPosition()[2]};
+            velocitiesHost[i] = {particles[i].getVelocity()[0], particles[i].getVelocity()[1], particles[i].getVelocity()[2]};
+            forcesHost[i] = {particles[i].getForce()[0], particles[i].getForce()[1], particles[i].getForce()[2]};
+        }
+        cudaMalloc(&positions, sizeof(float3) * size);
+        cudaMalloc(&velocities, sizeof(float3) * size);
+        cudaMalloc(&forces, sizeof(float3) * size);
+        cudaMalloc(&oldForces, sizeof(float3) * size);
+        cudaMalloc(&starts, sizeof(size_t) * (num_cells + 1)); //+1 so the last index also fits (makes my life easier)
+        cudaMalloc(&cells, sizeof(size_t) * size);
+
+        cudaMemcpy(positions, positionsHost.data(), sizeof(float3) * size, cudaMemcpyHostToDevice);
+        cudaMemcpy(velocities, velocitiesHost.data(), sizeof(float3) * size, cudaMemcpyHostToDevice);
+        cudaMemcpy(forces, forcesHost.data(), sizeof(float3) * size, cudaMemcpyHostToDevice);
+        cudaMemset(oldForces, 0.0, sizeof(float3) * size);
+        cudaMemset(starts, 0.0, sizeof(float3) * (num_cells + 1));
+        cudaMemset(cells, 0.0, sizeof(float3) * size);
+    }
+
+
+    float x_dim = (boxMax[0] - boxMin[0]) / cell_size;
+    float y_dim = (boxMax[1] - boxMin[1]) / cell_size;
+    float z_dim = (boxMax[2] - boxMin[2]) / cell_size;
+
+    template <typename FloatType>
+    CudaParticleSoA<FloatType>::~CudaParticleSoA() {
+        cudaFree(positions);
+        cudaFree(velocities);
+        cudaFree(forces);
+        cudaFree(oldForces);
+        cudaFree(starts);
+        cudaFree(cells);
+    }
+
+    template <typename FloatType>
+    std::vector<Particle<FloatType>> CudaParticleSoA<FloatType>::toParticles() {
+        std::vector<Particle<FloatType>> particles{_ref};
+        cudaMemcpy(positionsHost.data(), positions, sizeof(float3) * _ref.size(), cudaMemcpyDeviceToHost);
+        cudaMemcpy(velocitiesHost.data(), velocities, sizeof(float3) * _ref.size(), cudaMemcpyDeviceToHost);
+        cudaMemcpy(forcesHost.data(), forces, sizeof(float3) * _ref.size(), cudaMemcpyDeviceToHost);
+        for (size_t i = 0; i < particles.size(); ++i) {
+            const float3& position = positionsHost[i];
+            const float3& velocity = velocitiesHost[i];
+            const float3& force = forcesHost[i];
+            particles[i].setPosition({position.x, position.y, position.z});
+            particles[i].setVelocity({velocity.x, velocity.y, velocity.z});
+            particles[i].setForce({force.x, force.y, force.z});
+        }
+        return particles;
+    }
+
+    template class CudaParticleSoA<float>;
+
+    __global__ void update_positions(float3* positions, const float3* velocities, float3* forces, float3* oldForces, const float3 globalForce, const float deltaT, const size_t numParticles) {
+        /**
+         * TODO: update this to allow multidimensional threadblocks (LCC specific)
+         *  */  
+        const unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if (i >= numParticles) {
+            return;
+        }
+
+        constexpr float mass = 1.0;
+        const float3 force = forces[i];
+        const float3 velocity = velocities[i];
+        oldForces[i] = force;
+        forces[i] = globalForce;
+
+        const float3 velocityPart = {velocity.x * deltaT, velocity.y * deltaT, velocity.z * deltaT};
+        const float tt2m = deltaT * deltaT / (2.0f * mass);
+        const float3 forcePart = {force.x * tt2m, force.y * tt2m, force.z * tt2m};
+        const float3 displacement = {velocityPart.x + forcePart.x, velocityPart.y + forcePart.y, velocityPart.z + forcePart.z};
+        positions[i] = {positions[i].x + displacement.x, positions[i].y + displacement.y, positions[i].z + displacement.z};
+
+        //LCC specific
+        cudaMemset(starts, 0.0, sizeof(float3) * (size + 1));
+        cudaMemset(cells, 0.0, sizeof(float3) * size);
+        size_t idx = get_cell_idx(i);
+        cells[idx] = i;
+        starts[idx]++;
+    }
+    
+    /**
+     * @brief Returns the index of the cell that the given particle resides in.
+     * 
+     * @param particle_idx index of the particle that we want to find the cell index for
+     */
+    __device__ inline size_t get_cell_idx(size_t particle_idx) {
+        size_t x_idx = std::ceil(positions[i].x / cell_size) - 1;
+        size_t y_idx = std::ceil(positions[i].y / cell_size) - 1;
+        size_t z_idx = std::ceil(positions[i].z / cell_size) - 1;
+        return x_idx + (y_idx * y_dim) + (z_idx * x_dim * y_dim); 
+    }
+
+    /**
+     * @brief Blelloch algorithm for quick summation. Inspired by Moritz Beste's Bachelor's thesis.
+     * 
+     * TODO: add dynamic (empirical) toggle to blelloch algorithm to a single threaded CPU summation, 
+     * if 'starts' isn't big enough to avoid unnecessary thread creation and scheduling overhead.
+     */
+    __global__ void update_starts() {
+        //Upsweep
+        
+        //Downsweep
+    }
+
+    __global__ void update_velocities(float3* velocities, const float3* forces, const float3* oldForces, const float deltaT, const size_t numParticles) {
+        const unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if (i >= numParticles) {
+            return;
+        }
+
+        constexpr float mass = 1.0;
+        const float3 force = forces[i];
+        const float3 oldForce = oldForces[i];
+        const float3 velocity = velocities[i];
+
+        const float3 forcePart = {force.x + oldForce.x, force.y + oldForce.y, force.z + oldForce.z};
+        const float t2m =  deltaT / (2.0f * mass);
+        const float3 velChange = {forcePart.x * t2m, forcePart.y * t2m, forcePart.z * t2m};
+        velocities[i] = {velocity.x + velChange.x, velocity.y + velChange.y, velocity.z + velChange.z};
+    }
+
+    __device__ inline float3 make_float3_add(const float3 a, const float3 b) {
+        return make_float3(a.x + b.x, a.y + b.y, a.z + b.z);
+    }
+
+    __device__ inline float3 make_float3_sub(const float3 a, const float3 b) {
+        return make_float3(a.x - b.x, a.y - b.y, a.z - b.z);
+    }
+
+    __device__ inline float3 make_float3_scale(const float3 v, const float s) {
+        return make_float3(v.x * s, v.y * s, v.z * s);
+    }
+
+    __device__ inline float dot3(const float3 a, const float3 b) {
+        return cuda::std::fmaf(b.z, a.z, cuda::std::fmaf(b.y, a.y, a.x * b.x)); //idk man kinda pointless but swaggy shmaggy no?
+    }
+
+    __device__ inline bool is_in_bounds(size_t idx) {
+        return true; //TODO!!!
+    }
+
+    const std::array<size_t, 26> offsets = {
+        //front section
+        -((x_dim + 1) * y_dim) - 1, -((x_dim + 1) * y_dim), -((x_dim + 1) * y_dim) + 1,
+        -(x_dim * y_dim) - 1, -(x_dim * y_dim), (x_dim * y_dim) + 1,
+        -((x_dim - 1) * y_dim) - 1, -((x_dim - 1) * y_dim), -((x_dim - 1) * y_dim) + 1,
+        //mid section
+        -x_dim - 1, -x_dim, -x_dim + 1,
+        -1, 1,
+        x_dim - 1, x_dim, x_dim + 1,
+        //back section
+        ((x_dim - 1) * y_dim) - 1, ((x_dim - 1) * y_dim), ((x_dim - 1) * y_dim) + 1,
+        (x_dim * y_dim) - 1, (x_dim * y_dim), (x_dim * y_dim) + 1,
+        ((x_dim + 1) * y_dim) - 1, ((x_dim + 1) * y_dim), ((x_dim + 1) * y_dim) + 1
+    };
+
+    /**
+     * TODO: For N3L: Is it more efficient to make a (temporary) buffer for every particle which stores the
+     * influenced particles, but those particles can be determined in parallel (no race conditions here). Or is it better
+     * not to do that and do what I do here, which is just working without such (temporary) buffers? 
+     */
+    __global__ void compute_forces(
+        const float3* __restrict__ positions,
+        float3* __restrict__ forces,
+        const unsigned int numParticles
+    ) {
+        const unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if (i >= numParticles) {
+            return;
+        }
+        
+        float3 fi = make_float3(0.f, 0.f, 0.f);
+        size_t idx = get_cell_idx(i);
+        for (size_t offset = 0; offset < 27; offset++) {
+            idx += offsets[offset];
+            if (!is_in_bounds(idx)) { //if cell not direct neighbor (i.e. idx is a border cell)
+                idx -= offsets[offset];
+                continue;
+            }
+            size_t start = cells[idx];
+            size_t end = cells[idx + 1];
+            for (size_t j = start; j < end; j++) {
+                if (i == j) continue;
+
+                const float3 dr = make_float3_sub(positions[i], positions[j]);
+                if (dr > cutoff_radius) continue;
+                const float dr2 = dot3(dr, dr);
+
+                const float sigma = 1.0f;
+                const float sigmaSquared = sigma * sigma;
+                const float epsilon24 = 24.0f; // 1.0 * 24.0
+
+                const float invdr2 = 1.0f / dr2;
+                float lj6 = sigmaSquared * invdr2;
+                lj6 = lj6 * lj6 * lj6;
+                const float lj12 = lj6 * lj6;
+                const float lj12m6 = lj12 - lj6;
+                const float fac = epsilon24 * (lj12 + lj12m6) * invdr2;
+
+                const float3 f = make_float3_scale(dr, fac);
+                fi = make_float3_add(fi, f); 
+            }
+            idx -= offsets[offset];
+        }
+
+        forces[i] = fi;
+    }
+
+    template<typename FloatType>
+    ImplCuda<FloatType>::ImplCuda(const ParticleSimulationConfig<FloatType> &config) : _config{config}, _globalForce{_config.globalForce[0], _config.globalForce[1], _config.globalForce[2]} {
+        const size_t size = _config.size;
+        constexpr unsigned int WARP_SIZE = 32;
+        constexpr unsigned int MAX_THREADS = 1024;
+
+        /**
+         * TODO: upgrade this to allow multidim threadblocks (for LCC)
+         */
+        if (size <= MAX_THREADS) {
+            _blockSize = size;
+        } else {
+            int blockSize = 0;
+            int minGridSize = 0;
+            cudaOccupancyMaxPotentialBlockSize(&minGridSize, &_blockSize, reinterpret_cast<void *>(update_positions), 0, size);
+        }
+        _gridSize = util::ceilDiv<unsigned int>(size, _blockSize);
+    }
+
+    template<typename FloatType>
+    void ImplCuda<FloatType>::updatePositionsAndResetForce() {
+        const size_t size = _config.size;
+        const auto dt = static_cast<FloatType>(_config.deltaT);
+        const auto &globalForce = _config.globalForce;
+        auto &force = _particles->forces;
+        auto &oldForce = _particles->oldForces;
+        auto &velocity = _particles->velocities;
+        auto &position = _particles->positions;
+
+        float elapsedTime;
+        cudaEvent_t start, stop;
+        cudaEventCreate(&start);
+        cudaEventCreate(&stop);
+
+        cudaEventRecord(start);
+        update_positions<<<_gridSize, _blockSize>>>(position, velocity, force, oldForce, _globalForce, dt, size);
+        cudaEventRecord(stop);
+        update_starts<<<_gridSize, _blockSize>>>(); //certainly not the ideal grid here
+
+        cudaEventSynchronize(stop);
+        cudaEventElapsedTime(&elapsedTime, start, stop);
+        _timings.positionUpdateForceResetTime += (elapsedTime * 1e6);
+    }
+
+    template<typename FloatType>
+    void ImplCuda<FloatType>::updateVelocities() {
+        const size_t size = _config.size;
+        constexpr size_t dim = 3;
+        const auto dt = static_cast<FloatType>(_config.deltaT);
+        auto &force = _particles->forces;
+        auto &oldForce = _particles->oldForces;
+        auto &velocity = _particles->velocities;
+
+        float elapsedTime;
+        cudaEvent_t start, stop;
+        cudaEventCreate(&start);
+        cudaEventCreate(&stop);
+
+        cudaEventRecord(start);
+        update_velocities<<<_gridSize, _blockSize>>>(velocity, force, oldForce, dt, size);
+        cudaEventRecord(stop);
+
+        cudaEventSynchronize(stop);
+        cudaEventElapsedTime(&elapsedTime, start, stop);
+
+        _timings.velocityUpdateTime += (elapsedTime * 1e6);
+    }
+
+    template<typename FloatType>
+    void ImplCuda<FloatType>::computeForces() {
+        const size_t size = _config.size;
+        auto &force = _particles->forces;
+        auto &position = _particles->positions;
+
+        float elapsedTime;
+        cudaEvent_t start, stop;
+        cudaEventCreate(&start);
+        cudaEventCreate(&stop);
+
+        cudaEventRecord(start);
+        compute_forces<<<_gridSize, _blockSize>>>(position, force, size);
+        cudaEventRecord(stop);
+
+        cudaEventSynchronize(stop);
+        cudaEventElapsedTime(&elapsedTime, start, stop);
+        _timings.forceUpdateTime += (elapsedTime * 16);
+    }
+
+    template<typename FloatType>
+    std::pair<std::vector<Particle<FloatType>>, ParticleSimulationTimings> ImplCuda<FloatType>::simulate(const std::vector<Particle<FloatType>> &particles) {
+        _timings.reset();
+        _particles.emplace(particles);
+
+        for (int i = 0; i < _config.numberTimeSteps; ++i) {
+            updatePositionsAndResetForce();
+            computeForces();
+            updateVelocities();
+        }
+        return std::make_pair(_particles->toParticles(), _timings);
+    }
+
+    template class ImplCuda<float>;
+
+};
