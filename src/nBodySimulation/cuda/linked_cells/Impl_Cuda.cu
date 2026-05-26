@@ -3,7 +3,7 @@
 #include <math.h>
 
 namespace ppb {
-
+   
     template <typename FloatType>
     CudaParticleSoA<FloatType>::CudaParticleSoA(const std::vector<Particle<FloatType>> &particles, float cell_size, float cutoff_radius)
         : positionsHost{particles.size()}
@@ -23,35 +23,21 @@ namespace ppb {
             velocitiesHost[i] = {particles[i].getVelocity()[0], particles[i].getVelocity()[1], particles[i].getVelocity()[2]};
             forcesHost[i] = {particles[i].getForce()[0], particles[i].getForce()[1], particles[i].getForce()[2]};
         }
-        cudaMalloc(&positions, sizeof(float3) * size);
-        cudaMalloc(&velocities, sizeof(float3) * size);
-        cudaMalloc(&forces, sizeof(float3) * size);
-        cudaMalloc(&oldForces, sizeof(float3) * size);
-        cudaMalloc(&starts, sizeof(size_t) * (num_cells + 1)); //+1 so the last index also fits (makes my life easier)
-        cudaMalloc(&cells, sizeof(size_t) * size);
 
-        cudaMemcpy(positions, positionsHost.data(), sizeof(float3) * size, cudaMemcpyHostToDevice);
-        cudaMemcpy(velocities, velocitiesHost.data(), sizeof(float3) * size, cudaMemcpyHostToDevice);
-        cudaMemcpy(forces, forcesHost.data(), sizeof(float3) * size, cudaMemcpyHostToDevice);
-        cudaMemset(oldForces, 0.0, sizeof(float3) * size);
-        cudaMemset(starts, 0.0, sizeof(float3) * (num_cells + 1));
-        cudaMemset(cells, 0.0, sizeof(float3) * size);
+        for (size_t i = 0; i < size; ++i) {
+            positions[get_cell_idx(i)] = {i, positionsHost[i]};
+        }   
+        velocities = velocitiesHost;
+        forces = forcesHost;
+        thrust::fill(oldForces.begin(), oldForces.begin() + size, 0);
+        
+        float x_dim = (boxMax[0] - boxMin[0]) / cell_size;
+        float y_dim = (boxMax[1] - boxMin[1]) / cell_size;
+        float z_dim = (boxMax[2] - boxMin[2]) / cell_size;
     }
-
-
-    float x_dim = (boxMax[0] - boxMin[0]) / cell_size;
-    float y_dim = (boxMax[1] - boxMin[1]) / cell_size;
-    float z_dim = (boxMax[2] - boxMin[2]) / cell_size;
 
     template <typename FloatType>
-    CudaParticleSoA<FloatType>::~CudaParticleSoA() {
-        cudaFree(positions);
-        cudaFree(velocities);
-        cudaFree(forces);
-        cudaFree(oldForces);
-        cudaFree(starts);
-        cudaFree(cells);
-    }
+    CudaParticleSoA<FloatType>::~CudaParticleSoA() = default;
 
     template <typename FloatType>
     std::vector<Particle<FloatType>> CudaParticleSoA<FloatType>::toParticles() {
@@ -158,7 +144,7 @@ namespace ppb {
         return cuda::std::fmaf(b.z, a.z, cuda::std::fmaf(b.y, a.y, a.x * b.x)); //idk man kinda pointless but swaggy shmaggy no?
     }
 
-    __device__ inline bool is_in_bounds(size_t idx) {
+    __device__ inline bool is_in_bounds(size_t idx, offset) {
         return true; //TODO!!!
     }
 
@@ -195,11 +181,8 @@ namespace ppb {
         float3 fi = make_float3(0.f, 0.f, 0.f);
         size_t idx = get_cell_idx(i);
         for (size_t offset = 0; offset < 27; offset++) {
+            if (!is_in_bounds(idx, offset)) continue; 
             idx += offsets[offset];
-            if (!is_in_bounds(idx)) { //if cell not direct neighbor (i.e. idx is a border cell)
-                idx -= offsets[offset];
-                continue;
-            }
             size_t start = cells[idx];
             size_t end = cells[idx + 1];
             for (size_t j = start; j < end; j++) {

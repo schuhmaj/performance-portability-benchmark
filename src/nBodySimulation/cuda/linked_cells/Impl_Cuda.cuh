@@ -1,44 +1,29 @@
 #pragma once
 
+#include <thrust/host_vector.h>
+#include <thrust/device_vector.h>
 #include "nBodySimulation/NBodySimulation.h"
 #include "nBodySimulation/Particle.h"
 #include "common/UtilityContainer.h"
 
 namespace ppb {
 
-
     template <typename FloatType>
     struct CudaParticleSoA {
-
+        const float x_dim;
+        const float y_dim;
+        const float z_dim;
         const std::vector<Particle<FloatType>> &_ref;
 
-        float3* positions{nullptr};
-        float3* velocities{nullptr};
-        float3* forces{nullptr};
-        float3* oldForces{nullptr};
-        /**
-         * Other solutions possible but either:
-         * 1) more memory -> not ideal for GPU cause it's compute optimized
-         * 2) no more memory coalescence -> less cache hits, probably not worth the slight computational upgrade of not having the starts vector anymore
-         */
-
-        /**
-         * @brief 'starts' looks like this:
-         * 0, 2, 2, 4, ..., 10
-         * so here for example we have 10 cells (as indicated by the last entry). 
-         * The first one has 2 particles, the second has none, the third has 2 particles again.
-         * The stored indicies are the indicies in the 'cells' container, where the i-th index describes the starting
-         * 
-         */
-        std::vector<size_t>* starts{nullptr};
-        /**
-         * IMPORTANT: 'cells' can only contain up to SIZE_T_MAX - 1 cells. SIZE_T_MAX is a reserved special value.
-         */
-        std::vector<size_t>* cells{nullptr};
-        
-        std::vector<float3> positionsHost;
-        std::vector<float3> velocitiesHost;
-        std::vector<float3> forcesHost;
+        //size_t for index of particle in original 'particles' container, float3 for {x, y, z} position.
+        thrust::device_vector<thrust::device_vector<std::pair<size_t, float3>>> positions;
+        thrust::device_vector<float3> velocities;
+        thrust::device_vector<float3> forces;
+        thrust::device_vector<float3> oldForces;
+         
+        thrust::host_vector<float3> positionsHost;
+        thrust::host_vector<float3> velocitiesHost;
+        thrust::host_vector<float3> forcesHost;
         float cell_size{1.0f}; //no support for non-square cells (for now)
         float cutoff_radius{1.0f};
 
