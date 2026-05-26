@@ -3,7 +3,15 @@
 #include <math.h>
 
 namespace ppb {
-   
+    
+    /** 
+        TODO:
+        1) is_in_bounds
+        2) make it run
+        3) only do force computations every n-th iteration (had a name. like paratime or smn) (maybe the cells also have some skin, like the verlet skin)
+        4) n3l and domain coloring
+     */
+
     template <typename FloatType>
     CudaParticleSoA<FloatType>::CudaParticleSoA(const std::vector<Particle<FloatType>> &particles, float cell_size, float cutoff_radius)
         : positionsHost{particles.size()}
@@ -30,10 +38,10 @@ namespace ppb {
         velocities = velocitiesHost;
         forces = forcesHost;
         thrust::fill(oldForces.begin(), oldForces.begin() + size, 0);
-        
-        float x_dim = (boxMax[0] - boxMin[0]) / cell_size;
-        float y_dim = (boxMax[1] - boxMin[1]) / cell_size;
-        float z_dim = (boxMax[2] - boxMin[2]) / cell_size;
+
+        x_dim = (boxMax[0] - boxMin[0]) / cell_size;
+        y_dim = (boxMax[1] - boxMin[1]) / cell_size;
+        z_dim = (boxMax[2] - boxMin[2]) / cell_size;
     }
 
     template <typename FloatType>
@@ -42,9 +50,9 @@ namespace ppb {
     template <typename FloatType>
     std::vector<Particle<FloatType>> CudaParticleSoA<FloatType>::toParticles() {
         std::vector<Particle<FloatType>> particles{_ref};
-        cudaMemcpy(positionsHost.data(), positions, sizeof(float3) * _ref.size(), cudaMemcpyDeviceToHost);
-        cudaMemcpy(velocitiesHost.data(), velocities, sizeof(float3) * _ref.size(), cudaMemcpyDeviceToHost);
-        cudaMemcpy(forcesHost.data(), forces, sizeof(float3) * _ref.size(), cudaMemcpyDeviceToHost);
+        positionsHost = positions;
+        velocitiesHost = velocities;
+        forcesHost = forces;
         for (size_t i = 0; i < particles.size(); ++i) {
             const float3& position = positionsHost[i];
             const float3& velocity = velocitiesHost[i];
@@ -60,7 +68,7 @@ namespace ppb {
 
     __global__ void update_positions(float3* positions, const float3* velocities, float3* forces, float3* oldForces, const float3 globalForce, const float deltaT, const size_t numParticles) {
         /**
-         * TODO: update this to allow multidimensional threadblocks (LCC specific)
+         * TODO: update this to allowmultidimensional threadblocks (LCC specific)
          *  */  
         const unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
         if (i >= numParticles) {
@@ -80,11 +88,7 @@ namespace ppb {
         positions[i] = {positions[i].x + displacement.x, positions[i].y + displacement.y, positions[i].z + displacement.z};
 
         //LCC specific
-        cudaMemset(starts, 0.0, sizeof(float3) * (size + 1));
-        cudaMemset(cells, 0.0, sizeof(float3) * size);
-        size_t idx = get_cell_idx(i);
-        cells[idx] = i;
-        starts[idx]++;
+        particles[get_cell_idx(i)].
     }
     
     /**
@@ -97,18 +101,6 @@ namespace ppb {
         size_t y_idx = std::ceil(positions[i].y / cell_size) - 1;
         size_t z_idx = std::ceil(positions[i].z / cell_size) - 1;
         return x_idx + (y_idx * y_dim) + (z_idx * x_dim * y_dim); 
-    }
-
-    /**
-     * @brief Blelloch algorithm for quick summation. Inspired by Moritz Beste's Bachelor's thesis.
-     * 
-     * TODO: add dynamic (empirical) toggle to blelloch algorithm to a single threaded CPU summation, 
-     * if 'starts' isn't big enough to avoid unnecessary thread creation and scheduling overhead.
-     */
-    __global__ void update_starts() {
-        //Upsweep
-        
-        //Downsweep
     }
 
     __global__ void update_velocities(float3* velocities, const float3* forces, const float3* oldForces, const float deltaT, const size_t numParticles) {
@@ -245,11 +237,11 @@ namespace ppb {
         cudaEvent_t start, stop;
         cudaEventCreate(&start);
         cudaEventCreate(&stop);
+        thrust::fill(positions.begin(), positions.begin() + size, make_float3(.0f, .0f, .0f));
 
         cudaEventRecord(start);
         update_positions<<<_gridSize, _blockSize>>>(position, velocity, force, oldForce, _globalForce, dt, size);
         cudaEventRecord(stop);
-        update_starts<<<_gridSize, _blockSize>>>(); //certainly not the ideal grid here
 
         cudaEventSynchronize(stop);
         cudaEventElapsedTime(&elapsedTime, start, stop);
