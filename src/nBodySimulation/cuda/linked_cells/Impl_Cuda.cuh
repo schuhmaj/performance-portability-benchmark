@@ -1,6 +1,5 @@
 #pragma once
 
-#include <thrust/host_vector.h>
 #include <thrust/device_vector.h>
 #include "nBodySimulation/NBodySimulation.h"
 #include "nBodySimulation/Particle.h"
@@ -10,22 +9,31 @@ namespace ppb {
 
     template <typename FloatType>
     struct CudaParticleSoA {
-        const float x_dim;
-        const float y_dim;
-        const float z_dim;
-        const std::vector<Particle<FloatType>> &_ref;
+        __constant__ float x_dim;
+        __constant__ float y_dim;
+        __constant__ float z_dim;
+        __constant__ std::vector<Particle<FloatType>> &_ref;
+        __constant__ float cell_size{1.0f};
+        __constant__ float cutoff_radius{1.0f};
 
-        //size_t for index of particle in original 'particles' container, float3 for {x, y, z} position.
-        thrust::device_vector<thrust::device_vector<std::pair<size_t, float3>>> positions;
-        thrust::device_vector<float3> velocities;
-        thrust::device_vector<float3> forces;
-        thrust::device_vector<float3> oldForces;
-         
-        thrust::host_vector<float3> positionsHost;
-        thrust::host_vector<float3> velocitiesHost;
-        thrust::host_vector<float3> forcesHost;
-        float cell_size{1.0f}; //no support for non-square cells (for now)
-        float cutoff_radius{1.0f};
+        /**
+         * @brief 'starts' looks like this:
+         * 0, 2, 2, 4, ..., 10
+         * so here for example we have 10 cells (as indicated by the last entry). 
+         * The first one has 2 particles, the second has none, the third has 2 particles again.
+         * The stored indicies are the indicies in the 'cells' container, where the i-th index describes the starting
+         * 
+         */
+        __device__ size_t* starts{nullptr};
+        __device__ size_t* cells{nullptr};
+        __device__ float3* positions{nullptr};
+        __device__ float3* velocities{nullptr};
+        __device__ float3* forces{nullptr};
+        __device__ float3* oldForce{nullptr};
+        
+        __host__ std::vector<float3> positionsHost;
+        __host__ std::vector<float3> velocitiesHost;
+        __host__ std::vector<float3> forcesHost;
 
         explicit CudaParticleSoA(const std::vector<Particle<FloatType>> &particles);
 
@@ -36,17 +44,15 @@ namespace ppb {
 
     template <typename FloatType>
     class ImplCuda {
+        __constant__ int _blockSize;
+        __constant__ int _gridSize;
+        __constant__ float3 _globalForce;
 
         ParticleSimulationConfig<FloatType> _config;
 
         std::optional<CudaParticleSoA<FloatType>> _particles{std::nullopt};
 
         ParticleSimulationTimings _timings{};
-
-        int _blockSize;
-        int _gridSize;
-        float3 _globalForce;
-
     public:
         using float_type = FloatType;
 
