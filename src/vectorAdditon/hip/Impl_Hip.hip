@@ -54,16 +54,14 @@ namespace ppb {
         hipOccupancyMaxPotentialBlockSize(
             &minGridSize,
             &blockSize,
-            kernel_vector_add,
+            reinterpret_cast<const void*>(kernel_vector_add),
             0,
             size
             );
         int gridSize = (size + blockSize - 1) / blockSize;
 
         hipEventRecord(start, stream);
-        // NVMON_MARKER_START("triad");
         kernel_vector_add<<<gridSize, blockSize, 0, stream>>>(size, deviceA, deviceC);
-        // NVMON_MARKER_STOP("triad");
         hipEventRecord(stop, stream);
 
         std::vector<FloatType> result(size);
@@ -80,7 +78,7 @@ namespace ppb {
 }
 
 BENCHMARK(ppb::VectorAddition<ppb::ImplHip<ppb::VectorAdditionBenchmarkConf::float_type>>::benchmark)
-    ->Name("VecAdd-Naive")
+    ->Name("VecAdd")
     ->RangeMultiplier(10)
     ->Range(ppb::VectorAdditionBenchmarkConf::MIN_SIZE, ppb::VectorAdditionBenchmarkConf::MAX_SIZE)
     #ifdef PPB_MEASURE_ONLY_KERNEL

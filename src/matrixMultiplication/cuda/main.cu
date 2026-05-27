@@ -7,7 +7,7 @@
 #include "benchmark/benchmark.h"
 
 BENCHMARK(ppb::MatrixMultiplication<ppb::ImplCublas<ppb::MatrixMultiplicationBenchmarkConf::float_type>>::benchmark)
-    ->Name("MatrixMultiplication-Float-Cublas")
+    ->Name("MatrixMultiplication-Cublas")
     ->RangeMultiplier(2)
     ->Range(ppb::MatrixMultiplicationBenchmarkConf::MIN_SIZE, ppb::MatrixMultiplicationBenchmarkConf::MAX_SIZE)
 #ifdef PPB_MEASURE_ONLY_KERNEL
