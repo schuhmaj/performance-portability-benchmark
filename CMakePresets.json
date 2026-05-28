@@ -8,8 +8,8 @@
   "configurePresets": [
     {
       "name": "abstract-base",
-      "displayName": "Base (CPU)",
-      "description": "Abstract base. Enables all paradigms that can run on a Linux machine without a GPU or special hardware.",
+      "displayName": "Abstract Base",
+      "description": "Abstract base. Switches everything ON. CUDA and HIP are automatically enabled/ disabled via CMake Language Detection (no need to set PPB_ENABLE_CUDA/HIP).",
       "generator": "Ninja",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
@@ -21,102 +21,88 @@
         "PPB_ENABLE_NBodySimulation_cells": "ON",
         "PPB_ENABLE_NBodySimulation_verlet": "ON",
         "PPB_ENABLE_PolyhedralGravity": "ON",
-        "PPB_ENABLE_Testing": "ON"
+        "PPB_ENABLE_Testing": "ON",
+
+        "PPB_ENABLE_OpenACC": "ON",
+        "PPB_ENABLE_OpenMP": "ON",
+        "PPB_ENABLE_AdaptiveCpp": "ON",
+        "PPB_ENABLE_Vulkan": "ON",
+        "PPB_ENABLE_Slang_Vulkan": "ON",
+        "PPB_ENABLE_Slang_Cuda": "ON",
+        "PPB_ENABLE_OpenCL": "ON",
+        "PPB_ENABLE_Boost": "ON",
+        "PPB_ENABLE_Kokkos": "ON",
+        "PPB_ENABLE_Alpaka": "ON",
+        "PPB_ENABLE_Metal": "OFF"
       }
     },
     {
       "name": "linux-cuda-llvm",
       "inherits": "abstract-base",
       "displayName": "Linux CUDA with LLVM",
-      "description": "Enables all paradigms that can run on a Linux machine with CUDA support and LLVM as compiler",
+      "description": "Switches OFF: OpenACC (and potentially Kokkos)",
       "binaryDir": "${sourceDir}/cmake-build-linux-cuda-llvm",
       "cacheVariables": {
         "CMAKE_C_COMPILER": "clang",
         "CMAKE_CXX_COMPILER": "clang++",
         "CMAKE_CUDA_COMPILER": "nvcc",
 
-        "PPB_ENABLE_OpenACC": "OFF",
-        "PPB_ENABLE_OpenMP": "ON",
-        "PPB_ENABLE_AdaptiveCpp": "ON",
-        "PPB_ENABLE_Vulkan": "ON",
-        "PPB_ENABLE_Slang_Vulkan": "ON",
-        "PPB_ENABLE_Slang_Cuda": "ON",
-        "PPB_ENABLE_OpenCL": "ON",
-        "PPB_ENABLE_Boost": "ON",
-        "PPB_ENABLE_Kokkos": "ON",
-        "PPB_ENABLE_CUDA": "ON",
-        "PPB_ENABLE_Alpaka": "ON",
-        "PPB_ENABLE_Metal": "OFF"
+        "PPB_ENABLE_OpenACC": "OFF"
       }
     },
     {
       "name": "linux-cuda-nvhpc",
       "inherits": "abstract-base",
       "displayName": "Linux CUDA with NVHPC",
-      "description": "Enables all paradigms that can run on a Linux machine with CUDA support and NVHPC as compiler toolchain",
+      "description": "Switches OFF: OpenMP, Vulkan, Slang-Vulkan",
       "binaryDir": "${sourceDir}/cmake-build-linux-cuda-nvhpc",
       "cacheVariables": {
         "CMAKE_C_COMPILER": "nvc",
         "CMAKE_CXX_COMPILER": "nvc++",
         "CMAKE_CUDA_COMPILER": "nvcc",
 
-        "PPB_ENABLE_OpenACC": "ON",
         "PPB_ENABLE_OpenMP": "OFF",
-        "PPB_ENABLE_AdaptiveCpp": "ON",
         "PPB_ENABLE_Vulkan": "OFF",
-        "PPB_ENABLE_Slang_Vulkan": "OFF",
-        "PPB_ENABLE_Slang_Cuda": "ON",
-        "PPB_ENABLE_OpenCL": "ON",
-        "PPB_ENABLE_Boost": "ON",
-        "PPB_ENABLE_Kokkos": "ON",
-        "PPB_ENABLE_CUDA": "ON",
-        "PPB_ENABLE_Alpaka": "ON",
-        "PPB_ENABLE_Metal": "OFF"
+        "PPB_ENABLE_Slang_Vulkan": "OFF"
+      }
+    },
+    {
+      "name": "linux-cuda-gcc",
+      "inherits": "abstract-base",
+      "displayName": "Linux CUDA with GCC",
+      "description": "Switches OFF: OpenMP",
+      "binaryDir": "${sourceDir}/cmake-build-linux-cuda-nvhpc",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "gcc",
+        "CMAKE_CXX_COMPILER": "g++",
+        "CMAKE_CUDA_COMPILER": "nvcc",
+
+        "PPB_ENABLE_OpenMP": "OFF"
       }
     },
     {
       "name": "linux-rocm",
       "inherits": "abstract-base",
-      "displayName": "Linux ROCM with amdclang",
-      "description": "Enables all paradigms that can run on a Linux machine with ROCM support and amdclang as compiler toolchain",
+      "displayName": "Linux ROCM with AMDCLANG",
+      "description": "Switches off: OpenACC, Slang-CUDA",
       "binaryDir": "${sourceDir}/cmake-build-linux-rocm",
       "cacheVariables": {
         "CMAKE_C_COMPILER": "amdclang",
         "CMAKE_CXX_COMPILER": "amdclang++",
 
-        "PPB_ENABLE_OpenACC": "ON",
-        "PPB_ENABLE_OpenMP": "ON",
-        "PPB_ENABLE_AdaptiveCpp": "ON",
-        "PPB_ENABLE_Vulkan": "ON",
-        "PPB_ENABLE_Slang_Vulkan": "ON",
-        "PPB_ENABLE_Slang_Cuda": "OFF",
-        "PPB_ENABLE_OpenCL": "ON",
-        "PPB_ENABLE_Boost": "ON",
-        "PPB_ENABLE_Kokkos": "ON",
-        "PPB_ENABLE_CUDA": "OFF",
-        "PPB_ENABLE_HIP": "ON",
-        "PPB_ENABLE_Alpaka": "ON",
-        "PPB_ENABLE_Metal": "OFF"
+        "PPB_ENABLE_OpenACC": "OFF",
+        "PPB_ENABLE_Slang_Cuda": "OFF"
       }
     },
     {
       "name": "macos-all",
       "inherits": "abstract-base",
       "displayName": "macOS",
-      "description": "Enables everything that can run on macOS natively (including Metal, OpenCL, Vulkan, etc.). Excludes CUDA/OpenACC.",
+      "description": "Switches OFF: OpenACC, Slang-CUDA; Switches ON: Metal (Apple)",
       "binaryDir": "${sourceDir}/cmake-build-macos",
       "cacheVariables": {
         "PPB_ENABLE_OpenACC": "OFF",
-        "PPB_ENABLE_OpenMP": "ON",
-        "PPB_ENABLE_AdaptiveCpp": "ON",
-        "PPB_ENABLE_Vulkan": "ON",
-        "PPB_ENABLE_Slang_Vulkan": "ON",
         "PPB_ENABLE_Slang_Cuda": "OFF",
-        "PPB_ENABLE_OpenCL": "ON",
-        "PPB_ENABLE_Boost": "ON",
-        "PPB_ENABLE_Kokkos": "ON",
-        "PPB_ENABLE_CUDA": "OFF",
-        "PPB_ENABLE_Alpaka": "ON",
         "PPB_ENABLE_Metal": "ON"
       }
     }
