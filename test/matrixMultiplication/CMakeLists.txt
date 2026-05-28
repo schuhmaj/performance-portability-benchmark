@@ -57,3 +57,11 @@ endif ()
 if (${PPB_ENABLE_HIP})
     add_subdirectory(hip)
 endif ()
+
+if (${PPB_ENABLE_Slang_Vulkan})
+    add_subdirectory(slang/vulkan)
+endif ()
+
+if (${PPB_ENABLE_Slang_Cuda})
+    add_subdirectory(slang/cuda)
+endif ()
