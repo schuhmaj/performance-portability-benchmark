@@ -113,6 +113,16 @@ function(compile_slang)
         endif ()
 
         if (NOT ARG_LANGUAGE STREQUAL "CUDA")
+            # PTX needs a post-process step to strip a stray trailing NUL byte
+            # that slangc writes — newer CUDA driver JITs reject PTX with NULs.
+            set(_ptx_strip_cmd "")
+            if (ARG_LANGUAGE STREQUAL "PTX")
+                set(_ptx_strip_cmd
+                        COMMAND ${CMAKE_COMMAND}
+                            -D "INPUT_FILE=${out_file}"
+                            -P "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/scripts/strip_ptx_null.cmake"
+                )
+            endif ()
             add_custom_command(
                     OUTPUT ${out_file}
                     COMMAND ${SLANG_COMPILER_PATH}
@@ -123,6 +133,7 @@ function(compile_slang)
                         "$<$<OR:$<STREQUAL:${ARG_LANGUAGE},GLSL>,$<STREQUAL:${ARG_LANGUAGE},SPIR-V>>:-source-embed-name;${KERNEL_NAME}>"
                         "$<$<STREQUAL:${ARG_LANGUAGE},PTX>:-entry;${ENTRANCE_NAME}>"
                         ${abs_path}
+                    ${_ptx_strip_cmd}
                     COMMAND_EXPAND_LISTS
                     DEPENDS ${abs_path}
                     COMMENT "Slang -> ${ARG_LANGUAGE}: ${stem}${SUFFIX}"

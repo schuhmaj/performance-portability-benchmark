@@ -27,7 +27,7 @@
     {
       "name": "linux-cuda-llvm",
       "inherits": "abstract-base",
-      "displayName": "Linux Cuda with LLVM",
+      "displayName": "Linux CUDA with LLVM",
       "description": "Enables all paradigms that can run on a Linux machine with CUDA support and LLVM as compiler",
       "binaryDir": "${sourceDir}/cmake-build-linux-cuda-llvm",
       "cacheVariables": {
