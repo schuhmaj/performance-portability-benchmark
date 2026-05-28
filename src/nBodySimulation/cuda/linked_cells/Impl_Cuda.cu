@@ -41,6 +41,20 @@ namespace ppb {
         x_dim = (boxMax[0] - boxMin[0]) / cell_size;
         y_dim = (boxMax[1] - boxMin[1]) / cell_size;
         z_dim = (boxMax[2] - boxMin[2]) / cell_size;
+        offsets = {
+            //front section
+            -((x_dim + 1) * y_dim) - 1, -((x_dim + 1) * y_dim), -((x_dim + 1) * y_dim) + 1,
+            -(x_dim * y_dim) - 1, -(x_dim * y_dim), (x_dim * y_dim) + 1,
+            -((x_dim - 1) * y_dim) - 1, -((x_dim - 1) * y_dim), -((x_dim - 1) * y_dim) + 1,
+            //mid section
+            -x_dim - 1, -x_dim, -x_dim + 1,
+            -1, 0, 1,
+            x_dim - 1, x_dim, x_dim + 1,
+            //back section
+            ((x_dim - 1) * y_dim) - 1, ((x_dim - 1) * y_dim), ((x_dim - 1) * y_dim) + 1,
+            (x_dim * y_dim) - 1, (x_dim * y_dim), (x_dim * y_dim) + 1,
+            ((x_dim + 1) * y_dim) - 1, ((x_dim + 1) * y_dim), ((x_dim + 1) * y_dim) + 1
+        };
     }
 
     template <typename FloatType>
@@ -97,30 +111,6 @@ namespace ppb {
         starts[idx]++;
     }
 
-    /**
-     * @brief Blelloch algorithm for quick summation. Inspired by Moritz Beste's Bachelor's thesis.
-     * 
-     * TODO: add dynamic (empirical) toggle to blelloch algorithm to a single threaded CPU summation, 
-     * if 'starts' isn't big enough to avoid unnecessary thread creation and scheduling overhead.
-     */
-    __global__ void update_starts() {
-        //Upsweep
-        
-        //Downsweep
-    }
-    
-    /**
-     * @brief Returns the index of the cell that the given particle resides in.
-     * 
-     * @param particle_idx index of the particle that we want to find the cell index for
-     */
-    __device__ inline size_t get_cell_idx(size_t particle_idx) {
-        size_t x_idx = std::ceil(positions[i].x / cell_size) - 1;
-        size_t y_idx = std::ceil(positions[i].y / cell_size) - 1;
-        size_t z_idx = std::ceil(positions[i].z / cell_size) - 1;
-        return x_idx + (y_idx * y_dim) + (z_idx * x_dim * y_dim); 
-    }
-
     __global__ void update_velocities(float3* velocities, const float3* forces, const float3* oldForces, const float deltaT, const size_t numParticles) {
         const unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
         if (i >= numParticles) {
@@ -137,41 +127,6 @@ namespace ppb {
         const float3 velChange = {forcePart.x * t2m, forcePart.y * t2m, forcePart.z * t2m};
         velocities[i] = {velocity.x + velChange.x, velocity.y + velChange.y, velocity.z + velChange.z};
     }
-
-    __device__ inline float3 make_float3_add(const float3 a, const float3 b) {
-        return make_float3(a.x + b.x, a.y + b.y, a.z + b.z);
-    }
-
-    __device__ inline float3 make_float3_sub(const float3 a, const float3 b) {
-        return make_float3(a.x - b.x, a.y - b.y, a.z - b.z);
-    }
-
-    __device__ inline float3 make_float3_scale(const float3 v, const float s) {
-        return make_float3(v.x * s, v.y * s, v.z * s);
-    }
-
-    __device__ inline float dot3(const float3 a, const float3 b) {
-        return cuda::std::fmaf(b.z, a.z, cuda::std::fmaf(b.y, a.y, a.x * b.x)); 
-    }
-
-    __device__ inline bool is_in_bounds(size_t idx, offset) {
-        return true; //TODO!!!
-    }
-
-    const std::array<size_t, 26> offsets = {
-        //front section
-        -((x_dim + 1) * y_dim) - 1, -((x_dim + 1) * y_dim), -((x_dim + 1) * y_dim) + 1,
-        -(x_dim * y_dim) - 1, -(x_dim * y_dim), (x_dim * y_dim) + 1,
-        -((x_dim - 1) * y_dim) - 1, -((x_dim - 1) * y_dim), -((x_dim - 1) * y_dim) + 1,
-        //mid section
-        -x_dim - 1, -x_dim, -x_dim + 1,
-        -1, 1,
-        x_dim - 1, x_dim, x_dim + 1,
-        //back section
-        ((x_dim - 1) * y_dim) - 1, ((x_dim - 1) * y_dim), ((x_dim - 1) * y_dim) + 1,
-        (x_dim * y_dim) - 1, (x_dim * y_dim), (x_dim * y_dim) + 1,
-        ((x_dim + 1) * y_dim) - 1, ((x_dim + 1) * y_dim), ((x_dim + 1) * y_dim) + 1
-    };
 
     /**
      * TODO: For N3L: Is it more efficient to make a (temporary) buffer for every particle which stores the
@@ -196,7 +151,7 @@ namespace ppb {
             size_t start = cells[idx];
             size_t end = cells[idx + 1];
             for (size_t j = start; j < end; j++) {
-                if (i == j) continue;
+                if (i >= j) continue; //N3L via natural ordering of indicies
 
                 const float3 dr = make_float3_sub(positions[i], positions[j]);
                 if (dr > cutoff_radius) continue;
@@ -212,16 +167,75 @@ namespace ppb {
                 const float lj12 = lj6 * lj6;
                 const float lj12m6 = lj12 - lj6;
                 const float fac = epsilon24 * (lj12 + lj12m6) * invdr2;
-
-                if ()
+                
                 const float3 f = make_float3_scale(dr, fac);
                 fi = make_float3_add(fi, f); 
-                atomicSub()
+                atomicSub(forces[j][0], f[0] * -1.0f);
+                atomicSub(forces[j][1], f[1] * -1.0f);
+                atomicSub(forces[j][2], f[2] * -1.0f);
             }
             idx -= offsets[offset];
         }
 
-        forces[i] = fi;
+        atomicAdd(forces[i][0], fi[0]);
+        atomicAdd(forces[i][1], fi[1]);
+        atomicAdd(forces[i][2], fi[2]);
+    }
+
+    
+    /**
+     * @brief Returns the index of the cell that the given particle resides in.
+     * 
+     * @param particle_idx index of the particle that we want to find the cell index for
+     */
+    __device__ inline size_t get_cell_idx(size_t particle_idx) {
+        size_t x_idx = std::ceil(positions[i].x / cell_size) - 1;
+        size_t y_idx = std::ceil(positions[i].y / cell_size) - 1;
+        size_t z_idx = std::ceil(positions[i].z / cell_size) - 1;
+        return x_idx + (y_idx * y_dim) + (z_idx * x_dim * y_dim); 
+    }
+
+    /**
+     * @brief Blelloch algorithm for quick summation. Inspired by Moritz Beste's Bachelor's thesis.
+     * 
+     * TODO: add dynamic (empirical) toggle to blelloch algorithm to a single threaded CPU summation, 
+     * if 'starts' isn't big enough to avoid unnecessary thread creation and scheduling overhead.
+     */
+    __global__ void update_starts() {
+        //Upsweep
+        
+        //Downsweep
+    }
+
+    __device__ inline bool is_in_bounds(size_t idx, offset) {
+        size_t offset_idx = idx + offset;
+        size_t z_idx = std::floor(idx / z_dim);
+        size_t y_idx = std::floor((idx - z_idx * x_dim * y_dim) / y_dim);
+        size_t x_idx = std::floor((idx - z_idx * x_dim * y_dim - y_idx * x_dim) / x_dim);
+        size_t z_offset = std::floor(offset_idx / z_dim);
+        size_t y_offset = std::floor((offset_idx - z_offset * x_dim * y_dim) / y_dim);
+        size_t x_offset = std::floor((offset_idx - z_offset * x_dim * y_dim - y_offset * x_dim) / x_dim);
+        
+        if (std::abs(x_idx - x_offset) > 1) return false;
+        else if (std::abs(y_idx - y_offset) > 1) return false;
+        else if (std::abs(z_idx - z_offset) > 1) return false;
+        return true;
+    }
+
+    __device__ inline float3 make_float3_add(const float3 a, const float3 b) {
+        return make_float3(a.x + b.x, a.y + b.y, a.z + b.z);
+    }
+
+    __device__ inline float3 make_float3_sub(const float3 a, const float3 b) {
+        return make_float3(a.x - b.x, a.y - b.y, a.z - b.z);
+    }
+
+    __device__ inline float3 make_float3_scale(const float3 v, const float s) {
+        return make_float3(v.x * s, v.y * s, v.z * s);
+    }
+
+    __device__ inline float dot3(const float3 a, const float3 b) {
+        return cuda::std::fmaf(b.z, a.z, cuda::std::fmaf(b.y, a.y, a.x * b.x)); 
     }
 
     template<typename FloatType>
@@ -230,9 +244,6 @@ namespace ppb {
         constexpr unsigned int WARP_SIZE = 32;
         constexpr unsigned int MAX_THREADS = 1024;
 
-        /**
-         * TODO: upgrade this to allow multidim threadblocks (for LCC)
-         */
         if (size <= MAX_THREADS) {
             _blockSize = size;
         } else {
@@ -257,7 +268,6 @@ namespace ppb {
         cudaEvent_t start, stop;
         cudaEventCreate(&start);
         cudaEventCreate(&stop);
-        thrust::fill(positions.begin(), positions.begin() + size, make_float3(.0f, .0f, .0f));
 
         cudaEventRecord(start);
         update_positions<<<_gridSize, _blockSize>>>(position, velocity, force, oldForce, _globalForce, dt, size);
