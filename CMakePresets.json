@@ -75,6 +75,31 @@
       }
     },
     {
+      "name": "linux-rocm",
+      "inherits": "abstract-base",
+      "displayName": "Linux ROCM with amdclang",
+      "description": "Enables all paradigms that can run on a Linux machine with ROCM support and amdclang as compiler toolchain",
+      "binaryDir": "${sourceDir}/cmake-build-linux-rocm",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "amdclang",
+        "CMAKE_CXX_COMPILER": "amdclang++",
+
+        "PPB_ENABLE_OpenACC": "ON",
+        "PPB_ENABLE_OpenMP": "ON",
+        "PPB_ENABLE_AdaptiveCpp": "ON",
+        "PPB_ENABLE_Vulkan": "ON",
+        "PPB_ENABLE_Slang_Vulkan": "ON",
+        "PPB_ENABLE_Slang_Cuda": "OFF",
+        "PPB_ENABLE_OpenCL": "ON",
+        "PPB_ENABLE_Boost": "ON",
+        "PPB_ENABLE_Kokkos": "ON",
+        "PPB_ENABLE_CUDA": "OFF",
+        "PPB_ENABLE_HIP": "ON",
+        "PPB_ENABLE_Alpaka": "ON",
+        "PPB_ENABLE_Metal": "OFF"
+      }
+    },
+    {
       "name": "macos-all",
       "inherits": "abstract-base",
       "displayName": "macOS",
