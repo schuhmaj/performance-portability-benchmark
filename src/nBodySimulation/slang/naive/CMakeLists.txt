@@ -30,6 +30,7 @@ endif()
 if (${PPB_ENABLE_Slang_Cuda})
     compile_slang(
             LANGUAGE PTX
+            FIX_PTX
             INFILE ${SLANG_SOURCE_FILES}
             PATH ${CMAKE_CURRENT_BINARY_DIR}
             OUT_HEADERS SLANG_PTX_FILES
