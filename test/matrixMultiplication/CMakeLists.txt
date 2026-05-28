@@ -18,7 +18,7 @@ include(GoogleTest)
 
 add_subdirectory(cpp)
 
-if (CMAKE_CUDA_COMPILER AND PPB_ENABLE_Cuda)
+if (CMAKE_CUDA_COMPILER AND PPB_ENABLE_CUDA)
     add_subdirectory(cuda)
 endif ()
 

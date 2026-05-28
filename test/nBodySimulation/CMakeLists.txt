@@ -34,7 +34,7 @@ if (${PPB_ENABLE_OpenCL})
     add_subdirectory(opencl)
 endif()
 
-if (CMAKE_CUDA_COMPILER AND PPB_ENABLE_Cuda)
+if (CMAKE_CUDA_COMPILER AND PPB_ENABLE_CUDA)
     add_subdirectory(cuda)
 endif ()
 

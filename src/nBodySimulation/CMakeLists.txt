@@ -34,7 +34,7 @@ if (${PPB_ENABLE_AdaptiveCpp})
     add_subdirectory(acpp)
 endif()
 
-if (CMAKE_CUDA_COMPILER AND PPB_ENABLE_Cuda)
+if (CMAKE_CUDA_COMPILER AND PPB_ENABLE_CUDA)
     add_subdirectory(cuda)
 endif ()
 

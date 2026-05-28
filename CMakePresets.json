@@ -31,6 +31,10 @@
       "description": "Enables all paradigms that can run on a Linux machine with CUDA support and LLVM as compiler",
       "binaryDir": "${sourceDir}/cmake-build-linux-cuda-llvm",
       "cacheVariables": {
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_CXX_COMPILER": "clang++",
+        "CMAKE_CUDA_COMPILER": "nvcc",
+
         "PPB_ENABLE_OpenACC": "OFF",
         "PPB_ENABLE_OpenMP": "ON",
         "PPB_ENABLE_AdaptiveCpp": "ON",
@@ -40,21 +44,9 @@
         "PPB_ENABLE_OpenCL": "ON",
         "PPB_ENABLE_Boost": "ON",
         "PPB_ENABLE_Kokkos": "ON",
-        "PPB_ENABLE_Cuda": "ON",
+        "PPB_ENABLE_CUDA": "ON",
         "PPB_ENABLE_Alpaka": "ON",
         "PPB_ENABLE_Metal": "OFF"
-      }
-    },
-    {
-      "name": "lrz-beast-gh-llvm",
-      "inherits": "linux-cuda-llvm",
-      "displayName": "LRZ Beast Grace-Hopper LLVM",
-      "description": "Enables all paradigms that can run on a Linux machine with CUDA support and LLVM as compiler",
-      "binaryDir": "${sourceDir}/cmake-build-gh-llvm",
-      "cacheVariables": {
-        "CMAKE_C_COMPILER": "clang",
-        "CMAKE_CXX_COMPILER": "clang++",
-        "CMAKE_CUDA_COMPILER": "nvcc"
       }
     },
     {
@@ -64,6 +56,10 @@
       "description": "Enables all paradigms that can run on a Linux machine with CUDA support and NVHPC as compiler toolchain",
       "binaryDir": "${sourceDir}/cmake-build-linux-cuda-nvhpc",
       "cacheVariables": {
+        "CMAKE_C_COMPILER": "nvc",
+        "CMAKE_CXX_COMPILER": "nvc++",
+        "CMAKE_CUDA_COMPILER": "nvcc",
+
         "PPB_ENABLE_OpenACC": "ON",
         "PPB_ENABLE_OpenMP": "OFF",
         "PPB_ENABLE_AdaptiveCpp": "ON",
@@ -73,21 +69,9 @@
         "PPB_ENABLE_OpenCL": "ON",
         "PPB_ENABLE_Boost": "ON",
         "PPB_ENABLE_Kokkos": "ON",
-        "PPB_ENABLE_Cuda": "ON",
+        "PPB_ENABLE_CUDA": "ON",
         "PPB_ENABLE_Alpaka": "ON",
         "PPB_ENABLE_Metal": "OFF"
-      }
-    },
-    {
-      "name": "lrz-beast-gh-nvhpc",
-      "inherits": "linux-cuda-nvhpc",
-      "displayName": "LRZ Beast Grace-Hopper NVHPC",
-      "description": "Enables all paradigms that can run on a Linux machine with CUDA support and NVHPC as compiler",
-      "binaryDir": "${sourceDir}/cmake-build-gh-nvhpc",
-      "cacheVariables": {
-        "CMAKE_C_COMPILER": "nvc",
-        "CMAKE_CXX_COMPILER": "nvc++",
-        "CMAKE_CUDA_COMPILER": "nvcc"
       }
     },
     {
@@ -106,7 +90,7 @@
         "PPB_ENABLE_OpenCL": "ON",
         "PPB_ENABLE_Boost": "ON",
         "PPB_ENABLE_Kokkos": "ON",
-        "PPB_ENABLE_Cuda": "OFF",
+        "PPB_ENABLE_CUDA": "OFF",
         "PPB_ENABLE_Alpaka": "ON",
         "PPB_ENABLE_Metal": "ON"
       }
