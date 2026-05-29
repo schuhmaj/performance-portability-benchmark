@@ -39,9 +39,9 @@ if (${PPB_ENABLE_OpenCL})
     create_polyhedral_test(ocl)
 endif()
 
-#if (${PPB_ENABLE_Alpaka})
-#    create_polyhedral_test(alpaka)
-#endif ()
+if (${PPB_ENABLE_Alpaka})
+    create_polyhedral_test(alpaka)
+endif ()
 
 if (${PPB_ENABLE_Kokkos})
     create_polyhedral_test(kokkos)
