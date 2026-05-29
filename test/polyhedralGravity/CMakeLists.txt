@@ -19,6 +19,10 @@ if (${PPB_ENABLE_CUDA})
     create_polyhedral_test(cuda)
 endif ()
 
+if (${PPB_ENABLE_HIP})
+    create_polyhedral_test(hip)
+endif ()
+
 if (PPB_ENABLE_OpenMP)
     create_polyhedral_test(omp)
 endif ()

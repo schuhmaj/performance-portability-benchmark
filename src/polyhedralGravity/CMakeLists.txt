@@ -41,6 +41,10 @@ if(CMAKE_CUDA_COMPILER AND PPB_ENABLE_CUDA)
     add_subdirectory(cuda)
 endif ()
 
+if (${PPB_ENABLE_HIP})
+    add_subdirectory(hip)
+endif ()
+
 if (${PPB_ENABLE_Alpaka})
     add_subdirectory(alpaka)
 endif ()
