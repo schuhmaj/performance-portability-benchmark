@@ -6,7 +6,11 @@
 #undef cl_khr_command_buffer_multi_device
 #undef cl_khr_command_buffer_mutable_dispatch
 
-#include <CL/cl.hpp>
+// The legacy OpenCL 1.x C++ binding <CL/cl.hpp> is no longer shipped by the
+// Khronos headers; use the current C++ binding (formerly cl2.hpp) instead.
+#define CL_HPP_TARGET_OPENCL_VERSION 200
+#define CL_HPP_MINIMUM_OPENCL_VERSION 110
+#include <CL/opencl.hpp>
 
 #include "opencl_eval.h"
 #include "opencl_init.h"

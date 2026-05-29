@@ -71,13 +71,14 @@
       "inherits": "abstract-base",
       "displayName": "Linux CUDA with GCC",
       "description": "Switches OFF: OpenMP",
-      "binaryDir": "${sourceDir}/cmake-build-linux-cuda-nvhpc",
+      "binaryDir": "${sourceDir}/cmake-build-linux-cuda-gcc",
       "cacheVariables": {
         "CMAKE_C_COMPILER": "gcc",
         "CMAKE_CXX_COMPILER": "g++",
         "CMAKE_CUDA_COMPILER": "nvcc",
 
-        "PPB_ENABLE_OpenMP": "OFF"
+        "PPB_ENABLE_OpenMP": "OFF",
+        "PPB_ENABLE_OpenACC": "OFF"
       }
     },
     {

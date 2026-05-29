@@ -28,7 +28,7 @@ namespace ppb {
         Kokkos::deep_copy(exec, devA, hostA);
         Kokkos::deep_copy(exec, devB, hostB);
 
-        Kokkos::MDRangePolicy<Kokkos::Rank<2>, ExecutionSpace> policy(exec, {0, 0}, {m, n}, {32, 32});
+        Kokkos::MDRangePolicy<Kokkos::Rank<2>, ExecutionSpace> policy(exec, {0, 0}, {m, n}, {16, 16});
 
         exec.fence();
         Kokkos::Timer timer;
