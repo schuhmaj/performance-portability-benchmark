@@ -14,13 +14,13 @@ static void BM_Eros(benchmark::State &state) {
 
     read_tetgen("data/Eros", Vertices, Faces);
 
-    auto G = create_gravity_evaluable(Vertices, Faces, 2.0);
+    const auto evaluable = create_gravity_evaluable(Vertices, Faces, 2.0);
 
     for (auto _: state) {
-        benchmark::DoNotOptimize(G->evaluate({1.0, 0, 0}));
+        benchmark::DoNotOptimize(evaluable->evaluate({1.0, 0, 0}));
     }
 
-    state.counters["NumFaces"] = Faces.size();
+    state.counters["NumFaces"] = static_cast<double>(Faces.size());
 }
 
 BENCHMARK(BM_Eros)->Name("Polyhedral-Eros");
@@ -33,13 +33,13 @@ void BM_obj(benchmark::State &state, Args &&...args) {
     auto args_tuple = std::make_tuple(std::move(args)...);
     read_obj("data/" + std::get<0>(args_tuple) + ".obj", Vertices, Faces);
 
-    auto G = create_gravity_evaluable(Vertices, Faces, 2.0);
+    const auto evaluable = create_gravity_evaluable(Vertices, Faces, 2.0);
 
     for (auto _: state) {
-        benchmark::DoNotOptimize(G->evaluate({1.0, 0, 0}));
+        benchmark::DoNotOptimize(evaluable->evaluate({1.0, 0, 0}));
     }
 
-    state.counters["NumFaces"] = Faces.size();
+    state.counters["NumFaces"] = static_cast<double>(Faces.size());
 }
 
 BENCHMARK_CAPTURE(BM_obj, 67P_ESA_NAVCAM_Jul2015data_256k, std::string("67P_ESA_NAVCAM_Jul2015data_256k"))->Name("Polyhedral-67P_ESA_NAVCAM_Jul2015data_256k");
