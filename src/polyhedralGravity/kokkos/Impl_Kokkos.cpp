@@ -397,7 +397,6 @@ public:
         return result;
     }
 
-private:
     void init() {
         Kokkos::View<const Array3 *, Kokkos::HostSpace, Kokkos::MemoryUnmanaged> hostVertices{_vertices.data(), _vertices.size()};
         Kokkos::View<const IndexArray3 *, Kokkos::HostSpace, Kokkos::MemoryUnmanaged> hostFaces{_faces.data(), _faces.size()};
@@ -423,7 +422,7 @@ private:
         _initialized = true;
     }
 
-
+private:
     Kokkos::View<Array3 *> _deviceVertices;
     Kokkos::View<IndexArray3 *> _deviceFaces;
     Kokkos::View<Array3 *> _Normals;

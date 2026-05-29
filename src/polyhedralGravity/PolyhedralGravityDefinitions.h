@@ -3,6 +3,9 @@
 #if defined(__clang__) && defined(__CUDA__)
 #define FUNC_PREFIX __device__ __host__
 #define CTOR_PREFIX __device__ __host__
+#elif defined(__CUDACC__)
+#define FUNC_PREFIX __device__ __host__
+#define CTOR_PREFIX __device__ __host__
 #elif defined(_OPENACC)
 #define FUNC_PREFIX _Pragma("acc routine")
 #define CTOR_PREFIX
