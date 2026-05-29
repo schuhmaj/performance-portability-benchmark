@@ -1,6 +1,6 @@
 #include "polyhedralGravity/PolyhedralGravityDefinitions.h"
 
-#include <CL/sycl.hpp>
+#include <sycl/sycl.hpp>
 
 GlobalResources::GlobalResources(int &argc, char *argv[]) {
 }
@@ -28,43 +28,64 @@ public:
             const std::vector<IndexArray3> &Faces,
             const double density)
         : GravityEvaluableBase(Vertices, Faces, density),
-          _vertices_device(_vertices.data(), _vertices.size()),
-          _faces_device(_faces.data(), _faces.size()),
-          _normals(Faces.size()),
-          _segmentVectors(Faces.size()),
-          _segmentNormals(Faces.size()) {
+          queue{sycl::default_selector_v, sycl::property_list{sycl::property::queue::in_order()}} {
+        const size_t numVertices = _vertices.size();
+        const size_t numFaces = _faces.size();
+
+        // Modern USM model: allocate the geometry on the device and stream the
+        // host data over instead of wrapping it in sycl::buffers.
+        _vertices_device = sycl::malloc_device<Array3>(numVertices, queue);
+        _faces_device = sycl::malloc_device<IndexArray3>(numFaces, queue);
+        _normals = sycl::malloc_device<Array3>(numFaces, queue);
+        _segmentVectors = sycl::malloc_device<Array3Triplet>(numFaces, queue);
+        _segmentNormals = sycl::malloc_device<Array3Triplet>(numFaces, queue);
+        _result_device = sycl::malloc_device<GravityModelResultAcpp>(1, queue);
+
+        queue.copy(_vertices.data(), _vertices_device, numVertices);
+        queue.copy(_faces.data(), _faces_device, numFaces);
+    }
+
+    ~GravityEvaluable() override {
+        sycl::free(_vertices_device, queue);
+        sycl::free(_faces_device, queue);
+        sycl::free(_normals, queue);
+        sycl::free(_segmentVectors, queue);
+        sycl::free(_segmentNormals, queue);
+        sycl::free(_result_device, queue);
     }
 
     GravityModelResult evaluate(const Array3 &Point) override {
         if (!_initialized) init();
 
-        std::vector<Array3> Points{};
-        Points.push_back(Point);
-        cl::sycl::buffer<Array3, 1> point_device(Points.data(), 1);
+        const size_t numFaces = _faces.size();
+        const Array3 point = Point;
 
-        cl::sycl::queue q{cl::sycl::gpu_selector{}};
+        // Capture the device pointers as plain values for the kernel.
+        const Array3 *V = _vertices_device;
+        const IndexArray3 *F = _faces_device;
+        const Array3 *N = _normals;
+        const Array3Triplet *SV = _segmentVectors;
+        const Array3Triplet *SN = _segmentNormals;
 
-        GravityModelResultAcpp final_result{};
-        cl::sycl::buffer<GravityModelResultAcpp, 1> final_result_buffer(&final_result, 1);
+        // The result buffer is allocated once (see constructor) and reused across
+        // calls - allocating/freeing USM on every evaluate() is a heavyweight,
+        // synchronizing operation that dominates the (small) per-point kernel.
+        // Reset to the reduction identity; the in-order queue keeps this ordered
+        // before the kernel below.
+        queue.memset(_result_device, 0, sizeof(GravityModelResultAcpp));
 
-        q.submit([&](cl::sycl::handler &h) {
-             auto V = _vertices_device.template get_access<cl::sycl::access::mode::read>(h);
-             auto F = _faces_device.template get_access<cl::sycl::access::mode::read>(h);
-             auto N = _normals.template get_access<cl::sycl::access::mode::read>(h);
-             auto SV = _segmentVectors.template get_access<cl::sycl::access::mode::read>(h);
-             auto SN = _segmentNormals.template get_access<cl::sycl::access::mode::read>(h);
-             auto P = point_device.template get_access<cl::sycl::access::mode::read>(h);
+        queue.submit([&](sycl::handler &h) {
+             auto reduction = sycl::reduction(_result_device, GravityModelResultAcpp{},
+                                              [](const GravityModelResultAcpp &a, const GravityModelResultAcpp &b) {
+                                                  return a + b;// Custom reduction operation
+                                              });
 
-             auto reduction = cl::sycl::reduction(final_result_buffer, h, GravityModelResultAcpp{},
-                                                  [](const GravityModelResultAcpp &a, const GravityModelResultAcpp &b) {
-                                                      return a + b;// Custom reduction operation
-                                                  });
-
-             h.parallel_for(cl::sycl::range<1>(_faces.size()), reduction, [=](const cl::sycl::item<1> &i, auto &reducer) {
+             h.parallel_for(sycl::range<1>(numFaces), reduction, [=](const sycl::id<1> &id, auto &reducer) {
+                 const size_t i = id[0];
                  Array3Triplet face = {
-                         V[F[i][0]] - P[0],
-                         V[F[i][1]] - P[0],
-                         V[F[i][2]] - P[0]};
+                         V[F[i][0]] - point,
+                         V[F[i][1]] - point,
+                         V[F[i][2]] - point};
 
                  int planeNormalOrientation = sgn(dot(N[i], face[0]));
 
@@ -311,10 +332,10 @@ public:
 
                  reducer.combine(r2);
              });
-         }).wait();
+         });
 
-        auto host_result = final_result_buffer.get_host_access();
-        GravityModelResultAcpp acpp_result = host_result[0];
+        GravityModelResultAcpp acpp_result{};
+        queue.copy(_result_device, &acpp_result, 1).wait();
 
         GravityModelResult result{};
         result.potential = acpp_result.data[0];
@@ -335,24 +356,24 @@ public:
 
 private:
     void init() {
-        cl::sycl::queue q{cl::sycl::gpu_selector{}};
+        const size_t numFaces = _faces.size();
 
-        q.submit([&](cl::sycl::handler &h) {
-             auto a_vertices = _vertices_device.get_access<cl::sycl::access::mode::read>(h);
-             auto a_faces = _faces_device.get_access<cl::sycl::access::mode::read>(h);
-             auto a_normals = _normals.get_access<cl::sycl::access::mode::write>(h);
+        const Array3 *V = _vertices_device;
+        const IndexArray3 *F = _faces_device;
+        Array3 *normals = _normals;
+        Array3Triplet *segmentVectors = _segmentVectors;
+        Array3Triplet *segmentNormals = _segmentNormals;
 
-             auto a_segmentVectors = _segmentVectors.get_access<cl::sycl::access::mode::write>(h);
-             auto a_segmentNormals = _segmentNormals.get_access<cl::sycl::access::mode::write>(h);
-
-             h.parallel_for(cl::sycl::range<1>(_faces.size()), [=](const cl::sycl::item<1> &i) {
-                 Array3Triplet Face = {a_vertices[a_faces[i][0]], a_vertices[a_faces[i][1]], a_vertices[a_faces[i][2]]};
+        queue.submit([&](sycl::handler &h) {
+             h.parallel_for(sycl::range<1>(numFaces), [=](const sycl::id<1> &id) {
+                 const size_t i = id[0];
+                 Array3Triplet Face = {V[F[i][0]], V[F[i][1]], V[F[i][2]]};
                  Array3Triplet SegV = {Face[1] - Face[0], Face[2] - Face[1], Face[0] - Face[2]};
                  Array3 Normal = normal(SegV[0], SegV[1]);
 
-                 a_segmentVectors[i] = SegV;
-                 a_normals[i] = Normal;
-                 a_segmentNormals[i] = {
+                 segmentVectors[i] = SegV;
+                 normals[i] = Normal;
+                 segmentNormals[i] = {
                          normal(SegV[0], Normal),
                          normal(SegV[1], Normal),
                          normal(SegV[2], Normal),
@@ -363,12 +384,17 @@ private:
         _initialized = true;
     }
 
-    cl::sycl::buffer<Array3, 1> _vertices_device;
-    cl::sycl::buffer<IndexArray3, 1> _faces_device;
+    sycl::queue queue;
 
-    cl::sycl::buffer<Array3, 1> _normals;
-    cl::sycl::buffer<Array3Triplet, 1> _segmentVectors;
-    cl::sycl::buffer<Array3Triplet, 1> _segmentNormals;
+    Array3 *_vertices_device = nullptr;
+    IndexArray3 *_faces_device = nullptr;
+
+    Array3 *_normals = nullptr;
+    Array3Triplet *_segmentVectors = nullptr;
+    Array3Triplet *_segmentNormals = nullptr;
+
+    // Reused across evaluate() calls to avoid per-call USM allocation overhead.
+    GravityModelResultAcpp *_result_device = nullptr;
 };
 
 std::unique_ptr<GravityEvaluableBase> create_gravity_evaluable(
