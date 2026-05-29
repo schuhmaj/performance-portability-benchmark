@@ -371,6 +371,10 @@ public:
         return {};
     };
 
+    void set_density(const double density) {
+        _density = density;
+    }
+
 protected:
     double _density;
 
@@ -384,3 +388,5 @@ std::unique_ptr<GravityEvaluableBase> create_gravity_evaluable(
         const std::vector<Array3> &Vertices,
         const std::vector<IndexArray3> &Faces,
         double density);
+
+using GravityEvaluablePtr = std::unique_ptr<GravityEvaluableBase>;

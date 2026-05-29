@@ -34,6 +34,8 @@ protected:
                                     {1, 2, 6}, {1, 6, 5}, {2, 3, 6}, {3, 7, 6}, {4, 5, 6}, {4, 6, 7}};
     FloatType _density = 1.0;
 
+    GravityEvaluablePtr evaluable{create_gravity_evaluable(_vertices, _faces, _density)};
+
 public:
     [[nodiscard]] static std::vector<std::tuple<Array3, FloatType, FloatType, Array3>>
     readCubePoints(const std::string &filename) {
@@ -69,9 +71,9 @@ TEST_P(GravityModelCubeTest, CubePoints) {
     const FloatType density = std::get<1>(testData);
 
     const FloatType expectedPotential = std::get<2>(testData);
-    const Array3 expectedAcceleration = std::get<3>(testData);
+    // const Array3 expectedAcceleration = std::get<3>(testData);
 
-    const auto evaluable = create_gravity_evaluable(_vertices, _faces, density);
+    evaluable->set_density(density);
 
     const auto [actualPotential, actualAcceleration, x] = evaluable->evaluate(computationPoint);
 
