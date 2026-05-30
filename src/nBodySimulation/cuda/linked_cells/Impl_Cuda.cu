@@ -29,14 +29,13 @@ namespace ppb {
         cudaMalloc(&forces, sizeof(float3) * size);
         cudaMalloc(&oldForces, sizeof(float3) * size);
         cudaMalloc(&starts, sizeof(size_t) * (num_cells + 1)); //+1 so the last index also fits (makes my life easier)
-        cudaMalloc(&cells, sizeof(size_t) * size);
 
         cudaMemcpy(positions, positionsHost.data(), sizeof(float3) * size, cudaMemcpyHostToDevice);
         cudaMemcpy(velocities, velocitiesHost.data(), sizeof(float3) * size, cudaMemcpyHostToDevice);
         cudaMemcpy(forces, forcesHost.data(), sizeof(float3) * size, cudaMemcpyHostToDevice);
         cudaMemset(oldForces, 0.0, sizeof(float3) * size);
-        cudaMemset(starts, 0.0, sizeof(float3) * (num_cells + 1));
-        cudaMemset(cells, 0.0, sizeof(float3) * size);
+        cudaMemset(starts, 0.0, sizeof(size_t) * (num_cells + 1));
+        cudaMemset(cells, 0, sizeof(size_t) * size);
 
         x_dim = (boxMax[0] - boxMin[0]) / cell_size;
         y_dim = (boxMax[1] - boxMin[1]) / cell_size;
@@ -104,11 +103,21 @@ namespace ppb {
         const float3 displacement = {velocityPart.x + forcePart.x, velocityPart.y + forcePart.y, velocityPart.z + forcePart.z};
         positions[i] = {positions[i].x + displacement.x, positions[i].y + displacement.y, positions[i].z + displacement.z};
 
-        cudaMemset(starts, 0.0, sizeof(float3) * (size + 1));
-        cudaMemset(cells, 0.0, sizeof(float3) * size);
         size_t idx = get_cell_idx(i);
-        cells[idx] = i;
-        starts[idx]++;
+        size_t offset = atomicAdd(starts[idx], 1); //returns the value at starts[idx] *before* adding 1.
+        cells[i] = idx + offset;
+    }
+
+    __global__ void update_cells(size_t* cells) {
+        const unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if (i >= numParticles) {
+            return;
+        } 
+        
+        extern __shared__ size_t* tmp[];
+        size_t idx = cells[i];
+        tmp[idx] = i;
+        cells[idx] = tmp[idx];
     }
 
     __global__ void update_velocities(float3* velocities, const float3* forces, const float3* oldForces, const float deltaT, const size_t numParticles) {
@@ -128,11 +137,6 @@ namespace ppb {
         velocities[i] = {velocity.x + velChange.x, velocity.y + velChange.y, velocity.z + velChange.z};
     }
 
-    /**
-     * TODO: For N3L: Is it more efficient to make a (temporary) buffer for every particle which stores the
-     * influenced particles, but those particles can be determined in parallel (no race conditions here). Or is it better
-     * not to do that and do what I do here, which is just working without such (temporary) buffers? 
-     */
     __global__ void compute_forces(
         const float3* __restrict__ positions,
         float3* __restrict__ forces,
@@ -145,12 +149,14 @@ namespace ppb {
         
         float3 fi = make_float3(0.f, 0.f, 0.f);
         size_t idx = get_cell_idx(i);
-        for (size_t offset = 0; offset < 27; offset++) { //STRIDED ACCESS!!!
+        for (size_t offset = 0; offset < 27; offset++) {
             if (!is_in_bounds(idx, offset)) continue; 
             idx += offsets[offset];
-            size_t start = cells[idx];
-            size_t end = cells[idx + 1];
-            for (size_t j = start; j < end; j++) {
+            size_t start = starts[idx];
+            size_t end = starts[idx + 1];
+            for (size_t k = start; k < end; k++) {
+                size_t j = cells[k];
+
                 if (i >= j) continue; //N3L via natural ordering of indicies
 
                 const float3 dr = make_float3_sub(positions[i], positions[j]);
@@ -201,10 +207,30 @@ namespace ppb {
      * TODO: add dynamic (empirical) toggle to blelloch algorithm to a single threaded CPU summation, 
      * if 'starts' isn't big enough to avoid unnecessary thread creation and scheduling overhead.
      */
-    __global__ void update_starts() {
-        //Upsweep
-        
-        //Downsweep
+    /**
+    The following code is strongly inspired by the code here: https://developer.nvidia.com/gpugems/gpugems3/part-vi-gpu-computing/chapter-39-parallel-prefix-sum-scan-cuda (last accessed 28.5.26)
+    */
+    __device__ inline void update_starts() {
+        blelloch_upsweep<<<_gridSize, _blockSize>>>();
+        blelloch_downsweep<<<_gridSize, _blockSize>>>();
+    }
+
+    __global__ void blelloch_upsweep() {
+        const unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
+        extern __shared__ size_t tmp[];
+        tmp[2 * i] = starts[2 * i];
+
+        for (size_t data = size >> 1; data > 0; data >>= 1) {
+            __syncthreads();
+            if (i < data) {
+
+            } else { continue; } //avoids divergent code which would lead to undefined behavior with __syncthreads()
+            
+        }
+    }
+
+    __global__ void blelloch_downsweep() {
+
     }
 
     __device__ inline bool is_in_bounds(size_t idx, offset) {
@@ -269,8 +295,11 @@ namespace ppb {
         cudaEventCreate(&start);
         cudaEventCreate(&stop);
 
+        cudaMemset(starts, 0.0, sizeof(size_t) * (size + 1));
+        cudaMemset(cells, 0.0, sizeof(size_t) * size);
         cudaEventRecord(start);
         update_positions<<<_gridSize, _blockSize>>>(position, velocity, force, oldForce, _globalForce, dt, size);
+        update_cells<<<_gridSize, _blockSize, sizeof(size_t) * size>>>(cells);
         cudaEventRecord(stop);
 
         cudaEventSynchronize(stop);

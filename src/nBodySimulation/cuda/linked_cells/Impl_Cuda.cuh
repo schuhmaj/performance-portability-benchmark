@@ -15,6 +15,7 @@ namespace ppb {
         __constant__ std::vector<Particle<FloatType>> &_ref;
         __constant__ float cell_size{1.0f};
         __constant__ float cutoff_radius{1.0f};
+        __constant__ std::array<size_t, 27> offsets;
 
         /**
          * @brief 'starts' looks like this:
@@ -26,6 +27,10 @@ namespace ppb {
          */
         __device__ size_t* starts{nullptr};
         __device__ size_t* cells{nullptr};
+        /**
+         * @brief 'cells' contains the sorted particle *indicies* to the particles contained in 'particles'.
+         * 'starts' marks the start of each cell.
+         */
         __device__ float3* positions{nullptr};
         __device__ float3* velocities{nullptr};
         __device__ float3* forces{nullptr};
