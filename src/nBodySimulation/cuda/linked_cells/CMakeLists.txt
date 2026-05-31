@@ -7,10 +7,10 @@ set_target_properties(nbody_cuda_lib PROPERTIES
         CUDA_ARCHITECTURES native
 )
 
-add_executable(nbody_cuda main.cu)
-target_compile_features(nbody_cuda PUBLIC cxx_std_20)
-target_link_libraries(nbody_cuda PRIVATE nbody_cuda_lib)
-set_target_properties(nbody_cuda PROPERTIES
+add_executable(nbody_cuda_linked_cells main.cu)
+target_compile_features(nbody_cuda_linked_cells PUBLIC cxx_std_20)
+target_link_libraries(nbody_cuda_linked_cells PRIVATE nbody_cuda_lib)
+set_target_properties(nbody_cuda_linked_cells PROPERTIES
         CUDA_SEPARABLE_COMPILATION ON
         CUDA_ARCHITECTURES native
 )
