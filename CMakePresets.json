@@ -82,14 +82,28 @@
       }
     },
     {
-      "name": "linux-rocm",
+      "name": "linux-rocm-amdclang",
       "inherits": "abstract-base",
       "displayName": "Linux ROCM with AMDCLANG",
       "description": "Switches off: OpenACC, Slang-CUDA",
-      "binaryDir": "${sourceDir}/cmake-build-linux-rocm",
+      "binaryDir": "${sourceDir}/cmake-build-linux-rocm-amdclang",
       "cacheVariables": {
         "CMAKE_C_COMPILER": "amdclang",
         "CMAKE_CXX_COMPILER": "amdclang++",
+
+        "PPB_ENABLE_OpenACC": "OFF",
+        "PPB_ENABLE_Slang_Cuda": "OFF"
+      }
+    },
+    {
+      "name": "linux-rocm-llvm",
+      "inherits": "abstract-base",
+      "displayName": "Linux ROCM with LLVM",
+      "description": "Switches off: OpenACC, Slang-CUDA",
+      "binaryDir": "${sourceDir}/cmake-build-linux-rocm-llvm",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_CXX_COMPILER": "clang++",
 
         "PPB_ENABLE_OpenACC": "OFF",
         "PPB_ENABLE_Slang_Cuda": "OFF"
