@@ -82,11 +82,43 @@
       }
     },
     {
-      "name": "linux-rocm-amdclang",
+      "name": "linux-rocm-amdclang-cdna",
       "inherits": "abstract-base",
-      "displayName": "Linux ROCM with AMDCLANG",
+      "displayName": "Linux ROCM with AMDCLANG (CDNA Architecture)",
+      "description": "Switches off: OpenACC, Slang-CUDA and Vulkan",
+      "binaryDir": "${sourceDir}/cmake-build-linux-rocm-amdclang-cdna",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "amdclang",
+        "CMAKE_CXX_COMPILER": "amdclang++",
+
+        "PPB_ENABLE_OpenACC": "OFF",
+        "PPB_ENABLE_Slang_Cuda": "OFF",
+        "PPB_ENABLE_Vulkan": "OFF",
+        "PPB_ENABLE_Slang_Vulkan": "OFF"
+      }
+    },
+    {
+      "name": "linux-rocm-llvm-cdna",
+      "inherits": "abstract-base",
+      "displayName": "Linux ROCM with LLVM (CDNA Architecture)",
+      "description": "Switches off: OpenACC, Slang-CUDA and Vulkan",
+      "binaryDir": "${sourceDir}/cmake-build-linux-rocm-llvm-cdna",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_CXX_COMPILER": "clang++",
+
+        "PPB_ENABLE_OpenACC": "OFF",
+        "PPB_ENABLE_Slang_Cuda": "OFF",
+        "PPB_ENABLE_Vulkan": "OFF",
+        "PPB_ENABLE_Slang_Vulkan": "OFF"
+      }
+    },
+    {
+      "name": "linux-rocm-amdclang-rdna",
+      "inherits": "abstract-base",
+      "displayName": "Linux ROCM with AMDCLANG (RDNA Architecture)",
       "description": "Switches off: OpenACC, Slang-CUDA",
-      "binaryDir": "${sourceDir}/cmake-build-linux-rocm-amdclang",
+      "binaryDir": "${sourceDir}/cmake-build-linux-rocm-amdclang-rdna",
       "cacheVariables": {
         "CMAKE_C_COMPILER": "amdclang",
         "CMAKE_CXX_COMPILER": "amdclang++",
@@ -96,11 +128,11 @@
       }
     },
     {
-      "name": "linux-rocm-llvm",
+      "name": "linux-rocm-llvm-rdna",
       "inherits": "abstract-base",
-      "displayName": "Linux ROCM with LLVM",
+      "displayName": "Linux ROCM with LLVM (RDNA Architecture)",
       "description": "Switches off: OpenACC, Slang-CUDA",
-      "binaryDir": "${sourceDir}/cmake-build-linux-rocm-llvm",
+      "binaryDir": "${sourceDir}/cmake-build-linux-rocm-llvm-rdna",
       "cacheVariables": {
         "CMAKE_C_COMPILER": "clang",
         "CMAKE_CXX_COMPILER": "clang++",
