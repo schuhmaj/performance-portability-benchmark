@@ -72,6 +72,16 @@ namespace ppb {
         unsigned int seed{42};
 
         /**
+         * Cell size used in the linked cell implimentation (cell_size >= cutoff_radius!!!)
+         */
+        float cell_size{0.0f};
+        
+        /**
+         * Cutoff radius used in the linked cell and verlet lists implimentation
+         */
+        float cutoff_radius{0.0f};
+
+        /**
          * Creates a simulation configuration.
          * @param size Number of particles in the simulation.
          */

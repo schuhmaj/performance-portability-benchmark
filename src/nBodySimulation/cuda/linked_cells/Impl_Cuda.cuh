@@ -9,32 +9,12 @@ namespace ppb {
 
     template <typename FloatType>
     struct CudaParticleSoA {
-        __constant__ float x_dim;
-        __constant__ float y_dim;
-        __constant__ float z_dim;
-        __constant__ std::vector<Particle<FloatType>> &_ref;
-        __constant__ float cell_size{1.0f};
-        __constant__ float cutoff_radius{1.0f};
-        __constant__ std::array<size_t, 27> offsets;
+        const std::vector<Particle<FloatType>> &_ref;
 
-        /**
-         * @brief 'starts' looks like this:
-         * 0, 2, 2, 4, ..., 10
-         * so here for example we have 10 cells (as indicated by the last entry). 
-         * The first one has 2 particles, the second has none, the third has 2 particles again.
-         * The stored indicies are the indicies in the 'cells' container, where the i-th index describes the starting
-         * 
-         */
-        __device__ size_t* starts{nullptr};
-        __device__ size_t* cells{nullptr};
-        /**
-         * @brief 'cells' contains the sorted particle *indicies* to the particles contained in 'particles'.
-         * 'starts' marks the start of each cell.
-         */
         __device__ float3* positions{nullptr};
         __device__ float3* velocities{nullptr};
         __device__ float3* forces{nullptr};
-        __device__ float3* oldForce{nullptr};
+        __device__ float3* oldForces{nullptr};
         
         __host__ std::vector<float3> positionsHost;
         __host__ std::vector<float3> velocitiesHost;
@@ -49,15 +29,35 @@ namespace ppb {
 
     template <typename FloatType>
     class ImplCuda {
-        __constant__ int _blockSize;
-        __constant__ int _gridSize;
-        __constant__ float3 _globalForce;
+        int _blockSize;
+        int _gridSize;
+        float3 _globalForce;
+        int x_dim;
+        int y_dim;
+        int z_dim;
+        __constant__ int offsets[27];
 
+        /**
+         * @brief 'starts' looks like this:
+         * 0, 2, 2, 4, ..., 10
+         * so here for example we have 10 cells (as indicated by the last entry). 
+         * The first one has 2 particles, the second has none, the third has 2 particles again.
+         * The stored indicies are the indicies in the 'cells' container, where the i-th index describes the starting
+         * 
+         */
+        __device__ int* starts{nullptr};
+        /**
+         * @brief 'cells' contains the sorted particle *indicies* to the particles contained in 'particles'.
+         * 'starts' marks the start of each cell.
+         */
+        __device__ int* cells{nullptr};
+        
         ParticleSimulationConfig<FloatType> _config;
 
         std::optional<CudaParticleSoA<FloatType>> _particles{std::nullopt};
 
         ParticleSimulationTimings _timings{};
+
     public:
         using float_type = FloatType;
 
@@ -90,5 +90,7 @@ namespace ppb {
          * accumulating the results in parallel.
          */
         void computeForces();
+        
+        ~ImplCuda();
     };
 } // namespace ppb
