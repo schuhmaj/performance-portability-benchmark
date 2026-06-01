@@ -37,7 +37,7 @@ namespace ppb {
         kernel.set_arg(4, config.n);
         kernel.set_arg(5, config.k);
 
-        const size_t localSize[2] = {32, 32};
+        const size_t localSize[2] = {16, 16};
         const size_t globalSize[2] = {
             util::roundUp<size_t>(config.m, localSize[0]),
             util::roundUp<size_t>(config.n, localSize[1])

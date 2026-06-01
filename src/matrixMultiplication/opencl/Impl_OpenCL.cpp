@@ -75,7 +75,7 @@ ppb::ImplOpenCL<FloatType>::operator()(const std::vector<FloatType> &a, const st
         throw std::runtime_error("SetKernelArg Integer K failed");
 
     // 2D launch configuration
-    const size_t localSize[2] = {32, 32};
+    const size_t localSize[2] = {16, 16};
     const size_t globalSize[2] = {
         util::roundUp<size_t>(config.m, localSize[0]),
         util::roundUp<size_t>(config.n, localSize[1])
