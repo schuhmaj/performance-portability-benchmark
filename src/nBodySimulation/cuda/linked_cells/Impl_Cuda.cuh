@@ -40,10 +40,9 @@ namespace ppb {
         /**
          * @brief 'starts' looks like this:
          * 0, 2, 2, 4, ..., 10
-         * so here for example we have 10 cells (as indicated by the last entry). 
          * The first one has 2 particles, the second has none, the third has 2 particles again.
-         * The stored indicies are the indicies in the 'cells' container, where the i-th index describes the starting
-         * 
+         * The stored indicies are the indicies in the 'cells' container, where the i-th index 
+         * describes the starting index of the i-th cell inside 'cells'.
          */
         __device__ int* starts{nullptr};
         /**

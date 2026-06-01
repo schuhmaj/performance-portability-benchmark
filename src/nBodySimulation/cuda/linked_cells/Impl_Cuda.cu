@@ -1,6 +1,8 @@
 #include "Impl_Cuda.cuh"
 #include <cuda_runtime.h>
 #include <math.h>
+#include <thrust/scan.h>
+#include <thrust/execution_policy.h>
 
 namespace ppb {
     
@@ -99,11 +101,8 @@ namespace ppb {
         return true;
     }
 
-    /**
-     * @brief Blelloch algorithm for quick summation. Inspired by Moritz Beste's Bachelor's thesis.
-     * The following code is strongly inspired by the code here: https://developer.nvidia.com/gpugems/gpugems3/part-vi-gpu-computing/chapter-39-parallel-prefix-sum-scan-cuda (last accessed 28.5.26)
-    */
-    __device__ inline void update_starts() {}
+    __device__ inline void update_starts(size_t num_cells) {
+    }
 
     __device__ inline size_t get_cell_idx(size_t particle_idx, const float3* positions, float cell_size, int x_dim, int y_dim, int z_dim) {
         size_t x_idx = std::ceil(positions[particle_idx].x / cell_size) - 1;
@@ -189,7 +188,7 @@ namespace ppb {
             if (!is_in_bounds(idx, offset, x_dim, y_dim, z_dim)) continue; 
             idx += offsets[offset];
             size_t start = starts[idx];
-            size_t end = starts[idx + 1];
+            size_t end = idx >= ((x_dim * y_dim * z_dim) - 1) ? numParticles : starts[idx + 1];
             for (size_t k = start; k < end; k++) {
                 size_t j = cells[k];
 
@@ -263,10 +262,10 @@ namespace ppb {
         cudaMemcpyToSymbol(offsets, &offsetsDeclared, 27 * sizeof(int));
 
         const size_t num_cells = x_dim * y_dim * z_dim;        
-        cudaMalloc(&starts, sizeof(size_t) * (num_cells + 1)); //+1 so the last index also fits (makes my life easier)
+        cudaMalloc(&starts, sizeof(size_t) * num_cells);
         cudaMalloc(&cells, sizeof(size_t) * num_cells);
+        cudaMemset(starts, 0.0, sizeof(size_t) * num_cells);
         cudaMemset(cells, 0.0, sizeof(size_t) * size);
-        cudaMemset(starts, 0.0, sizeof(size_t) * (num_cells + 1));
     }
 
     template<typename FloatType>
@@ -285,17 +284,19 @@ namespace ppb {
         auto &oldForce = _particles->oldForces;
         auto &velocity = _particles->velocities;
         auto &position = _particles->positions;
+        const size_t num_cells = x_dim * y_dim * z_dim;
 
         float elapsedTime;
         cudaEvent_t start, stop;
         cudaEventCreate(&start);
         cudaEventCreate(&stop);
 
-        cudaMemset(starts, 0.0, sizeof(size_t) * ((x_dim * y_dim * z_dim) + 1));
+        cudaMemset(starts, 0.0, sizeof(size_t) * num_cells);
         cudaMemset(cells, 0.0, sizeof(size_t) * size);
         cudaEventRecord(start);
         update_positions<<<_gridSize, _blockSize>>>(position, velocity, force, oldForce, cells, starts, _globalForce, dt, size, cell_size, x_dim, y_dim, z_dim);
         update_cells<<<_gridSize, _blockSize, sizeof(int) * size>>>(cells, size);
+        thrust::inclusive_scan(starts, starts + num_cells, starts);
         cudaEventRecord(stop);
 
         cudaEventSynchronize(stop);
