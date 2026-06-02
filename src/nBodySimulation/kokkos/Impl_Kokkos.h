@@ -38,7 +38,7 @@ namespace ppb {
         /**
          * Host mirror view of particle positions, shape [N][3].
          */
-        typename Kokkos::View<FloatType *[3]>::HostMirror positionsHost;
+        typename Kokkos::View<FloatType *[3]>::host_mirror_type positionsHost;
 
         /**
          * Device view of particle velocities, shape [N][3].
@@ -48,7 +48,7 @@ namespace ppb {
         /**
          * Host mirror view of particle velocities, shape [N][3].
          */
-        typename Kokkos::View<FloatType *[3]>::HostMirror velocitiesHost;
+        typename Kokkos::View<FloatType *[3]>::host_mirror_type velocitiesHost;
 
         /**
          * Device view of particle forces, shape [N][3].
@@ -58,7 +58,7 @@ namespace ppb {
         /**
          * Host mirror view of particle forces, shape [N][3].
          */
-        typename Kokkos::View<FloatType *[3]>::HostMirror forcesHost;
+        typename Kokkos::View<FloatType *[3]>::host_mirror_type forcesHost;
 
         /**
          * Device view of previous forces for velocity Verlet integration, shape [N][3].
