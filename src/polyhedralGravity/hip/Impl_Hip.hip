@@ -202,6 +202,10 @@ struct GravityModelResultHip {
     VectorType first;
     VectorType second;
 
+    __device__ GravityModelResultHip()
+        : acc_pot(0), first{}, second{} {
+    }
+
     __device__ GravityModelResultHip operator+(const GravityModelResultHip &other) const {
         return {
                 acc_pot + other.acc_pot,
