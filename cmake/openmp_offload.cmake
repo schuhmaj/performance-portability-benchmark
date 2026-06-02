@@ -62,7 +62,7 @@ set(PPB_OpenMP_Offload_Target "${_ppb_omp_target_default}" CACHE STRING
 set_property(CACHE PPB_OpenMP_Offload_Target PROPERTY STRINGS nvidia amd intel)
 
 set(PPB_OpenMP_Offload_Arch "" CACHE STRING
-        "GPU architecture for OpenMP offloading (e.g. sm_80, gfx90a). Empty => JIT")
+        "GPU arch for AOT OpenMP offload (native, sm_80, gfx90a, ...). Empty => JIT (upstream LLVM only; not amdclang)")
 
 # Map the chosen vendor to its LLVM OpenMP offload target triple.
 if (PPB_OpenMP_Offload_Target STREQUAL "nvidia")
@@ -78,12 +78,19 @@ endif ()
 
 # Build the offload flag list shared by compile and link steps. The base
 # -fopenmp comes from OpenMP::OpenMP_CXX, so we only add the offload specifics.
-set(_ppb_omp_flags -fopenmp-targets=${_ppb_omp_triple})
-if (PPB_OpenMP_Offload_Arch)
-    list(APPEND _ppb_omp_flags -Xopenmp-target=${_ppb_omp_triple} -march=${PPB_OpenMP_Offload_Arch})
-elseif (NOT PPB_OpenMP_Offload_Target STREQUAL "intel")
-    # SPIR-V (Intel) is JIT'd by the runtime by default; the flag is Clang-only.
-    list(APPEND _ppb_omp_flags -fopenmp-target-jit)
+if (PPB_OpenMP_Offload_Target STREQUAL "intel")
+    # SPIR-V is JIT'd by the level-zero runtime itself; --offload-arch doesn't apply.
+    set(_ppb_omp_flags -fopenmp-targets=${_ppb_omp_triple})
+elseif (PPB_OpenMP_Offload_Arch)
+    # AOT: --offload-arch (e.g. native, sm_80, gfx90a) fully compiles the device
+    # code at build time and infers the triple. Required for the proprietary
+    # amdclang, whose device runtime cannot satisfy the runtime JIT linker.
+    set(_ppb_omp_flags --offload-arch=${PPB_OpenMP_Offload_Arch})
+else ()
+    # JIT: embed LLVM IR and lower it at run time. Portable across one vendor's
+    # devices on upstream LLVM, but needs ptxas on PATH (NVIDIA) and a
+    # JIT-compatible device runtime (fails on amdclang).
+    set(_ppb_omp_flags -fopenmp-targets=${_ppb_omp_triple} -fopenmp-target-jit)
 endif ()
 
 # When linking, OpenMP::OpenMP_CXX only pulls in the runtime library, not the
