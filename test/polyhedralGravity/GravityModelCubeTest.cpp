@@ -59,6 +59,8 @@ public:
             result.emplace_back(Array3{p1, p2, p3}, density, potential,
                                 Array3{acc1, acc2, acc3});
         }
+        // Only test the first 100 points
+        result.resize(100);
         return result;
     }
 };

@@ -9,7 +9,7 @@ function(create_polyhedral_test NAME)
             GTest::gmock
             polyhedral_${NAME}_lib
     )
-    gtest_discover_tests(polyhedral_${NAME}_test DISCOVERY_MODE PRE_TEST)
+    gtest_discover_tests(polyhedral_${NAME}_test DISCOVERY_MODE POST_BUILD)
 endfunction()
 
 
