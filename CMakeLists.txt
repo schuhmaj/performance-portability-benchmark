@@ -83,12 +83,13 @@ cmake_dependent_option(PPB_ENABLE_NBodySimulation_cells  "Enable cells nBodySimu
 cmake_dependent_option(PPB_ENABLE_NBodySimulation_verlet  "Enable verlet nBodySimulation"  OFF "PPB_ENABLE_NBodySimulation" OFF)
 
 
-set(PPB_Polyhedral_FloatType "32" CACHE STRING "Choose the floating point precision (32 or 64 bits)")
-set_property(CACHE PPB_Polyhedral_FloatType PROPERTY STRINGS "32" "64")
+set(PPB_FloatType "32" CACHE STRING "Choose the floating point precision (32 or 64 bits)")
+set_property(CACHE PPB_FloatType PROPERTY STRINGS "32" "64")
 
 message(STATUS "####################################################")
 message(STATUS "Build Type                      ${CMAKE_BUILD_TYPE}")
 message(STATUS "Logging Level                   ${PPB_LOGGING_LEVEL}")
+message(STATUS "Float Type                      ${PPB_FloatType}")
 message(STATUS "Only Kernel Runtime             ${PPB_ENABLE_OnlyKernelRuntime}")
 message(STATUS "####################################################")
 message(STATUS "Kokkos                          ${PPB_ENABLE_Kokkos}")
@@ -108,7 +109,6 @@ message(STATUS "####################################################")
 message(STATUS "VectorAddition                  ${PPB_ENABLE_VectorAddition}")
 message(STATUS "MatrixMultiplication            ${PPB_ENABLE_MatrixMultiplication}")
 message(STATUS "PolyhedralGravity               ${PPB_ENABLE_PolyhedralGravity}")
-message(STATUS " ⮑ Polyhedral Float Type       ${PPB_Polyhedral_FloatType}")
 message(STATUS "NBodySimulation                 ${PPB_ENABLE_NBodySimulation}")
 message(STATUS " ⮑ Naive                       ${PPB_ENABLE_NBodySimulation_naive}")
 message(STATUS " ⮑ LinkedCells                 ${PPB_ENABLE_NBodySimulation_cells}")
@@ -131,6 +131,9 @@ list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 
 # We always requires Google Benchmark
 include(gbench)
+# Definitions for Shading-Based Languages (OpenCL, OpenGL, Slang) to switch between
+# single and double precision during compilation
+include(float_type)
 
 if (${PPB_ENABLE_Boost} OR ${PPB_ENABLE_AdaptiveCpp})
     # std::random_shuffle was removed in C++17 and deprecated in C++14 - Boost uses it if we don't enable

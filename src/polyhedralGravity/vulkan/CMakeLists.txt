@@ -1,9 +1,3 @@
-if (${PPB_Polyhedral_FloatType} EQUAL 32)
-    set(OPENGL_COMPILER_DEFINITIONS -DFloatType=float -DFloatType3=vec3 -DFloatType4=vec4 -DFloatTypeM=mat3)
-elseif (${PPB_Polyhedral_FloatType} EQUAL 64)
-    set(OPENGL_COMPILER_DEFINITIONS -DFloatType=double -DFloatType3=dvec3 -DFloatType4=dvec4 -DFloatTypeM=dmat3)
-endif ()
-
 compile_vulkan_opengl(
         INFILE ${CMAKE_CURRENT_SOURCE_DIR}/shader/init.comp ${CMAKE_CURRENT_SOURCE_DIR}/shader/eval.comp
         KERNEL_NAME INIT_SPRIV EVAL_SPIRV

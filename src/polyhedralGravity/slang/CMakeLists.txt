@@ -1,9 +1,3 @@
-if (${PPB_Polyhedral_FloatType} EQUAL 32)
-    set(SLANG_COMPILER_DEFINITIONS -DFloatType=float -DFloatType3=float3 -DFloatType4=float4 -DFloatTypeM=mat3)
-elseif (${PPB_Polyhedral_FloatType} EQUAL 64)
-    set(SLANG_COMPILER_DEFINITIONS -DFloatType=double -DFloatType3=double3 -DFloatType4=double4 -DFloatTypeM=dmat3)
-endif ()
-
 if (${PPB_ENABLE_Slang_Vulkan})
     compile_slang(
             LANGUAGE SPIR-V
