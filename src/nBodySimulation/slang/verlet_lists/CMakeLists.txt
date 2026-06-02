@@ -5,6 +5,7 @@ set(SLANG_SOURCE_FILES
         ${CMAKE_CURRENT_SOURCE_DIR}/shaders/KernelBlellochScan.slang
         ${CMAKE_CURRENT_SOURCE_DIR}/shaders/KernelBlockSum.slang
         ${CMAKE_CURRENT_SOURCE_DIR}/shaders/KernelVerlet.slang
+        ${CMAKE_CURRENT_SOURCE_DIR}/shaders/KernelCountNeighbors.slang
 )
 
 if (${PPB_ENABLE_Slang_Vulkan})

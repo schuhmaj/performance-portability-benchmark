@@ -11,10 +11,14 @@ namespace ppb {
         , _ref{particles}
     {
         const size_t size = particles.size();
+        // VectorType3's element type is keyed off FLOAT_BITS, which may differ from the
+        // simulation's FloatType (e.g. a double simulation stored as float3), so cast
+        // explicitly to avoid narrowing errors in the braced initialization.
+        using Scalar = decltype(VectorType3::x);
         for (size_t i = 0; i < size; ++i) {
-            positionsHost[i] = {particles[i].getPosition()[0], particles[i].getPosition()[1], particles[i].getPosition()[2]};
-            velocitiesHost[i] = {particles[i].getVelocity()[0], particles[i].getVelocity()[1], particles[i].getVelocity()[2]};
-            forcesHost[i] = {particles[i].getForce()[0], particles[i].getForce()[1], particles[i].getForce()[2]};
+            positionsHost[i] = {static_cast<Scalar>(particles[i].getPosition()[0]), static_cast<Scalar>(particles[i].getPosition()[1]), static_cast<Scalar>(particles[i].getPosition()[2])};
+            velocitiesHost[i] = {static_cast<Scalar>(particles[i].getVelocity()[0]), static_cast<Scalar>(particles[i].getVelocity()[1]), static_cast<Scalar>(particles[i].getVelocity()[2])};
+            forcesHost[i] = {static_cast<Scalar>(particles[i].getForce()[0]), static_cast<Scalar>(particles[i].getForce()[1]), static_cast<Scalar>(particles[i].getForce()[2])};
         }
         cudaMalloc(&positions, sizeof(VectorType3) * size);
         cudaMalloc(&velocities, sizeof(VectorType3) * size);

@@ -1,5 +1,7 @@
 #include "cuda.h"
 
+#include <cstdio>
+
 // ============================================================================================
 // This macro evalutes the return of a Cuda Driver API call and reports any returned
 // error instead of failing silently. 

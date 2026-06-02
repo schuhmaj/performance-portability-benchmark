@@ -7,9 +7,11 @@
 #if FLOAT_BITS == 32
 using VectorType3 = float3;
 using VectorType4 = float4;
+using float_type = float;
 #elif FLOAT_BITS == 64
 using VectorType3 = double3;
 using VectorType4 = double4;
+using float_type = double;
 #endif
 
 namespace ppb {
