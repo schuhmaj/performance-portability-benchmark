@@ -163,6 +163,7 @@ endif()
 
 if (${PPB_ENABLE_OpenMP})
     find_package(OpenMP REQUIRED)
+    include(openmp_offload)
 endif ()
 
 if (${PPB_ENABLE_OpenACC})
