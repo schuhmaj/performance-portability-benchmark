@@ -11,7 +11,7 @@
 constexpr size_t WORKGROUP_SIZE = 32;
 #else
 #include <CL/cl.h>
-constexpr size_t WORKGROUP_SIZE = 1024;
+constexpr size_t WORKGROUP_SIZE = 256;
 #endif
 
 namespace ppb {
@@ -37,15 +37,8 @@ namespace ppb {
             // 3. opencl_utility program & kernel
             const char* kernelProg = KERNEL_SOURCE;
             program = clCreateProgramWithSource(context, 1, &kernelProg, nullptr, &err);
-            err = clBuildProgram(program, 0, nullptr, nullptr, nullptr, nullptr);
-
-            if constexpr (std::is_same_v<FloatType, float>) {
-                kernel = clCreateKernel(program, "add_vector_float", &err);
-            } else if constexpr (std::is_same_v<FloatType, double>) {
-                kernel = clCreateKernel(program, "add_vector_double", &err);
-            } else {
-                static_assert(std::is_same_v<FloatType, float> || std::is_same_v<FloatType, double>, "Unsupported type");
-            }
+            err = clBuildProgram(program, 0, nullptr, OPENCL_COMPILE_ARGS, nullptr, nullptr);
+            kernel = clCreateKernel(program, "add_vector", &err);
         }
 
         ~ImplOpenCL() {

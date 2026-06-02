@@ -29,6 +29,7 @@ namespace ppb {
     };
 
     template class ImplOpenMP<float>;
+    template class ImplOpenMP<double>;
 }
 
 BENCHMARK(ppb::VectorAddition<ppb::ImplOpenMP<ppb::VectorAdditionBenchmarkConf::float_type>>::benchmark)
