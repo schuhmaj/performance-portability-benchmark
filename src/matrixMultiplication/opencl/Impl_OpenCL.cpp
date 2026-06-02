@@ -14,22 +14,13 @@ ppb::ImplOpenCL<FloatType>::ImplOpenCL() {
     context = clCreateContext(0, 1, &device, nullptr, nullptr, &err);
     queue = clCreateCommandQueue(context, device, CL_QUEUE_PROFILING_ENABLE, &err);
 
-    // 3. OpenCL program & kernel
+    // 3. OpenCL program & kernel. The FloatType macro is injected via the build
+    // args (OPENCL_COMPILE_ARGS), so a single kernel covers both precisions.
     std::string kernelSource;
     const char *kernelProg = KERNEL_SOURCE;
     program = clCreateProgramWithSource(context, 1, &kernelProg, nullptr, &err);
-    err = clBuildProgram(program, 0, nullptr, nullptr, nullptr, nullptr);
-    if constexpr (std::is_same_v<FloatType, float>) {
-        kernel = clCreateKernel(program, "matrix_multiplication_float", &err);
-    } else if constexpr (std::is_same_v<FloatType, double>) {
-#ifdef __APPLE__
-    static_assert(true, "Not possible on the Apple Platform - Metal doesn't have a float64 type!");
-#endif
-        kernel = clCreateKernel(program, "matrix_multiplication_double", &err);
-    }
-    else {
-        static_assert(std::is_same_v<FloatType, float> || std::is_same_v<FloatType, double>, "Unsupported type");
-    }
+    err = clBuildProgram(program, 0, nullptr, OPENCL_COMPILE_ARGS, nullptr, nullptr);
+    kernel = clCreateKernel(program, "matrix_multiplication", &err);
 }
 
 template <typename FloatType>
@@ -106,3 +97,4 @@ ppb::ImplOpenCL<FloatType>::operator()(const std::vector<FloatType> &a, const st
 }
 
 template class ppb::ImplOpenCL<float>;
+template class ppb::ImplOpenCL<double>;

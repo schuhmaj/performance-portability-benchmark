@@ -17,8 +17,15 @@
 
 namespace ppb {
 
+    template <typename FloatType> struct cl_vec_traits;
+    template <> struct cl_vec_traits<float>  { using scalar = cl_float;  using vec4 = cl_float4;  };
+    template <> struct cl_vec_traits<double> { using scalar = cl_double; using vec4 = cl_double4; };
+
     template <typename FloatType>
     class OpenCLParticleSoA {
+
+        using cl_scalar = typename cl_vec_traits<FloatType>::scalar;
+        using cl_vec4 = typename cl_vec_traits<FloatType>::vec4;
 
         /**
          * Reference to the original vector of particles (used as a data source during initialization and conversion).
@@ -32,9 +39,9 @@ namespace ppb {
         cl_mem forces;
         cl_mem oldForces;
 
-        std::vector<cl_float4> positionsHost;
-        std::vector<cl_float4> velocitiesHost;
-        std::vector<cl_float4> forcesHost;
+        std::vector<cl_vec4> positionsHost;
+        std::vector<cl_vec4> velocitiesHost;
+        std::vector<cl_vec4> forcesHost;
 
         OpenCLParticleSoA(const std::vector<Particle<FloatType>> &ref, cl_context &context);
 
@@ -53,6 +60,9 @@ namespace ppb {
     template<typename FloatType>
     class ImplOpenCL {
 
+        using cl_scalar = typename cl_vec_traits<FloatType>::scalar;
+        using cl_vec4 = typename cl_vec_traits<FloatType>::vec4;
+
         /**
          * Simulation configuration with parameters such as particle count, force, time step, and bounds.
          */
@@ -68,8 +78,8 @@ namespace ppb {
          */
         std::optional<OpenCLParticleSoA<FloatType>> _particles{std::nullopt};
         const cl_uint _numParticles;
-        const cl_float _deltaT;
-        const cl_float4 _globalForce;
+        const cl_scalar _deltaT;
+        const cl_vec4 _globalForce;
 
         cl_device_id gpu{nullptr};
         cl_context context{nullptr};

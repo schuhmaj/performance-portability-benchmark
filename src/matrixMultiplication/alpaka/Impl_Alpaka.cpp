@@ -88,3 +88,4 @@ ppb::ImplAlpaka<FloatType>::operator()(const std::vector<FloatType> &a, const st
 }
 
 template class ppb::ImplAlpaka<float>;
+template class ppb::ImplAlpaka<double>;

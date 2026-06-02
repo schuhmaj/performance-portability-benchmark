@@ -88,12 +88,12 @@ void ppb::ImplAlpaka<FloatType>::updatePositionsAndResetForce() {
         if (i >= numParticles) {
             return;
         }
-        constexpr float m = 1.0;
-        const float tt2m = (dt * dt / (2.0 * m));
+        constexpr float_type m = 1.0;
+        const float_type tt2m = (dt * dt / (2.0 * m));
 
-        float force[3];
-        float velocityPart[3];
-        float forcePart[3];
+        float_type force[3];
+        float_type velocityPart[3];
+        float_type forcePart[3];
         for (unsigned int d = 0; d < 3; ++d) {
             const unsigned int index = i * 3 + d;
             force[d] = forces[index];
@@ -135,8 +135,8 @@ void ppb::ImplAlpaka<FloatType>::updateVelocities() {
         if (i >= numParticles) {
             return;
         }
-        constexpr float m = 1.0;
-        const float t2m = (dt / (2.0 * m));
+        constexpr float_type m = 1.0;
+        const float_type t2m = (dt / (2.0 * m));
 
         for (int d = 0; d < 3; ++d) {
             const unsigned int index = i * 3 + d;
@@ -172,18 +172,18 @@ void ppb::ImplAlpaka<FloatType>::computeForces() {
             return;
         }
 
-        constexpr float sigmaSrc = 1.0;
-        constexpr float epsilonSrc = 1.0;
-        constexpr float sigma = (sigmaSrc + sigmaSrc) * 0.5;
-        constexpr float sigmaSquared = sigma * sigma;
-        const float epsilon24 = alpaka::math::sqrt(acc, epsilonSrc * epsilonSrc) * 24.0f;
+        constexpr float_type sigmaSrc = 1.0;
+        constexpr float_type epsilonSrc = 1.0;
+        constexpr float_type sigma = (sigmaSrc + sigmaSrc) * 0.5;
+        constexpr float_type sigmaSquared = sigma * sigma;
+        const float_type epsilon24 = alpaka::math::sqrt(acc, epsilonSrc * epsilonSrc) * 24.0f;
 
         for (Idx j = 0; j < numParticles; ++j) {
             if (i == j) {
                 continue;
             }
-            float dr[3];
-            float dr2 = 0.0f;
+            float_type dr[3];
+            float_type dr2 = 0.0f;
             for (int d = 0; d < 3; ++d) {
                 const unsigned int indexI = i * 3 + d;
                 const unsigned int indexJ = j * 3 + d;
@@ -191,12 +191,12 @@ void ppb::ImplAlpaka<FloatType>::computeForces() {
                 dr2 += dr[d] * dr[d];
             }
 
-            const float invdr2 = 1.0f / dr2;
-            float lj6 = sigmaSquared * invdr2;
+            const float_type invdr2 = 1.0f / dr2;
+            float_type lj6 = sigmaSquared * invdr2;
             lj6 = lj6 * lj6 * lj6;
-            const float lj12 = lj6 * lj6;
-            const float lj12m6 = lj12 - lj6;
-            const float fac = epsilon24 * (lj12 + lj12m6) * invdr2;
+            const float_type lj12 = lj6 * lj6;
+            const float_type lj12m6 = lj12 - lj6;
+            const float_type fac = epsilon24 * (lj12 + lj12m6) * invdr2;
 
             for (int d = 0; d < 3; ++d) {
                 const unsigned int indexI = i * 3 + d;
@@ -223,3 +223,6 @@ void ppb::ImplAlpaka<FloatType>::computeForces() {
 
 template class ppb::ImplAlpaka<float>;
 template class ppb::AlpakaParticleSoA<float>;
+
+template class ppb::ImplAlpaka<double>;
+template class ppb::AlpakaParticleSoA<double>;

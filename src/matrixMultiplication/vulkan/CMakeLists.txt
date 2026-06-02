@@ -3,6 +3,7 @@ compile_vulkan_opengl(
         KERNEL_NAME matmul_kernel
         PATH ${CMAKE_CURRENT_BINARY_DIR}
         OUT_HEADERS OPENGL_HEADERS
+        DEFINITIONS ${OPENGL_COMPILER_DEFINITIONS}
 )
 
 add_library(matMul_vulkan_lib STATIC Impl_Vulkan.h Impl_Vulkan.cpp ${OPENGL_HEADERS})

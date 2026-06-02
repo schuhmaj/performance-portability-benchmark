@@ -186,7 +186,6 @@ namespace ppb {
     template class AdaptiveCppParticleSoA<float>;
     template class ImplAdaptiveCpp<float>;
 
-
-
-
+    template class AdaptiveCppParticleSoA<double>;
+    template class ImplAdaptiveCpp<double>;
 };

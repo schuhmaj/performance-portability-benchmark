@@ -13,8 +13,8 @@ namespace ppb {
         : gpu{boost::compute::system::default_device()}
         , context{gpu}
         , queue{context, gpu, boost::compute::command_queue::enable_profiling}
-        , program{boost::compute::program::build_with_source(std::string(KERNEL_SOURCE), context)}
-        , kernel{program, std::string(kernel_name())}
+        , program{boost::compute::program::build_with_source(std::string(KERNEL_SOURCE), context, OPENCL_COMPILE_ARGS)}
+        , kernel{program, std::string("matrix_multiplication")}
     {}
 
 
@@ -46,7 +46,7 @@ namespace ppb {
         const auto event = queue.enqueue_nd_range_kernel(kernel, 2, nullptr, globalSize, localSize);
         event.wait();
 
-        const double elapsed_nanoseconds = event.duration<boost::chrono::nanoseconds>().count();
+        const double elapsed_nanoseconds = event.template duration<boost::chrono::nanoseconds>().count();
         boost::compute::copy(resultBuffer.begin(), resultBuffer.end(), result.begin(), queue);
         queue.finish();
         return std::make_pair(std::move(result), elapsed_nanoseconds);

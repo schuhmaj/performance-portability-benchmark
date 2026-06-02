@@ -18,7 +18,7 @@ namespace ppb {
         const auto transformFloat4 = [](auto getter) {
             return [getter](const auto& particle) {
                 const auto arr = std::invoke(getter, particle);
-                return boost::compute::float4_(arr[0], arr[1], arr[2], 0.0f);
+                return bc_vec4(arr[0], arr[1], arr[2], 0.0f);
             };
         };
 
@@ -29,7 +29,7 @@ namespace ppb {
         boost::compute::copy(positionsHost.begin(), positionsHost.end(), positions.begin(), queue);
         boost::compute::copy(velocitiesHost.begin(), velocitiesHost.end(), velocities.begin(), queue);
         boost::compute::copy(forcesHost.begin(), forcesHost.end(), forces.begin(), queue);
-        boost::compute::fill(oldForces.begin(), oldForces.end(), boost::compute::float4_(0.0f, 0.0f, 0.0f, 0.0f), queue);
+        boost::compute::fill(oldForces.begin(), oldForces.end(), bc_vec4(0.0f, 0.0f, 0.0f, 0.0f), queue);
     }
 
     template <typename FloatType>
@@ -38,7 +38,7 @@ namespace ppb {
         boost::compute::copy(positions.begin(), positions.end(), positionsHost.begin(), queue);
         boost::compute::copy(velocities.begin(), velocities.end(), velocitiesHost.begin(), queue);
         boost::compute::copy(forces.begin(), forces.end(), forcesHost.begin(), queue);
-        const auto toArray = [](const boost::compute::float4_ &float4) -> std::array<FloatType, 3> {
+        const auto toArray = [](const bc_vec4 &float4) -> std::array<FloatType, 3> {
             return {float4.x, float4.y, float4.z};
         };
         for (size_t i = 0; i < particles.size(); ++i) {
@@ -59,7 +59,7 @@ namespace ppb {
         , gpu{boost::compute::system::default_device()}
         , context{gpu}
         , queue{context, gpu, boost::compute::command_queue::enable_profiling}
-        , program{boost::compute::program::build_with_source(std::string(KERNEL_SOURCE), context)}
+        , program{boost::compute::program::build_with_source(std::string(KERNEL_SOURCE), context, OPENCL_COMPILE_ARGS)}
         , kernelPositionUpdate{program, std::string("update_positions_reset_forces")}
         , kerneVelocityUpdate{program, std::string("update_velocities")}
         , kernelForceUpdate{program, std::string("compute_forces")}
@@ -109,7 +109,7 @@ namespace ppb {
             kernelPositionUpdate, 1, nullptr, &globalSize, &localSize
         );
         event.wait();
-        _timings.positionUpdateForceResetTime += event.duration<std::chrono::nanoseconds>().count();
+        _timings.positionUpdateForceResetTime += event.template duration<std::chrono::nanoseconds>().count();
     }
 
     template <typename FloatType>
@@ -121,12 +121,12 @@ namespace ppb {
             kerneVelocityUpdate, 1, nullptr, &globalSize, &localSize
         );
         event.wait();
-        _timings.velocityUpdateTime += event.duration<std::chrono::nanoseconds>().count();
+        _timings.velocityUpdateTime += event.template duration<std::chrono::nanoseconds>().count();
     }
 
     template <typename FloatType>
     void ImplBoost<FloatType>::computeForces() {
-        const size_t localSize[2] = {32, 32};
+        const size_t localSize[2] = {16, 16};
         const size_t globalSize[2] = {
             util::roundUp<size_t>(_numParticles, localSize[0]),
             util::roundUp<size_t>(_numParticles, localSize[1])
@@ -134,11 +134,14 @@ namespace ppb {
 
         const auto event = queue.enqueue_nd_range_kernel(kernelForceUpdate, 1, nullptr, globalSize, localSize);
         event.wait();
-        _timings.forceUpdateTime += event.duration<std::chrono::nanoseconds>().count();
+        _timings.forceUpdateTime += event.template duration<std::chrono::nanoseconds>().count();
     }
 
     template class ImplBoost<float>;
     template class BoostParticleSoA<float>;
+
+    template class ImplBoost<double>;
+    template class BoostParticleSoA<double>;
 
 } // namespace ppb
 

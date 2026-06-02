@@ -49,4 +49,5 @@ namespace ppb {
     }
 
     template class ImplSlangVulkan<float>;
+    template class ImplSlangVulkan<double>;
 } // namespace ppb
