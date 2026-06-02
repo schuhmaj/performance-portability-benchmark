@@ -1,6 +1,9 @@
 #pragma once
 
-#if defined(__clang__) && defined(__CUDA__)
+#if defined(__HIPCC__) || defined(__HIP__)
+#define FUNC_PREFIX __device__ __host__
+#define CTOR_PREFIX __device__ __host__
+#elif defined(__clang__) && defined(__CUDA__)
 #define FUNC_PREFIX __device__ __host__
 #define CTOR_PREFIX __device__ __host__
 #elif defined(__CUDACC__)

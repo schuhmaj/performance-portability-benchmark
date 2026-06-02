@@ -25,7 +25,11 @@
 #ifndef HELPER_MATH_H
 #define HELPER_MATH_H
 
+#if defined(__HIPCC__) || defined(__HIP__)
+#include <hip/hip_runtime.h>
+#else
 #include "cuda_runtime.h"
+#endif
 
 typedef unsigned int uint;
 typedef unsigned short ushort;

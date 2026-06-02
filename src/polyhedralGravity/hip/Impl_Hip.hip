@@ -7,26 +7,36 @@
 #if FLOAT_BITS == 32
 using VectorType = float3;
 using VectorType4 = float4;
-#include "common/cuda/helper_math.h"
-inline __device__ VectorType4 make4(FloatType x, FloatType y, FloatType z, FloatType w) {
+inline __host__ __device__ VectorType4 make4(FloatType x, FloatType y, FloatType z, FloatType w) {
     return make_float4(x, y, z, w);
 }
-inline __device__ VectorType4 make4(VectorType xyz, FloatType w) {
+inline __host__ __device__ VectorType4 make4(VectorType xyz, FloatType w) {
     return make_float4(xyz.x, xyz.y, xyz.z, w);
 }
 #elif FLOAT_BITS == 64
 using VectorType = double3;
 using VectorType4 = double4;
-inline __device__ VectorType4 make4(FloatType x, FloatType y, FloatType z, FloatType w) {
+inline __host__ __device__ VectorType4 make4(FloatType x, FloatType y, FloatType z, FloatType w) {
     return make_double4(x, y, z, w);
 }
-inline __device__ VectorType4 make4(VectorType xyz, FloatType w) {
+inline __host__ __device__ VectorType4 make4(VectorType xyz, FloatType w) {
     return make_double4(xyz.x, xyz.y, xyz.z, w);
 }
-#include "common/cuda/helper_math_double.h"
 #else
 #error "Invliad float bits size"
 #endif
+
+// HIP supplies the arithmetic operators for its vector types (float3/double3),
+// but not the cross product or normalization helpers that the CUDA helper_math.h
+// provided. Define the two we need here so the kernels stay backend-agnostic.
+inline __host__ __device__ VectorType cross(const VectorType &a, const VectorType &b) {
+    return {a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x};
+}
+
+inline __host__ __device__ VectorType normalize(const VectorType &v) {
+    const FloatType invLen = static_cast<FloatType>(1) / sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
+    return {v.x * invLen, v.y * invLen, v.z * invLen};
+}
 
 void checkHipError(hipError_t error, const char *msg) {
     if (error != hipSuccess) {
@@ -189,7 +199,7 @@ __device__ FloatType compute_singularities(
         VectorType g1 = r1Norm == 0.0 ? segmentVectors[face_index * 3 + index] : segmentVectors[face_index * 3 + (index - 1 + 3) % 3];
         VectorType g2 = r1Norm == 0.0 ? segmentVectors[face_index * 3 + (index + 1) % 3] : segmentVectors[face_index * 3 + index];
 
-        FloatType gdot = dot_cuda(-g1, g2);
+        FloatType gdot = -dot_cuda(g1, g2);
         FloatType theta = gdot == 0.0 ? PI_2 : std::acos(gdot / (euclideanNormCuda(g1) * euclideanNormCuda(g2)));
         return theta;
     }
@@ -202,11 +212,15 @@ struct GravityModelResultHip {
     VectorType first;
     VectorType second;
 
-    __device__ GravityModelResultHip()
+    __host__ __device__ GravityModelResultHip()
         : acc_pot(0), first{}, second{} {
     }
 
-    __device__ GravityModelResultHip operator+(const GravityModelResultHip &other) const {
+    __host__ __device__ GravityModelResultHip(const VectorType4 &_acc_pot, const VectorType &_first, const VectorType &_second)
+        : acc_pot(_acc_pot), first(_first), second(_second) {
+    }
+
+    __host__ __device__ GravityModelResultHip operator+(const GravityModelResultHip &other) const {
         return {
                 acc_pot + other.acc_pot,
                 first + other.first,
