@@ -296,7 +296,7 @@ namespace ppb {
         cudaEventRecord(start);
         update_positions<<<_gridSize, _blockSize>>>(position, velocity, force, oldForce, cells, starts, _globalForce, dt, size, cell_size, x_dim, y_dim, z_dim);
         update_cells<<<_gridSize, _blockSize, sizeof(int) * size>>>(cells, size);
-        thrust::inclusive_scan(starts, starts + num_cells, starts);
+        thrust::inclusive_scan(thrust::device, starts, starts + num_cells, starts);
         cudaEventRecord(stop);
 
         cudaEventSynchronize(stop);
