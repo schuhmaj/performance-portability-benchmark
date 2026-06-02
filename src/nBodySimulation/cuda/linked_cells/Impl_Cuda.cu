@@ -284,7 +284,7 @@ namespace ppb {
         auto &oldForce = _particles->oldForces;
         auto &velocity = _particles->velocities;
         auto &position = _particles->positions;
-        __device__ const size_t num_cells = x_dim * y_dim * z_dim;
+        const size_t num_cells = x_dim * y_dim * z_dim;
 
         float elapsedTime;
         cudaEvent_t start, stop;
