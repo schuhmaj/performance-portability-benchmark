@@ -11,14 +11,16 @@ namespace ppb {
     struct CudaParticleSoA {
         const std::vector<Particle<FloatType>> &_ref;
 
-        __device__ float3* positions{nullptr};
-        __device__ float3* velocities{nullptr};
-        __device__ float3* forces{nullptr};
-        __device__ float3* oldForces{nullptr};
+        //Device memory
+        float3* positions{nullptr};
+        float3* velocities{nullptr};
+        float3* forces{nullptr};
+        float3* oldForces{nullptr};
         
-        __host__ std::vector<float3> positionsHost;
-        __host__ std::vector<float3> velocitiesHost;
-        __host__ std::vector<float3> forcesHost;
+        //Host memory
+        std::vector<float3> positionsHost;
+        std::vector<float3> velocitiesHost;
+        std::vector<float3> forcesHost;
 
         explicit CudaParticleSoA(const std::vector<Particle<FloatType>> &particles);
 
@@ -35,7 +37,7 @@ namespace ppb {
         int x_dim;
         int y_dim;
         int z_dim;
-        __constant__ int offsets[27];
+        int offsets[27];
 
         /**
          * @brief 'starts' looks like this:
@@ -44,12 +46,12 @@ namespace ppb {
          * The stored indicies are the indicies in the 'cells' container, where the i-th index 
          * describes the starting index of the i-th cell inside 'cells'.
          */
-        __device__ int* starts{nullptr};
+        int* starts{nullptr};
         /**
          * @brief 'cells' contains the sorted particle *indicies* to the particles contained in 'particles'.
          * 'starts' marks the start of each cell.
          */
-        __device__ int* cells{nullptr};
+        int* cells{nullptr};
         
         ParticleSimulationConfig<FloatType> _config;
 

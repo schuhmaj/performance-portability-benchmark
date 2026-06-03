@@ -1,4 +1,5 @@
 #include "Impl_Cuda.cuh"
+#include <iostream>
 #include <cuda_runtime.h>
 #include <math.h>
 #include <thrust/scan.h>
@@ -99,9 +100,6 @@ namespace ppb {
         else if (std::abs((int)(y_idx - y_offset)) > 1) return false;
         else if (std::abs((int)(z_idx - z_offset)) > 1) return false;
         return true;
-    }
-
-    __device__ inline void update_starts(size_t num_cells) {
     }
 
     __device__ inline size_t get_cell_idx(size_t particle_idx, const float3* positions, float cell_size, int x_dim, int y_dim, int z_dim) {
@@ -294,7 +292,8 @@ namespace ppb {
         cudaMemset(starts, 0.0, sizeof(size_t) * num_cells);
         cudaMemset(cells, 0.0, sizeof(size_t) * size);
         cudaEventRecord(start);
-        update_positions<<<_gridSize, _blockSize>>>(position, velocity, force, oldForce, cells, starts, _globalForce, dt, size, cell_size, x_dim, y_dim, z_dim);
+        update_positions<<<_gridSize, _blockSize>>>(position, velocity, force, oldForce, cells, 
+			starts, _globalForce, dt, size, cell_size, x_dim, y_dim, z_dim);
         update_cells<<<_gridSize, _blockSize, sizeof(int) * size>>>(cells, size);
         thrust::inclusive_scan(thrust::device, starts, starts + num_cells, starts);
         cudaEventRecord(stop);
@@ -365,4 +364,4 @@ namespace ppb {
 
 
     template class ImplCuda<float>;
-};
+  } // namespace ppb
