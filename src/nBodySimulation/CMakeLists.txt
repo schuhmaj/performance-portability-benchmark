@@ -74,4 +74,8 @@ if (${PPB_ENABLE_OpenACC})
     add_subdirectory(openacc)
 endif ()
 
+if (${PPB_ENABLE_HIP})
+    add_subdirectory(hip)
+endif ()
+
 add_subdirectory(cpp)
