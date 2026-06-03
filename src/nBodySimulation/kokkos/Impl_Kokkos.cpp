@@ -68,7 +68,10 @@ namespace ppb {
         const size_t size = _particles->size();
         constexpr size_t dim = 3;
         const auto dt = static_cast<FloatType>(_config.deltaT);
-        const auto &globalForce = _config.globalForce;
+        const Kokkos::Array<FloatType, 3> globalForce{
+            {static_cast<FloatType>(_config.globalForce[0]),
+             static_cast<FloatType>(_config.globalForce[1]),
+             static_cast<FloatType>(_config.globalForce[2])}};
         auto &force = _particles->forces;
         auto &oldForce = _particles->oldForces;
         auto &velocity = _particles->velocities;
@@ -90,6 +93,7 @@ namespace ppb {
             const auto displacement = v + f;
             position(i, j) = position(i, j) + displacement;
         });
+        Kokkos::fence();
         _timings.positionUpdateForceResetTime += (timer.seconds() * 1e9);
     }
 
