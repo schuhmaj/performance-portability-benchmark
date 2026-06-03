@@ -104,6 +104,7 @@ namespace ppb {
      */
     template <typename FloatType>
     class ImplKokkos {
+    protected:
 
         /**
          * Simulation configuration which holds parameters such as particle count, global forces, simulation time, etc.
@@ -132,6 +133,8 @@ namespace ppb {
          */
         explicit ImplKokkos(const ParticleSimulationConfig<FloatType> &config);
 
+        virtual ~ImplKokkos() = default;
+
         /**
          * Runs the simulation for the configured total time using parallel Kokkos kernels to update
          * positions, velocities, and compute forces at each step.
@@ -157,6 +160,6 @@ namespace ppb {
          * Computes the inter-particle forces using the Lennard-Jones potential for all particles on the device,
          * accumulating the results in parallel.
          */
-        void computeForces();
+        virtual void computeForces();
     };
 } // namespace ppb

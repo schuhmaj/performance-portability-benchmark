@@ -3,10 +3,16 @@
 
 #include "NBodyTest.h"
 #include "nBodySimulation/kokkos/Impl_Kokkos.h"
+#include "nBodySimulation/kokkos/Impl_KokkosReduction.h"
 
 TEST_P(NBodyTest, ImplKokkos_Implementation) {
     const int size = GetParam();
     this->runTest<ppb::ImplKokkos<float>>(size);
+}
+
+TEST_P(NBodyTest, ImplKokkosReduction_Implementation) {
+    const int size = GetParam();
+    this->runTest<ppb::ImplKokkosReduction<float>>(size);
 }
 
 INSTANTIATE_TEST_SUITE_P(BySize, NBodyTest, ::testing::Values(10, 100, 1000));
