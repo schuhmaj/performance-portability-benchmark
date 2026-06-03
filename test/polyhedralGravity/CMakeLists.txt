@@ -2,11 +2,7 @@
 file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/../resources" DESTINATION "${CMAKE_CURRENT_BINARY_DIR}")
 
 function(create_polyhedral_test NAME)
-    if (NAME STREQUAL "alpaka")
-        alpaka_add_executable(polyhedral_${NAME}_test GravityModelCubeTest.cpp TestMain.cpp)
-    else ()
-        add_executable(polyhedral_${NAME}_test GravityModelCubeTest.cpp TestMain.cpp)
-    endif ()
+    add_executable(polyhedral_${NAME}_test GravityModelCubeTest.cpp TestMain.cpp)
 
     target_link_libraries(polyhedral_${NAME}_test
             GTest::gtest

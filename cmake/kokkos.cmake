@@ -1,6 +1,21 @@
 message(STATUS "Setting up Kokkos")
 set(Kokkos_VERSION 5.1.1)
 
+# Enable CUDA backend if CUDA language is enabled
+get_property(languages GLOBAL PROPERTY ENABLED_LANGUAGES)
+if ("CUDA" IN_LIST languages)
+    set(Kokkos_ENABLE_CUDA ON CACHE BOOL "Enable Kokkos CUDA backend" FORCE)
+endif ()
+# Enable HIP backend if HIP language is enabled
+if ("HIP" IN_LIST languages)
+    set(Kokkos_ENABLE_HIP ON CACHE BOOL "Enable Kokkos HIP backend" FORCE)
+endif ()
+
+# Enable OpenMP if on the Apple platform
+if (APPLE)
+    set(Kokkos_ENABLE_OPENMP ON CACHE BOOL "Enable Kokkos OpenMP backend" FORCE)
+endif ()
+
 find_package(Kokkos 4.7.02...${Kokkos_VERSION} QUIET)
 
 if (${Kokkos_FOUND})
@@ -17,19 +32,4 @@ else ()
             URL https://github.com/kokkos/kokkos/archive/refs/tags/${Kokkos_VERSION}.tar.gz
     )
     FetchContent_MakeAvailable(Kokkos)
-endif ()
-
-# Enable CUDA backend if CUDA language is enabled
-get_property(languages GLOBAL PROPERTY ENABLED_LANGUAGES)
-if ("CUDA" IN_LIST languages)
-    set(Kokkos_ENABLE_CUDA ON CACHE BOOL "Enable Kokkos CUDA backend" FORCE)
-endif ()
-# Enable HIP backend if HIP language is enabled
-if ("HIP" IN_LIST languages)
-    set(Kokkos_ENABLE_HIP ON CACHE BOOL "Enable Kokkos HIP backend" FORCE)
-endif ()
-
-# Enable OpenMP if on the Apple platform
-if (APPLE)
-    set(Kokkos_ENABLE_OPENMP ON CACHE BOOL "Enable Kokkos OpenMP backend" FORCE)
 endif ()
