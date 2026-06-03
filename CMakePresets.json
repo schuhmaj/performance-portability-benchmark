@@ -190,7 +190,7 @@
       },
       "filter": {
         "include": {
-          "name": "^GravityModelCubeTest"
+          "name": "^GravityModelTest"
         }
       }
     },

@@ -14,7 +14,7 @@
 /**
  * Contains Tests how the calculation handles a cubic polyhedron
  */
-class GravityModelCubeTest
+class GravityModelTest
     : public ::testing::TestWithParam<std::tuple<Array3, FloatType, FloatType, Array3>> {
 
 protected:
@@ -65,7 +65,7 @@ public:
     }
 };
 
-TEST_P(GravityModelCubeTest, CubePoints) {
+TEST_P(GravityModelTest, CubePoints) {
     using namespace testing;
 
     const std::tuple<Array3, FloatType, FloatType, Array3> testData = GetParam();
@@ -83,9 +83,9 @@ TEST_P(GravityModelCubeTest, CubePoints) {
 }
 
 INSTANTIATE_TEST_SUITE_P(
-    CubeGravityModelTest01, GravityModelCubeTest,
-    ::testing::ValuesIn(GravityModelCubeTest::readCubePoints("resources/polyhedral_analytic_cube_solution_density1.txt")));
+    CubeGravityModelTest01, GravityModelTest,
+    ::testing::ValuesIn(GravityModelTest::readCubePoints("resources/polyhedral_analytic_cube_solution_density1.txt")));
 
 INSTANTIATE_TEST_SUITE_P(
-    CubeGravityModelTest42, GravityModelCubeTest,
-    ::testing::ValuesIn(GravityModelCubeTest::readCubePoints("resources/polyhedral_analytic_cube_solution_density42.txt")));
+    CubeGravityModelTest42, GravityModelTest,
+    ::testing::ValuesIn(GravityModelTest::readCubePoints("resources/polyhedral_analytic_cube_solution_density42.txt")));
