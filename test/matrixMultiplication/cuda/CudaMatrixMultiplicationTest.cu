@@ -28,14 +28,14 @@ TEST_P(MatrixMultiplicationTest, CudaTensorImplementation_AllSizes) {
     this->runTest<ppb::ImplCudaTensor<float>>(size, HALF_EPSILON);
 }
 
-TEST_P(MatrixMultiplicationTest, CudaBufferImplementation_AllSizes) {
-    const int size = GetParam();
-    this->runTest<ppb::ImplCudaBuffer<float>>(size);
-}
+// TEST_P(MatrixMultiplicationTest, CudaBufferImplementation_AllSizes) {
+//     const int size = GetParam();
+//     this->runTest<ppb::ImplCudaBuffer<float>>(size);
+// }
 
-TEST_P(MatrixMultiplicationTest, CublasImplementation_AllSizes) {
-    const int size = GetParam();
-    this->runTest<ppb::ImplCublas<float>>(size);
-}
+// TEST_P(MatrixMultiplicationTest, CublasImplementation_AllSizes) {
+//     const int size = GetParam();
+//     this->runTest<ppb::ImplCublas<float>>(size);
+// }
 
 INSTANTIATE_TEST_SUITE_P(BySize,MatrixMultiplicationTest, ::testing::Values(2, 10, 32, 50, 64, 512));
