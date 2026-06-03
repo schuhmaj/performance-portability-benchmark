@@ -120,61 +120,42 @@ namespace ppb {
         auto &force = _particles->forces;
         auto &position = _particles->positions;
 
-        Kokkos::TeamPolicy<> policy(size, Kokkos::AUTO);
-
-        struct Vec3 {
-            FloatType data[3];
-            KOKKOS_FUNCTION Vec3() { data[0]=data[1]=data[2]=0; }
-            KOKKOS_FUNCTION Vec3 &operator+=(const Vec3 &other) {
-                for (int i = 0; i < 3; ++i) {
-                    data[i] += other.data[i];
-                }
-                return *this;
-            }
-            KOKKOS_FUNCTION FloatType &operator[](int i) { return data[i]; }
-        };
-
+        Kokkos::RangePolicy<> policy(0, size);
         const Kokkos::Timer timer;
-        Kokkos::parallel_for("compute_forces", policy, KOKKOS_LAMBDA(const Kokkos::TeamPolicy<>::member_type &team) {
-            const int i = team.league_rank();
+        Kokkos::parallel_for("compute_forces", policy, KOKKOS_LAMBDA(const int i) {
+            constexpr FloatType sigmaSrc = 1.0;
+            constexpr FloatType epsilonSrc = 1.0;
+            constexpr FloatType sigma = (sigmaSrc + sigmaSrc) * 0.5;
+            constexpr FloatType sigmaSquared = sigma * sigma;
+            const FloatType epsilon24 = Kokkos::sqrt(epsilonSrc * epsilonSrc) * 24.0;
 
-            constexpr auto sigmaSrc = 1.0;
-            constexpr auto epsilonSrc = 1.0;
+            FloatType acc[3] = {0, 0, 0};
+            for (int j = 0; j < static_cast<int>(size); ++j) {
+                if (i == j) {
+                    continue;
+                }
+                FloatType dr[3];
+                FloatType dr2 = 0;
+                for (int k = 0; k < 3; ++k) {
+                    dr[k] = position(i, k) - position(j, k);
+                    dr2 += dr[k] * dr[k];
+                }
 
-            constexpr auto sigma = (sigmaSrc + sigmaSrc) * 0.5;
-            constexpr auto sigmaSquared = sigma * sigma;
-            const auto epsilon24 = Kokkos::sqrt(epsilonSrc * epsilonSrc) * 24.0;
+                const FloatType invdr2 = 1.0 / dr2;
+                FloatType lj6 = sigmaSquared * invdr2;
+                lj6 = lj6 * lj6 * lj6;
+                const FloatType lj12 = lj6 * lj6;
+                const FloatType lj12m6 = lj12 - lj6;
+                const FloatType fac = epsilon24 * (lj12 + lj12m6) * invdr2;
 
-            Vec3 team_sum;
-            Kokkos::parallel_reduce(Kokkos::TeamThreadRange(team, 0, size), [&](const int j, Vec3 &sum) {
-                    if (j == i) {
-                        return;
-                    }
-                    std::array<FloatType, 3> dr{};
-                    FloatType dr2 = 0;
-                    for (int k = 0; k < 3; ++k) {
-                        dr[k] = position(i, k) - position(j, k);
-                        dr2 += dr[k] * dr[k];
-                    }
-                    const auto invdr2 = 1.0 / dr2;
-                    auto lj6 = sigmaSquared * invdr2;
-                    lj6 = lj6 * lj6 * lj6;
-                    const auto lj12 = lj6 * lj6;
-                    const auto lj12m6 = lj12 - lj6;
-                    const auto fac = epsilon24 * (lj12 + lj12m6) * invdr2;
-                    Vec3 tmp;
-                    for (int k = 0; k < 3; ++k) {
-                        const auto f = dr[k] * fac;
-                        tmp[k] = f;
-                    }
-                    sum += tmp;
-                }, team_sum);
+                for (int k = 0; k < 3; ++k) {
+                    acc[k] += dr[k] * fac;
+                }
+            }
 
-                Kokkos::single(Kokkos::PerTeam(team), [&]() {
-                    force(i,0) += team_sum[0];
-                    force(i,1) += team_sum[1];
-                    force(i,2) += team_sum[2];
-                });
+            for (int k = 0; k < 3; ++k) {
+                force(i, k) += acc[k];
+            }
         });
         Kokkos::fence();
         _timings.forceUpdateTime += (timer.seconds() * 1e9);
