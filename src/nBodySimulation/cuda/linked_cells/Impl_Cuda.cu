@@ -4,6 +4,7 @@
 #include <math.h>
 #include <thrust/scan.h>
 #include <thrust/execution_policy.h>
+#include "VTKWriter.cuh"
 
 namespace ppb {
     
@@ -272,6 +273,10 @@ namespace ppb {
         cudaFree(cells);
     }
 
+    __global__ void update_starts(int* starts, size_t num_cells) {
+        thrust::inclusive_scan(thrust::device, starts, starts + num_cells, starts);
+    }
+
     template<typename FloatType>
     void ImplCuda<FloatType>::updatePositionsAndResetForce() {
         const size_t size = _config.size;
@@ -295,7 +300,7 @@ namespace ppb {
         update_positions<<<_gridSize, _blockSize>>>(position, velocity, force, oldForce, cells, 
 			starts, _globalForce, dt, size, cell_size, x_dim, y_dim, z_dim);
         update_cells<<<_gridSize, _blockSize, sizeof(int) * size>>>(cells, size);
-        thrust::inclusive_scan(thrust::device, starts, starts + num_cells, starts);
+        update_starts<<<1,1>>>(starts, num_cells); //bit of a hacky workaround. maybe make this prettier
         cudaEventRecord(stop);
 
         cudaEventSynchronize(stop);
@@ -354,11 +359,22 @@ namespace ppb {
         _timings.reset();
         _particles.emplace(particles);
 
+#ifdef PPB_ENABLE_VTK
+        VTKWriter* writer = new VTKWriter();
+#endif
+
         for (int i = 0; i < _config.numberTimeSteps; ++i) {
             updatePositionsAndResetForce();
             computeForces();
             updateVelocities();
+#ifdef PPB_ENABLE_VTK
+            writer->plotParticles(_particles->toParticles(), "VTK", i);
+#endif
         }
+
+#ifdef PPB_ENABLE_VTK
+        delete writer;
+#endif
         return std::make_pair(_particles->toParticles(), _timings);
     }
 

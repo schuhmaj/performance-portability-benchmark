@@ -1,6 +1,5 @@
 #pragma once
 
-#include <thrust/device_vector.h>
 #include "nBodySimulation/NBodySimulation.h"
 #include "nBodySimulation/Particle.h"
 #include "common/UtilityContainer.h"
@@ -94,4 +93,6 @@ namespace ppb {
         
         ~ImplCuda();
     };
+
+    class VTKWriter
 } // namespace ppb
