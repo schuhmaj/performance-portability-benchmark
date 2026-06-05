@@ -31,13 +31,112 @@ struct PushConstants {
     glm::uint num_faces;
 };
 
+namespace {
+    /**
+     * Process-wide Vulkan instance / physical device / logical device.
+     *
+     * The benchmark constructs a fresh GravityEvaluable (and previously a fresh
+     * Vulkan instance + device) for every asteroid model, and Google Benchmark
+     * re-runs each model several times. Repeatedly creating and destroying a
+     * vk::Instance/vk::Device within one process exhausts driver-side resources
+     * (notably on the NVIDIA driver) and eventually aborts with
+     * VK_ERROR_INCOMPATIBLE_DRIVER. Creating these heavyweight objects exactly
+     * once and sharing them across all GravityEvaluable instances avoids this and
+     * matches the intended Vulkan usage (one instance + device, many resources).
+     */
+    struct SharedVulkan {
+        vk::raii::Context context;
+        vk::raii::Instance instance;
+        vk::raii::PhysicalDevice physicalDevice;
+        vk::raii::Device device;
+        uint32_t computeQueueFamilyIndex{};
+        uint32_t memoryTypeIndex{uint32_t(~0)};
+
+        SharedVulkan()
+            : context(), instance(nullptr), physicalDevice(nullptr), device(nullptr) {
+            vk::ApplicationInfo AppInfo{
+                    "VulkanCompute", 1, nullptr, 0, VK_API_VERSION_1_1};
+            const std::vector<const char *> Layers = {};
+
+            // On macOS/MoltenVK the portability enumeration extension is required;
+            // it is absent on native drivers (e.g. Linux/NVIDIA), so we add it only
+            // when available, keeping the code portable without affecting Linux.
+            std::vector<const char *> instExtensions;
+            const auto instExtProps = context.enumerateInstanceExtensionProperties();
+            const bool hasPortability = std::any_of(
+                    instExtProps.begin(), instExtProps.end(), [](const vk::ExtensionProperties &p) {
+                        return std::string(p.extensionName.data()) == "VK_KHR_portability_enumeration";
+                    });
+            if (hasPortability) {
+                instExtensions.push_back("VK_KHR_portability_enumeration");
+            }
+
+            vk::InstanceCreateInfo InstanceCreateInfo(vk::InstanceCreateFlags(), &AppInfo, Layers, instExtensions);
+            if (hasPortability) {
+                InstanceCreateInfo.flags |= vk::InstanceCreateFlagBits::eEnumeratePortabilityKHR;
+            }
+            instance = vk::raii::Instance(context, InstanceCreateInfo);
+
+            int device_index = 0;
+            if (instance.enumeratePhysicalDevices().size() > 2) {
+                device_index = 2;
+            }
+            physicalDevice = instance.enumeratePhysicalDevices().at(device_index);
+
+            std::vector<vk::QueueFamilyProperties> QueueFamilyProps = physicalDevice.getQueueFamilyProperties();
+            auto PropIt = std::find_if(QueueFamilyProps.begin(), QueueFamilyProps.end(),
+                                       [](const vk::QueueFamilyProperties &Prop) {
+                                           return static_cast<bool>(Prop.queueFlags & vk::QueueFlagBits::eCompute);
+                                       });
+            computeQueueFamilyIndex = std::distance(QueueFamilyProps.begin(), PropIt);
+
+            const float QueuePriority = 1.0f;
+            vk::DeviceQueueCreateInfo DeviceQueueCreateInfo(vk::DeviceQueueCreateFlags(),
+                                                            computeQueueFamilyIndex, 1, &QueuePriority);
+            vk::PhysicalDeviceFeatures requestedFeatures = {};
+            vk::DeviceCreateInfo DeviceCreateInfo(vk::DeviceCreateFlags(), DeviceQueueCreateInfo);
+            DeviceCreateInfo.pEnabledFeatures = &requestedFeatures;
+
+            // Vulkan requires VK_KHR_portability_subset to be enabled if the device
+            // exposes it (MoltenVK only; absent on Linux/NVIDIA).
+            std::vector<const char *> devExtensions;
+            const auto devExtProps = physicalDevice.enumerateDeviceExtensionProperties();
+            if (std::any_of(devExtProps.begin(), devExtProps.end(), [](const vk::ExtensionProperties &p) {
+                    return std::string(p.extensionName.data()) == "VK_KHR_portability_subset";
+                })) {
+                devExtensions.push_back("VK_KHR_portability_subset");
+            }
+            if (!devExtensions.empty()) {
+                DeviceCreateInfo.enabledExtensionCount = static_cast<uint32_t>(devExtensions.size());
+                DeviceCreateInfo.ppEnabledExtensionNames = devExtensions.data();
+            }
+            device = physicalDevice.createDevice(DeviceCreateInfo);
+
+            vk::PhysicalDeviceMemoryProperties MemoryProperties = physicalDevice.getMemoryProperties();
+            for (uint32_t i = 0; i < MemoryProperties.memoryTypeCount; ++i) {
+                const vk::MemoryType MemoryType = MemoryProperties.memoryTypes[i];
+                if ((vk::MemoryPropertyFlagBits::eHostVisible & MemoryType.propertyFlags) &&
+                    (vk::MemoryPropertyFlagBits::eHostCoherent & MemoryType.propertyFlags)) {
+                    memoryTypeIndex = i;
+                    break;
+                }
+            }
+        }
+    };
+
+    SharedVulkan &getSharedVulkan() {
+        static SharedVulkan shared;
+        return shared;
+    }
+} // namespace
+
 class GravityEvaluable : public GravityEvaluableBase {
 public:
     GravityEvaluable(
             const std::vector<Array3> &Vertices,
             const std::vector<IndexArray3> &Faces,
             const double density)
-        : GravityEvaluableBase(Vertices, Faces, density), _vk_context(), _instance(nullptr), _device(nullptr),
+        : GravityEvaluableBase(Vertices, Faces, density), _device(getSharedVulkan().device),
           _bufferVertices(nullptr),
           _bufferFaces(nullptr),
           _bufferNormals(nullptr),
@@ -58,65 +157,9 @@ public:
           _pipelineInit(nullptr), _pipelineEval(nullptr),
           _queue(nullptr),
           _fence(nullptr) {
-        vk::ApplicationInfo AppInfo{
-                "VulkanCompute",  // Application Name
-                1,                // Application Version
-                nullptr,          // Engine Name or nullptr
-                0,                // Engine Version
-                VK_API_VERSION_1_1// Vulkan API version
-        };
-
-        const std::vector<const char *> Layers = {
-                // "VK_LAYER_KHRONOS_validation"
-        };
-        vk::InstanceCreateInfo InstanceCreateInfo(
-                vk::InstanceCreateFlags(),// Flags
-                &AppInfo,                 // Application Info
-                Layers,                   // Layers
-                {}                        // Extensions
-        );
-        _instance = vk::raii::Instance(_vk_context, InstanceCreateInfo);
-
-        // for (auto &d: _instance.enumeratePhysicalDevices()) {
-        //     auto DeviceProps = d.getProperties();
-        //     std::cout << "Device Name    : " << DeviceProps.deviceName << std::endl;
-        // }
-
-        int device_index = 0;
-        if (_instance.enumeratePhysicalDevices().size() > 2) {
-            device_index = 2;
-        }
-        // std::cout << "using device index: " << device_index << std::endl;
-
-        vk::raii::PhysicalDevice PhysicalDevice = _instance.enumeratePhysicalDevices().at(device_index);
-        vk::PhysicalDeviceProperties DeviceProps = PhysicalDevice.getProperties();
-
-        // std::cout << "Device Name    : " << DeviceProps.deviceName << std::endl;
-        const uint32_t ApiVersion = DeviceProps.apiVersion;
-        // std::cout << "Vulkan Version : " << VK_VERSION_MAJOR(ApiVersion) << "." << VK_VERSION_MINOR(ApiVersion) << "." << VK_VERSION_PATCH(ApiVersion) << std::endl;
-
-        std::vector<vk::QueueFamilyProperties> QueueFamilyProps = PhysicalDevice.getQueueFamilyProperties();
-        auto PropIt = std::find_if(QueueFamilyProps.begin(), QueueFamilyProps.end(),
-                                   [](const vk::QueueFamilyProperties &Prop) {
-                                       return Prop.queueFlags & vk::QueueFlagBits::eCompute;
-                                   });
-        const uint32_t ComputeQueueFamilyIndex = std::distance(QueueFamilyProps.begin(), PropIt);
-        // std::cout << "Compute Queue Family Index: " << ComputeQueueFamilyIndex << std::endl;
-
-        const float QueuePriority = 1.0f;
-        vk::DeviceQueueCreateInfo DeviceQueueCreateInfo(vk::DeviceQueueCreateFlags(),// Flags
-                                                        ComputeQueueFamilyIndex,     // Queue Family Index
-                                                        1,                           // Number of Queues
-                                                        &QueuePriority);
-
-        vk::PhysicalDeviceFeatures requestedFeatures = {};
-        // requestedFeatures.shaderFloat64 = VK_TRUE;
-
-        vk::DeviceCreateInfo DeviceCreateInfo(vk::DeviceCreateFlags(),// Flags
-                                              DeviceQueueCreateInfo); // Device Queue Create Info struct
-        DeviceCreateInfo.pEnabledFeatures = &requestedFeatures;
-
-        _device = PhysicalDevice.createDevice(DeviceCreateInfo);
+        // Instance, physical device and logical device are created once for the
+        // whole process and shared across every GravityEvaluable (see SharedVulkan).
+        const uint32_t ComputeQueueFamilyIndex = getSharedVulkan().computeQueueFamilyIndex;
 
         vk::BufferCreateInfo BufferCreateInfoVertices{
                 vk::BufferCreateFlags(),                 // Flags
@@ -208,22 +251,7 @@ public:
         vk::MemoryRequirements MemoryRequirementsResultAcceleration = _bufferResultAcceleration.getMemoryRequirements();
         vk::MemoryRequirements MemoryRequirementsResults = _bufferResults.getMemoryRequirements();
 
-        vk::PhysicalDeviceMemoryProperties MemoryProperties = PhysicalDevice.getMemoryProperties();
-
-        uint32_t MemoryTypeIndex = uint32_t(~0);
-        vk::DeviceSize MemoryHeapSize = uint32_t(~0);
-        for (uint32_t CurrentMemoryTypeIndex = 0; CurrentMemoryTypeIndex < MemoryProperties.memoryTypeCount; ++CurrentMemoryTypeIndex) {
-            vk::MemoryType MemoryType = MemoryProperties.memoryTypes[CurrentMemoryTypeIndex];
-            if ((vk::MemoryPropertyFlagBits::eHostVisible & MemoryType.propertyFlags) &&
-                (vk::MemoryPropertyFlagBits::eHostCoherent & MemoryType.propertyFlags)) {
-                MemoryHeapSize = MemoryProperties.memoryHeaps[MemoryType.heapIndex].size;
-                MemoryTypeIndex = CurrentMemoryTypeIndex;
-                break;
-            }
-        }
-
-        // std::cout << "Memory Type Index: " << MemoryTypeIndex << std::endl;
-        // std::cout << "Memory Heap Size : " << MemoryHeapSize / 1024 / 1024 / 1024 << " GB" << std::endl;
+        const uint32_t MemoryTypeIndex = getSharedVulkan().memoryTypeIndex;
 
         vk::MemoryAllocateInfo MemoryAllocateInfoVertices(MemoryRequirementsVertices.size, MemoryTypeIndex);
         vk::MemoryAllocateInfo MemoryAllocateInfoFaces(MemoryRequirementsFaces.size, MemoryTypeIndex);
@@ -491,10 +519,8 @@ private:
         _initialized = true;
     }
 
-    vk::raii::Context _vk_context;
-    vk::raii::Instance _instance;
-
-    vk::raii::Device _device;
+    // Logical device shared across all GravityEvaluable instances (owned by SharedVulkan).
+    vk::raii::Device &_device;
 
     vk::raii::Buffer _bufferVertices;
     vk::raii::Buffer _bufferFaces;
