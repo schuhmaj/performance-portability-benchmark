@@ -20,7 +20,7 @@ namespace ppb {
 #error "Invliad float bits size"
 #endif
         constexpr double MIN_SIZE = 32;
-        constexpr double MAX_SIZE = 8192;
+        constexpr double MAX_SIZE = 16384;
         inline void addContext(const char* paradigm) {
             benchmark::AddCustomContext("paradigm", paradigm);
             benchmark::AddCustomContext("float_type", util::to_string<float_type>());
