@@ -8,7 +8,7 @@
 
 
 BENCHMARK(ppb::NBodySimulation<ppb::ImplVulkan<float>>::benchmark)
-    ->Name("NBody-Float-Vulkan-Naive")
+    ->Name("NBody-Naive")
     ->RangeMultiplier(10)
     ->Range(ppb::NBodyBenchmarkConf::MIN_SIZE, ppb::NBodyBenchmarkConf::MAX_SIZE)
     ->Complexity();
