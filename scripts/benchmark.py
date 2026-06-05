@@ -161,6 +161,38 @@ def find_files(
     return result
 
 
+def print_found_files(files: list[Path], base: Path, are_reports: bool) -> None:
+    """Pretty-print the discovered files as a boxed, numbered table (dry run)."""
+    kind = "report(s)" if are_reports else "executable(s)"
+    rows = []
+    for i, path in enumerate(files, start=1):
+        try:
+            shown = path.relative_to(base)
+        except ValueError:
+            shown = path
+        rows.append((str(i), str(shown)))
+
+    title = f" Found {len(files)} {kind} "
+    idx_w = max((len(r[0]) for r in rows), default=1)
+    path_w = max((len(r[1]) for r in rows), default=0)
+    inner = max(idx_w + path_w + 3, len(title))
+
+    top = f"┌{'─' * inner}┐"
+    sep = f"├{'─' * inner}┤"
+    bottom = f"└{'─' * inner}┘"
+
+    print(top)
+    print(f"│{title.center(inner)}│")
+    print(sep)
+    if rows:
+        for num, shown in rows:
+            line = f" {num.rjust(idx_w)}  {shown.ljust(path_w)} "
+            print(f"│{line.ljust(inner)}│")
+    else:
+        print(f"│{' (nothing matched) '.center(inner)}│")
+    print(bottom)
+
+
 def run_benchmarks(executables: list[Path], force: bool = False) -> list[Path]:
     """Run each benchmark executable, producing a ``<name>.json`` Google-Benchmark
     report in the current working directory.
@@ -561,6 +593,13 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Re-run benchmarks even if a report already exists.",
     )
+    discovery.add_argument(
+        "-n",
+        "--dry-run",
+        action="store_true",
+        help="Only list the executables (or reports with --skip-benchmark) "
+        "matched by --path/--regex, then exit without doing anything else.",
+    )
 
     output = parser.add_argument_group("output")
     output.add_argument(
@@ -645,6 +684,11 @@ def main() -> int:
     files = find_files(
         args.path, args.regex, require_executable=not args.skip_benchmark
     )
+
+    if args.dry_run:
+        print_found_files(files, build_dir, are_reports=args.skip_benchmark)
+        return 0 if files else 1
+
     if not files:
         logger.error("Nothing matched the given path/regex.")
         return 1
