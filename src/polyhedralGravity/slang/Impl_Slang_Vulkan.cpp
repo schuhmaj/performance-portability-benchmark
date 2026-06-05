@@ -158,7 +158,7 @@ struct VulkanWrapper {
         if (_instance.enumeratePhysicalDevices().size() > 2) {
             device_index = 2;
         }
-        std::cout << "using device index: " << device_index << std::endl;
+        // std::cout << "using device index: " << device_index << std::endl;
 
         vk::raii::PhysicalDevice PhysicalDevice = _instance.enumeratePhysicalDevices().at(device_index);
         vk::PhysicalDeviceProperties DeviceProps = PhysicalDevice.getProperties();

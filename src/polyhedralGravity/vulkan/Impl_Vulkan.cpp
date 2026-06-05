@@ -77,16 +77,16 @@ public:
         );
         _instance = vk::raii::Instance(_vk_context, InstanceCreateInfo);
 
-        for (auto &d: _instance.enumeratePhysicalDevices()) {
-            auto DeviceProps = d.getProperties();
-            std::cout << "Device Name    : " << DeviceProps.deviceName << std::endl;
-        }
+        // for (auto &d: _instance.enumeratePhysicalDevices()) {
+        //     auto DeviceProps = d.getProperties();
+        //     std::cout << "Device Name    : " << DeviceProps.deviceName << std::endl;
+        // }
 
         int device_index = 0;
         if (_instance.enumeratePhysicalDevices().size() > 2) {
             device_index = 2;
         }
-        std::cout << "using device index: " << device_index << std::endl;
+        // std::cout << "using device index: " << device_index << std::endl;
 
         vk::raii::PhysicalDevice PhysicalDevice = _instance.enumeratePhysicalDevices().at(device_index);
         vk::PhysicalDeviceProperties DeviceProps = PhysicalDevice.getProperties();
