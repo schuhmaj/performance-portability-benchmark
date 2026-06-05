@@ -2,11 +2,48 @@
 
 #include <iostream>
 
+namespace {
+    /**
+     * Holds the heavyweight, process-global Vulkan objects that must only ever be
+     * created once (see the constructor below for the rationale).
+     */
+    struct SharedVulkanState {
+        std::shared_ptr<vk::Instance> instancePtr;
+        std::shared_ptr<vk::PhysicalDevice> physicalDevicePtr;
+        uint32_t computeQueueFamilyIndex{};
+        std::shared_ptr<vk::Device> devicePtr;
+    };
+} // namespace
 
-vulkan_utility::VulkanManager::VulkanManager(const bool enableValidationLayers) :
-    instancePtr{createInstance(enableValidationLayers)}, physicalDevicePtr{createPhysicalDevice(instancePtr)},
-    computeQueueFamilyIndex{findComputeQueueFamilyIndex(*physicalDevicePtr).value()},
-    devicePtr{createLogicalDevice(physicalDevicePtr, computeQueueFamilyIndex)} {}
+vulkan_utility::VulkanManager::VulkanManager(const bool enableValidationLayers) {
+    // The Vulkan instance and logical device are created exactly once per process
+    // and shared across every VulkanManager instance.
+    //
+    // Why: Google Benchmark constructs a fresh implementation object (and thus a
+    // fresh VulkanManager) for every problem size, calling the benchmark function
+    // several times per size. Creating and destroying a vk::Instance/vk::Device on
+    // each of those constructions repeatedly hits a driver-side resource leak
+    // (notably on the NVIDIA driver), which eventually makes vk::createInstance
+    // fail with VK_ERROR_INCOMPATIBLE_DRIVER and aborts the run for larger sizes.
+    // Sharing a single instance/device for the whole process avoids this entirely
+    // and matches the intended Vulkan usage (one instance + device, many resources).
+    //
+    // The function-local static is initialized lazily and thread-safely on first
+    // use; validation-layer selection therefore reflects the first construction.
+    static const SharedVulkanState state = [enableValidationLayers] {
+        SharedVulkanState s;
+        s.instancePtr = createInstance(enableValidationLayers);
+        s.physicalDevicePtr = createPhysicalDevice(s.instancePtr);
+        s.computeQueueFamilyIndex = findComputeQueueFamilyIndex(*s.physicalDevicePtr).value();
+        s.devicePtr = createLogicalDevice(s.physicalDevicePtr, s.computeQueueFamilyIndex);
+        return s;
+    }();
+
+    instancePtr = state.instancePtr;
+    physicalDevicePtr = state.physicalDevicePtr;
+    computeQueueFamilyIndex = state.computeQueueFamilyIndex;
+    devicePtr = state.devicePtr;
+}
 
 std::shared_ptr<kp::Sequence> vulkan_utility::VulkanManager::sequence(uint32_t totalTimestamps) {
     return std::make_shared<kp::Sequence>(
