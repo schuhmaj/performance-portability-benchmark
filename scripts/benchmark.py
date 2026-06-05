@@ -121,6 +121,7 @@ def find_files(
     search_dirs: list[Path],
     patterns: list[str],
     require_executable: bool = False,
+    exclude: list[str] | None = None,
 ) -> list[Path]:
     """Recursively search ``search_dirs`` for files whose path matches any of the
     given regular expressions.
@@ -131,13 +132,19 @@ def find_files(
             matches (``re.search``) against its path.
         require_executable: If True, only keep files with the executable bit set
             (used to locate benchmark binaries).
+        exclude: Regular expression patterns. A file is dropped if any of these
+            matches (``re.search``) against its path, even if it matched a
+            include pattern (e.g. ``".*cpp.*"``).
 
     Returns:
         A sorted, de-duplicated list of resolved matching file paths.
     """
     compiled = [re.compile(p) for p in patterns]
+    excluded = [re.compile(p) for p in (exclude or [])]
     kind = "executables" if require_executable else "files"
     logger.info(f"Searching {search_dirs} for {kind} matching: {patterns}")
+    if excluded:
+        logger.info(f"Excluding {kind} matching: {exclude}")
 
     matches: set[Path] = set()
     for directory in search_dirs:
@@ -150,11 +157,15 @@ def find_files(
             if require_executable and not os.access(path, os.X_OK):
                 continue
             path_str = str(path)
-            if any(rx.search(path_str) for rx in compiled):
-                resolved = path.resolve()
-                if resolved not in matches:
-                    logger.debug(f"Matched {kind[:-1]}: {path}")
-                    matches.add(resolved)
+            if not any(rx.search(path_str) for rx in compiled):
+                continue
+            if any(rx.search(path_str) for rx in excluded):
+                logger.debug(f"Excluded {kind[:-1]}: {path}")
+                continue
+            resolved = path.resolve()
+            if resolved not in matches:
+                logger.debug(f"Matched {kind[:-1]}: {path}")
+                matches.add(resolved)
 
     result = sorted(matches)
     logger.info(f"Found {len(result)} matching {kind}")
@@ -575,6 +586,14 @@ def build_parser() -> argparse.ArgumentParser:
         "executables (or reports with --skip-benchmark).",
     )
     discovery.add_argument(
+        "-x",
+        "--exclude",
+        nargs="+",
+        type=str,
+        default=[],
+        help="Regex pattern(s) to exclude matched paths (e.g. '.*_cpp').",
+    )
+    discovery.add_argument(
         "-b",
         "--build-dir",
         type=Path,
@@ -682,7 +701,10 @@ def main() -> int:
 
     # 1. Discover --------------------------------------------------------------
     files = find_files(
-        args.path, args.regex, require_executable=not args.skip_benchmark
+        args.path,
+        args.regex,
+        require_executable=not args.skip_benchmark,
+        exclude=args.exclude,
     )
 
     if args.dry_run:
