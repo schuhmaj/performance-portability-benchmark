@@ -12,7 +12,7 @@ static void BM_Eros(benchmark::State &state) {
     std::vector<Array3> Vertices;
     std::vector<IndexArray3> Faces;
 
-    read_tetgen("data/Eros", Vertices, Faces);
+    read_tetgen("../data/Eros", Vertices, Faces);
 
     const auto evaluable = create_gravity_evaluable(Vertices, Faces, 2.0);
 
@@ -31,7 +31,7 @@ void BM_obj(benchmark::State &state, Args &&...args) {
     std::vector<IndexArray3> Faces;
 
     auto args_tuple = std::make_tuple(std::move(args)...);
-    read_obj("data/" + std::get<0>(args_tuple) + ".obj", Vertices, Faces);
+    read_obj("../data/" + std::get<0>(args_tuple) + ".obj", Vertices, Faces);
 
     const auto evaluable = create_gravity_evaluable(Vertices, Faces, 2.0);
 
@@ -45,9 +45,9 @@ void BM_obj(benchmark::State &state, Args &&...args) {
 BENCHMARK_CAPTURE(BM_obj, 67P_ESA_NAVCAM_Jul2015data_256k, std::string("67P_ESA_NAVCAM_Jul2015data_256k"))->Name("Polyhedral-67P_ESA_NAVCAM_Jul2015data_256k");
 BENCHMARK_CAPTURE(BM_obj, 25143_Itokawa_200k, std::string("25143_Itokawa_200k"))->Name("Polyhedral-25143_Itokawa_200k");
 BENCHMARK_CAPTURE(BM_obj, a8567, std::string("a8567.tab"))->Name("Polyhedral-a8567");
-// BENCHMARK_CAPTURE(BM_obj, SHAPE_SFM_3M_v20180804, std::string("SHAPE_SFM_3M_v20180804"));
-// BENCHMARK_CAPTURE(BM_obj, 4179toutatis, std::string("4179toutatis.tab"));
-// BENCHMARK_CAPTURE(BM_obj, hartley2_2012_cart, std::string("hartley2_2012_cart"));
+BENCHMARK_CAPTURE(BM_obj, SHAPE_SFM_3M_v20180804, std::string("SHAPE_SFM_3M_v20180804"))->Name("Polyhedral-SHAPE_SFM_3M_v20180804");
+BENCHMARK_CAPTURE(BM_obj, 4179toutatis, std::string("4179toutatis.tab"))->Name("Polyhedral-4179toutatis");
+BENCHMARK_CAPTURE(BM_obj, hartley2_2012_cart, std::string("hartley2_2012_cart"))->Name("Polyhedral-hartley2_2012_cart");
 
 // Based on https://schneide.blog/2016/07/15/generating-an-icosphere-in-c/
 

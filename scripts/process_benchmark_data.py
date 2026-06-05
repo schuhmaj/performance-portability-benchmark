@@ -1,34 +1,4 @@
 #!python3
-"""
-Benchmarking Script
-===================
-
-This script is designed to facilitate the benchmarking of executable files and process their results to generate plots.
-It supports searching for executable files based on a directory and pattern, running these executables to obtain
-benchmarking reports, and finally compiling these reports into visual plots and CSV files.
-
-Usage:
-------
-1. Directly run benchmarks and generate plots and CSV:
-    $ python script.py -p /path/to/search/ -r "*.out" -o output.pdf
-
-2. Only search for existing report files and generate plots and CSV:
-    $ python script.py --report -p /path/to/search/ -r "*.json" -o output.pdf
-
-Arguments:
-----------
---report:
-    If set, the script will search for existing report files instead of running the benchmarking targets.
-
--p, --path:
-    List of paths to search for files. Default is the current working directory.
-
--r, --regex:
-    Regex pattern to match files.
-
--o, --output:
-    Output file name for the plots. Default is `yyyy-mm-dd_hh-mm_Benchmark_Result.pdf`.
-"""
 
 import argparse
 import json
