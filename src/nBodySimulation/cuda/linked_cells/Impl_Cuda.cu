@@ -16,6 +16,7 @@
 
 #include <iomanip>
 #include <sstream>
+#include <iostream>
 
 namespace ppb {
 
@@ -423,6 +424,10 @@ void plotParticles(std::vector<Particle<FloatType>>& particles, const std::strin
 #ifdef PPB_ENABLE_VTK
             std::vector<Particle<FloatType>> particles = _particles.value().toParticles();
             plotParticles(particles, "VTK", i);
+            std::cout<<"Iteration "<<i<<std::endl;
+            for (auto p : particles) {
+                std::cout<<p<<std::endl;
+            }
 #endif
         }
         return std::make_pair(_particles->toParticles(), _timings);
