@@ -4,10 +4,21 @@
 #include <math.h>
 #include <thrust/scan.h>
 #include <thrust/execution_policy.h>
-#include "VTKWriter.cuh"
+
+#include <vtkCellArray.h>
+#include <vtkDoubleArray.h>
+#include <vtkFloatArray.h>
+#include <vtkIntArray.h>
+#include <vtkPointData.h>
+#include <vtkXMLUnstructuredGridWriter.h>
+#include <vtkSmartPointer.h>
+#include <vtkUnstructuredGrid.h>
+
+#include <iomanip>
+#include <sstream>
 
 namespace ppb {
-    
+
     template <typename FloatType>
     CudaParticleSoA<FloatType>::CudaParticleSoA(const std::vector<Particle<FloatType>> &particles)
         : positionsHost{particles.size()}
@@ -332,6 +343,52 @@ namespace ppb {
         _timings.velocityUpdateTime += (elapsedTime * 1e6);
     }
 
+    //this only works if FloatType is float. does not work for double for now.
+template<typename FloatType>
+void plotParticles(std::vector<Particle<FloatType>>& particles, const std::string& filename, int iteration) {
+    // Initialize points
+    auto points = vtkSmartPointer<vtkPoints>::New();
+
+    // Create and configure data arrays
+    vtkNew<vtkFloatArray> velocity_array;
+    velocity_array->SetName("velocity");
+    velocity_array->SetNumberOfComponents(3);
+
+    vtkNew<vtkFloatArray> force_array;
+    force_array->SetName("force");
+    force_array->SetNumberOfComponents(3);
+
+    for (auto& p : particles) {
+        const float pos[3] = {p.getPosition()[0], p.getPosition()[1], p.getPosition()[2]};
+        const float vel[3] = {p.getVelocity()[0], p.getVelocity()[1], p.getVelocity()[2]};
+        const float force[3] = {p.getForce()[0], p.getForce()[1], p.getForce()[2]}; 
+        points->InsertNextPoint(pos);
+        velocity_array->InsertNextTuple(vel);
+        force_array->InsertNextTuple(force);
+    }
+
+    // Set up the grid
+    auto grid = vtkSmartPointer<vtkUnstructuredGrid>::New();
+    grid->SetPoints(points);
+
+    // Add arrays to the grid
+    grid->GetPointData()->AddArray(velocity_array);
+    grid->GetPointData()->AddArray(force_array);
+
+    // Create filename with iteration number
+    std::stringstream strstr;
+    strstr << filename << "_" << std::setfill('0') << std::setw(4) << iteration << ".vtu";
+
+    // Create writer and set data
+    vtkNew<vtkXMLUnstructuredGridWriter> writer;
+    writer->SetFileName(strstr.str().c_str());
+    writer->SetInputData(grid);
+    writer->SetDataModeToBinary();
+
+    // Write the file
+    writer->Write();
+}
+
     template<typename FloatType>
     void ImplCuda<FloatType>::computeForces() {
         const size_t size = _config.size;
@@ -359,22 +416,15 @@ namespace ppb {
         _timings.reset();
         _particles.emplace(particles);
 
-#ifdef PPB_ENABLE_VTK
-        VTKWriter* writer = new VTKWriter();
-#endif
-
         for (int i = 0; i < _config.numberTimeSteps; ++i) {
             updatePositionsAndResetForce();
             computeForces();
             updateVelocities();
 #ifdef PPB_ENABLE_VTK
-            writer->plotParticles(_particles->toParticles(), "VTK", i);
+            std::vector<Particle<FloatType>> particles = _particles.value().toParticles();
+            plotParticles(particles, "VTK", i);
 #endif
         }
-
-#ifdef PPB_ENABLE_VTK
-        delete writer;
-#endif
         return std::make_pair(_particles->toParticles(), _timings);
     }
 

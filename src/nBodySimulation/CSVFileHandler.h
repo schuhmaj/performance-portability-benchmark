@@ -7,7 +7,6 @@
 #include <exception>
 #include <utility>
 #include <vector>
-#include <format>
 #include "Particle.h"
 
 namespace ppb {
@@ -52,7 +51,7 @@ public:
         std::ofstream outFile{_filename};
 
         if (!outFile.is_open()) {
-            throw std::runtime_error(std::format("Failed to open file {} for writing.", _filename));
+            throw std::runtime_error("Can't open file for writing");
         }
         outFile << "type,posX,posY,posZ,velX,velY,velZ,forceX,forceY,forceZ\n";
 
@@ -78,12 +77,12 @@ public:
      */
     std::vector<Particle<FloatType>> read() {
         if (!std::filesystem::exists(_filename)) {
-            throw std::runtime_error(std::format("File {} does not exist.", _filename));
+            throw std::runtime_error("File doesn't exist");
         }
         std::vector<Particle<FloatType>> particles;
         std::ifstream inFile{_filename};
         if (!inFile.is_open()) {
-            throw std::runtime_error(std::format("Failed to open file {} for reading.", _filename));
+            throw std::runtime_error("Can't open file");
         }
         std::string line;
 

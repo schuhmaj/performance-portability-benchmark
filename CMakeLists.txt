@@ -69,7 +69,7 @@ option(PPB_ENABLE_VectorAddition "Enable VectorAddition Benchmarks" OFF)
 option(PPB_ENABLE_MatrixMultiplication "Enable MatrixMultiplication Benchmarks" OFF)
 option(PPB_ENABLE_NBodySimulation "Enable NBodySimulation Benchmarks" OFF)
 option(PPB_ENABLE_Testing "Enable Testing" OFF)
-option(PPB_ENABLE_VTK "Enables VTK output" OFF)
+option(PPB_ENABLE_VTK "Enables VTK output" ON)
 
 option(PPB_ENABLE_Cuda_DirectSum "Enables the cuda direct sum implementation" ON)
 option(PPB_ENABLE_Cuda_LinkedCells "Enables the linked cells implementation of cuda" OFF)

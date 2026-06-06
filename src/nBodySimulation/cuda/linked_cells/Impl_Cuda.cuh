@@ -94,5 +94,4 @@ namespace ppb {
         ~ImplCuda();
     };
 
-    class VTKWriter
 } // namespace ppb
