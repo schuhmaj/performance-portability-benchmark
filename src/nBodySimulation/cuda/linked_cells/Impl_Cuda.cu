@@ -5,6 +5,7 @@
 #include <thrust/scan.h>
 #include <thrust/execution_policy.h>
 
+#ifdef PPB_ENABLE_VTK
 #include <vtkCellArray.h>
 #include <vtkDoubleArray.h>
 #include <vtkFloatArray.h>
@@ -13,9 +14,10 @@
 #include <vtkXMLUnstructuredGridWriter.h>
 #include <vtkSmartPointer.h>
 #include <vtkUnstructuredGrid.h>
-
 #include <iomanip>
 #include <sstream>
+#endif
+
 #include <iostream>
 
 namespace ppb {
@@ -37,6 +39,7 @@ namespace ppb {
         cudaMalloc(&positions, sizeof(float3) * size);
         cudaMalloc(&velocities, sizeof(float3) * size);
         cudaMalloc(&forces, sizeof(float3) * size);
+        cudaMalloc(&oldForces, sizeof(float3) * size);
 
         cudaMemcpy(positions, positionsHost.data(), sizeof(float3) * size, cudaMemcpyHostToDevice);
         cudaMemcpy(velocities, velocitiesHost.data(), sizeof(float3) * size, cudaMemcpyHostToDevice);
@@ -270,13 +273,13 @@ namespace ppb {
             ((x_dim + 1) * y_dim) - 1, ((x_dim + 1) * y_dim), ((x_dim + 1) * y_dim) + 1
         };
 
-        cudaMemcpyToSymbol(offsets, &offsetsDeclared, 27 * sizeof(int));
-
+        memcpy(offsets, &offsetsDeclared, 27 * sizeof(int));
+        
         const size_t num_cells = x_dim * y_dim * z_dim;        
-        cudaMalloc(&starts, sizeof(size_t) * num_cells);
-        cudaMalloc(&cells, sizeof(size_t) * num_cells);
-        cudaMemset(starts, 0.0, sizeof(size_t) * num_cells);
-        cudaMemset(cells, 0.0, sizeof(size_t) * size);
+        cudaMalloc(&cells, sizeof(int) * size);
+        cudaMalloc(&starts, sizeof(int) * num_cells);
+        cudaMemset(cells, 0.0, sizeof(int) * size);
+        cudaMemset(starts, 0.0, sizeof(int) * num_cells);
     }
 
     template<typename FloatType>
@@ -306,11 +309,11 @@ namespace ppb {
         cudaEventCreate(&start);
         cudaEventCreate(&stop);
 
-        cudaMemset(starts, 0.0, sizeof(size_t) * num_cells);
-        cudaMemset(cells, 0.0, sizeof(size_t) * size);
+        cudaMemset(starts, 0.0, sizeof(int) * num_cells);
+        cudaMemset(cells, 0.0, sizeof(int) * size);
         cudaEventRecord(start);
         update_positions<<<_gridSize, _blockSize>>>(position, velocity, force, oldForce, cells, 
-			starts, _globalForce, dt, size, cell_size, x_dim, y_dim, z_dim);
+			starts, _globalForce, dt, size, cell_size, x_dim, y_dim, z_dim); 
         update_cells<<<_gridSize, _blockSize, sizeof(int) * size>>>(cells, size);
         update_starts<<<1,1>>>(starts, num_cells); //bit of a hacky workaround. maybe make this prettier
         cudaEventRecord(stop);
@@ -319,6 +322,7 @@ namespace ppb {
         cudaEventElapsedTime(&elapsedTime, start, stop);
         _timings.positionUpdateForceResetTime += (elapsedTime * 1e6);
     }
+
 
     template<typename FloatType>
     void ImplCuda<FloatType>::updateVelocities() {
@@ -344,6 +348,7 @@ namespace ppb {
         _timings.velocityUpdateTime += (elapsedTime * 1e6);
     }
 
+#ifdef PPB_ENABLE_VTK
     //this only works if FloatType is float. does not work for double for now.
 template<typename FloatType>
 void plotParticles(std::vector<Particle<FloatType>>& particles, const std::string& filename, int iteration) {
@@ -389,6 +394,7 @@ void plotParticles(std::vector<Particle<FloatType>>& particles, const std::strin
     // Write the file
     writer->Write();
 }
+#endif
 
     template<typename FloatType>
     void ImplCuda<FloatType>::computeForces() {
@@ -418,16 +424,13 @@ void plotParticles(std::vector<Particle<FloatType>>& particles, const std::strin
         _particles.emplace(particles);
 
         for (int i = 0; i < _config.numberTimeSteps; ++i) {
+            std::cout<<"Iteration "<<i<<std::endl;
             updatePositionsAndResetForce();
             computeForces();
             updateVelocities();
 #ifdef PPB_ENABLE_VTK
             std::vector<Particle<FloatType>> particles = _particles.value().toParticles();
             plotParticles(particles, "VTK", i);
-            std::cout<<"Iteration "<<i<<std::endl;
-            for (auto p : particles) {
-                std::cout<<p<<std::endl;
-            }
 #endif
         }
         return std::make_pair(_particles->toParticles(), _timings);

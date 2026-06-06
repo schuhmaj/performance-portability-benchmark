@@ -59,12 +59,12 @@ namespace ppb {
         /**
          * Minimum box coordinates of the initial simulation domain (lower-left-corner)
          */
-        std::array<FloatType, 3> boxMin{-1000, -1000, -1000};
+        std::array<FloatType, 3> boxMin{-5, -5, -5};
 
         /**
          * Maximum box coordinates of the initial simulation domain (upper-right-corner)
          */
-        std::array<FloatType, 3> boxMax{1000, 1000, 1000};
+        std::array<FloatType, 3> boxMax{5, 5, 5};
 
         /**
          * Seed to initialize the ParticleGenerator
@@ -74,12 +74,12 @@ namespace ppb {
         /**
          * Cell size used in the linked cell implimentation (cell_size >= cutoff_radius!!!)
          */
-        float cell_size{0.0f};
+        float cell_size{2.0f};
         
         /**
-         * Cutoff radius used in the linked cell and verlet lists implimentation
+         * Cutoff radius used in the linked cell and verlet lists implementation
          */
-        float cutoff_radius{0.0f};
+        float cutoff_radius{2.0f};
 
         /**
          * Creates a simulation configuration.
