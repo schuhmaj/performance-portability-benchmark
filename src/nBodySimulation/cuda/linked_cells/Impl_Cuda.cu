@@ -157,7 +157,7 @@ namespace ppb {
         positions[i] = {positions[i].x + displacement.x, positions[i].y + displacement.y, positions[i].z + displacement.z};
    
         size_t idx = get_cell_idx(i, positions, cell_size, x_dim, y_dim, z_dim);
-        size_t offset = atomicAdd(&starts[idx], 1); //returns the value at starts[idx] *before* adding 1.
+        size_t offset = atomicAdd(&starts[idx + 1], 1); //returns the value at starts[idx + 1] *before* adding 1.
         cells[i] = idx + offset;
     }
 
@@ -202,7 +202,7 @@ namespace ppb {
             if (!is_in_bounds(idx, offset, x_dim, y_dim, z_dim)) continue; 
             idx += offsets[offset];
             size_t start = starts[idx];
-            size_t end = idx >= ((x_dim * y_dim * z_dim) - 1) ? numParticles : starts[idx + 1];
+            size_t end = starts[idx + 1];
             for (size_t k = start; k < end; k++) {
                 size_t j = cells[k];
 
@@ -276,10 +276,10 @@ namespace ppb {
         memcpy(offsets, &offsetsDeclared, 27 * sizeof(int));
         
         const size_t num_cells = x_dim * y_dim * z_dim;        
-        cudaMalloc(&cells, sizeof(int) * size);
+        cudaMalloc(&cells, sizeof(int) * (size + 1));
         cudaMalloc(&starts, sizeof(int) * num_cells);
-        cudaMemset(cells, 0.0, sizeof(int) * size);
-        cudaMemset(starts, 0.0, sizeof(int) * num_cells);
+        cudaMemset(cells, 0, sizeof(int) * (size + 1));
+        cudaMemset(starts, 0, sizeof(int) * num_cells);
     }
 
     template<typename FloatType>
@@ -323,6 +323,27 @@ namespace ppb {
         _timings.positionUpdateForceResetTime += (elapsedTime * 1e6);
     }
 
+    template<typename FloatType>
+    void ImplCuda<FloatType>::computeForces() {
+        const size_t size = _config.size;
+        const float cutoff_radius = _config.cutoff_radius;
+        const float cell_size = _config.cell_size;
+        auto &force = _particles->forces;
+        auto &position = _particles->positions;
+
+        float elapsedTime;
+        cudaEvent_t start, stop;
+        cudaEventCreate(&start);
+        cudaEventCreate(&stop);
+
+        cudaEventRecord(start);
+        compute_forces<<<_gridSize, _blockSize>>>(position, force, cells, starts, size, offsets, x_dim, y_dim, z_dim, cell_size, cutoff_radius);
+        cudaEventRecord(stop);
+
+        cudaEventSynchronize(stop);
+        cudaEventElapsedTime(&elapsedTime, start, stop);
+        _timings.forceUpdateTime += (elapsedTime * 16);
+    }
 
     template<typename FloatType>
     void ImplCuda<FloatType>::updateVelocities() {
@@ -350,73 +371,51 @@ namespace ppb {
 
 #ifdef PPB_ENABLE_VTK
     //this only works if FloatType is float. does not work for double for now.
-template<typename FloatType>
-void plotParticles(std::vector<Particle<FloatType>>& particles, const std::string& filename, int iteration) {
-    // Initialize points
-    auto points = vtkSmartPointer<vtkPoints>::New();
-
-    // Create and configure data arrays
-    vtkNew<vtkFloatArray> velocity_array;
-    velocity_array->SetName("velocity");
-    velocity_array->SetNumberOfComponents(3);
-
-    vtkNew<vtkFloatArray> force_array;
-    force_array->SetName("force");
-    force_array->SetNumberOfComponents(3);
-
-    for (auto& p : particles) {
-        const float pos[3] = {p.getPosition()[0], p.getPosition()[1], p.getPosition()[2]};
-        const float vel[3] = {p.getVelocity()[0], p.getVelocity()[1], p.getVelocity()[2]};
-        const float force[3] = {p.getForce()[0], p.getForce()[1], p.getForce()[2]}; 
-        points->InsertNextPoint(pos);
-        velocity_array->InsertNextTuple(vel);
-        force_array->InsertNextTuple(force);
-    }
-
-    // Set up the grid
-    auto grid = vtkSmartPointer<vtkUnstructuredGrid>::New();
-    grid->SetPoints(points);
-
-    // Add arrays to the grid
-    grid->GetPointData()->AddArray(velocity_array);
-    grid->GetPointData()->AddArray(force_array);
-
-    // Create filename with iteration number
-    std::stringstream strstr;
-    strstr << filename << "_" << std::setfill('0') << std::setw(4) << iteration << ".vtu";
-
-    // Create writer and set data
-    vtkNew<vtkXMLUnstructuredGridWriter> writer;
-    writer->SetFileName(strstr.str().c_str());
-    writer->SetInputData(grid);
-    writer->SetDataModeToBinary();
-
-    // Write the file
-    writer->Write();
-}
-#endif
-
     template<typename FloatType>
-    void ImplCuda<FloatType>::computeForces() {
-        const size_t size = _config.size;
-        const float cutoff_radius = _config.cutoff_radius;
-        const float cell_size = _config.cell_size;
-        auto &force = _particles->forces;
-        auto &position = _particles->positions;
+    void plotParticles(std::vector<Particle<FloatType>>& particles, const std::string& filename, int iteration) {
+        // Initialize points
+        auto points = vtkSmartPointer<vtkPoints>::New();
 
-        float elapsedTime;
-        cudaEvent_t start, stop;
-        cudaEventCreate(&start);
-        cudaEventCreate(&stop);
+        // Create and configure data arrays
+        vtkNew<vtkFloatArray> velocity_array;
+        velocity_array->SetName("velocity");
+        velocity_array->SetNumberOfComponents(3);
 
-        cudaEventRecord(start);
-        compute_forces<<<_gridSize, _blockSize>>>(position, force, cells, starts, size, offsets, x_dim, y_dim, z_dim, cell_size, cutoff_radius);
-        cudaEventRecord(stop);
+        vtkNew<vtkFloatArray> force_array;
+        force_array->SetName("force");
+        force_array->SetNumberOfComponents(3);
 
-        cudaEventSynchronize(stop);
-        cudaEventElapsedTime(&elapsedTime, start, stop);
-        _timings.forceUpdateTime += (elapsedTime * 16);
+        for (auto& p : particles) {
+            const float pos[3] = {p.getPosition()[0], p.getPosition()[1], p.getPosition()[2]};
+            const float vel[3] = {p.getVelocity()[0], p.getVelocity()[1], p.getVelocity()[2]};
+            const float force[3] = {p.getForce()[0], p.getForce()[1], p.getForce()[2]}; 
+            points->InsertNextPoint(pos);
+            velocity_array->InsertNextTuple(vel);
+            force_array->InsertNextTuple(force);
+        }
+
+        // Set up the grid
+        auto grid = vtkSmartPointer<vtkUnstructuredGrid>::New();
+        grid->SetPoints(points);
+
+        // Add arrays to the grid
+        grid->GetPointData()->AddArray(velocity_array);
+        grid->GetPointData()->AddArray(force_array);
+
+        // Create filename with iteration number
+        std::stringstream strstr;
+        strstr << filename << "_" << std::setfill('0') << std::setw(4) << iteration << ".vtu";
+
+        // Create writer and set data
+        vtkNew<vtkXMLUnstructuredGridWriter> writer;
+        writer->SetFileName(strstr.str().c_str());
+        writer->SetInputData(grid);
+        writer->SetDataModeToBinary();
+
+        // Write the file
+        writer->Write();
     }
+#endif
 
     template<typename FloatType>
     std::pair<std::vector<Particle<FloatType>>, ParticleSimulationTimings> ImplCuda<FloatType>::simulate(const std::vector<Particle<FloatType>> &particles) {
@@ -424,7 +423,6 @@ void plotParticles(std::vector<Particle<FloatType>>& particles, const std::strin
         _particles.emplace(particles);
 
         for (int i = 0; i < _config.numberTimeSteps; ++i) {
-            std::cout<<"Iteration "<<i<<std::endl;
             updatePositionsAndResetForce();
             computeForces();
             updateVelocities();

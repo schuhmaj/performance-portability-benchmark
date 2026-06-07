@@ -1,6 +1,5 @@
 #pragma once
 
-#include <thrust/device_vector.h>
 #include "nBodySimulation/NBodySimulation.h"
 #include "nBodySimulation/Particle.h"
 #include "common/UtilityContainer.h"
@@ -11,14 +10,16 @@ namespace ppb {
     struct CudaParticleSoA {
         const std::vector<Particle<FloatType>> &_ref;
 
+        //Device memory
         __device__ float3* positions{nullptr};
         __device__ float3* velocities{nullptr};
         __device__ float3* forces{nullptr};
         __device__ float3* oldForces{nullptr};
         
-        __host__ std::vector<float3> positionsHost;
-        __host__ std::vector<float3> velocitiesHost;
-        __host__ std::vector<float3> forcesHost;
+        //Host memory
+        std::vector<float3> positionsHost;
+        std::vector<float3> velocitiesHost;
+        std::vector<float3> forcesHost;
 
         explicit CudaParticleSoA(const std::vector<Particle<FloatType>> &particles);
 
@@ -32,24 +33,21 @@ namespace ppb {
         int _blockSize;
         int _gridSize;
         float3 _globalForce;
-        int x_dim;
-        int y_dim;
-        int z_dim;
-        __constant__ int offsets[27];
+        size_t iteration{0};
 
         /**
          * @brief 'starts' looks like this:
          * 0, 2, 2, 4, ..., 10
-         * The first one has 2 particles, the second has none, the third has 2 particles again.
-         * The stored indicies are the indicies in the 'cells' container, where the i-th index 
-         * describes the starting index of the i-th cell inside 'cells'.
+         * The first list has 2 neighbors, the second has none, the third has 2 neighbors again.
+         * The stored indicies are the indicies in the 'verletLists' container, where the i-th index 
+         * describes the starting index of the neighbor list of the i-th particle inside 'verletLists'.
          */
-        __device__ int* starts{nullptr};
+        int* starts{nullptr};
         /**
          * @brief 'cells' contains the sorted particle *indicies* to the particles contained in 'particles'.
          * 'starts' marks the start of each cell.
          */
-        __device__ int* cells{nullptr};
+        int* verletLists{nullptr};
         
         ParticleSimulationConfig<FloatType> _config;
 
@@ -92,4 +90,5 @@ namespace ppb {
         
         ~ImplCuda();
     };
+
 } // namespace ppb

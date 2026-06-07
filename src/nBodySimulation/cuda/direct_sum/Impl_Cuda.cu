@@ -117,7 +117,7 @@ namespace ppb {
 
         float3 fi = make_float3(0.f, 0.f, 0.f);
         for (unsigned int j = 0; j < numParticles; ++j) {
-            if (i == j) continue;
+            if (i >= j) continue; //N3L via natural ordering of indicies
 
             const float sigma = 1.0f;
             const float sigmaSquared = sigma * sigma;
@@ -135,8 +135,13 @@ namespace ppb {
 
             const float3 f = make_float3_scale(dr, fac);
             fi = make_float3_add(fi, f);
+            atomicAdd(&forces[j].x, f.x * -1.0f);
+            atomicAdd(&forces[j].y, f.y * -1.0f);
+            atomicAdd(&forces[j].z, f.z * -1.0f);
         }
-        forces[i] = fi;
+        atomicAdd(&forces[i].x, fi.x);
+        atomicAdd(&forces[i].y, fi.y);
+        atomicAdd(&forces[i].z, fi.z);
     }
 
 

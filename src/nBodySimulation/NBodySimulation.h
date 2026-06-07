@@ -82,6 +82,17 @@ namespace ppb {
         float cutoff_radius{2.0f};
 
         /**
+        * Size of the Verlet skin.
+        */
+        float verlet_skin{0.5f};
+
+        /**
+        * Frequency of updates of verlet lists. 
+        * Updates the verlet lists every 'frequency' iterations.
+        */
+        size_t frequency{1};
+
+        /**
          * Creates a simulation configuration.
          * @param size Number of particles in the simulation.
          */
