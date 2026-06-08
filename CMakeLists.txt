@@ -71,9 +71,11 @@ option(PPB_ENABLE_NBodySimulation "Enable NBodySimulation Benchmarks" OFF)
 option(PPB_ENABLE_Testing "Enable Testing" OFF)
 option(PPB_ENABLE_VTK "Enables VTK output" OFF)
 
-option(PPB_ENABLE_Cuda_DirectSum "Enables the cuda direct sum implementation" ON)
-option(PPB_ENABLE_Cuda_LinkedCells "Enables the linked cells implementation of cuda" ON)
-option(PPB_ENABLE_Cuda_VerletLists "Enables the verlet lists implementation of cuda" OFF)
+option(PPB_ENABLE_Cuda_DirectSum "Enables the Cuda direct sum implementation" ON)
+option(PPB_ENABLE_Cuda_LinkedCells "Enables the Cuda linked cells implementation" ON)
+option(PPB_ENABLE_Cuda_VerletLists "Enables the Cuda verlet lists implementation" OFF)
+
+option(PPB_ENABLE_DOMAIN_COLORING "Enables the domain coloring optimization for nBodySimulation/cuda/linked_cells" OFF)
 
 message(STATUS "####################################################")
 message(STATUS "Build Type                      ${CMAKE_BUILD_TYPE}")
@@ -100,6 +102,8 @@ message(STATUS "####################################################")
 message(STATUS "Cuda_DirectSum                  ${PPB_ENABLE_Cuda_DirectSum}")
 message(STATUS "Cuda_LinkedCells                ${PPB_ENABLE_Cuda_LinkedCells}")
 message(STATUS "Cuda_VerletLists                ${PPB_ENABLE_Cuda_VerletLists}")
+message(STATUS "####################################################")
+message(STATUS "DOMAIN_COLORING                 ${PPB_ENABLE_DOMAIN_COLORING}")
 message(STATUS "####################################################")
 
 #######################################################
@@ -181,5 +185,9 @@ add_subdirectory(src)
 if (${PPB_ENABLE_Testing})
     enable_testing()
     add_subdirectory(test)
+endif ()
+
+if (${PPB_ENABLE_DOMAIN_COLORING}) 
+    add_compile_definitions(PPB_ENABLE_DOMAIN_COLORING)
 endif ()
 

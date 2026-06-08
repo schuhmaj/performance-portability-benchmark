@@ -210,7 +210,7 @@ namespace ppb {
 
                 const float3 dr = make_float3_sub(positions[i], positions[j]);
                 const float dr2 = dot3(dr, dr);
-                if (std::sqrt(dr2) > cutoff_radius) continue;
+                if (std::sqrt(dr2) >= cutoff_radius) continue; // = here too because less atomics in domain coloring
 
                 const float sigma = 1.0f;
                 const float sigmaSquared = sigma * sigma;
@@ -236,6 +236,69 @@ namespace ppb {
         atomicAdd(&forces[i].y, fi.y);
         atomicAdd(&forces[i].z, fi.z);
     }
+
+
+#ifdef PPB_ENABLE_DOMAIN_COLORING
+    __global__ void compute_forces_colored() {
+        int color,
+        const float3* __restrict__ positions,
+        float3* __restrict__ forces,
+        const int* __restrict__ cells,
+        const int* __restrict__ starts, 
+        const unsigned int numParticles,
+        const int* offsets,
+        int x_dim,
+        int y_dim,
+        int z_dim,
+        float cell_size,
+        float cutoff_radius
+    ) {
+        const unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
+        const num_cells = x_dim * y_dim * z_dim;
+        if (i >= ceilDiv(num_cells, 8)) {
+            return;
+        }
+
+        float3 fi = make_float3(0.f, 0.f, 0.f);
+        size_t idx = 2*i + offsets_colored[i];  
+        for (size_t offset = 0; offset < 8; offset++) {
+            if (!is_in_bounds(idx, offset, x_dim, y_dim, z_dim)) continue; 
+            idx += offsets_colored[offset];
+            size_t start = starts[idx];
+            size_t end = starts[idx + 1];
+            for (size_t k = start; k < end; k++) {
+                size_t j = cells[k];
+
+                //N3L via natural ordering of indicies (only necessary in same cell)
+                if (offset == 0 && i >= j) continue;
+                const float3 dr = make_float3_sub(positions[i], positions[j]);
+                const float dr2 = dot3(dr, dr);
+                
+                // = here too because this way we never get into a race condition with another cell of the same color
+                if (std::sqrt(dr2) >= cutoff_radius) { 
+                    continue;
+                }
+
+                const float sigma = 1.0f;
+                const float sigmaSquared = sigma * sigma;
+                const float epsilon24 = 24.0f; // 1.0 * 24.0
+
+                const float invdr2 = 1.0f / dr2;
+                float lj6 = sigmaSquared * invdr2;
+                lj6 = lj6 * lj6 * lj6;
+                const float lj12 = lj6 * lj6;
+                const float lj12m6 = lj12 - lj6;
+                const float fac = epsilon24 * (lj12 + lj12m6) * invdr2;
+                
+                const float3 f = make_float3_scale(dr, fac);
+                fi = make_float3_add(fi, f); 
+                forces[j] = make_float3_sub(forces[j], f);
+            }
+            idx -= offsets[offset];
+        }
+        forces[i] = make_float3_add(forces[i], fi);
+    }
+#endif
 
     template<typename FloatType>
     ImplCuda<FloatType>::ImplCuda(const ParticleSimulationConfig<FloatType> &config) 
@@ -272,8 +335,18 @@ namespace ppb {
             (x_dim * y_dim) - 1, (x_dim * y_dim), (x_dim * y_dim) + 1,
             ((x_dim + 1) * y_dim) - 1, ((x_dim + 1) * y_dim), ((x_dim + 1) * y_dim) + 1
         };
-
         memcpy(offsets, &offsetsDeclared, 27 * sizeof(int));
+
+#ifdef PPB_ENABLE_DOMAIN_COLORING
+        int offsets_coloredDeclared[8] = {
+            0, 1,
+            x_dim, x_dim + 1,
+            (x_dim * y_dim), (x_dim * y_dim) + 1,
+            ((x_dim + 1) * y_dim), ((x_dim + 1) * y_dim) + 1
+        }
+        memcpy(offsets_colored, &offsets_coloredDeclared, 8 * sizeof(int));
+        cudaOccupancyMaxPotentialBlockSize(&_gridSizeColored, &_blockSizeColored, reinterpret_cast<void *>(compute_forces_colored), 0, 0);
+#endif
         
         const size_t num_cells = x_dim * y_dim * z_dim;        
         cudaMalloc(&cells, sizeof(int) * (size + 1));
@@ -337,7 +410,13 @@ namespace ppb {
         cudaEventCreate(&stop);
 
         cudaEventRecord(start);
+#ifdef PPB_ENABLE_DOMAIN_COLORING
+        for (size_t color = 0; color < 8; color++) {
+            compute_forces_colored<<<_gridSizeColored, _blockSizeColored>>>(color, positions, force, cells, size, offsets, x_dim, y_dim, z_dim, cell_size, cutoff_radius);
+        }
+#else
         compute_forces<<<_gridSize, _blockSize>>>(position, force, cells, starts, size, offsets, x_dim, y_dim, z_dim, cell_size, cutoff_radius);
+#endif
         cudaEventRecord(stop);
 
         cudaEventSynchronize(stop);
@@ -426,6 +505,10 @@ namespace ppb {
             updatePositionsAndResetForce();
             computeForces();
             updateVelocities();
+            std::vector<Particle<FloatType>> particles = _particles.value().toParticles();
+            for (auto p : particles) {
+                std::cout<<p<<std::endl;
+            }
 #ifdef PPB_ENABLE_VTK
             std::vector<Particle<FloatType>> particles = _particles.value().toParticles();
             plotParticles(particles, "VTK", i);

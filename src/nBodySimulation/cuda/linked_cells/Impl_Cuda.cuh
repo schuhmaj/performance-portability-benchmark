@@ -37,6 +37,11 @@ namespace ppb {
         int y_dim;
         int z_dim;
         int offsets[27];
+#ifdef PPB_ENABLE_DOMAIN_COLORING
+        int _gridSizeColored;
+        int _blockSizeColored;
+        int offsets_colored[8];
+#endif
 
         /**
          * @brief 'starts' looks like this:
