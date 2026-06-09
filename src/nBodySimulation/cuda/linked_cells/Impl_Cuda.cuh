@@ -36,11 +36,12 @@ namespace ppb {
         int x_dim;
         int y_dim;
         int z_dim;
-        int offsets[27];
 #ifdef PPB_ENABLE_DOMAIN_COLORING
         int _gridSizeColored;
         int _blockSizeColored;
         int offsets_colored[8];
+#else
+        int offsets[27];
 #endif
 
         /**
