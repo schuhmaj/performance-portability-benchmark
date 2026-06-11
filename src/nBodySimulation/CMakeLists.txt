@@ -5,10 +5,6 @@ set(NBODY_SIMULATION_FILES
     CSVFileHandler.h
 )
 
-add_library(nbody_lib INTERFACE ${NBODY_SIMULATION_FILES})
-target_include_directories(nbody_lib INTERFACE ${PPB_SRC_SOURCE_DIRECTORY})
-target_link_libraries(nbody_lib INTERFACE benchmark::benchmark common_lib)
-
 if (${PPB_ENABLE_VTK})
 # taken from https://github.com/MaxieHelenBichmann/MolSim-WS25-GroupD/blob/main/cmake/modules/vtk.cmake
     find_package(VTK REQUIRED COMPONENTS
@@ -29,12 +25,16 @@ if (${PPB_ENABLE_VTK})
         include(${VTK_USE_FILE})
     endif ()
 
+    add_compile_definitions(PPB_ENABLE_VTK)
     target_link_libraries(nbody_lib
             INTERFACE
             ${VTK_LIBRARIES}
     )
-    add_compile_definitions(PPB_ENABLE_VTK)
 endif ()
+
+add_library(nbody_lib INTERFACE ${NBODY_SIMULATION_FILES})
+target_include_directories(nbody_lib INTERFACE ${PPB_SRC_SOURCE_DIRECTORY})
+target_link_libraries(nbody_lib INTERFACE benchmark::benchmark common_lib)
 
 if (${PPB_ENABLE_Kokkos})
     add_subdirectory(kokkos)

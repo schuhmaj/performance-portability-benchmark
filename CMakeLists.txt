@@ -186,8 +186,3 @@ if (${PPB_ENABLE_Testing})
     enable_testing()
     add_subdirectory(test)
 endif ()
-
-if (${PPB_ENABLE_DOMAIN_COLORING}) 
-    add_compile_definitions(PPB_ENABLE_DOMAIN_COLORING)
-endif ()
-

@@ -1,3 +1,8 @@
+if (${PPB_ENABLE_DOMAIN_COLORING}) 
+    add_compile_definitions(PPB_ENABLE_DOMAIN_COLORING)
+endif ()
+
+
 add_library(nbody_cuda_lib_linked_cells STATIC Impl_Cuda.cu Impl_Cuda.cuh)
 target_compile_features(nbody_cuda_lib_linked_cells PUBLIC cxx_std_20)
 target_link_libraries(nbody_cuda_lib_linked_cells PUBLIC nbody_lib)

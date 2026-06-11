@@ -91,16 +91,17 @@ namespace ppb {
         return a.x * b.x + a.y * b.y + a.z * b.z;
     } 
 
-    __global__ void update_cells(int* cells, size_t numParticles) {
+    __global__ void update_cells(int* cells, int* cell_offsets, int* starts, size_t numParticles) {
         const unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
         if (i >= numParticles) {
             return;
         } 
         
-        size_t idx = cells[i];
+        size_t idx = starts[cells[i]];
+        size_t offset = cell_offsets[i];
+        __syncthreads();
         //TODO: COOPERATIVE GROUP SYNC HERE!!!
-        int tmp = i;
-        cells[idx] = tmp;
+        cells[idx + offset] = i;
     }
 
     __device__ inline bool is_in_bounds(size_t idx, size_t offset, int x_dim, int y_dim, int z_dim) {
@@ -143,6 +144,7 @@ namespace ppb {
         float3* forces, 
         float3* oldForces, 
         int* cells, 
+        int* cell_offsets,
         int* starts, 
         const float3 globalForce, 
         const float deltaT, 
@@ -174,7 +176,8 @@ namespace ppb {
    
         size_t idx = get_cell_idx(i, positions, cell_size, x_dim, y_dim, z_dim, boxMinX, boxMinY, boxMinZ);
         size_t offset = atomicAdd(&starts[idx + 1], 1); //returns the value at starts[idx + 1] *before* adding 1.
-        cells[i] = idx + offset;
+        cells[i] = idx;
+        cell_offsets[i] = offset;
     }
 
     __global__ void update_velocities(float3* velocities, const float3* forces, const float3* oldForces, const float deltaT, const size_t numParticles) {
@@ -194,6 +197,98 @@ namespace ppb {
         velocities[i] = {velocity.x + velChange.x, velocity.y + velChange.y, velocity.z + velChange.z};
     }
 
+    __global__ void printStartsCells(int* starts, int* cells, size_t numCells, size_t numParticles) {
+        printf("starts:\n");
+        for (size_t j = 0; j <= numCells; j++) {
+            printf("%d, ", starts[j]);
+        }
+        printf("\ncells:");
+        for (size_t j = 0; j < numParticles; j++) {
+            printf("%d, ", cells[j]);
+        }
+        printf("\n");
+    }
+
+#ifdef PPB_ENABLE_DOMAIN_COLORING
+    __global__ void compute_forces_colored(
+        int color,
+        const float3* __restrict__ positions,
+        float3* __restrict__ forces,
+        int* cells,
+        int* starts, 
+        const unsigned int numParticles,
+        const int* offsets,
+        const int* offsets_colored,
+        float cell_size,
+        float cutoff_radius,
+        int x_dim,
+        int y_dim,
+        int z_dim
+    ) {
+        unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
+        const size_t num_cells = x_dim * y_dim * z_dim;
+        if (i >= util::ceilDiv<size_t>(num_cells, 8)) {
+            return;
+        }
+        
+        size_t x_thread = i % x_dim;
+        size_t y_thread = (i / x_dim) % y_dim;
+        size_t z_thread = (i / (x_dim * y_dim));
+        size_t x_cell = 2 * x_thread + (color % 2);
+        size_t y_cell = 2 * y_thread + (color % 4);
+        size_t z_cell = 2 * z_thread + (color % 8);
+        size_t idx = x_cell + (y_cell * x_dim) + (z_cell * x_dim * y_dim);
+        size_t startBaseCell = starts[idx];
+        size_t endBaseCell = starts[idx + 1];
+        float3 fi = make_float3(0.f, 0.f, 0.f);
+        //printf("color: %d, idx: %lu, startBaseCell: %lu, endBaseCell: %lu\n", color, idx, startBaseCell, endBaseCell);
+        for (i = startBaseCell; i < endBaseCell; i++) {
+        for (size_t o = 0; o < 8; o++) {
+            size_t offset = offsets[offsets_colored[o]];
+            if (!is_in_bounds(idx, offset, x_dim, y_dim, z_dim)) {
+                continue;
+            }
+            idx += offset;
+            size_t start = starts[idx];
+            size_t end = starts[idx + 1];
+            //printf("iterating through cell idx: %lu at offset: %lu, starts at: %lu, ends at: %lu\n", idx, offset, start, end);
+            for (size_t k = start; k < end; k++) {
+                size_t j = cells[k];
+
+                //N3L via natural ordering of indicies (only necessary in same cell)
+                if (offset == 0 && i >= j) {
+                    continue;
+                }
+                const float3 dr = make_float3_sub(positions[i], positions[j]);
+                const float dr2 = dot3(dr, dr); 
+
+                // = here too because this way we never get into a race condition with another cell of the same color
+                if (std::sqrt(dr2) >= cutoff_radius) { 
+                    continue;
+                }
+
+                const float sigma = 1.0f;
+                const float sigmaSquared = sigma * sigma;
+                const float epsilon24 = 24.0f; // 1.0 * 24.0
+
+                const float invdr2 = 1.0f / dr2;
+                float lj6 = sigmaSquared * invdr2;
+                lj6 = lj6 * lj6 * lj6;
+                const float lj12 = lj6 * lj6;
+                const float lj12m6 = lj12 - lj6;
+                const float fac = epsilon24 * (lj12 + lj12m6) * invdr2;
+                
+                const float3 f = make_float3_scale(dr, fac);
+                fi = make_float3_add(fi, f); 
+                forces[j] = make_float3_sub(forces[j], f);
+                printf("updated forces of i: %lu <-> j: %lu\n", i, j);
+            }
+            idx -= offset;
+        }
+        forces[i] = make_float3_add(forces[i], fi);
+    }
+    }
+#else
     template<typename FloatType>
     __global__ void compute_forces(
         const float3* __restrict__ positions,
@@ -215,15 +310,7 @@ namespace ppb {
         if (i >= numParticles) {
             return;
         }
-#ifndef NDEBUG
-        if (i == 0) {
-            printf("starts: ");
-            for (size_t j = 0; j < (x_dim * y_dim * z_dim) + 1; j++) {
-                printf("%d, ", starts[j]);
-            }
-            printf("\n");
-        }
-#endif
+
         float3 fi = make_float3(0.f, 0.f, 0.f);
         size_t idx = get_cell_idx<FloatType>(i, positions, cell_size, x_dim, y_dim, z_dim, boxMinX, boxMinY, boxMinZ);
         for (size_t offset = 0; offset < 27; offset++) {
@@ -268,68 +355,6 @@ namespace ppb {
         atomicAdd(&forces[i].y, fi.y);
         atomicAdd(&forces[i].z, fi.z);
     }
-
-
-#ifdef PPB_ENABLE_DOMAIN_COLORING
-    __global__ void compute_forces_colored() {
-        int color,
-        const float3* __restrict__ positions,
-        float3* __restrict__ forces,
-        const int* __restrict__ cells,
-        const int* __restrict__ starts, 
-        const unsigned int numParticles,
-        const int* offsets,
-        float cell_size,
-        float cutoff_radius
-        int x_dim,
-        int y_dim,
-        int z_dim
-    ) {
-        const unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
-        const num_cells = x_dim * y_dim * z_dim;
-        if (i >= ceilDiv(num_cells, 8)) {
-            return;
-        }
-
-        float3 fi = make_float3(0.f, 0.f, 0.f);
-        size_t idx = 2*i + offsets_colored[i];  
-        for (size_t offset = 0; offset < 8; offset++) {
-            if (!is_in_bounds(idx, offset, x_dim, y_dim, z_dim)) continue; 
-            idx += offsets_colored[offset];
-            size_t start = starts[idx];
-            size_t end = starts[idx + 1];
-            for (size_t k = start; k < end; k++) {
-                size_t j = cells[k];
-
-                //N3L via natural ordering of indicies (only necessary in same cell)
-                if (offset == 0 && i >= j) continue;
-                const float3 dr = make_float3_sub(positions[i], positions[j]);
-                const float dr2 = dot3(dr, dr);
-                
-                // = here too because this way we never get into a race condition with another cell of the same color
-                if (std::sqrt(dr2) >= cutoff_radius) { 
-                    continue;
-                }
-
-                const float sigma = 1.0f;
-                const float sigmaSquared = sigma * sigma;
-                const float epsilon24 = 24.0f; // 1.0 * 24.0
-
-                const float invdr2 = 1.0f / dr2;
-                float lj6 = sigmaSquared * invdr2;
-                lj6 = lj6 * lj6 * lj6;
-                const float lj12 = lj6 * lj6;
-                const float lj12m6 = lj12 - lj6;
-                const float fac = epsilon24 * (lj12 + lj12m6) * invdr2;
-                
-                const float3 f = make_float3_scale(dr, fac);
-                fi = make_float3_add(fi, f); 
-                forces[j] = make_float3_sub(forces[j], f);
-            }
-            idx -= offsets[offset];
-        }
-        forces[i] = make_float3_add(forces[i], fi);
-    }
 #endif
 
     template<typename FloatType>
@@ -355,15 +380,17 @@ namespace ppb {
         
 
 #ifdef PPB_ENABLE_DOMAIN_COLORING
-        int offsets_coloredDeclared[8] = {
-            0, 1,
-            x_dim, x_dim + 1,
-            (x_dim * y_dim), (x_dim * y_dim) + 1,
-            ((x_dim + 1) * y_dim), ((x_dim + 1) * y_dim) + 1
-        }
+        size_t number_of_cells_with_same_color = util::ceilDiv<size_t>(x_dim * y_dim * z_dim, 8);
+        int offsets_coloredDeclared[8] = { 13, 14, 16, 17, 22, 23, 25, 26 };
         memcpy(offsets_colored, &offsets_coloredDeclared, 8 * sizeof(int));
-        cudaOccupancyMaxPotentialBlockSize(&_gridSizeColored, &_blockSizeColored, reinterpret_cast<void *>(compute_forces_colored), 0, 0);
-#else
+        if (number_of_cells_with_same_color <= MAX_THREADS) {
+            _blockSizeColored = number_of_cells_with_same_color;
+        } else {
+            cudaOccupancyMaxPotentialBlockSize(&_gridSizeColored, &_blockSizeColored, reinterpret_cast<void *>(compute_forces_colored), 0, 0);
+        }
+        _gridSizeColored = util::ceilDiv<unsigned int>(number_of_cells_with_same_color, _blockSizeColored);
+        std::cout<<"_gridSizeColored: "<<_gridSizeColored<<", _blockSizeColored: "<<_blockSizeColored<<std::endl;
+#endif
         int offsetsDeclared[27] = {
             //front section
             -((x_dim + 1) * y_dim) - 1, -((x_dim + 1) * y_dim), -((x_dim + 1) * y_dim) + 1,
@@ -379,12 +406,13 @@ namespace ppb {
             ((x_dim + 1) * y_dim) - 1, ((x_dim + 1) * y_dim), ((x_dim + 1) * y_dim) + 1
         };
         memcpy(offsets, &offsetsDeclared, 27 * sizeof(int));
-#endif
         
         const size_t num_cells = x_dim * y_dim * z_dim;        
         cudaMalloc(&cells, sizeof(int) * size);
+        cudaMalloc(&cell_offsets, sizeof(int) * size);
         cudaMalloc(&starts, sizeof(int) * (num_cells + 1));
         cudaMemset(cells, 0, sizeof(int) * size);
+        cudaMemset(cell_offsets, 0, sizeof(int) * size);
         cudaMemset(starts, 0, sizeof(int) * (num_cells + 1));
     }
 
@@ -392,6 +420,7 @@ namespace ppb {
     ImplCuda<FloatType>::~ImplCuda() {
         cudaFree(starts);
         cudaFree(cells);
+        cudaFree(cell_offsets);
     }
 
     __global__ void update_starts(int* starts, size_t num_cells) {
@@ -421,10 +450,23 @@ namespace ppb {
         cudaMemset(starts, 0.0, sizeof(int) * (num_cells + 1));
         cudaMemset(cells, 0.0, sizeof(int) * size);
         cudaEventRecord(start);
-        update_positions<FloatType><<<_gridSize, _blockSize>>>(position, velocity, force, oldForce, cells, 
-			starts, _globalForce, dt, size, cell_size, x_dim, y_dim, z_dim, boxMinX, boxMinY, boxMinZ); 
-        update_cells<<<_gridSize, _blockSize, sizeof(int) * size>>>(cells, size);
-        update_starts<<<1,1>>>(starts, num_cells); //bit of a hacky workaround. maybe make this prettier
+
+        update_positions<FloatType><<<_gridSize, _blockSize>>>(position, velocity, force, oldForce, cells, cell_offsets, 
+            starts, _globalForce, dt, size, cell_size, x_dim, y_dim, z_dim, boxMinX, boxMinY, boxMinZ);        
+        //printf("After update_positions:\n");
+        //printStartsCells<<<1,1>>>(starts, cells, num_cells, size); 
+        //cudaDeviceSynchronize();
+
+        update_starts<<<1,1>>>(starts, num_cells); //bit of a hacky workaround. maybe make this prettier 
+        //printf("After update_starts:\n");
+        //printStartsCells<<<1,1>>>(starts, cells, num_cells, size); 
+        //cudaDeviceSynchronize();
+        
+        update_cells<<<_gridSize, _blockSize, sizeof(int) * size>>>(cells, cell_offsets, starts, size); 
+        //printf("After update_cells:\n");
+        //printStartsCells<<<1,1>>>(starts, cells, num_cells, size); 
+        ///cudaDeviceSynchronize();
+        
         cudaEventRecord(stop);
 
         cudaEventSynchronize(stop);
@@ -451,8 +493,8 @@ namespace ppb {
         cudaEventRecord(start);
 #ifdef PPB_ENABLE_DOMAIN_COLORING
         for (size_t color = 0; color < 8; color++) {
-            compute_forces_colored<<<_gridSizeColored, _blockSizeColored>>>(color, positions, 
-                force, cells, size, offsets, cell_size, cutoff_radius, x_dim, y_dim, z_dim);
+            compute_forces_colored<<<_gridSizeColored, _blockSizeColored>>>(color, position, force, 
+                cells, starts, size, offsets, offsets_colored, cell_size, cutoff_radius, x_dim, y_dim, z_dim);
         }
 #else
         compute_forces<FloatType><<<_gridSize, _blockSize>>>(position, force, cells, starts, size, offsets, 
@@ -546,6 +588,7 @@ namespace ppb {
             computeForces();
             updateVelocities();
 #ifndef NDEBUG
+            std::cout<<"Iteration: "<<i<<std::endl;
             std::vector<Particle<FloatType>> particles = _particles.value().toParticles();
             for (auto p : particles) {
                 std::cout<<p<<std::endl;

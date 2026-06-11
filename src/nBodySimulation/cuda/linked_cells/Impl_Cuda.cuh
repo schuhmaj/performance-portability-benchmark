@@ -36,12 +36,11 @@ namespace ppb {
         int x_dim;
         int y_dim;
         int z_dim;
+        int offsets[27];
 #ifdef PPB_ENABLE_DOMAIN_COLORING
         int _gridSizeColored;
         int _blockSizeColored;
         int offsets_colored[8];
-#else
-        int offsets[27];
 #endif
 
         /**
@@ -57,7 +56,9 @@ namespace ppb {
          * 'starts' marks the start of each cell.
          */
         int* cells{nullptr};
-        
+       
+        int* cell_offsets{nullptr};
+
         ParticleSimulationConfig<FloatType> _config;
 
         std::optional<CudaParticleSoA<FloatType>> _particles{std::nullopt};
