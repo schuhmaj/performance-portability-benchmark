@@ -1,8 +1,11 @@
-add_executable(nbody_cuda_test CudaNBodyTest.cu)
-target_link_libraries(nbody_cuda_test
-    PRIVATE
-        nbody_test_lib
-        nbody_cuda_lib
-        GTest::gtest_main
-)
-gtest_discover_tests(nbody_cuda_test)
+if (${PPB_ENABLE_Cuda_DirectSum})
+    add_subdirectory(direct_sum)
+endif ()
+
+if (${PPB_ENABLE_Cuda_LinkedCells})
+    add_subdirectory(linked_cells)
+endif ()
+
+if (${PPB_ENABLE_Cuda_VerletLists})
+    add_subdirectory(verlet_lists)
+endif ()
