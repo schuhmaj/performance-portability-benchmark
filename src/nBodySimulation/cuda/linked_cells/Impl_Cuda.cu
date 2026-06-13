@@ -20,6 +20,20 @@
 
 #include <iostream>
 
+//taken from https://leimao.github.io/blog/Proper-CUDA-Error-Checking/ (last accessed 13.6.26, 19:44)
+#define CHECK_CUDA_ERROR(val) check((val), #val, __FILE__, __LINE__)
+void check(cudaError_t err, char const* func, char const* file, int line)
+{
+    if (err != cudaSuccess)
+    {
+        std::cerr << "CUDA Runtime Error at: " << file << ":" << line
+                  << std::endl;
+        std::cerr << cudaGetErrorString(err) << " " << func << std::endl;
+        // We don't exit when we encounter CUDA errors in this example.
+        // std::exit(EXIT_FAILURE);
+    }
+}
+
 namespace ppb {
 
     template <typename FloatType>
@@ -36,31 +50,31 @@ namespace ppb {
             forcesHost[i] = {particles[i].getForce()[0], particles[i].getForce()[1], particles[i].getForce()[2]};
         }
 
-        cudaMalloc(&positions, sizeof(float3) * size);
-        cudaMalloc(&velocities, sizeof(float3) * size);
-        cudaMalloc(&forces, sizeof(float3) * size);
-        cudaMalloc(&oldForces, sizeof(float3) * size);
+        CHECK_CUDA_ERROR(cudaMalloc(&positions, sizeof(float3) * size));
+        CHECK_CUDA_ERROR(cudaMalloc(&velocities, sizeof(float3) * size));
+        CHECK_CUDA_ERROR(cudaMalloc(&forces, sizeof(float3) * size));
+        CHECK_CUDA_ERROR(cudaMalloc(&oldForces, sizeof(float3) * size));
 
-        cudaMemcpy(positions, positionsHost.data(), sizeof(float3) * size, cudaMemcpyHostToDevice);
-        cudaMemcpy(velocities, velocitiesHost.data(), sizeof(float3) * size, cudaMemcpyHostToDevice);
-        cudaMemcpy(forces, forcesHost.data(), sizeof(float3) * size, cudaMemcpyHostToDevice);
-        cudaMemset(oldForces, 0.0, sizeof(float3) * size);
+        CHECK_CUDA_ERROR(cudaMemcpy(positions, positionsHost.data(), sizeof(float3) * size, cudaMemcpyHostToDevice));
+        CHECK_CUDA_ERROR(cudaMemcpy(velocities, velocitiesHost.data(), sizeof(float3) * size, cudaMemcpyHostToDevice));
+        CHECK_CUDA_ERROR(cudaMemcpy(forces, forcesHost.data(), sizeof(float3) * size, cudaMemcpyHostToDevice));
+        CHECK_CUDA_ERROR(cudaMemset(oldForces, 0.0, sizeof(float3) * size));
     }
 
     template <typename FloatType>
     CudaParticleSoA<FloatType>::~CudaParticleSoA() {
-        cudaFree(positions);
-        cudaFree(velocities);
-        cudaFree(forces);
-        cudaFree(oldForces);
+        CHECK_CUDA_ERROR(cudaFree(positions));
+        CHECK_CUDA_ERROR(cudaFree(velocities));
+        CHECK_CUDA_ERROR(cudaFree(forces));
+        CHECK_CUDA_ERROR(cudaFree(oldForces));
     }
 
     template <typename FloatType>
     std::vector<Particle<FloatType>> CudaParticleSoA<FloatType>::toParticles() {
         std::vector<Particle<FloatType>> particles{_ref};
-        cudaMemcpy(positionsHost.data(), positions, sizeof(float3) * _ref.size(), cudaMemcpyDeviceToHost);
-        cudaMemcpy(velocitiesHost.data(), velocities, sizeof(float3) * _ref.size(), cudaMemcpyDeviceToHost);
-        cudaMemcpy(forcesHost.data(), forces, sizeof(float3) * _ref.size(), cudaMemcpyDeviceToHost);
+        CHECK_CUDA_ERROR(cudaMemcpy(positionsHost.data(), positions, sizeof(float3) * _ref.size(), cudaMemcpyDeviceToHost));
+        CHECK_CUDA_ERROR(cudaMemcpy(velocitiesHost.data(), velocities, sizeof(float3) * _ref.size(), cudaMemcpyDeviceToHost));
+        CHECK_CUDA_ERROR(cudaMemcpy(forcesHost.data(), forces, sizeof(float3) * _ref.size(), cudaMemcpyDeviceToHost));
         for (size_t i = 0; i < particles.size(); ++i) {
             const float3& position = positionsHost[i];
             const float3& velocity = velocitiesHost[i];
@@ -91,17 +105,16 @@ namespace ppb {
         return a.x * b.x + a.y * b.y + a.z * b.z;
     } 
 
-    __global__ void update_cells(int* cells, int* cell_offsets, int* starts, size_t numParticles) {
+    __global__ void update_cells(int* cells, int* tmp, int* cell_offsets, int* starts, size_t numParticles) {
         const unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
         if (i >= numParticles) {
             return;
         } 
         
-        size_t idx = starts[cells[i]];
+        size_t idx = starts[tmp[i]];
         size_t offset = cell_offsets[i];
-        __syncthreads();
-        //TODO: COOPERATIVE GROUP SYNC HERE!!!
-        cells[idx + offset] = i;
+        size_t position = idx + offset;
+        cells[position] = i;
     }
 
     __device__ inline bool is_in_bounds(size_t idx, size_t offset, int x_dim, int y_dim, int z_dim) {
@@ -143,7 +156,7 @@ namespace ppb {
         const float3* velocities, 
         float3* forces, 
         float3* oldForces, 
-        int* cells, 
+        int* tmp, 
         int* cell_offsets,
         int* starts, 
         const float3 globalForce, 
@@ -176,7 +189,7 @@ namespace ppb {
    
         size_t idx = get_cell_idx(i, positions, cell_size, x_dim, y_dim, z_dim, boxMinX, boxMinY, boxMinZ);
         size_t offset = atomicAdd(&starts[idx + 1], 1); //returns the value at starts[idx + 1] *before* adding 1.
-        cells[i] = idx;
+        tmp[i] = idx;
         cell_offsets[i] = offset;
     }
 
@@ -230,7 +243,7 @@ namespace ppb {
         if (i >= util::ceilDiv<size_t>(num_cells, 8)) {
             return;
         }
-        
+
         size_t x_thread = i % x_dim;
         size_t y_thread = (i / x_dim) % y_dim;
         size_t z_thread = (i / (x_dim * y_dim));
@@ -370,7 +383,7 @@ namespace ppb {
             _blockSize = size;
         } else {
             int minGridSize = 0;
-            cudaOccupancyMaxPotentialBlockSize(&minGridSize, &_blockSize, reinterpret_cast<void *>(update_positions<FloatType>), 0, size);
+            CHECK_CUDA_ERROR(cudaOccupancyMaxPotentialBlockSize(&minGridSize, &_blockSize, reinterpret_cast<void *>(update_positions<FloatType>), 0, size));
         }
         _gridSize = util::ceilDiv<unsigned int>(size, _blockSize);
         
@@ -386,7 +399,7 @@ namespace ppb {
         if (number_of_cells_with_same_color <= MAX_THREADS) {
             _blockSizeColored = number_of_cells_with_same_color;
         } else {
-            cudaOccupancyMaxPotentialBlockSize(&_gridSizeColored, &_blockSizeColored, reinterpret_cast<void *>(compute_forces_colored), 0, 0);
+            CHECK_CUDA_ERROR(cudaOccupancyMaxPotentialBlockSize(&_gridSizeColored, &_blockSizeColored, reinterpret_cast<void *>(compute_forces_colored), 0, 0));
         }
         _gridSizeColored = util::ceilDiv<unsigned int>(number_of_cells_with_same_color, _blockSizeColored);
         std::cout<<"_gridSizeColored: "<<_gridSizeColored<<", _blockSizeColored: "<<_blockSizeColored<<std::endl;
@@ -408,19 +421,22 @@ namespace ppb {
         memcpy(offsets, &offsetsDeclared, 27 * sizeof(int));
         
         const size_t num_cells = x_dim * y_dim * z_dim;        
-        cudaMalloc(&cells, sizeof(int) * size);
-        cudaMalloc(&cell_offsets, sizeof(int) * size);
-        cudaMalloc(&starts, sizeof(int) * (num_cells + 1));
-        cudaMemset(cells, 0, sizeof(int) * size);
-        cudaMemset(cell_offsets, 0, sizeof(int) * size);
-        cudaMemset(starts, 0, sizeof(int) * (num_cells + 1));
+        CHECK_CUDA_ERROR(cudaMalloc(&cells, sizeof(int) * size));
+        CHECK_CUDA_ERROR(cudaMalloc(&tmp, sizeof(int) * size));
+        CHECK_CUDA_ERROR(cudaMalloc(&cell_offsets, sizeof(int) * size));
+        CHECK_CUDA_ERROR(cudaMalloc(&starts, sizeof(int) * (num_cells + 1)));
+        CHECK_CUDA_ERROR(cudaMemset(cells, 0, sizeof(int) * size));
+        CHECK_CUDA_ERROR(cudaMemset(tmp, 0, sizeof(int) * size));
+        CHECK_CUDA_ERROR(cudaMemset(cell_offsets, 0, sizeof(int) * size));
+        CHECK_CUDA_ERROR(cudaMemset(starts, 0, sizeof(int) * (num_cells + 1)));
     }
 
     template<typename FloatType>
     ImplCuda<FloatType>::~ImplCuda() {
-        cudaFree(starts);
-        cudaFree(cells);
-        cudaFree(cell_offsets);
+        CHECK_CUDA_ERROR(cudaFree(starts));
+        CHECK_CUDA_ERROR(cudaFree(cells));
+        CHECK_CUDA_ERROR(cudaFree(cell_offsets));
+        CHECK_CUDA_ERROR(cudaFree(tmp));
     }
 
     __global__ void update_starts(int* starts, size_t num_cells) {
@@ -441,17 +457,20 @@ namespace ppb {
         auto &velocity = _particles->velocities;
         auto &position = _particles->positions;
         const size_t num_cells = x_dim * y_dim * z_dim;
+        
+        CHECK_CUDA_ERROR(cudaMemset(starts, 0.0, sizeof(int) * (num_cells + 1)));
+        CHECK_CUDA_ERROR(cudaMemset(cells, 0.0, sizeof(int) * size));
+        CHECK_CUDA_ERROR(cudaMemset(cell_offsets, 0.0, sizeof(int) * size));
+        CHECK_CUDA_ERROR(cudaMemset(tmp, 0.0, sizeof(int) * size));
 
         float elapsedTime;
         cudaEvent_t start, stop;
-        cudaEventCreate(&start);
-        cudaEventCreate(&stop);
+        CHECK_CUDA_ERROR(cudaEventCreate(&start));
+        CHECK_CUDA_ERROR(cudaEventCreate(&stop));
 
-        cudaMemset(starts, 0.0, sizeof(int) * (num_cells + 1));
-        cudaMemset(cells, 0.0, sizeof(int) * size);
-        cudaEventRecord(start);
+        CHECK_CUDA_ERROR(cudaEventRecord(start));
 
-        update_positions<FloatType><<<_gridSize, _blockSize>>>(position, velocity, force, oldForce, cells, cell_offsets, 
+        update_positions<FloatType><<<_gridSize, _blockSize>>>(position, velocity, force, oldForce, tmp, cell_offsets, 
             starts, _globalForce, dt, size, cell_size, x_dim, y_dim, z_dim, boxMinX, boxMinY, boxMinZ);        
         //printf("After update_positions:\n");
         //printStartsCells<<<1,1>>>(starts, cells, num_cells, size); 
@@ -461,16 +480,16 @@ namespace ppb {
         //printf("After update_starts:\n");
         //printStartsCells<<<1,1>>>(starts, cells, num_cells, size); 
         //cudaDeviceSynchronize();
-        
-        update_cells<<<_gridSize, _blockSize, sizeof(int) * size>>>(cells, cell_offsets, starts, size); 
+      
+        update_cells<<<_gridSize, _blockSize>>>(cells, tmp, cell_offsets, starts, size); 
         //printf("After update_cells:\n");
         //printStartsCells<<<1,1>>>(starts, cells, num_cells, size); 
         ///cudaDeviceSynchronize();
         
-        cudaEventRecord(stop);
+        CHECK_CUDA_ERROR(cudaEventRecord(stop));
 
-        cudaEventSynchronize(stop);
-        cudaEventElapsedTime(&elapsedTime, start, stop);
+        CHECK_CUDA_ERROR(cudaEventSynchronize(stop));
+        CHECK_CUDA_ERROR(cudaEventElapsedTime(&elapsedTime, start, stop));
         _timings.positionUpdateForceResetTime += (elapsedTime * 1e6);
     }
 
@@ -487,10 +506,9 @@ namespace ppb {
 
         float elapsedTime;
         cudaEvent_t start, stop;
-        cudaEventCreate(&start);
-        cudaEventCreate(&stop);
-
-        cudaEventRecord(start);
+        CHECK_CUDA_ERROR(cudaEventCreate(&start));
+        CHECK_CUDA_ERROR(cudaEventCreate(&stop));
+        CHECK_CUDA_ERROR(cudaEventRecord(start));
 #ifdef PPB_ENABLE_DOMAIN_COLORING
         for (size_t color = 0; color < 8; color++) {
             compute_forces_colored<<<_gridSizeColored, _blockSizeColored>>>(color, position, force, 
@@ -500,10 +518,10 @@ namespace ppb {
         compute_forces<FloatType><<<_gridSize, _blockSize>>>(position, force, cells, starts, size, offsets, 
             cell_size, cutoff_radius, x_dim, y_dim, z_dim, boxMinX, boxMinY, boxMinZ);
 #endif
-        cudaEventRecord(stop);
+        CHECK_CUDA_ERROR(cudaEventRecord(stop));
 
-        cudaEventSynchronize(stop);
-        cudaEventElapsedTime(&elapsedTime, start, stop);
+        CHECK_CUDA_ERROR(cudaEventSynchronize(stop));
+        CHECK_CUDA_ERROR(cudaEventElapsedTime(&elapsedTime, start, stop));
         _timings.forceUpdateTime += (elapsedTime * 16);
     }
 
@@ -517,15 +535,15 @@ namespace ppb {
 
         float elapsedTime;
         cudaEvent_t start, stop;
-        cudaEventCreate(&start);
-        cudaEventCreate(&stop);
+        CHECK_CUDA_ERROR(cudaEventCreate(&start));
+        CHECK_CUDA_ERROR(cudaEventCreate(&stop));
 
-        cudaEventRecord(start);
+        CHECK_CUDA_ERROR(cudaEventRecord(start));
         update_velocities<<<_gridSize, _blockSize>>>(velocity, force, oldForce, dt, size);
-        cudaEventRecord(stop);
+        CHECK_CUDA_ERROR(cudaEventRecord(stop));
         
-        cudaEventSynchronize(stop);
-        cudaEventElapsedTime(&elapsedTime, start, stop);
+        CHECK_CUDA_ERROR(cudaEventSynchronize(stop));
+        CHECK_CUDA_ERROR(cudaEventElapsedTime(&elapsedTime, start, stop));
 
         _timings.velocityUpdateTime += (elapsedTime * 1e6);
     }
@@ -587,17 +605,14 @@ namespace ppb {
             updatePositionsAndResetForce();
             computeForces();
             updateVelocities();
-#ifndef NDEBUG
-            std::cout<<"Iteration: "<<i<<std::endl;
-            std::vector<Particle<FloatType>> particles = _particles.value().toParticles();
-            for (auto p : particles) {
-                std::cout<<p<<std::endl;
-            }
-#endif
 #ifdef PPB_ENABLE_VTK
             std::vector<Particle<FloatType>> particles = _particles.value().toParticles();
             plotParticles(particles, "VTK", i);
 #endif
+        }
+        std::vector<Particle<FloatType>> particless = _particles.value().toParticles();
+        for (auto& p : particless) {
+            std::cout<<p<<std::endl;
         }
         return std::make_pair(_particles->toParticles(), _timings);
     }

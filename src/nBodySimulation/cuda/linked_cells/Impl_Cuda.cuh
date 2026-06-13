@@ -59,6 +59,11 @@ namespace ppb {
        
         int* cell_offsets{nullptr};
 
+        /**
+        * @brief Permanent array that is used in update_cells. (TODO: replace this with cooperative groups!!)
+        */
+        int* tmp{nullptr};
+
         ParticleSimulationConfig<FloatType> _config;
 
         std::optional<CudaParticleSoA<FloatType>> _particles{std::nullopt};
