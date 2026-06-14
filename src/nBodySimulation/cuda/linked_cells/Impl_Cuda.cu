@@ -192,25 +192,17 @@ namespace ppb {
             return;
         }
 
-        printf("THREAD %u: OLD position: x: %f, y: %f, z: %f\n", i, positions[i].x, positions[i].y, positions[i].z);
         constexpr float mass = 1.0;
         const float3 force = forces[i];
         const float3 velocity = velocities[i];
         oldForces[i] = force;
         forces[i] = globalForce;
-        if (i == 0) {
-            printf("GLOBAL FORCE: x: %f, y: %f, z: %f\n", globalForce.x, globalForce.y, globalForce.z);
-        }
-
-        printf("THREAD %u: forces: x: %f, y: %f, z: %f\n", i, forces[i].x, forces[i].y, forces[i].z);
-        printf("THREAD %u: velocities: x: %f, y: %f, z: %f\n", i, velocities[i].x, velocities[i].y, velocities[i].z);
 
         const float3 velocityPart = {velocity.x * deltaT, velocity.y * deltaT, velocity.z * deltaT};
         const float tt2m = deltaT * deltaT / (2.0f * mass);
         const float3 forcePart = {force.x * tt2m, force.y * tt2m, force.z * tt2m};
         const float3 displacement = {velocityPart.x + forcePart.x, velocityPart.y + forcePart.y, velocityPart.z + forcePart.z};
         positions[i] = {positions[i].x + displacement.x, positions[i].y + displacement.y, positions[i].z + displacement.z};
-        printf("THREAD %u: NEW position: x: %f, y: %f, z: %f\n", i, positions[i].x, positions[i].y, positions[i].z);
         
 
         int idx = get_cell_idx(i, positions, cell_size, x_dim, y_dim, z_dim, boxMinX, boxMinY, boxMinZ, boxMaxX, boxMaxY, boxMaxZ);
@@ -647,11 +639,6 @@ namespace ppb {
         _particles.emplace(particles);
 
         for (int i = 0; i < _config.numberTimeSteps; ++i) {
-            std::cout<<"Iteration: "<<i<<std::endl;
-        std::vector<Particle<FloatType>> particless = _particles.value().toParticles();
-        for (auto& p : particless) {
-            std::cout<<p<<std::endl;
-        }
             updatePositionsAndResetForce();
             computeForces();
             updateVelocities();
