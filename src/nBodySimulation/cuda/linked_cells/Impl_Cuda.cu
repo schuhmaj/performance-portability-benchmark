@@ -2,6 +2,7 @@
 #include <iostream>
 #include <cuda_runtime.h>
 #include <math.h>
+#include <algorithm>
 #include <thrust/scan.h>
 #include <thrust/execution_policy.h>
 
@@ -17,8 +18,6 @@
 #include <iomanip>
 #include <sstream>
 #endif
-
-#include <iostream>
 
 //taken from https://leimao.github.io/blog/Proper-CUDA-Error-Checking/ (last accessed 13.6.26, 19:44)
 #define CHECK_CUDA_ERROR(val) check((val), #val, __FILE__, __LINE__)
@@ -118,6 +117,7 @@ namespace ppb {
     }
 
     __device__ inline bool is_in_bounds(size_t idx, size_t offset, int x_dim, int y_dim, int z_dim) {
+        size_t i = blockIdx.x * blockDim.x + threadIdx.x;
         size_t offset_idx = idx + offset;
         size_t x_idx = idx % x_dim;
         size_t y_idx = (idx / x_dim) % y_dim;
@@ -126,14 +126,25 @@ namespace ppb {
         size_t y_offset = (offset_idx / x_dim) % y_dim;
         size_t z_offset = (offset_idx / (x_dim * y_dim));
 
+        //printf("THREAD %lu: x_idx: %lu, y_idx: %lu, z_idx: %lu, x_offset: %lu, y_offset: %lu, z_offset: %lu\n", i, x_idx, y_idx, z_idx, x_offset, y_offset, z_offset);
         if (std::abs((int)(x_idx - x_offset)) > 1) return false;
         else if (std::abs((int)(y_idx - y_offset)) > 1) return false;
         else if (std::abs((int)(z_idx - z_offset)) > 1) return false;
+        else if (x_offset >= x_dim) return false;
+        else if (y_offset >= y_dim) return false;
+        else if (z_offset >= z_dim) return false;
         return true;
     }
 
+    //taken from: https://github.com/dangets/cuda_examples/blob/master/clamp_function.cu (last accessed 14.6.26)
+    template <typename T>
+    inline __device__ T clamp(T val, T vMin, T vMax) {
+        return min(max(val, vMin), vMax);
+    }
+
+
     template<typename FloatType>
-    __device__ inline size_t get_cell_idx(
+    __device__ inline int get_cell_idx(
         size_t particle_idx, 
         const float3* positions,  
         float cell_size, 
@@ -142,11 +153,14 @@ namespace ppb {
         int z_dim,
         FloatType boxMinX,
         FloatType boxMinY,
-        FloatType boxMinZ
+        FloatType boxMinZ,
+        FloatType boxMaxX,
+        FloatType boxMaxY,
+        FloatType boxMaxZ
     ) {
-        size_t x_idx = std::ceil((positions[particle_idx].x - boxMinX) / cell_size) - 1;
-        size_t y_idx = std::ceil((positions[particle_idx].y - boxMinY) / cell_size) - 1;
-        size_t z_idx = std::ceil((positions[particle_idx].z - boxMinZ) / cell_size) - 1;
+        int x_idx = clamp<int>(int(std::ceil((positions[particle_idx].x - boxMinX) / cell_size)), 0, x_dim - 1);
+        int y_idx = clamp<int>(int(std::ceil((positions[particle_idx].y - boxMinY) / cell_size)), 0, y_dim - 1);
+        int z_idx = clamp<int>(int(std::ceil((positions[particle_idx].z - boxMinZ) / cell_size)), 0, z_dim - 1);
         return x_idx + (y_idx * x_dim) + (z_idx * x_dim * y_dim); 
     }
 
@@ -168,27 +182,40 @@ namespace ppb {
         int z_dim,
         FloatType boxMinX,
         FloatType boxMinY,
-        FloatType boxMinZ
+        FloatType boxMinZ,
+        FloatType boxMaxX,
+        FloatType boxMaxY,
+        FloatType boxMaxZ
     ) {
         const unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
         if (i >= numParticles) {
             return;
         }
 
+        printf("THREAD %u: OLD position: x: %f, y: %f, z: %f\n", i, positions[i].x, positions[i].y, positions[i].z);
         constexpr float mass = 1.0;
         const float3 force = forces[i];
         const float3 velocity = velocities[i];
         oldForces[i] = force;
         forces[i] = globalForce;
+        if (i == 0) {
+            printf("GLOBAL FORCE: x: %f, y: %f, z: %f\n", globalForce.x, globalForce.y, globalForce.z);
+        }
+
+        printf("THREAD %u: forces: x: %f, y: %f, z: %f\n", i, forces[i].x, forces[i].y, forces[i].z);
+        printf("THREAD %u: velocities: x: %f, y: %f, z: %f\n", i, velocities[i].x, velocities[i].y, velocities[i].z);
 
         const float3 velocityPart = {velocity.x * deltaT, velocity.y * deltaT, velocity.z * deltaT};
         const float tt2m = deltaT * deltaT / (2.0f * mass);
         const float3 forcePart = {force.x * tt2m, force.y * tt2m, force.z * tt2m};
         const float3 displacement = {velocityPart.x + forcePart.x, velocityPart.y + forcePart.y, velocityPart.z + forcePart.z};
         positions[i] = {positions[i].x + displacement.x, positions[i].y + displacement.y, positions[i].z + displacement.z};
-   
-        size_t idx = get_cell_idx(i, positions, cell_size, x_dim, y_dim, z_dim, boxMinX, boxMinY, boxMinZ);
-        size_t offset = atomicAdd(&starts[idx + 1], 1); //returns the value at starts[idx + 1] *before* adding 1.
+        printf("THREAD %u: NEW position: x: %f, y: %f, z: %f\n", i, positions[i].x, positions[i].y, positions[i].z);
+        
+
+        int idx = get_cell_idx(i, positions, cell_size, x_dim, y_dim, z_dim, boxMinX, boxMinY, boxMinZ, boxMaxX, boxMaxY, boxMaxZ);
+        //printf("IDX: %lu\n", idx);
+        int offset = atomicAdd(&starts[idx + 1], 1); //returns the value at starts[idx + 1] *before* adding 1.
         tmp[i] = idx;
         cell_offsets[i] = offset;
     }
@@ -244,15 +271,15 @@ namespace ppb {
             return;
         }
 
-        size_t x_thread = i % x_dim;
-        size_t y_thread = (i / x_dim) % y_dim;
-        size_t z_thread = (i / (x_dim * y_dim));
-        size_t x_cell = 2 * x_thread + (color % 2);
-        size_t y_cell = 2 * y_thread + (color % 4);
-        size_t z_cell = 2 * z_thread + (color % 8);
-        size_t idx = x_cell + (y_cell * x_dim) + (z_cell * x_dim * y_dim);
-        size_t startBaseCell = starts[idx];
-        size_t endBaseCell = starts[idx + 1];
+        int x_thread = i % x_dim;
+        int y_thread = (i / x_dim) % y_dim;
+        int z_thread = (i / (x_dim * y_dim));
+        int x_cell = 2 * x_thread + (color % 2);
+        int y_cell = 2 * y_thread + (color % 4);
+        int z_cell = 2 * z_thread + (color % 8);
+        int idx = x_cell + (y_cell * x_dim) + (z_cell * x_dim * y_dim);
+        int startBaseCell = starts[idx];
+        int endBaseCell = starts[idx + 1];
         float3 fi = make_float3(0.f, 0.f, 0.f);
         //printf("color: %d, idx: %lu, startBaseCell: %lu, endBaseCell: %lu\n", color, idx, startBaseCell, endBaseCell);
         for (i = startBaseCell; i < endBaseCell; i++) {
@@ -262,11 +289,11 @@ namespace ppb {
                 continue;
             }
             idx += offset;
-            size_t start = starts[idx];
-            size_t end = starts[idx + 1];
+            int start = starts[idx];
+            int end = starts[idx + 1];
             //printf("iterating through cell idx: %lu at offset: %lu, starts at: %lu, ends at: %lu\n", idx, offset, start, end);
-            for (size_t k = start; k < end; k++) {
-                size_t j = cells[k];
+            for (int k = start; k < end; k++) {
+                int j = cells[k];
 
                 //N3L via natural ordering of indicies (only necessary in same cell)
                 if (offset == 0 && i >= j) {
@@ -317,7 +344,10 @@ namespace ppb {
         int z_dim,
         FloatType boxMinX,
         FloatType boxMinY,
-        FloatType boxMinZ
+        FloatType boxMinZ,
+        FloatType boxMaxX,
+        FloatType boxMaxY,
+        FloatType boxMaxZ
     ) {
         const unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
         if (i >= numParticles) {
@@ -325,11 +355,13 @@ namespace ppb {
         }
 
         float3 fi = make_float3(0.f, 0.f, 0.f);
-        size_t idx = get_cell_idx<FloatType>(i, positions, cell_size, x_dim, y_dim, z_dim, boxMinX, boxMinY, boxMinZ);
+        size_t idx = get_cell_idx<FloatType>(i, positions, cell_size, x_dim, y_dim, z_dim, boxMinX, boxMinY, boxMinZ, boxMaxX, boxMaxY, boxMaxZ);
+        //printf("IDX: %lu\n", idx);
         for (size_t offset = 0; offset < 27; offset++) {
             if (!is_in_bounds(idx, offsets[offset], x_dim, y_dim, z_dim)) continue; 
             //printf("In bounds for particle %u: offset %lu\n", i, offset);
             idx += offsets[offset];
+        //printf("IDX + offset: %lu\n", idx);
             size_t start = starts[idx];
             size_t end = starts[idx + 1];
             for (size_t k = start; k < end; k++) {
@@ -373,11 +405,19 @@ namespace ppb {
     template<typename FloatType>
     ImplCuda<FloatType>::ImplCuda(const ParticleSimulationConfig<FloatType> &config) 
         : _config{config}
-        , _globalForce{_config.globalForce[0], _config.globalForce[1], _config.globalForce[2]}
     {
+        //DO NOT PUT THESE LINES IN THE CONSTRUCTOR CAUSE IT BREAKS FOR SOME WEIRD REASON
+        _globalForce.x = _config.globalForce[0];
+        _globalForce.y = _config.globalForce[1];
+        _globalForce.z = _config.globalForce[2];
+        //-------------------------------------------------------------------------------
+
         const size_t size = _config.size;
         constexpr unsigned int WARP_SIZE = 32;
         constexpr unsigned int MAX_THREADS = 1024;
+
+        printf("GLOBAL FORCE INIT: x: %f, y: %f, z: %f\n", _config.globalForce[0], _config.globalForce[1], _config.globalForce[2]);
+        printf("GLOBAL FORCE INIT: x: %f, y: %f, z: %f\n", _globalForce.x, _globalForce.y, _globalForce.z);
 
         if (size <= MAX_THREADS) {
             _blockSize = size;
@@ -452,6 +492,9 @@ namespace ppb {
         const FloatType boxMinX = _config.boxMin[0];
         const FloatType boxMinY = _config.boxMin[1];
         const FloatType boxMinZ = _config.boxMin[2];
+        const FloatType boxMaxX = _config.boxMax[0];
+        const FloatType boxMaxY = _config.boxMax[1];
+        const FloatType boxMaxZ = _config.boxMax[2];
         auto &force = _particles->forces;
         auto &oldForce = _particles->oldForces;
         auto &velocity = _particles->velocities;
@@ -469,9 +512,8 @@ namespace ppb {
         CHECK_CUDA_ERROR(cudaEventCreate(&stop));
 
         CHECK_CUDA_ERROR(cudaEventRecord(start));
-
         update_positions<FloatType><<<_gridSize, _blockSize>>>(position, velocity, force, oldForce, tmp, cell_offsets, 
-            starts, _globalForce, dt, size, cell_size, x_dim, y_dim, z_dim, boxMinX, boxMinY, boxMinZ);        
+            starts, _globalForce, dt, size, cell_size, x_dim, y_dim, z_dim, boxMinX, boxMinY, boxMinZ, boxMaxX, boxMaxY, boxMaxZ);        
         //printf("After update_positions:\n");
         //printStartsCells<<<1,1>>>(starts, cells, num_cells, size); 
         //cudaDeviceSynchronize();
@@ -501,6 +543,9 @@ namespace ppb {
         const FloatType boxMinX = _config.boxMin[0];
         const FloatType boxMinY = _config.boxMin[1];
         const FloatType boxMinZ = _config.boxMin[2];
+        const FloatType boxMaxX = _config.boxMax[0];
+        const FloatType boxMaxY = _config.boxMax[1];
+        const FloatType boxMaxZ = _config.boxMax[2];
         auto &force = _particles->forces;
         auto &position = _particles->positions;
 
@@ -516,7 +561,7 @@ namespace ppb {
         }
 #else
         compute_forces<FloatType><<<_gridSize, _blockSize>>>(position, force, cells, starts, size, offsets, 
-            cell_size, cutoff_radius, x_dim, y_dim, z_dim, boxMinX, boxMinY, boxMinZ);
+            cell_size, cutoff_radius, x_dim, y_dim, z_dim, boxMinX, boxMinY, boxMinZ, boxMaxX, boxMaxY, boxMaxZ);
 #endif
         CHECK_CUDA_ERROR(cudaEventRecord(stop));
 
@@ -602,6 +647,11 @@ namespace ppb {
         _particles.emplace(particles);
 
         for (int i = 0; i < _config.numberTimeSteps; ++i) {
+            std::cout<<"Iteration: "<<i<<std::endl;
+        std::vector<Particle<FloatType>> particless = _particles.value().toParticles();
+        for (auto& p : particless) {
+            std::cout<<p<<std::endl;
+        }
             updatePositionsAndResetForce();
             computeForces();
             updateVelocities();
@@ -609,10 +659,6 @@ namespace ppb {
             std::vector<Particle<FloatType>> particles = _particles.value().toParticles();
             plotParticles(particles, "VTK", i);
 #endif
-        }
-        std::vector<Particle<FloatType>> particless = _particles.value().toParticles();
-        for (auto& p : particless) {
-            std::cout<<p<<std::endl;
         }
         return std::make_pair(_particles->toParticles(), _timings);
     }
