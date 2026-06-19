@@ -159,15 +159,12 @@
       }
     },
     {
-      "name": "intel-gcc-toolchain",
+      "name": "intel-pin-gcc",
       "inherits": "intel",
       "displayName": "Linux SYCL with IntelLLVM (pinned GCC libstdc++)",
-      "description": "Like 'intel', but points icx/icpx at a modern GCC toolchain for libstdc++ and bakes its lib dir into the RPATH. Requires GCC_INSTALL_DIR and GCC_LIB_DIR to be exported before configuring:\n  export GCC_INSTALL_DIR=$(dirname \"$(gcc -print-file-name=crtbegin.o)\")\n  export GCC_LIB_DIR=$(realpath \"$(dirname \"$(g++ -print-file-name=libstdc++.so)\")\")",
+      "description": "Like 'intel', but auto-pins icx/icpx to the GCC currently in PATH (e.g. a loaded gcc module) for libstdc++ and bakes its lib dir into the RPATH. The toolchain file derives the paths by invoking gcc/g++, so no manual environment setup is needed.",
       "binaryDir": "${sourceDir}/build-intel-gcc",
-      "cacheVariables": {
-        "CMAKE_C_FLAGS": "--gcc-install-dir=$env{GCC_INSTALL_DIR} -Wl,-rpath=$env{GCC_LIB_DIR}",
-        "CMAKE_CXX_FLAGS": "--gcc-install-dir=$env{GCC_INSTALL_DIR} -Wl,-rpath=$env{GCC_LIB_DIR}"
-      }
+      "toolchainFile": "${sourceDir}/cmake/intel-gcc-toolchain.cmake"
     },
     {
       "name": "macos",
