@@ -46,7 +46,33 @@ namespace opencl_utility {
     }
 
     cl_device_id getFirstGPU() {
-        return getDevices(getPlatforms()[0], CL_DEVICE_TYPE_GPU)[0];
+        // Scan every platform for a GPU instead of assuming platform[0] exposes
+        // one. Systems with the Intel oneAPI runtime advertise several OpenCL
+        // platforms (CPU runtime, FPGA emulation, GPU runtime) in an arbitrary
+        // order, so the GPU is frequently not the first platform.
+        std::string available; // human-readable listing for the error message
+        for (const cl_platform_id &platform : getPlatforms()) {
+            cl_uint numDevices = 0;
+            // CL_DEVICE_NOT_FOUND here just means "no GPU on this platform";
+            // skip it rather than treating it as a fatal error.
+            const cl_int err = clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, 0, nullptr, &numDevices);
+
+            char platformName[256] = "<unknown>";
+            clGetPlatformInfo(platform, CL_PLATFORM_NAME, sizeof(platformName), platformName, nullptr);
+            available += std::string("  - ") + platformName + ": " +
+                         std::to_string(err == CL_SUCCESS ? numDevices : 0) + " GPU device(s)\n";
+
+            if (err != CL_SUCCESS || numDevices == 0) {
+                continue;
+            }
+
+            std::vector<cl_device_id> devices(numDevices);
+            if (clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, numDevices, devices.data(), nullptr) == CL_SUCCESS &&
+                !devices.empty()) {
+                return devices.front();
+            }
+        }
+        throw std::runtime_error("No OpenCL GPU device found on any platform. Detected platforms:\n" + available);
     }
 
 } // namespace opencl_utility
