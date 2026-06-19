@@ -16,7 +16,7 @@ if (APPLE)
     set(Kokkos_ENABLE_OPENMP ON CACHE BOOL "Enable Kokkos OpenMP backend" FORCE)
 endif ()
 
-find_package(Kokkos 4.7.02...${Kokkos_VERSION} QUIET)
+find_package(Kokkos 4.6.02...${Kokkos_VERSION} QUIET)
 
 if (${Kokkos_FOUND})
     message(STATUS "Found existing Kokkos libraries: ${Kokkos_DIR}")
