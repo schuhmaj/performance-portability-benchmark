@@ -12,6 +12,8 @@
 #define CL_HPP_MINIMUM_OPENCL_VERSION 110
 #include <CL/opencl.hpp>
 
+#include "common/opencl/OpenCLUtility.h"
+
 #include "opencl_eval.h"
 #include "opencl_init.h"
 #include "opencl_sum.h"
@@ -53,13 +55,10 @@ public:
             const std::vector<IndexArray3> &Faces,
             const double density)
         : GravityEvaluableBase(Vertices, Faces, density) {
-        std::vector<cl::Platform> platforms;
-        cl::Platform::get(&platforms);
-        const cl::Platform platform = platforms[0];
-
-        std::vector<cl::Device> devices;
-        platform.getDevices(CL_DEVICE_TYPE_GPU, &devices);
-        cl::Device device = devices[0];
+        // Scan every platform for a GPU rather than assuming platform[0]/device[0]
+        // exist: with the oneAPI runtime the GPU is often not the first platform,
+        // and indexing an empty list here segfaults instead of erroring cleanly.
+        cl::Device device{opencl_utility::getFirstGPU()};
 
         device.getInfo(CL_DEVICE_MAX_WORK_GROUP_SIZE, &maxWorkGroupSize);
 
