@@ -11,6 +11,20 @@ if ("HIP" IN_LIST languages)
     set(alpaka_ACC_GPU_HIP_ENABLE ON CACHE BOOL "Enable Alpaka HIP backend" FORCE)
 endif ()
 
+# Enable SYCL backend when compiling with Intel's oneAPI compiler (IntelLLVM / icpx).
+# SYCL is not a CMake "language", so we detect it via the C++ compiler id instead -
+# this mirrors how alpaka itself gates its SYCL back-end.
+if (CMAKE_CXX_COMPILER_ID STREQUAL "IntelLLVM")
+    set(alpaka_ACC_SYCL_ENABLE ON CACHE BOOL "Enable Alpaka SYCL backend" FORCE)
+    # The SYCL back-end additionally requires selecting a concrete oneAPI target type...
+    set(alpaka_SYCL_ONEAPI_GPU ON CACHE BOOL "Enable oneAPI GPU target for the SYCL back-end" FORCE)
+    # ...and at least one device architecture, otherwise alpaka aborts with
+    # "You must specify at least one oneAPI hardware target!".
+    # intel_gpu_pvc = Ponte Vecchio = Intel Data Center GPU Max series (e.g. Max 1550).
+    # Plain (non-FORCE) cache set so it can be overridden from the command line.
+    set(alpaka_SYCL_ONEAPI_GPU_DEVICES "intel_gpu_pvc" CACHE STRING "oneAPI GPU device architecture(s)")
+endif ()
+
 find_package(Alpaka ${Alpaka_VERSION} CONFIG QUIET)
 
 if (${Alpaka_FOUND})
