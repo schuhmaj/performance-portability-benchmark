@@ -162,7 +162,7 @@
       "inherits": "intel",
       "displayName": "Linux SYCL with IntelLLVM (pinned GCC libstdc++)",
       "description": "Like 'intel', but auto-pins icx/icpx to the GCC currently in PATH (e.g. a loaded gcc module) for libstdc++ and bakes its lib dir into the RPATH. The toolchain file derives the paths by invoking gcc/g++, so no manual environment setup is needed. Also enables OpenCL and points it at the oneAPI compiler's headers/loader (the 2023.x oneAPI layout doesn't ship a top-level include/CL, so FindOpenCL needs explicit hints).",
-      "binaryDir": "${sourceDir}/build-intel-gcc",
+      "binaryDir": "${sourceDir}/build-intel-beast",
       "toolchainFile": "${sourceDir}/cmake/intel-gcc-toolchain.cmake",
       "cacheVariables": {
         "OpenCL_INCLUDE_DIR": "$env{CMPLR_ROOT}/linux/lib/oclfpga/host/include",
