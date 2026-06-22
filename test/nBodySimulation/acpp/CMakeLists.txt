@@ -6,8 +6,7 @@ target_link_libraries(nbody_acpp_test
         GTest::gtest_main
 )
 if (CMAKE_CXX_COMPILER_ID STREQUAL "IntelLLVM")
-    target_compile_options(nbody_acpp_test PUBLIC -fsycl -fsycl-targets=nvptx64-nvidia-cuda)
-    target_link_options(nbody_acpp_test PUBLIC -fsycl -fsycl-targets=nvptx64-nvidia-cuda)
+    target_link_libraries(nbody_acpp_test PRIVATE ppb_sycl_offload)
 else ()
     add_sycl_to_target(TARGET nbody_acpp_test)
 endif ()

@@ -185,8 +185,14 @@ if (${PPB_ENABLE_Raja})
     include(raja)
 endif()
 
-if (${PPB_ENABLE_AdaptiveCpp} AND NOT CMAKE_CXX_COMPILER_ID STREQUAL "IntelLLVM")
-    include(adaptive_cpp)
+if (${PPB_ENABLE_AdaptiveCpp})
+    if (CMAKE_CXX_COMPILER_ID STREQUAL "IntelLLVM")
+        # icpx compiles the SYCL (acpp) sources natively; provide the configurable
+        # ppb_sycl_offload target the acpp CMakeLists link against.
+        include(sycl_offload)
+    else ()
+        include(adaptive_cpp)
+    endif ()
 endif ()
 
 if (${PPB_ENABLE_Metal})
