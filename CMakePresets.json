@@ -154,8 +154,7 @@
         "PPB_ENABLE_OpenACC": "OFF",
         "PPB_ENABLE_Slang_Cuda": "OFF",
         "PPB_ENABLE_Vulkan": "OFF",
-        "PPB_ENABLE_Slang_Vulkan": "OFF",
-        "PPB_ENABLE_AdaptiveCpp": "OFF"
+        "PPB_ENABLE_Slang_Vulkan": "OFF"
       }
     },
     {
