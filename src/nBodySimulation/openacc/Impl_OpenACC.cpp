@@ -34,7 +34,8 @@ namespace ppb {
         acc_memcpy_to_device(forces, forcesHost.data(), numberOfBytes);
 
         // Zero the oldForces device buffer via a zero-filled host buffer.
-        const std::vector<FloatType> zeros(n3, 0.0);
+        // (acc_memcpy_to_device takes a non-const source pointer, so this cannot be const.)
+        std::vector<FloatType> zeros(n3, 0.0);
         acc_memcpy_to_device(oldForces, zeros.data(), numberOfBytes);
     }
 
