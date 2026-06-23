@@ -19,31 +19,23 @@ namespace ppb {
             forcesHost[i]     = ref[particleIndex].getForce()[componentIndex];
         }
 
-        // Allocate and copy device storage using OpenACC data regions.
-        // Manage raw device pointers explicitly via acc_malloc/acc_free to avoid mapping host vectors themselves.
-        positions  = static_cast<FloatType*>(acc_malloc(n3 * sizeof(FloatType)));
-        velocities = static_cast<FloatType*>(acc_malloc(n3 * sizeof(FloatType)));
-        forces     = static_cast<FloatType*>(acc_malloc(n3 * sizeof(FloatType)));
-        oldForces  = static_cast<FloatType*>(acc_malloc(n3 * sizeof(FloatType)));
+        // Allocate raw device storage and transfer the flattened host buffers with the
+        // OpenACC runtime copy API. Using acc_memcpy_to_device (rather than mapping the
+        // host vectors via enter/exit data) keeps the device pointers fully self-managed
+        // and avoids leaving stale present-table entries that would suppress later copies.
+        const size_t numberOfBytes = n3 * sizeof(FloatType);
+        positions  = static_cast<FloatType*>(acc_malloc(numberOfBytes));
+        velocities = static_cast<FloatType*>(acc_malloc(numberOfBytes));
+        forces     = static_cast<FloatType*>(acc_malloc(numberOfBytes));
+        oldForces  = static_cast<FloatType*>(acc_malloc(numberOfBytes));
 
-        const auto positionsHostPtr = positionsHost.data();
-        const auto velocitiesHostPtr = velocitiesHost.data();
-        const auto forcesHostPtr = forcesHost.data();
+        acc_memcpy_to_device(positions, positionsHost.data(), numberOfBytes);
+        acc_memcpy_to_device(velocities, velocitiesHost.data(), numberOfBytes);
+        acc_memcpy_to_device(forces, forcesHost.data(), numberOfBytes);
 
-        const auto positionsDevicePtr = positions;
-        const auto velocitiesDevicePtr = velocities;
-        const auto forcesDevicePtr = forces;
-        const auto oldForcesDevicePtr = oldForces;
-
-        #pragma acc enter data copyin(positionsHostPtr[0:n3], velocitiesHostPtr[0:n3], forcesHostPtr[0:n3])
-        #pragma acc parallel loop present(positionsHostPtr, velocitiesHostPtr, forcesHostPtr) deviceptr(positionsDevicePtr, velocitiesDevicePtr, forcesDevicePtr, oldForcesDevicePtr)
-        for (size_t i = 0; i < n3; ++i) {
-            positionsDevicePtr[i]  = positionsHostPtr[i];
-            velocitiesDevicePtr[i] = velocitiesHostPtr[i];
-            forcesDevicePtr[i]     = forcesHostPtr[i];
-            oldForcesDevicePtr[i]  = 0.0;
-        }
-        #pragma acc exit data delete(positionsHost, velocitiesHost, forcesHost)
+        // Zero the oldForces device buffer via a zero-filled host buffer.
+        const std::vector<FloatType> zeros(n3, 0.0);
+        acc_memcpy_to_device(oldForces, zeros.data(), numberOfBytes);
     }
 
     template <typename FloatType>
@@ -58,22 +50,12 @@ namespace ppb {
     std::vector<Particle<FloatType>> OpenACCParticleSoA<FloatType>::toParticles() {
         const size_t n = _ref.size();
         const size_t n3 = n * 3;
+        const size_t numberOfBytes = n3 * sizeof(FloatType);
 
-        const auto positionsHostPtr = positionsHost.data();
-        const auto velocitiesHostPtr = velocitiesHost.data();
-        const auto forcesHostPtr = forcesHost.data();
-
-        const auto positionsDevicePtr = positions;
-        const auto velocitiesDevicePtr = velocities;
-        const auto forcesDevicePtr = forces;
-
-        // Copy device data back into host mirrors
-        #pragma acc parallel loop deviceptr(positionsDevicePtr, velocitiesDevicePtr, forcesDevicePtr) copyout(positionsHostPtr[0:n3], velocitiesHostPtr[0:n3], forcesHostPtr[0:n3])
-        for (size_t i = 0; i < n3; ++i) {
-            positionsHostPtr[i]  = positionsDevicePtr[i];
-            velocitiesHostPtr[i] = velocitiesDevicePtr[i];
-            forcesHostPtr[i]     = forcesDevicePtr[i];
-        }
+        // Copy device data back into the host mirrors
+        acc_memcpy_from_device(positionsHost.data(), positions, numberOfBytes);
+        acc_memcpy_from_device(velocitiesHost.data(), velocities, numberOfBytes);
+        acc_memcpy_from_device(forcesHost.data(), forces, numberOfBytes);
 
         std::vector<Particle<FloatType>> particles{_ref};
         for (size_t i = 0; i < n; ++i) {
