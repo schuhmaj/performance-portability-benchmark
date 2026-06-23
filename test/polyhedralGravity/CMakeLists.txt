@@ -52,7 +52,7 @@ if (${PPB_ENABLE_Kokkos})
 endif ()
 
 if (${PPB_ENABLE_OpenACC})
-    create_polyhedral_test(openacc)
+    create_polyhedral_test(acc)
 endif ()
 
 #if (${PPB_ENABLE_HIP})
