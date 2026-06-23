@@ -165,6 +165,7 @@
       "binaryDir": "${sourceDir}/build-intel-beast",
       "toolchainFile": "${sourceDir}/cmake/intel-gcc-toolchain.cmake",
       "cacheVariables": {
+        "PPB_ENABLE_Alpaka": "OFF",
         "OpenCL_INCLUDE_DIR": "$env{CMPLR_ROOT}/linux/lib/oclfpga/host/include",
         "OpenCL_LIBRARY": "$env{CMPLR_ROOT}/linux/lib/libOpenCL.so",
         "oneDPL_DIR": "$env{DPL_ROOT}/lib/cmake/oneDPL"
