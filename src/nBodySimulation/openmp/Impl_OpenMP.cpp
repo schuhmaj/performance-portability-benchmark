@@ -24,7 +24,15 @@ namespace ppb {
         omp_target_memcpy(positions, positionsHost.data(), numberOfBytes, 0, 0, DEVICE_ID, HOST_ID);
         omp_target_memcpy(velocities, velocitiesHost.data(), numberOfBytes, 0, 0, DEVICE_ID, HOST_ID);
         omp_target_memcpy(forces, forcesHost.data(), numberOfBytes, 0, 0, DEVICE_ID, HOST_ID);
+#if defined(_OPENMP) && _OPENMP >= 202411
+        // omp_target_memset was introduced in OpenMP 6.0 (_OPENMP == 202411).
         omp_target_memset(oldForces, 0, numberOfBytes, DEVICE_ID);
+#else
+        // Fallback for older compilers (e.g. oneAPI 2023): zero the device buffer by
+        // copying from a zero-filled host buffer.
+        const std::vector<FloatType> zeros(ref.size() * 3, 0.0);
+        omp_target_memcpy(oldForces, zeros.data(), numberOfBytes, 0, 0, DEVICE_ID, HOST_ID);
+#endif
     }
 
     template <typename FloatType>
