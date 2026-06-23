@@ -55,9 +55,9 @@ if (${PPB_ENABLE_OpenACC})
     create_polyhedral_test(acc)
 endif ()
 
-#if (${PPB_ENABLE_HIP})
-#    create_polyhedral_test(hip)
-#endif ()
+if (${PPB_ENABLE_HIP})
+    create_polyhedral_test(hip)
+endif ()
 
 if (${PPB_ENABLE_Slang_Vulkan})
     create_polyhedral_test(slang_vulkan)
