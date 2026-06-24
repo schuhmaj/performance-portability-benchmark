@@ -26,9 +26,39 @@ inline __host__ __device__ VectorType4 make4(VectorType xyz, FloatType w) {
 #error "Invliad float bits size"
 #endif
 
-// HIP supplies the arithmetic operators for its vector types (float3/double3),
-// but not the cross product or normalization helpers that the CUDA helper_math.h
-// provided. Define the two we need here so the kernels stay backend-agnostic.
+// On the AMD/ROCm backend, HIP supplies the arithmetic operators for its vector
+// types (float3/double3/float4/double4). When HIP targets the NVIDIA backend it
+// uses CUDA's built-in vector types, which have no arithmetic operators (those
+// normally come from CUDA's helper_math.h). Provide the operators the kernels
+// need here, guarded so they only appear on the NVIDIA backend and do not clash
+// with HIP's own definitions on AMD.
+#if defined(__HIP_PLATFORM_NVIDIA__) || defined(__HIP_PLATFORM_NVCC__)
+inline __host__ __device__ VectorType operator+(const VectorType &a, const VectorType &b) {
+    return {a.x + b.x, a.y + b.y, a.z + b.z};
+}
+inline __host__ __device__ VectorType operator-(const VectorType &a, const VectorType &b) {
+    return {a.x - b.x, a.y - b.y, a.z - b.z};
+}
+inline __host__ __device__ VectorType operator*(const VectorType &a, const VectorType &b) {
+    return {a.x * b.x, a.y * b.y, a.z * b.z};
+}
+inline __host__ __device__ VectorType operator*(const VectorType &a, FloatType s) {
+    return {a.x * s, a.y * s, a.z * s};
+}
+inline __host__ __device__ VectorType operator*(FloatType s, const VectorType &a) {
+    return {a.x * s, a.y * s, a.z * s};
+}
+inline __host__ __device__ VectorType operator/(const VectorType &a, FloatType s) {
+    return {a.x / s, a.y / s, a.z / s};
+}
+inline __host__ __device__ VectorType4 operator+(const VectorType4 &a, const VectorType4 &b) {
+    return {a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w};
+}
+#endif
+
+// HIP/CUDA do not supply the cross product or normalization helpers that the
+// CUDA helper_math.h provided. Define the two we need here so the kernels stay
+// backend-agnostic.
 inline __host__ __device__ VectorType cross(const VectorType &a, const VectorType &b) {
     return {a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x};
 }
@@ -213,7 +243,7 @@ struct GravityModelResultHip {
     VectorType second;
 
     __host__ __device__ GravityModelResultHip()
-        : acc_pot(0), first{}, second{} {
+        : acc_pot{}, first{}, second{} {
     }
 
     __host__ __device__ GravityModelResultHip(const VectorType4 &_acc_pot, const VectorType &_first, const VectorType &_second)
