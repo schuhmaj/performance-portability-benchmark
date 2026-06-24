@@ -1,0 +1,162 @@
+{
+  "context": {
+    "date": "2026-06-24T17:00:56+00:00",
+    "host_name": "x-wing0",
+    "executable": "/nfs/c3po/home/ge25zov/Programming/performance-portability-benchmark/build-cuda-llvm/src/nBodySimulation/vulkan/verlet_lists/nbody_vulkan_verlet",
+    "num_cpus": 48,
+    "mhz_per_cpu": 2800,
+    "cpu_scaling_enabled": true,
+    "aslr_enabled": false,
+    "caches": [
+      {
+        "type": "Data",
+        "level": 1,
+        "size": 32768,
+        "num_sharing": 2
+      },
+      {
+        "type": "Instruction",
+        "level": 1,
+        "size": 32768,
+        "num_sharing": 2
+      },
+      {
+        "type": "Unified",
+        "level": 2,
+        "size": 524288,
+        "num_sharing": 2
+      },
+      {
+        "type": "Unified",
+        "level": 3,
+        "size": 16777216,
+        "num_sharing": 6
+      }
+    ],
+    "load_avg": [0.535645,0.395508,0.346191],
+    "library_version": "v1.9.4",
+    "library_build_type": "release",
+    "json_schema_version": 1,
+    "float_type": "32",
+    "paradigm": "Vulkan"
+  },
+  "benchmarks": [
+    {
+      "name": "NBody-VerletLists/10",
+      "family_index": 0,
+      "per_family_instance_index": 0,
+      "run_name": "NBody-VerletLists/10",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 1,
+      "real_time": 3.9831313979811964e+09,
+      "cpu_time": 3.7969839150000000e+09,
+      "time_unit": "ns",
+      "force_update": 7.0837720300000000e+08,
+      "neighbor_search": 2.1233468000000000e+08,
+      "position_update_reset": 7.0775412600000000e+08,
+      "velocity_update": 7.0797326000000000e+08
+    },
+    {
+      "name": "NBody-VerletLists/100",
+      "family_index": 0,
+      "per_family_instance_index": 1,
+      "run_name": "NBody-VerletLists/100",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 1,
+      "real_time": 3.2337841140106320e+09,
+      "cpu_time": 3.0900288130000000e+09,
+      "time_unit": "ns",
+      "force_update": 7.2080279800000000e+08,
+      "neighbor_search": 2.1581708500000000e+08,
+      "position_update_reset": 7.1789409900000000e+08,
+      "velocity_update": 7.1596964500000000e+08
+    },
+    {
+      "name": "NBody-VerletLists/1000",
+      "family_index": 0,
+      "per_family_instance_index": 2,
+      "run_name": "NBody-VerletLists/1000",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 1,
+      "real_time": 3.4488152731209993e+09,
+      "cpu_time": 3.2817915780000000e+09,
+      "time_unit": "ns",
+      "force_update": 6.9844172000000000e+08,
+      "neighbor_search": 3.6297088700000000e+08,
+      "position_update_reset": 7.0528457200000000e+08,
+      "velocity_update": 7.0135697400000000e+08
+    },
+    {
+      "name": "NBody-VerletLists/10000",
+      "family_index": 0,
+      "per_family_instance_index": 3,
+      "run_name": "NBody-VerletLists/10000",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 1,
+      "real_time": 3.5632599790114908e+09,
+      "cpu_time": 3.3989354540000000e+09,
+      "time_unit": "ns",
+      "force_update": 7.0599684800000000e+08,
+      "neighbor_search": 4.3994431900000000e+08,
+      "position_update_reset": 7.1238464700000000e+08,
+      "velocity_update": 7.1082313900000000e+08
+    },
+    {
+      "name": "NBody-VerletLists/100000",
+      "family_index": 0,
+      "per_family_instance_index": 4,
+      "run_name": "NBody-VerletLists/100000",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 1,
+      "real_time": 1.0421364500885830e+10,
+      "cpu_time": 5.8299751739999990e+09,
+      "time_unit": "ns",
+      "force_update": 9.7616216200000000e+08,
+      "neighbor_search": 5.0640032220000000e+09,
+      "position_update_reset": 1.0159927060000000e+09,
+      "velocity_update": 9.8847834500000000e+08
+    },
+    {
+      "name": "NBody-VerletLists_BigO",
+      "family_index": 0,
+      "per_family_instance_index": 0,
+      "run_name": "NBody-VerletLists",
+      "run_type": "aggregate",
+      "repetitions": 1,
+      "threads": 1,
+      "aggregate_name": "BigO",
+      "aggregate_unit": "time",
+      "cpu_coefficient": 3.8795429867999997e+09,
+      "real_coefficient": 4.9300710530020294e+09,
+      "big_o": "(1)",
+      "time_unit": "ns"
+    },
+    {
+      "name": "NBody-VerletLists_RMS",
+      "family_index": 0,
+      "per_family_instance_index": 0,
+      "run_name": "NBody-VerletLists",
+      "run_type": "aggregate",
+      "repetitions": 1,
+      "threads": 1,
+      "aggregate_name": "RMS",
+      "aggregate_unit": "percentage",
+      "rms": 2.5834484095528487e-01
+    }
+  ]
+}
