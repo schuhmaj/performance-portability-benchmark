@@ -5,20 +5,11 @@ set(Kokkos_VERSION 5.1.1)
 get_property(languages GLOBAL PROPERTY ENABLED_LANGUAGES)
 if ("CUDA" IN_LIST languages)
     set(Kokkos_ENABLE_CUDA ON CACHE BOOL "Enable Kokkos CUDA backend" FORCE)
-endif ()
-# Enable HIP backend if HIP language is enabled
-if ("HIP" IN_LIST languages)
+elseif ("HIP" IN_LIST languages)
     set(Kokkos_ENABLE_HIP ON CACHE BOOL "Enable Kokkos HIP backend" FORCE)
-endif ()
-
-# Enable SYCL backend when compiling with Intel's oneAPI compiler (IntelLLVM / icpx).
-# SYCL is not a CMake "language", so we detect it via the C++ compiler id instead -
-if (CMAKE_CXX_COMPILER_ID STREQUAL "IntelLLVM")
+elseif (CMAKE_CXX_COMPILER_ID STREQUAL "IntelLLVM")
     set(Kokkos_ENABLE_SYCL ON CACHE BOOL "Enable Kokkos SYCL backend" FORCE)
-endif ()
-
-# Enable OpenMP if on the Apple platform
-if (APPLE)
+elseif (APPLE)
     set(Kokkos_ENABLE_OPENMP ON CACHE BOOL "Enable Kokkos OpenMP backend" FORCE)
 endif ()
 
