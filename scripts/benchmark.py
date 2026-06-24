@@ -204,8 +204,53 @@ def print_found_files(files: list[Path], base: Path, are_reports: bool) -> None:
     print(bottom)
 
 
+def _run_target(target: Path, output_file: Path, stream_output: bool) -> None:
+    """Run a single benchmark executable.
+
+    Args:
+        target: The benchmark binary to execute.
+        output_file: The Google-Benchmark JSON report to write.
+        stream_output: If True, forward the executable's stdout/stderr to the
+            logger (at TRACE level), line by line, as it runs. Otherwise the
+            output is discarded.
+
+    Raises:
+        subprocess.CalledProcessError: If the executable exits with a non-zero
+            status.
+    """
+    cmd = [
+        str(target),
+        f"--benchmark_out={output_file.name}",
+        "--benchmark_out_format=json",
+    ]
+    if not stream_output:
+        subprocess.run(
+            cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+        )
+        return
+
+    # Stream the combined stdout/stderr through the logger so the executable's
+    # progress is visible at the highest verbosity (-vv / TRACE).
+    with subprocess.Popen(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        bufsize=1,
+    ) as proc:
+        assert proc.stdout is not None
+        for line in proc.stdout:
+            logger.trace(f"[{target.name}] {line.rstrip()}")
+        returncode = proc.wait()
+    if returncode != 0:
+        raise subprocess.CalledProcessError(returncode, cmd)
+
+
 def run_benchmarks(
-    executables: list[Path], force: bool = False, json_prefix: str = ""
+    executables: list[Path],
+    force: bool = False,
+    json_prefix: str = "",
+    stream_output: bool = False,
 ) -> list[Path]:
     """Run each benchmark executable, producing a ``<prefix><name>.json``
     Google-Benchmark report in the current working directory.
@@ -214,6 +259,8 @@ def run_benchmarks(
         executables: Benchmark binaries to run.
         force: Re-run even if a report already exists (otherwise it is reused).
         json_prefix: String prepended to each report file name (e.g. ``"intel_"``).
+        stream_output: If True, forward each executable's stdout/stderr to the
+            logger at TRACE level (enabled at ``-vv``); otherwise it is discarded.
 
     Returns:
         The list of report files that exist after the run.
@@ -229,16 +276,7 @@ def run_benchmarks(
             continue
         try:
             logger.info(f"Benchmarking {target.name} ...")
-            subprocess.run(
-                [
-                    str(target),
-                    f"--benchmark_out={output_file.name}",
-                    "--benchmark_out_format=json",
-                ],
-                check=True,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
+            _run_target(target, output_file, stream_output)
             logger.success(f"Finished {target.name} -> {output_file}")
             report_files.append(output_file)
         except subprocess.CalledProcessError as e:
@@ -728,7 +766,12 @@ def main() -> int:
     if args.skip_benchmark:
         reports = files
     else:
-        reports = run_benchmarks(files, force=args.force, json_prefix=args.json_prefix)
+        reports = run_benchmarks(
+            files,
+            force=args.force,
+            json_prefix=args.json_prefix,
+            stream_output=args.verbose >= 2,
+        )
     if not reports:
         logger.error("No report files available to process.")
         return 1
