@@ -1,5 +1,5 @@
 #include <benchmark/benchmark.h>
-#include "Impl_Cuda.cuh"
+#include "../include/Impl_Cuda.cuh"
 #include "nBodySimulation/NBodySimulation.h"
 #include "nBodySimulation/CSVFileHandler.h"
 #include <string>
@@ -17,6 +17,7 @@ int main(int argc, char** argv) {
 #else
 BENCHMARK(ppb::NBodySimulation<ppb::ImplCuda<float>>::benchmark)
     ->Name("NBody-Float-Cuda")
+    ->Iterations(1)
     ->RangeMultiplier(10)
     ->Range(ppb::NBodyBenchmarkConf::MIN_SIZE, ppb::NBodyBenchmarkConf::MAX_SIZE)
     ->Complexity();

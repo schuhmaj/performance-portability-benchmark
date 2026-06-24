@@ -2,7 +2,7 @@
 #include "gtest/gtest.h"
 
 #include "NBodyTest.h"
-#include "nBodySimulation/cuda/linked_cells/Impl_Cuda.cuh"
+#include "nBodySimulation/cuda/linked_cells/include/Impl_Cuda.cuh"
 
 TEST_P(NBodyTest, ImplCuda_Implementation) {
     const int size = GetParam();

@@ -117,7 +117,6 @@ namespace ppb {
 
         float3 fi = make_float3(0.f, 0.f, 0.f);
         for (unsigned int j = 0; j < numParticles; ++j) {
-            if (i >= j) continue; //N3L via natural ordering of indicies
 
             const float sigma = 1.0f;
             const float sigmaSquared = sigma * sigma;

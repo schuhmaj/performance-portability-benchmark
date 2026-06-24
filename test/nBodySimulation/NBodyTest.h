@@ -12,7 +12,7 @@ protected:
 
     static constexpr double EPSILON = 1e-2;
 
-    static constexpr double TIME_STEP = 0.0005;
+    static constexpr float TIME_STEP = 0.0005;
     static constexpr int ITERATIONS = 1000;
 
     /*

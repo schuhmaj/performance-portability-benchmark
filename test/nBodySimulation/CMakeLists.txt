@@ -36,6 +36,7 @@ endif()
 
 if (CMAKE_CUDA_COMPILER AND PPB_ENABLE_Cuda)
     add_subdirectory(cuda)
+    add_compile_options(-gpu=lineinfo)
 endif ()
 
 if (${PPB_ENABLE_Alpaka})
