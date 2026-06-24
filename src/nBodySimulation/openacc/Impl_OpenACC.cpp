@@ -95,7 +95,12 @@ namespace ppb {
     void ImplOpenACC<FloatType>::updatePositionsAndResetForce() {
         const size_t size = _config.size;
         const FloatType dt = _config.deltaT;
-        const std::array<float_type, 3> &globalForce = _config.globalForce;
+        // Copy the global force into a plain local array. Indexing a std::array inside the
+        // device region pulls in libstdc++'s hardened operator[] (std::__glibcxx_assert_fail),
+        // which nvlink cannot resolve for device code on newer libstdc++ (e.g. NVHPC 26.3).
+        const FloatType globalForce[3] = {
+            _config.globalForce[0], _config.globalForce[1], _config.globalForce[2]
+        };
         auto *forces = _particles->forces;
         auto *oldForces = _particles->oldForces;
         const auto *velocities = _particles->velocities;
