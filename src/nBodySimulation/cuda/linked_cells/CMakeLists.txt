@@ -6,6 +6,7 @@ endif ()
 include_directories(include)
 add_library(nbody_cuda_lib_linked_cells STATIC
         src/common.cu
+        src/constants.cu
         src/CudaParticleSoA.cu 
         src/Impl_Cuda.cu)
 target_compile_features(nbody_cuda_lib_linked_cells PUBLIC cxx_std_20)

@@ -1,7 +1,7 @@
 #include "CudaParticleSoA.cuh"
 #include "common.cuh"
 
-#define CHECK_CUDA_ERROR(val) check((val), #val, __FILE__, __LINE__)
+#define CHECK_CUDA_ERROR(val) ppb::check((val), #val, __FILE__, __LINE__)
 
 namespace ppb {
     template <typename FloatType>

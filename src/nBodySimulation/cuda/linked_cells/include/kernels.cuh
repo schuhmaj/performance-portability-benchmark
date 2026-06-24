@@ -1,5 +1,7 @@
 #pragma once
 
+#include "constants.cuh"
+
 namespace ppb {
     //------------------------------------------------------------------HELPER FUNCTIONS---------------------------------------------------------------------
     __device__ inline float3 make_float3_add(const float3 a, const float3 b) {
@@ -18,8 +20,7 @@ namespace ppb {
         return a.x * b.x + a.y * b.y + a.z * b.z;
     } 
 
-
-    __device__ inline bool is_in_bounds(size_t idx, size_t offset, int x_dim, int y_dim, int z_dim) {
+    __device__ inline bool is_in_bounds(size_t idx, size_t offset) {
         size_t offset_idx = idx + offset;
         size_t x_idx = idx % x_dim;
         size_t y_idx = (idx / x_dim) % y_dim;
@@ -45,24 +46,10 @@ namespace ppb {
     }
 
 
-    template<typename FloatType>
-    __device__ inline int get_cell_idx(
-        size_t particle_idx, 
-        const float3* positions,  
-        float cell_size, 
-        int x_dim, 
-        int y_dim, 
-        int z_dim,
-        FloatType boxMinX,
-        FloatType boxMinY,
-        FloatType boxMinZ,
-        FloatType boxMaxX,
-        FloatType boxMaxY,
-        FloatType boxMaxZ
-    ) {
-        int x_idx = clamp<int>(int(std::ceil((positions[particle_idx].x - boxMinX) / cell_size)), 0, x_dim - 1);
-        int y_idx = clamp<int>(int(std::ceil((positions[particle_idx].y - boxMinY) / cell_size)), 0, y_dim - 1);
-        int z_idx = clamp<int>(int(std::ceil((positions[particle_idx].z - boxMinZ) / cell_size)), 0, z_dim - 1);
+    __device__ inline int get_cell_idx(size_t particle_idx, const float3* positions) {
+        int x_idx = clamp<int>(int(std::ceil((positions[particle_idx].x - boxMin[0]) / cell_size)), 0, x_dim - 1);
+        int y_idx = clamp<int>(int(std::ceil((positions[particle_idx].y - boxMin[1]) / cell_size)), 0, y_dim - 1);
+        int z_idx = clamp<int>(int(std::ceil((positions[particle_idx].z - boxMin[2]) / cell_size)), 0, z_dim - 1);
         return x_idx + (y_idx * x_dim) + (z_idx * x_dim * y_dim); 
     } 
 
@@ -81,7 +68,7 @@ namespace ppb {
     //-------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
-    __global__ void update_cells(int* cells, int* tmp, int* cell_offsets, int* starts, size_t numParticles) {
+    __global__ void update_cells(int* cells, int* tmp, int* cell_offsets, int* starts) {
         const unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
         if (i >= numParticles) {
             return;
@@ -93,7 +80,6 @@ namespace ppb {
         cells[position] = i;
     }
 
-    template<typename FloatType>
     __global__ void update_positions(
         float3* positions, 
         const float3* velocities, 
@@ -101,20 +87,7 @@ namespace ppb {
         float3* oldForces, 
         int* tmp, 
         int* cell_offsets,
-        int* starts, 
-        const float3 globalForce, 
-        const float deltaT, 
-        const size_t numParticles, 
-        float cell_size,
-        int x_dim,
-        int y_dim,
-        int z_dim,
-        FloatType boxMinX,
-        FloatType boxMinY,
-        FloatType boxMinZ,
-        FloatType boxMaxX,
-        FloatType boxMaxY,
-        FloatType boxMaxZ
+        int* starts 
     ) {
         const unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
         if (i >= numParticles) {
@@ -125,7 +98,9 @@ namespace ppb {
         const float3 force = forces[i];
         const float3 velocity = velocities[i];
         oldForces[i] = force;
-        forces[i] = globalForce;
+        forces[i].x = globalForce[0];
+        forces[i].y = globalForce[1];
+        forces[i].z = globalForce[2];
 
         const float3 velocityPart = {velocity.x * deltaT, velocity.y * deltaT, velocity.z * deltaT};
         const float tt2m = deltaT * deltaT / (2.0f * mass);
@@ -134,14 +109,18 @@ namespace ppb {
         positions[i] = {positions[i].x + displacement.x, positions[i].y + displacement.y, positions[i].z + displacement.z};
         
 
-        int idx = get_cell_idx(i, positions, cell_size, x_dim, y_dim, z_dim, boxMinX, boxMinY, boxMinZ, boxMaxX, boxMaxY, boxMaxZ);
+        int idx = get_cell_idx(i, positions);
         int offset = atomicAdd(&starts[idx + 1], 1); //returns the value at starts[idx + 1] *before* adding 1.
         tmp[i] = idx;
         cell_offsets[i] = offset;
     }
 
 
-    __global__ void update_velocities(float3* velocities, const float3* forces, const float3* oldForces, const float deltaT, const size_t numParticles) {
+    __global__ void update_velocities(
+        float3* velocities, 
+        const float3* forces, 
+        const float3* oldForces
+    ) {
         const unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
         if (i >= numParticles) {
             return;
@@ -164,15 +143,7 @@ namespace ppb {
         const float3* __restrict__ positions,
         float3* __restrict__ forces,
         int* cells,
-        int* starts, 
-        const unsigned int numParticles,
-        const int* offsets,
-        const int* offsets_colored,
-        float cell_size,
-        float cutoff_radius,
-        int x_dim,
-        int y_dim,
-        int z_dim
+        int* starts
     ) {
         unsigned int t_id = blockIdx.x * blockDim.x + threadIdx.x;
         const size_t num_cells = x_dim * y_dim * z_dim;
@@ -194,13 +165,13 @@ namespace ppb {
         int startBaseCell = starts[idx];
         int endBaseCell = starts[idx + 1];
 
-        // Each thread iterates through its assigned c08 block, given its' base cell
+        // Iterations: for each particle in base cell iterate through all the particles of the 8 cell region
         for (int q = startBaseCell; q < endBaseCell; q++) {
             float3 fi = make_float3(0.f, 0.f, 0.f);
             int i = cells[q];
             for (int o = 0; o < 8; o++) {
                 int offset = offsets[offsets_colored[o]];
-                if (!is_in_bounds(idx, offset, x_dim, y_dim, z_dim)) continue;
+                if (!is_in_bounds(idx, offset)) continue;
                 idx += offset;
                 int start = starts[idx];
                 int end = starts[idx + 1];
@@ -237,25 +208,11 @@ namespace ppb {
     }
     
     
-    template<typename FloatType>
     __global__ void compute_forces(
         const float3* __restrict__ positions,
         float3* __restrict__ forces,
         const int* __restrict__ cells,
-        const int* __restrict__ starts, 
-        const unsigned int numParticles,
-        const int* offsets,
-        float cell_size,
-        float cutoff_radius,
-        int x_dim,
-        int y_dim,
-        int z_dim,
-        FloatType boxMinX,
-        FloatType boxMinY,
-        FloatType boxMinZ,
-        FloatType boxMaxX,
-        FloatType boxMaxY,
-        FloatType boxMaxZ
+        const int* __restrict__ starts 
     ) {
         const unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
         if (i >= numParticles) {
@@ -263,10 +220,10 @@ namespace ppb {
         }
 
         float3 fi = make_float3(0.f, 0.f, 0.f);
-        size_t idx = get_cell_idx<FloatType>(i, positions, cell_size, x_dim, y_dim, z_dim, boxMinX, boxMinY, boxMinZ, boxMaxX, boxMaxY, boxMaxZ);
+        size_t idx = get_cell_idx(i, positions);
 #pragma unroll 27
         for (size_t offset = 0; offset < 27; offset++) {
-            if (!is_in_bounds(idx, offsets[offset], x_dim, y_dim, z_dim)) continue; 
+            if (!is_in_bounds(idx, offsets[offset])) continue; 
             idx += offsets[offset];
             size_t start = starts[idx];
             size_t end = starts[idx + 1];

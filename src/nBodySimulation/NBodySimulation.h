@@ -74,17 +74,17 @@ namespace ppb {
         /**
          * Cell size used in the linked cell implimentation (cell_size >= cutoff_radius!!!)
          */
-        float cell_size{10.0f};
+        FloatType cell_size{10.0f};
         
         /**
          * Cutoff radius used in the linked cell and verlet lists implementation
          */
-        float cutoff_radius{10.0f};
+        FloatType cutoff_radius{10.0f};
 
         /**
         * Size of the Verlet skin.
         */
-        float verlet_skin{0.5f};
+        FloatType verlet_skin{0.5f};
 
         /**
         * Frequency of updates of verlet lists. 

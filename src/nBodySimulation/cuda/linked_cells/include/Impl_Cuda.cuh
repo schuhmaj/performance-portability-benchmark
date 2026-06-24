@@ -10,15 +10,12 @@ namespace ppb {
     class ImplCuda {
         int _blockSize;
         int _gridSize;
-        float3 _globalForce;
-        int x_dim;
-        int y_dim;
-        int z_dim;
-        int offsets[27];
+        int x_dim_h;
+        int y_dim_h;
+        int z_dim_h;
 #ifdef PPB_ENABLE_DOMAIN_COLORING
         int _gridSizeColored;
         int _blockSizeColored;
-        int offsets_colored[8];
 #endif
 
         /**
