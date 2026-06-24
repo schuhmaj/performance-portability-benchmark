@@ -90,7 +90,7 @@ namespace ppb {
         * Frequency of updates of verlet lists. 
         * Updates the verlet lists every 'frequency' iterations.
         */
-        size_t frequency{1};
+        size_t frequency{10};
 
         /**
          * Creates a simulation configuration.

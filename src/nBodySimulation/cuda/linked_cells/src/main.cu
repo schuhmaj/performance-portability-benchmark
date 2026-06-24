@@ -1,5 +1,5 @@
 #include <benchmark/benchmark.h>
-#include "../include/Impl_Cuda.cuh"
+#include "Impl_Cuda.cuh"
 #include "nBodySimulation/NBodySimulation.h"
 #include "nBodySimulation/CSVFileHandler.h"
 #include <string>

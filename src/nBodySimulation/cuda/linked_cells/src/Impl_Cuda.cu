@@ -35,7 +35,7 @@ namespace ppb {
             ((x_dim_h + 1) * y_dim_h) - 1, ((x_dim_h + 1) * y_dim_h), ((x_dim_h + 1) * y_dim_h) + 1
         };
         
-        // -------------------------------------Init constant memory----------------------------------------
+        //-------------------------------------Init constant memory----------------------------------------
         CHECK_CUDA_ERROR(cudaMemcpyToSymbol(numParticles, &_config.size, sizeof(_config.size)));
         CHECK_CUDA_ERROR(cudaMemcpyToSymbol(x_dim, &x_dim_h, sizeof(x_dim_h)));
         CHECK_CUDA_ERROR(cudaMemcpyToSymbol(y_dim, &y_dim_h, sizeof(y_dim_h)));
@@ -46,7 +46,8 @@ namespace ppb {
         CHECK_CUDA_ERROR(cudaMemcpyToSymbol(cell_size, &_config.cell_size, sizeof(_config.cell_size)));
         CHECK_CUDA_ERROR(cudaMemcpyToSymbol(boxMin, _config.boxMin.data(), sizeof(_config.boxMin)));
         CHECK_CUDA_ERROR(cudaMemcpyToSymbol(globalForce, _config.globalForce.data(), sizeof(_config.globalForce)));
-        // ------------------------------Determine optimal grid sizes----------------------------------------
+        
+        //------------------------------Determine optimal grid sizes----------------------------------------
         const size_t size = _config.size;
         constexpr unsigned int WARP_SIZE = 32;
         constexpr unsigned int MAX_THREADS = 1024;
@@ -66,7 +67,7 @@ namespace ppb {
         _gridSizeColored = util::ceilDiv<unsigned int>(number_of_cells_with_same_color, _blockSizeColored);
 #endif
         
-        // ---------------------------------Allocate device memory------------------------------------------
+        //---------------------------------Allocate device memory------------------------------------------
         const size_t num_cells = x_dim_h * y_dim_h * z_dim_h;        
         CHECK_CUDA_ERROR(cudaMalloc(&cells, sizeof(int) * size));
         CHECK_CUDA_ERROR(cudaMalloc(&tmp, sizeof(int) * size));
