@@ -7,6 +7,23 @@
   },
   "configurePresets": [
     {
+      "name": "cpu",
+      "displayName": "CPU Implementation Only",
+      "description": "Only the CPU Implementation is enabled.",
+      "generator": "Ninja",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "PPB_ENABLE_VectorAddition": "ON",
+        "PPB_ENABLE_MatrixMultiplication": "ON",
+        "PPB_ENABLE_NBodySimulation": "ON",
+        "PPB_ENABLE_NBodySimulation_naive": "ON",
+        "PPB_ENABLE_NBodySimulation_cells": "ON",
+        "PPB_ENABLE_NBodySimulation_verlet": "ON",
+        "PPB_ENABLE_PolyhedralGravity": "ON",
+        "PPB_ENABLE_Testing": "ON"
+      }
+    },
+    {
       "name": "abstract-base",
       "displayName": "Abstract Base",
       "description": "Abstract base. Switches everything ON. CUDA and HIP are automatically enabled/ disabled via CMake Language Detection (no need to set PPB_ENABLE_CUDA/HIP).",
