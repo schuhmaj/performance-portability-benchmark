@@ -11,6 +11,7 @@
       "displayName": "CPU Implementation Only",
       "description": "Only the CPU Implementation is enabled.",
       "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build-cpu",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
         "PPB_ENABLE_VectorAddition": "ON",
