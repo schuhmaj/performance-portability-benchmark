@@ -204,20 +204,23 @@ def print_found_files(files: list[Path], base: Path, are_reports: bool) -> None:
     print(bottom)
 
 
-def run_benchmarks(executables: list[Path], force: bool = False) -> list[Path]:
-    """Run each benchmark executable, producing a ``<name>.json`` Google-Benchmark
-    report in the current working directory.
+def run_benchmarks(
+    executables: list[Path], force: bool = False, json_prefix: str = ""
+) -> list[Path]:
+    """Run each benchmark executable, producing a ``<prefix><name>.json``
+    Google-Benchmark report in the current working directory.
 
     Args:
         executables: Benchmark binaries to run.
         force: Re-run even if a report already exists (otherwise it is reused).
+        json_prefix: String prepended to each report file name (e.g. ``"intel_"``).
 
     Returns:
         The list of report files that exist after the run.
     """
     report_files: list[Path] = []
     for target in executables:
-        output_file = Path(f"{target.name}.json")
+        output_file = Path(f"{json_prefix}{target.name}.json")
         if output_file.exists() and not force:
             logger.warning(
                 f"Report {output_file} already exists, reusing it (use --force to re-run)"
@@ -270,9 +273,7 @@ def _normalize_report(json_data: dict, hardware: str) -> pd.DataFrame:
 
     details = base.str.split("-", n=1, expand=True)
     df[BENCHMARK_PROBLEM] = details[0].astype(str)
-    df[DESCRIPTION] = (
-        details[1].fillna("").astype(str) if details.shape[1] > 1 else ""
-    )
+    df[DESCRIPTION] = details[1].fillna("").astype(str) if details.shape[1] > 1 else ""
 
     # --- Problem size ------------------------------------------------------- #
     if has_size_in_name:
@@ -628,6 +629,14 @@ def build_parser() -> argparse.ArgumentParser:
         default="",
         help="Hardware identifier stored in the 'Hardware' column (e.g. RTX5080).",
     )
+    output.add_argument(
+        "-P",
+        "--json-prefix",
+        type=str,
+        default="",
+        help="Prefix prepended to the intermediate JSON report file names "
+        "(e.g. 'intel_' -> 'intel_nbody_kokkos.json').",
+    )
     default_output = datetime.now().strftime("%Y-%m-%d_%H-%M_Benchmark_Result")
     output.add_argument(
         "-o",
@@ -719,7 +728,7 @@ def main() -> int:
     if args.skip_benchmark:
         reports = files
     else:
-        reports = run_benchmarks(files, force=args.force)
+        reports = run_benchmarks(files, force=args.force, json_prefix=args.json_prefix)
     if not reports:
         logger.error("No report files available to process.")
         return 1
