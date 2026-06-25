@@ -1,0 +1,162 @@
+{
+  "context": {
+    "date": "2026-06-05T15:23:26+02:00",
+    "host_name": "gh1",
+    "executable": "/home/ge25zov2/Programming/performance-portability-benchmark/build-cuda-llvm/src/nBodySimulation/slang/cell_lists/nbody_slang_cuda_cells",
+    "num_cpus": 72,
+    "mhz_per_cpu": 2952,
+    "cpu_scaling_enabled": false,
+    "aslr_enabled": false,
+    "caches": [
+      {
+        "type": "Data",
+        "level": 1,
+        "size": 65536,
+        "num_sharing": 1
+      },
+      {
+        "type": "Instruction",
+        "level": 1,
+        "size": 65536,
+        "num_sharing": 1
+      },
+      {
+        "type": "Unified",
+        "level": 2,
+        "size": 1048576,
+        "num_sharing": 1
+      },
+      {
+        "type": "Unified",
+        "level": 3,
+        "size": 119537664,
+        "num_sharing": 72
+      }
+    ],
+    "load_avg": [0.121094,0.558594,0.558594],
+    "library_version": "v1.9.4",
+    "library_build_type": "release",
+    "json_schema_version": 1,
+    "float_type": "32",
+    "paradigm": "Slang-Cuda"
+  },
+  "benchmarks": [
+    {
+      "name": "NBody-LinkedCells/10",
+      "family_index": 0,
+      "per_family_instance_index": 0,
+      "run_name": "NBody-LinkedCells/10",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 1,
+      "real_time": 7.4751738307531929e+08,
+      "cpu_time": 6.0490073600000000e+08,
+      "time_unit": "ns",
+      "force_update": 1.5552480018697679e+07,
+      "neighbor_search": 2.2274204741232100e+08,
+      "position_update_reset": 4.9608959951438010e+06,
+      "velocity_update": 5.1051520039327443e+06
+    },
+    {
+      "name": "NBody-LinkedCells/100",
+      "family_index": 0,
+      "per_family_instance_index": 1,
+      "run_name": "NBody-LinkedCells/100",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 2,
+      "real_time": 4.9397985549876463e+08,
+      "cpu_time": 4.6906177599999988e+08,
+      "time_unit": "ns",
+      "force_update": 1.6011568010784686e+07,
+      "neighbor_search": 2.2399753596668595e+08,
+      "position_update_reset": 5.0338560130912811e+06,
+      "velocity_update": 5.1463840142823756e+06
+    },
+    {
+      "name": "NBody-LinkedCells/1000",
+      "family_index": 0,
+      "per_family_instance_index": 2,
+      "run_name": "NBody-LinkedCells/1000",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 2,
+      "real_time": 4.9770240148063749e+08,
+      "cpu_time": 4.7213038399999994e+08,
+      "time_unit": "ns",
+      "force_update": 1.7771711989305913e+07,
+      "neighbor_search": 2.2469977570627815e+08,
+      "position_update_reset": 5.1764320184011012e+06,
+      "velocity_update": 5.1777280131354928e+06
+    },
+    {
+      "name": "NBody-LinkedCells/10000",
+      "family_index": 0,
+      "per_family_instance_index": 3,
+      "run_name": "NBody-LinkedCells/10000",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 2,
+      "real_time": 5.0081561051774770e+08,
+      "cpu_time": 4.7569164800000018e+08,
+      "time_unit": "ns",
+      "force_update": 2.0127056013792753e+07,
+      "neighbor_search": 2.2481239974941128e+08,
+      "position_update_reset": 5.3030720115639269e+06,
+      "velocity_update": 5.4251839888747782e+06
+    },
+    {
+      "name": "NBody-LinkedCells/100000",
+      "family_index": 0,
+      "per_family_instance_index": 4,
+      "run_name": "NBody-LinkedCells/100000",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 2,
+      "real_time": 5.2476511301938444e+08,
+      "cpu_time": 4.9908681599999970e+08,
+      "time_unit": "ns",
+      "force_update": 3.2262592063285410e+07,
+      "neighbor_search": 2.3212359985045624e+08,
+      "position_update_reset": 6.7896799757145345e+06,
+      "velocity_update": 6.8572479805443436e+06
+    },
+    {
+      "name": "NBody-LinkedCells_BigO",
+      "family_index": 0,
+      "per_family_instance_index": 0,
+      "run_name": "NBody-LinkedCells",
+      "run_type": "aggregate",
+      "repetitions": 1,
+      "threads": 1,
+      "aggregate_name": "BigO",
+      "aggregate_unit": "time",
+      "cpu_coefficient": 5.0417427200000000e+08,
+      "real_coefficient": 5.5295607271837068e+08,
+      "big_o": "(1)",
+      "time_unit": "ns"
+    },
+    {
+      "name": "NBody-LinkedCells_RMS",
+      "family_index": 0,
+      "per_family_instance_index": 0,
+      "run_name": "NBody-LinkedCells",
+      "run_type": "aggregate",
+      "repetitions": 1,
+      "threads": 1,
+      "aggregate_name": "RMS",
+      "aggregate_unit": "percentage",
+      "rms": 1.0207560082274944e-01
+    }
+  ]
+}

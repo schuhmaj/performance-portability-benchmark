@@ -1,0 +1,162 @@
+{
+  "context": {
+    "date": "2026-06-24T16:57:24+00:00",
+    "host_name": "x-wing0",
+    "executable": "/nfs/c3po/home/ge25zov/Programming/performance-portability-benchmark/build-cuda-llvm/src/nBodySimulation/slang/naive/nbody_slang_cuda_naive",
+    "num_cpus": 48,
+    "mhz_per_cpu": 2800,
+    "cpu_scaling_enabled": true,
+    "aslr_enabled": false,
+    "caches": [
+      {
+        "type": "Data",
+        "level": 1,
+        "size": 32768,
+        "num_sharing": 2
+      },
+      {
+        "type": "Instruction",
+        "level": 1,
+        "size": 32768,
+        "num_sharing": 2
+      },
+      {
+        "type": "Unified",
+        "level": 2,
+        "size": 524288,
+        "num_sharing": 2
+      },
+      {
+        "type": "Unified",
+        "level": 3,
+        "size": 16777216,
+        "num_sharing": 6
+      }
+    ],
+    "load_avg": [0.585449,0.172363,0.271484],
+    "library_version": "v1.9.4",
+    "library_build_type": "release",
+    "json_schema_version": 1,
+    "float_type": "32",
+    "paradigm": "Slang-Cuda"
+  },
+  "benchmarks": [
+    {
+      "name": "NBody-Naive/10",
+      "family_index": 0,
+      "per_family_instance_index": 0,
+      "run_name": "NBody-Naive/10",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 4,
+      "real_time": 2.0114277576794848e+08,
+      "cpu_time": 1.9925115400000000e+08,
+      "time_unit": "ns",
+      "force_update": 5.4400159632787108e+06,
+      "neighbor_search": 0.0000000000000000e+00,
+      "position_update_reset": 4.5181759519618936e+06,
+      "velocity_update": 4.5337039469741285e+06
+    },
+    {
+      "name": "NBody-Naive/100",
+      "family_index": 0,
+      "per_family_instance_index": 1,
+      "run_name": "NBody-Naive/100",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 5,
+      "real_time": 2.1086462200619280e+08,
+      "cpu_time": 2.0897897919999996e+08,
+      "time_unit": "ns",
+      "force_update": 1.6051078263111413e+07,
+      "neighbor_search": 0.0000000000000000e+00,
+      "position_update_reset": 4.5791679506190121e+06,
+      "velocity_update": 4.5177151484880596e+06
+    },
+    {
+      "name": "NBody-Naive/1000",
+      "family_index": 0,
+      "per_family_instance_index": 2,
+      "run_name": "NBody-Naive/1000",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 2,
+      "real_time": 3.1627766252495348e+08,
+      "cpu_time": 3.1475336949999976e+08,
+      "time_unit": "ns",
+      "force_update": 1.5150181204080582e+08,
+      "neighbor_search": 0.0000000000000000e+00,
+      "position_update_reset": 4.5795679495204240e+06,
+      "velocity_update": 4.5587839423678815e+06
+    },
+    {
+      "name": "NBody-Naive/10000",
+      "family_index": 0,
+      "per_family_instance_index": 3,
+      "run_name": "NBody-Naive/10000",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 1,
+      "real_time": 1.7394403840880842e+09,
+      "cpu_time": 1.7384083549999998e+09,
+      "time_unit": "ns",
+      "force_update": 1.6047939574718475e+09,
+      "neighbor_search": 0.0000000000000000e+00,
+      "position_update_reset": 4.7458879323676229e+06,
+      "velocity_update": 4.6090559421572834e+06
+    },
+    {
+      "name": "NBody-Naive/100000",
+      "family_index": 0,
+      "per_family_instance_index": 4,
+      "run_name": "NBody-Naive/100000",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 1,
+      "real_time": 3.0926271736854687e+10,
+      "cpu_time": 3.0921735201000000e+10,
+      "time_unit": "ns",
+      "force_update": 3.0758753915786743e+10,
+      "neighbor_search": 0.0000000000000000e+00,
+      "position_update_reset": 1.5329663777723908e+07,
+      "velocity_update": 1.2419648207724094e+07
+    },
+    {
+      "name": "NBody-Naive_BigO",
+      "family_index": 0,
+      "per_family_instance_index": 0,
+      "run_name": "NBody-Naive",
+      "run_type": "aggregate",
+      "repetitions": 1,
+      "threads": 1,
+      "aggregate_name": "BigO",
+      "aggregate_unit": "time",
+      "cpu_coefficient": 1.8582062311730773e+04,
+      "real_coefficient": 1.8584831446526794e+04,
+      "big_o": "NlgN",
+      "time_unit": "ns"
+    },
+    {
+      "name": "NBody-Naive_RMS",
+      "family_index": 0,
+      "per_family_instance_index": 0,
+      "run_name": "NBody-Naive",
+      "run_type": "aggregate",
+      "repetitions": 1,
+      "threads": 1,
+      "aggregate_name": "RMS",
+      "aggregate_unit": "percentage",
+      "rms": 5.3257253174159663e-02
+    }
+  ]
+}
