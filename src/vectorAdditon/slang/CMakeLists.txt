@@ -17,6 +17,7 @@ endif ()
 if (${PPB_ENABLE_Slang_Cuda})
     compile_slang(
             LANGUAGE PTX
+            FIX_PTX
             INFILE ${CMAKE_CURRENT_SOURCE_DIR}/VectorAdditionShader.slang
             PATH ${CMAKE_CURRENT_BINARY_DIR}
             KERNEL_NAME vecadd_kernel
