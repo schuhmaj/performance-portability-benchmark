@@ -1,0 +1,150 @@
+{
+  "context": {
+    "date": "2026-06-26T12:42:28+02:00",
+    "host_name": "atsccs109",
+    "executable": "/work_fast/ge25zov/Programming/performance-portability-benchmark/build-cuda-llvm/src/polyhedralGravity/opencl/polyhedral_ocl",
+    "num_cpus": 24,
+    "mhz_per_cpu": 5400,
+    "cpu_scaling_enabled": true,
+    "aslr_enabled": true,
+    "caches": [
+      {
+        "type": "Data",
+        "level": 1,
+        "size": 49152,
+        "num_sharing": 1
+      },
+      {
+        "type": "Instruction",
+        "level": 1,
+        "size": 65536,
+        "num_sharing": 1
+      },
+      {
+        "type": "Unified",
+        "level": 2,
+        "size": 3145728,
+        "num_sharing": 1
+      },
+      {
+        "type": "Unified",
+        "level": 3,
+        "size": 37748736,
+        "num_sharing": 24
+      }
+    ],
+    "load_avg": [0.955566,0.611328,0.331543],
+    "library_version": "v1.9.4",
+    "library_build_type": "release",
+    "json_schema_version": 1,
+    "float_type": "32",
+    "paradigm": "OpenCL"
+  },
+  "benchmarks": [
+    {
+      "name": "Polyhedral-Eros",
+      "family_index": 0,
+      "per_family_instance_index": 0,
+      "run_name": "Polyhedral-Eros",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 25338,
+      "real_time": 2.7653988239012211e+04,
+      "cpu_time": 2.7648183360959822e+04,
+      "time_unit": "ns",
+      "NumFaces": 1.4744000000000000e+04
+    },
+    {
+      "name": "Polyhedral-67P_ESA_NAVCAM_Jul2015data_256k",
+      "family_index": 1,
+      "per_family_instance_index": 0,
+      "run_name": "Polyhedral-67P_ESA_NAVCAM_Jul2015data_256k",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 3230,
+      "real_time": 2.1657512383898176e+05,
+      "cpu_time": 2.1652935603715168e+05,
+      "time_unit": "ns",
+      "NumFaces": 2.5593200000000000e+05
+    },
+    {
+      "name": "Polyhedral-25143_Itokawa_200k",
+      "family_index": 2,
+      "per_family_instance_index": 0,
+      "run_name": "Polyhedral-25143_Itokawa_200k",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 4061,
+      "real_time": 1.7252736912088518e+05,
+      "cpu_time": 1.7221855577443982e+05,
+      "time_unit": "ns",
+      "NumFaces": 1.9660800000000000e+05
+    },
+    {
+      "name": "Polyhedral-a8567",
+      "family_index": 3,
+      "per_family_instance_index": 0,
+      "run_name": "Polyhedral-a8567",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 37868,
+      "real_time": 1.8472250871448538e+04,
+      "cpu_time": 1.8468087144818855e+04,
+      "time_unit": "ns",
+      "NumFaces": 2.7800000000000000e+03
+    },
+    {
+      "name": "Polyhedral-SHAPE_SFM_3M_v20180804",
+      "family_index": 4,
+      "per_family_instance_index": 0,
+      "run_name": "Polyhedral-SHAPE_SFM_3M_v20180804",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 247,
+      "real_time": 2.4519596558726658e+06,
+      "cpu_time": 2.4513333846153887e+06,
+      "time_unit": "ns",
+      "NumFaces": 3.1457280000000000e+06
+    },
+    {
+      "name": "Polyhedral-4179toutatis",
+      "family_index": 5,
+      "per_family_instance_index": 0,
+      "run_name": "Polyhedral-4179toutatis",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 25680,
+      "real_time": 2.7329496767897668e+04,
+      "cpu_time": 2.7323522975077820e+04,
+      "time_unit": "ns",
+      "NumFaces": 1.2796000000000000e+04
+    },
+    {
+      "name": "Polyhedral-hartley2_2012_cart",
+      "family_index": 6,
+      "per_family_instance_index": 0,
+      "run_name": "Polyhedral-hartley2_2012_cart",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 18966,
+      "real_time": 3.6903364388906339e+04,
+      "cpu_time": 3.6895513497838343e+04,
+      "time_unit": "ns",
+      "NumFaces": 3.2040000000000000e+04
+    }
+  ]
+}

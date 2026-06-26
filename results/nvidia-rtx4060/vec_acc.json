@@ -1,0 +1,162 @@
+{
+  "context": {
+    "date": "2026-06-26T13:09:13+02:00",
+    "host_name": "atsccs109",
+    "executable": "/work_fast/ge25zov/Programming/performance-portability-benchmark/build-cuda-nvhpc/src/vectorAdditon/openacc/vec_acc",
+    "num_cpus": 24,
+    "mhz_per_cpu": 5400,
+    "cpu_scaling_enabled": true,
+    "aslr_enabled": false,
+    "caches": [
+      {
+        "type": "Data",
+        "level": 1,
+        "size": 49152,
+        "num_sharing": 1
+      },
+      {
+        "type": "Instruction",
+        "level": 1,
+        "size": 65536,
+        "num_sharing": 1
+      },
+      {
+        "type": "Unified",
+        "level": 2,
+        "size": 3145728,
+        "num_sharing": 1
+      },
+      {
+        "type": "Unified",
+        "level": 3,
+        "size": 37748736,
+        "num_sharing": 24
+      }
+    ],
+    "load_avg": [1.05615,1.01514,0.785156],
+    "library_version": "v1.9.4",
+    "library_build_type": "release",
+    "json_schema_version": 1,
+    "float_type": "32",
+    "paradigm": "OpenACC"
+  },
+  "benchmarks": [
+    {
+      "name": "VecAdd/1000",
+      "family_index": 0,
+      "per_family_instance_index": 0,
+      "run_name": "VecAdd/1000",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 41345,
+      "real_time": 1.6925025468623393e+04,
+      "cpu_time": 1.6921818260974727e+04,
+      "time_unit": "ns",
+      "kernel_time": 1.6554173322046197e+04
+    },
+    {
+      "name": "VecAdd/10000",
+      "family_index": 0,
+      "per_family_instance_index": 1,
+      "run_name": "VecAdd/10000",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 22618,
+      "real_time": 3.0945066451486578e+04,
+      "cpu_time": 3.0937077106729153e+04,
+      "time_unit": "ns",
+      "kernel_time": 2.8536821646476259e+04
+    },
+    {
+      "name": "VecAdd/100000",
+      "family_index": 0,
+      "per_family_instance_index": 2,
+      "run_name": "VecAdd/100000",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 4320,
+      "real_time": 1.6203302824077650e+05,
+      "cpu_time": 1.6200466296296299e+05,
+      "time_unit": "ns",
+      "kernel_time": 1.4039659490740742e+05
+    },
+    {
+      "name": "VecAdd/1000000",
+      "family_index": 0,
+      "per_family_instance_index": 3,
+      "run_name": "VecAdd/1000000",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 213,
+      "real_time": 3.2805308356800936e+06,
+      "cpu_time": 3.2793917699530488e+06,
+      "time_unit": "ns",
+      "kernel_time": 1.0436388920187793e+06
+    },
+    {
+      "name": "VecAdd/10000000",
+      "family_index": 0,
+      "per_family_instance_index": 4,
+      "run_name": "VecAdd/10000000",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 20,
+      "real_time": 3.4350355850028791e+07,
+      "cpu_time": 3.4348572850000009e+07,
+      "time_unit": "ns",
+      "kernel_time": 1.0154670250000000e+07
+    },
+    {
+      "name": "VecAdd/100000000",
+      "family_index": 0,
+      "per_family_instance_index": 5,
+      "run_name": "VecAdd/100000000",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 2,
+      "real_time": 3.4992856150029182e+08,
+      "cpu_time": 3.4981962150000000e+08,
+      "time_unit": "ns",
+      "kernel_time": 1.0028163100000000e+08
+    },
+    {
+      "name": "VecAdd_BigO",
+      "family_index": 0,
+      "per_family_instance_index": 0,
+      "run_name": "VecAdd",
+      "run_type": "aggregate",
+      "repetitions": 1,
+      "threads": 1,
+      "aggregate_name": "BigO",
+      "aggregate_unit": "time",
+      "cpu_coefficient": 3.4975456359093524e+00,
+      "real_coefficient": 3.4986260201388211e+00,
+      "big_o": "N",
+      "time_unit": "ns"
+    },
+    {
+      "name": "VecAdd_RMS",
+      "family_index": 0,
+      "per_family_instance_index": 0,
+      "run_name": "VecAdd",
+      "run_type": "aggregate",
+      "repetitions": 1,
+      "threads": 1,
+      "aggregate_name": "RMS",
+      "aggregate_unit": "percentage",
+      "rms": 4.3788754056303635e-03
+    }
+  ]
+}
