@@ -10,6 +10,19 @@
 #include <thrust/execution_policy.h>
 
 #define CHECK_CUDA_ERROR(val) ppb::check((val), #val, __FILE__, __LINE__)
+#define CHECK_LAST_CUDA_ERROR() checkLast(__FILE__, __LINE__)
+void checkLast(char const* file, int line)
+{
+    cudaError_t const err{cudaGetLastError()};
+    if (err != cudaSuccess)
+    {
+        std::cerr << "CUDA Runtime Error at: " << file << ":" << line
+                  << std::endl;
+        std::cerr << cudaGetErrorString(err) << std::endl;
+        // We don't exit when we encounter CUDA errors in this example.
+        // std::exit(EXIT_FAILURE);
+    }
+}
 
 namespace ppb {   
 
@@ -59,12 +72,14 @@ namespace ppb {
         int offsets_colored_h[8] = { 13, 14, 16, 17, 22, 23, 25, 26 };
         CHECK_CUDA_ERROR(cudaMemcpyToSymbol(offsets_colored, offsets_colored_h, sizeof(offsets_colored_h))); 
         size_t number_of_cells_with_same_color = util::ceilDiv<size_t>(x_dim_h * y_dim_h * z_dim_h, 8);
-        if (number_of_cells_with_same_color <= MAX_THREADS) {
+/*         if (number_of_cells_with_same_color <= MAX_THREADS) {
             _blockSizeColored = number_of_cells_with_same_color;
         } else {
-            CHECK_CUDA_ERROR(cudaOccupancyMaxPotentialBlockSize(&_gridSizeColored, &_blockSizeColored, reinterpret_cast<void *>(compute_forces_colored), 0, 0));
+            CHECK_CUDA_ERROR(cudaOccupancyMaxPotentialBlockSize(&_gridSizeColored, &_blockSizeColored, reinterpret_cast<void *>(compute_forces_colored_optimized), 0, 0));
         }
-        _gridSizeColored = util::ceilDiv<unsigned int>(number_of_cells_with_same_color, _blockSizeColored);
+        _gridSizeColored = util::ceilDiv<unsigned int>(number_of_cells_with_same_color, _blockSizeColored); */
+        _gridSizeColored = number_of_cells_with_same_color;
+        _blockSizeColored = WARP_SIZE;
 #endif
         
         //---------------------------------Allocate device memory------------------------------------------
@@ -96,7 +111,7 @@ namespace ppb {
         const size_t num_cells = x_dim_h * y_dim_h * z_dim_h;
         
         CHECK_CUDA_ERROR(cudaMemset(starts, 0.0, sizeof(int) * (num_cells + 1)));
-
+        
         float elapsedTime;
         cudaEvent_t start, stop;
         CHECK_CUDA_ERROR(cudaEventCreate(&start));
@@ -125,7 +140,8 @@ namespace ppb {
         CHECK_CUDA_ERROR(cudaEventRecord(start));
 #ifdef PPB_ENABLE_DOMAIN_COLORING
         for (size_t color = 0; color < 8; color++) 
-            compute_forces_colored<<<_gridSizeColored, _blockSizeColored>>>(color, position, force, cells, starts); 
+            // for now we'll just use the max available shared memory of 48KiB (idc about optimizing this rn this is already giving me a headache)
+            compute_forces_colored_optimized<<<_gridSizeColored, _blockSizeColored, 48 * 1024>>>(color, position, force, cells, starts, ((48 * 1024) / sizeof(float3))); 
 #else
         compute_forces<<<_gridSize, _blockSize>>>(position, force, cells, starts);
 #endif
@@ -160,6 +176,7 @@ namespace ppb {
     std::pair<std::vector<Particle<FloatType>>, ParticleSimulationTimings> ImplCuda<FloatType>::simulate(const std::vector<Particle<FloatType>> &particles) {
         _timings.reset();
         _particles.emplace(particles);
+
 
         for (int i = 0; i < _config.numberTimeSteps; ++i) {
             updatePositionsAndResetForce();
