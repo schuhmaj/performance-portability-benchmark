@@ -37,6 +37,10 @@ if (${PPB_ENABLE_OpenMP})
     add_subdirectory(openmp)
 endif ()
 
+if (${PPB_ENABLE_Stdpar})
+    add_subdirectory(stdpar)
+endif ()
+
 if (${PPB_ENABLE_Vulkan})
     if (${PPB_ENABLE_NBodySimulation_naive})
         add_subdirectory(vulkan/naive)

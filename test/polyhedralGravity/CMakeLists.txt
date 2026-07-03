@@ -27,6 +27,10 @@ if (PPB_ENABLE_OpenMP)
     create_polyhedral_test(omp)
 endif ()
 
+if (PPB_ENABLE_Stdpar)
+    create_polyhedral_test(stdpar)
+endif ()
+
 if (${PPB_ENABLE_AdaptiveCpp})
     create_polyhedral_test(acpp)
 endif()

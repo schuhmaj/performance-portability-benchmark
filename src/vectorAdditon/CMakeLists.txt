@@ -26,6 +26,10 @@ if (${PPB_ENABLE_OpenMP})
     add_subdirectory(openmp)
 endif ()
 
+if (${PPB_ENABLE_Stdpar})
+    add_subdirectory(stdpar)
+endif ()
+
 if (${PPB_ENABLE_OpenACC})
     add_subdirectory(openacc)
 endif ()

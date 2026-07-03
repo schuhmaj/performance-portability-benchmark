@@ -26,6 +26,10 @@ if (PPB_ENABLE_OpenMP)
     add_subdirectory(omp)
 endif ()
 
+if (PPB_ENABLE_Stdpar)
+    add_subdirectory(stdpar)
+endif ()
+
 if (${PPB_ENABLE_AdaptiveCpp})
     add_subdirectory(acpp)
 endif()
