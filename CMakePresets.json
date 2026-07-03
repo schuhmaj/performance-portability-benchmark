@@ -43,6 +43,7 @@
 
         "PPB_ENABLE_OpenACC": "ON",
         "PPB_ENABLE_OpenMP": "ON",
+        "PPB_ENABLE_Stdpar": "ON",
         "PPB_ENABLE_AdaptiveCpp": "ON",
         "PPB_ENABLE_Vulkan": "ON",
         "PPB_ENABLE_Slang_Vulkan": "ON",
@@ -65,7 +66,8 @@
         "CMAKE_CXX_COMPILER": "clang++",
         "CMAKE_CUDA_COMPILER": "nvcc",
 
-        "PPB_ENABLE_OpenACC": "OFF"
+        "PPB_ENABLE_OpenACC": "OFF",
+        "PPB_ENABLE_Stdpar": "OFF"
       }
     },
     {
@@ -88,7 +90,7 @@
       "name": "cuda-gcc",
       "inherits": "abstract-base",
       "displayName": "Linux CUDA with GCC",
-      "description": "Switches OFF: OpenMP",
+      "description": "Switches OFF: OpenMP, Stdpar (GCC has no stdpar GPU offload)",
       "binaryDir": "${sourceDir}/build-linux-cuda-gcc",
       "cacheVariables": {
         "CMAKE_C_COMPILER": "gcc",
@@ -96,14 +98,15 @@
         "CMAKE_CUDA_COMPILER": "nvcc",
 
         "PPB_ENABLE_OpenMP": "OFF",
-        "PPB_ENABLE_OpenACC": "OFF"
+        "PPB_ENABLE_OpenACC": "OFF",
+        "PPB_ENABLE_Stdpar": "OFF"
       }
     },
     {
       "name": "rocm-amdclang-cdna",
       "inherits": "abstract-base",
       "displayName": "Linux ROCM with AMDCLANG (Compute Architecture)",
-      "description": "Switches off: OpenACC, Slang-CUDA and Vulkan",
+      "description": "Switches off: OpenACC, Slang-CUDA and Vulkan. Run the stdpar binaries with HSA_XNACK=1 (or configure PPB_Stdpar_Hip_InterposeAlloc=ON if XNACK is unavailable).",
       "binaryDir": "${sourceDir}/build-rocm-amdclang-cdna",
       "cacheVariables": {
         "CMAKE_C_COMPILER": "amdclang",
@@ -119,7 +122,7 @@
       "name": "rocm-llvm-cdna",
       "inherits": "abstract-base",
       "displayName": "Linux ROCM with LLVM (Compute Architecture)",
-      "description": "Switches off: OpenACC, Slang-CUDA and Vulkan",
+      "description": "Switches off: OpenACC, Stdpar, Slang-CUDA and Vulkan.",
       "binaryDir": "${sourceDir}/build-rocm-llvm-cdna",
       "cacheVariables": {
         "CMAKE_C_COMPILER": "clang",
@@ -128,35 +131,38 @@
         "PPB_ENABLE_OpenACC": "OFF",
         "PPB_ENABLE_Slang_Cuda": "OFF",
         "PPB_ENABLE_Vulkan": "OFF",
-        "PPB_ENABLE_Slang_Vulkan": "OFF"
+        "PPB_ENABLE_Slang_Vulkan": "OFF",
+        "PPB_ENABLE_Stdpar": "OFF"
       }
     },
     {
       "name": "rocm-amdclang-rdna",
       "inherits": "abstract-base",
       "displayName": "Linux ROCM with AMDCLANG (Consumer Architecture)",
-      "description": "Switches off: OpenACC, Slang-CUDA",
+      "description": "Switches off: OpenACC, Slang-CUDA. Stdpar uses allocation interposition (consumer GPUs lack HMM/XNACK).",
       "binaryDir": "${sourceDir}/build-rocm-amdclang-rdna",
       "cacheVariables": {
         "CMAKE_C_COMPILER": "amdclang",
         "CMAKE_CXX_COMPILER": "amdclang++",
 
         "PPB_ENABLE_OpenACC": "OFF",
-        "PPB_ENABLE_Slang_Cuda": "OFF"
+        "PPB_ENABLE_Slang_Cuda": "OFF",
+        "PPB_Stdpar_Hip_InterposeAlloc": "ON"
       }
     },
     {
       "name": "rocm-llvm-rdna",
       "inherits": "abstract-base",
       "displayName": "Linux ROCM with LLVM (Consumer Architecture)",
-      "description": "Switches off: OpenACC, Slang-CUDA",
+      "description": "Switches off: OpenACC, Slang-CUDA. Stdpar uses allocation interposition (consumer GPUs lack HMM/XNACK) and needs an upstream LLVM matching the ROCm headers (LLVM >= 21 for ROCm 7.x).",
       "binaryDir": "${sourceDir}/build-rocm-llvm-rdna",
       "cacheVariables": {
         "CMAKE_C_COMPILER": "clang",
         "CMAKE_CXX_COMPILER": "clang++",
 
         "PPB_ENABLE_OpenACC": "OFF",
-        "PPB_ENABLE_Slang_Cuda": "OFF"
+        "PPB_ENABLE_Slang_Cuda": "OFF",
+        "PPB_ENABLE_Stdpar": "OFF"
       }
     },
     {
@@ -193,11 +199,12 @@
       "name": "macos",
       "inherits": "abstract-base",
       "displayName": "macOS",
-      "description": "Switches OFF: OpenACC, Slang-CUDA; Switches ON: Metal (Apple)",
+      "description": "Switches OFF: OpenACC, Slang-CUDA, Stdpar (AppleClang has no GPU offload); Switches ON: Metal (Apple)",
       "binaryDir": "${sourceDir}/build-macos",
       "cacheVariables": {
         "PPB_ENABLE_OpenACC": "OFF",
         "PPB_ENABLE_Slang_Cuda": "OFF",
+        "PPB_ENABLE_Stdpar": "OFF",
         "PPB_ENABLE_Metal": "ON"
       }
     }

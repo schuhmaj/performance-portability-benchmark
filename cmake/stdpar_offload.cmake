@@ -75,6 +75,9 @@ elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     # ROCm amdclang++ (>= ROCm 6.1) or a matching upstream Clang: --hipstdpar
     # offloads par_unseq algorithms via rocThrust. An offload arch is mandatory,
     # so default to `native` (the GPU visible on the build machine).
+    # NOTE: Upstream Clang must be new enough for the ROCm headers on the system
+    # (ROCm 7.x hipstdpar headers need LLVM >= 21; older upstream Clang fails
+    # with opencl_private/address_space(5) mismatches - use amdclang++ instead).
     if (PPB_Stdpar_Offload_Arch)
         set(_ppb_stdpar_arch ${PPB_Stdpar_Offload_Arch})
     else ()
@@ -88,6 +91,14 @@ elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     endif ()
     set(_ppb_stdpar_link_flags --hipstdpar)
     set(_ppb_stdpar_backend "ROCm hipstdpar (--hipstdpar, arch: ${_ppb_stdpar_arch})")
+    if (NOT PPB_Stdpar_Hip_InterposeAlloc)
+        # Without allocation interposition the GPU must page in ordinary host
+        # heap memory on demand, which requires XNACK (disabled by default on
+        # most systems, incl. MI200/MI300). Otherwise the binaries die with
+        # 'Memory access fault by GPU node-N'.
+        message(STATUS "Stdpar hipstdpar note            run binaries with HSA_XNACK=1 "
+                "(or configure -DPPB_Stdpar_Hip_InterposeAlloc=ON if XNACK is unavailable)")
+    endif ()
 else ()
     # Host fallback: keep the targets buildable, executing on the CPU. libstdc++
     # dispatches the parallel algorithms to TBB, so link it explicitly.
