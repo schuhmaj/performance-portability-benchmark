@@ -117,7 +117,8 @@ namespace ppb {
 
         float3 fi = make_float3(0.f, 0.f, 0.f);
         for (unsigned int j = 0; j < numParticles; ++j) {
-
+            if (i == j) continue;
+            
             const float sigma = 1.0f;
             const float sigmaSquared = sigma * sigma;
             const float epsilon24 = 24.0f; // 1.0 * 24.0
@@ -134,18 +135,16 @@ namespace ppb {
 
             const float3 f = make_float3_scale(dr, fac);
             fi = make_float3_add(fi, f);
-            atomicAdd(&forces[j].x, f.x * -1.0f);
-            atomicAdd(&forces[j].y, f.y * -1.0f);
-            atomicAdd(&forces[j].z, f.z * -1.0f);
+            forces[j] = make_float3_sub(forces[j], f);
         }
-        atomicAdd(&forces[i].x, fi.x);
-        atomicAdd(&forces[i].y, fi.y);
-        atomicAdd(&forces[i].z, fi.z);
+        forces[i] = make_float3_add(forces[i], fi);
     }
 
 
     template<typename FloatType>
-    ImplCuda<FloatType>::ImplCuda(const ParticleSimulationConfig<FloatType> &config) : _config{config}, _globalForce{_config.globalForce[0], _config.globalForce[1], _config.globalForce[2]} {
+    ImplCuda<FloatType>::ImplCuda(const ParticleSimulationConfig<FloatType> &config) 
+    : _config{config}, _globalForce{_config.globalForce[0], _config.globalForce[1], _config.globalForce[2]} {
+        
         const size_t size = _config.size;
         constexpr unsigned int WRAP_SIZE = 32;
         constexpr unsigned int MAX_THREADS = 1024;

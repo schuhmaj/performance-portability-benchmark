@@ -31,8 +31,12 @@ namespace ppb {
          * 'starts' marks the start of each cell.
          */
         int* cells{nullptr};
-       
+
         int* cell_offsets{nullptr};
+        
+        float4* cells_positions{nullptr};
+
+        float4* cells_forces{nullptr};
 
         /**
         * @brief Permanent array that is used in update_cells. (TODO: replace this with cooperative groups!!)

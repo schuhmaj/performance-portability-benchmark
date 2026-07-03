@@ -8,15 +8,15 @@ namespace ppb {
         const std::vector<Particle<FloatType>> &_ref;
 
         //Device memory
-        float3* positions{nullptr};
-        float3* velocities{nullptr};
-        float3* forces{nullptr};
-        float3* oldForces{nullptr};
+        float4* positions{nullptr};
+        float4* velocities{nullptr};
+        float4* forces{nullptr};
+        float4* oldForces{nullptr};
         
         //Host memory
-        std::vector<float3> positionsHost;
-        std::vector<float3> velocitiesHost;
-        std::vector<float3> forcesHost;
+        std::vector<float4> positionsHost;
+        std::vector<float4> velocitiesHost;
+        std::vector<float4> forcesHost;
 
         explicit CudaParticleSoA(const std::vector<Particle<FloatType>> &particles);
 

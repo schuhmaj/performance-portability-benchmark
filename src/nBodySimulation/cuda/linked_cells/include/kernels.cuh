@@ -4,19 +4,19 @@
 
 namespace ppb {
     //------------------------------------------------------------------HELPER FUNCTIONS---------------------------------------------------------------------
-    __device__ inline float3 make_float3_add(const float3 a, const float3 b) {
-        return make_float3(a.x + b.x, a.y + b.y, a.z + b.z);
+    __device__ inline float4 make_float4_add(const float4 a, const float4 b) {
+        return make_float4(a.x + b.x, a.y + b.y, a.z + b.z, 0.f);
     }
 
-    __device__ inline float3 make_float3_sub(const float3 a, const float3 b) {
-        return make_float3(a.x - b.x, a.y - b.y, a.z - b.z);
+    __device__ inline float4 make_float4_sub(const float4 a, const float4 b) {
+        return make_float4(a.x - b.x, a.y - b.y, a.z - b.z, 0.f);
     }
 
-    __device__ inline float3 make_float3_scale(const float3 v, const float s) {
-        return make_float3(v.x * s, v.y * s, v.z * s);
+    __device__ inline float4 make_float4_scale(const float4 v, const float s) {
+        return make_float4(v.x * s, v.y * s, v.z * s, 0.f);
     }
 
-    __device__ inline float dot3(const float3 a, const float3 b) {
+    __device__ inline float dot3(const float4 a, const float4 b) {
         return a.x * b.x + a.y * b.y + a.z * b.z;
     } 
 
@@ -46,41 +46,15 @@ namespace ppb {
     }
 
 
-    __device__ inline int get_cell_idx(size_t particle_idx, const float3* positions) {
+    __device__ inline int get_cell_idx(size_t particle_idx, const float4* positions) {
         int x_idx = clamp<int>(int(std::ceil((positions[particle_idx].x - boxMin[0]) / cell_size)), 0, x_dim - 1);
         int y_idx = clamp<int>(int(std::ceil((positions[particle_idx].y - boxMin[1]) / cell_size)), 0, y_dim - 1);
         int z_idx = clamp<int>(int(std::ceil((positions[particle_idx].z - boxMin[2]) / cell_size)), 0, z_dim - 1);
         return x_idx + (y_idx * x_dim) + (z_idx * x_dim * y_dim); 
     }
 
-    /**
-    * @param 'result' stores the index inside of 'cells' where the next element lies.
-    * @param 'base_idx' is the starting index inside of 'cells'
-    * @param 'offset' is the offset which we have to the base_idx
-    * @param 'base_cell_idx' is the index of the base cell
-    * @param 'start_cell_offset' is the relative offset (0,...,7) of the cell 'base_idx' resides in
-    */
-    __device__ inline void get_next_element_neighbor_chunk(size_t& result, size_t base_idx, size_t offset, size_t base_cell_idx, int* starts, int* cells) {
-        result = base_idx;
-        for (size_t o = 0; o < 8; o++) {
-            size_t offset_cell = offsets[offsets_colored[o]];
-            if (!is_in_bounds(base_cell_idx, offset)) continue;
-            base_cell_idx += offset_cell;
-            size_t start_cell = starts[base_cell_idx];
-            size_t end_cell = starts[base_cell_idx + 1];
-            
-            if (result + (end_cell - start_cell) < base_idx + offset) {
-                result += (end_cell - start_cell);
-                base_cell_idx -= offset;
-                continue;
-            }
-            
-            result += (offset - result);
-        }
-    }
-
-
-    __global__ void printStartsCells(int* starts, int* cells, size_t numCells, size_t numParticles) {
+    __global__ void printStartsCells(int* starts, int* cells) {
+        size_t numCells = x_dim * y_dim * z_dim;
         printf("starts:\n");
         for (size_t j = 0; j <= numCells; j++) {
             printf("%d, ", starts[j]);
@@ -94,7 +68,14 @@ namespace ppb {
     //-------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
-    __global__ void update_cells(int* cells, int* tmp, int* cell_offsets, int* starts) {
+    __global__ void update_cells(
+        int* cells, 
+        int* tmp, 
+        int* cell_offsets, 
+        int* starts,
+        float4* cells_positions,
+        float4* positions
+    ) {
         const unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
         if (i >= numParticles) {
             return;
@@ -104,13 +85,14 @@ namespace ppb {
         size_t offset = cell_offsets[i];
         size_t position = idx + offset;
         cells[position] = i;
+        cells_positions[position] = positions[i];
     }
 
     __global__ void update_positions(
-        float3* positions, 
-        const float3* velocities, 
-        float3* forces, 
-        float3* oldForces, 
+        float4* positions, 
+        const float4* velocities, 
+        float4* forces, 
+        float4* oldForces, 
         int* tmp, 
         int* cell_offsets,
         int* starts 
@@ -121,8 +103,8 @@ namespace ppb {
         }
 
         constexpr float mass = 1.0;
-        const float3 force = forces[i];
-        const float3 velocity = velocities[i];
+        const float4 force = forces[i];
+        const float4 velocity = velocities[i];
         oldForces[i] = force;
         forces[i].x = globalForce[0];
         forces[i].y = globalForce[1];
@@ -132,7 +114,7 @@ namespace ppb {
         const float tt2m = deltaT * deltaT / (2.0f * mass);
         const float3 forcePart = {force.x * tt2m, force.y * tt2m, force.z * tt2m};
         const float3 displacement = {velocityPart.x + forcePart.x, velocityPart.y + forcePart.y, velocityPart.z + forcePart.z};
-        positions[i] = {positions[i].x + displacement.x, positions[i].y + displacement.y, positions[i].z + displacement.z};
+        positions[i] = {positions[i].x + displacement.x, positions[i].y + displacement.y, positions[i].z + displacement.z, 0.f};
         
 
         int idx = get_cell_idx(i, positions);
@@ -143,9 +125,9 @@ namespace ppb {
 
 
     __global__ void update_velocities(
-        float3* velocities, 
-        const float3* forces, 
-        const float3* oldForces
+        float4* velocities, 
+        const float4* forces, 
+        const float4* oldForces
     ) {
         const unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
         if (i >= numParticles) {
@@ -153,20 +135,20 @@ namespace ppb {
         }
 
         constexpr float mass = 1.0;
-        const float3 force = forces[i];
-        const float3 oldForce = oldForces[i];
-        const float3 velocity = velocities[i];
+        const float4 force = forces[i];
+        const float4 oldForce = oldForces[i];
+        const float4 velocity = velocities[i];
 
         const float3 forcePart = {force.x + oldForce.x, force.y + oldForce.y, force.z + oldForce.z};
         const float t2m =  deltaT / (2.0f * mass);
         const float3 velChange = {forcePart.x * t2m, forcePart.y * t2m, forcePart.z * t2m};
-        velocities[i] = {velocity.x + velChange.x, velocity.y + velChange.y, velocity.z + velChange.z};
+        velocities[i] = {velocity.x + velChange.x, velocity.y + velChange.y, velocity.z + velChange.z, 0.f};
     }
 
     
     __global__ void compute_forces(
-        const float3* __restrict__ positions,
-        float3* __restrict__ forces,
+        const float4* __restrict__ positions,
+        float4* __restrict__ forces,
         const int* __restrict__ cells,
         const int* __restrict__ starts 
     ) {
@@ -175,7 +157,7 @@ namespace ppb {
             return;
         }
 
-        float3 fi = make_float3(0.f, 0.f, 0.f);
+        float4 fi = make_float4(0.f, 0.f, 0.f, 0.f);
         size_t idx = get_cell_idx(i, positions);
 #pragma unroll 27
         for (size_t offset = 0; offset < 27; offset++) {
@@ -187,7 +169,7 @@ namespace ppb {
                 size_t j = cells[k];
                 if (i >= j) continue; //N3L via natural ordering of indicies
 
-                const float3 dr = make_float3_sub(positions[i], positions[j]);
+                const float4 dr = make_float4_sub(positions[i], positions[j]);
                 const float dr2 = dot3(dr, dr);
                 if (std::sqrt(dr2) >= cutoff_radius) continue; // = here too because less atomics in domain coloring
 
@@ -202,8 +184,8 @@ namespace ppb {
                 const float lj12m6 = lj12 - lj6;
                 const float fac = epsilon24 * (lj12 + lj12m6) * invdr2;
                 
-                const float3 f = make_float3_scale(dr, fac);
-                fi = make_float3_add(fi, f); 
+                const float4 f = make_float4_scale(dr, fac);
+                fi = make_float4_add(fi, f); 
                 atomicAdd(&forces[j].x, f.x * -1.0f);
                 atomicAdd(&forces[j].y, f.y * -1.0f);
                 atomicAdd(&forces[j].z, f.z * -1.0f);
@@ -219,8 +201,8 @@ namespace ppb {
 
     __global__ void compute_forces_colored(
         int color,
-        const float3* __restrict__ positions,
-        float3* __restrict__ forces,
+        const float4* __restrict__ positions,
+        float4* __restrict__ forces,
         int* cells,
         int* starts
     ) {
@@ -246,7 +228,7 @@ namespace ppb {
 
         // Iterations: for each particle in base cell iterate through all the particles of the 8 cell region
         for (int q = startBaseCell; q < endBaseCell; q++) {
-            float3 fi = make_float3(0.f, 0.f, 0.f);
+            float4 fi = make_float4(0.f, 0.f, 0.f, 0.f);
             int i = cells[q];
             for (int o = 0; o < 8; o++) {
                 int offset = offsets[offsets_colored[o]];
@@ -259,7 +241,7 @@ namespace ppb {
 
                     //N3L via natural ordering of indicies (only necessary in same cell)
                     if (offset == 0 && i >= j) continue;
-                    const float3 dr = make_float3_sub(positions[i], positions[j]);
+                    const float4 dr = make_float4_sub(positions[i], positions[j]);
                     const float dr2 = dot3(dr, dr); 
 
                     // = here too because this way we never get into a race condition with another cell of the same color
@@ -276,17 +258,160 @@ namespace ppb {
                     const float lj12m6 = lj12 - lj6;
                     const float fac = epsilon24 * (lj12 + lj12m6) * invdr2;
                 
-                    const float3 f = make_float3_scale(dr, fac);
-                    fi = make_float3_add(fi, f); 
-                    forces[j] = make_float3_sub(forces[j], f);
+                    const float4 f = make_float4_scale(dr, fac);
+                    fi = make_float4_add(fi, f); 
+                    forces[j] = make_float4_sub(forces[j], f);
                 }
                 idx -= offset;
             }
-            forces[i] = make_float3_add(forces[i], fi);
+            forces[i] = make_float4_add(forces[i], fi);
         }
     }
 
-    __global__ void compute_forces_colored_optimized(
+
+    /**
+    * @param 'base_idx' is the starting index inside of 'cells'
+    * @param 'offset' is the offset which we have to the base_idx
+    * @param 'base_cell_idx' is the index of the base cell
+    */
+    __device__ inline size_t get_next_element_neighborhood(size_t base_idx, size_t offset, size_t base_cell_idx, const int* starts, const int* cells) {
+        size_t result = base_idx;
+        for (size_t i = 0; i < 27; i++) {
+            int offset_cell = offsets[i];
+            if (!is_in_bounds(base_cell_idx, offset_cell)) continue;
+            base_cell_idx += offset_cell;
+            int start_cell = starts[base_cell_idx];
+            int end_cell = starts[base_cell_idx + 1];
+            
+            if (result + (end_cell - start_cell) < base_idx + offset) {
+                result += (end_cell - start_cell);
+                base_cell_idx -= offset_cell;
+                continue;
+            } else {
+                result += (offset - result);
+                return result;
+            }
+        }
+        return SIZE_MAX; //return this if offset starting at base_idx is no longer part of the neighborhood
+    }
+
+    __device__ inline size_t get_num_neighbors(size_t base_cell_idx, const int* starts) {
+        size_t num_neighbors = 0;
+        for (size_t i = 0; i < 27; i++) {
+            int offset_cell = offsets[i];
+            if (!is_in_bounds(base_cell_idx, offset_cell)) continue;
+            base_cell_idx += offset_cell;
+            num_neighbors += starts[base_cell_idx + 1] - starts[base_cell_idx];
+            base_cell_idx -= offset_cell;
+        }
+        return num_neighbors;
+    }
+
+    __global__ void compute_forces_optimized(
+        const float4* __restrict__ positions,
+        float4* __restrict__ forces,
+        const float4* __restrict__ cells_positions,
+        const int* __restrict__ starts,
+        const int* __restrict__ cells,
+        const size_t shmem_size //size of shared memory in float3
+    ) {
+        const unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if (i >= numParticles) {
+            return;
+        }
+
+        extern __shared__ float3 shared_neighbors[];
+        
+        float4 pi = cells_positions[i];
+        float4 fi = make_float4(0.f, 0.f, 0.f, 0.f);
+        size_t idx = get_cell_idx(i, cells_positions);
+        size_t shmem_tile_id = 0;
+        
+        //determine #cells in tile (= threadblock)
+        if (i == 0 || get_cell_idx(i - 1, cells_positions) != idx) {
+            shmem_tile_id = (size_t)atomicAdd(&shared_neighbors[0].x, 1.f);
+        }
+        __syncthreads();
+        size_t num_cells_in_tile = (size_t)(shared_neighbors[0].x);
+        if (num_cells_in_tile > shmem_size) {
+            printf("ERROR!\n");
+            return;
+        } //exit program if num_cells_in_tile > shmem_size. GONNA MAKE THIS NICER IN THE FUTURE!!!
+        //printf("Thread %u: num_cells_in_tile: %lu\n", i, num_cells_in_tile);
+        
+        //determine #neighbors the thread has to iterate over
+        size_t num_neighbors = get_num_neighbors(idx, starts);
+
+        //determine start + size of shmem region for each cell
+        size_t size_shmem_tile = shmem_size / num_cells_in_tile; //for now idc about the remainder. That part is just gonna be unused. Will (probably) optimize this later.
+        if (i == 0 || get_cell_idx(i - 1, cells_positions) != idx) {
+            shared_neighbors[shmem_tile_id].x = (float)idx;
+        }
+        __syncthreads();
+        for (size_t t = 0; t < num_cells_in_tile; t++) {
+            if (shared_neighbors[t].x == (float)idx) shmem_tile_id = t;
+        }
+        size_t start_shmem_tile = shmem_tile_id * size_shmem_tile; 
+        //printf("Thread %u: start_shmem_tile: %lu\n", i, start_shmem_tile);
+
+        for (size_t k = 0; k < num_neighbors; k += size_shmem_tile) {
+            //load shmem region, for now only one thread per cell (in this case the first thread of the cell does all the copy work)
+            if (i == 0 || get_cell_idx(i - 1, cells_positions) != idx) {
+                size_t start_cell = starts[idx];
+                for (size_t j = 0; j < size_shmem_tile; j++) {
+                    size_t cell_idx = get_next_element_neighborhood(start_cell, k + j, idx, starts, cells);
+                    if (cell_idx == SIZE_MAX) break;
+                    float4 loaded_position = cells_positions[cell_idx];
+                    shared_neighbors[start_shmem_tile + j].x = loaded_position.x;
+                    shared_neighbors[start_shmem_tile + j].y = loaded_position.y;
+                    shared_neighbors[start_shmem_tile + j].z = loaded_position.z;
+                }
+            }
+            __syncthreads(); 
+
+/*         if (i == 0) {
+            printf("shmem:\n");
+            for (size_t j = 0; j < shmem_size; j++) {
+                float3 pj = shared_neighbors[j];
+                printf("x: %f, y: %f, z: %f\n", pj.x, pj.y, pj.z);
+            }
+        } */
+
+            //force computation (NO N3L!! -> no shared memory bank conflicts (and no headache))
+            size_t end_shmem_tile = k / size_shmem_tile == num_neighbors / size_shmem_tile
+                ? start_shmem_tile + (num_neighbors - ((num_neighbors / size_shmem_tile) * size_shmem_tile))
+                : start_shmem_tile + size_shmem_tile;
+           // printf("Thread %u: end_shmem_tile: %lu\n", i, end_shmem_tile);
+            for (size_t j = start_shmem_tile; j < end_shmem_tile; j++) {
+                float4 pj = {shared_neighbors[j].x, shared_neighbors[j].y, shared_neighbors[j].z, 0.f};
+                if (pi.x == pj.x && pi.y == pj.y && pi.z == pj.z) continue; //technically a bit meh cause two different particles could be on exactly the same position but whatever
+
+                const float4 dr = make_float4_sub(pi, pj);
+                const float dr2 = dot3(dr, dr);
+                if (std::sqrt(dr2) >= cutoff_radius) continue;
+
+                //printf("Thread %u: pi: (x: %f, y: %f, z: %f) <-> pj: %lu (x: %f, y: %f, z: %f)\n", i, pi.x, pi.y, pi.z, j, pj.x, pj.y, pj.z);
+                const float sigma = 1.0f;
+                const float sigmaSquared = sigma * sigma;
+                const float epsilon24 = 24.0f; // 1.0 * 24.0
+
+                const float invdr2 = 1.0f / dr2;
+                float lj6 = sigmaSquared * invdr2;
+                lj6 = lj6 * lj6 * lj6;
+                const float lj12 = lj6 * lj6;
+                const float lj12m6 = lj12 - lj6;
+                const float fac = epsilon24 * (lj12 + lj12m6) * invdr2;
+                
+                const float4 f = make_float4_scale(dr, fac);
+                fi = make_float4_add(fi, f); 
+            }
+            forces[cells[i]] = make_float4_add(forces[cells[i]], fi);
+            __syncthreads();
+        }
+
+    }
+    //------------------------------------------- WORK IN PROGRESS (probably deprecated) ---------------------------------------------------
+    /* __global__ void compute_forces_colored_optimized(
         int color,
         const float3* __restrict__ positions,
         float3* __restrict__ forces,
@@ -321,7 +446,7 @@ namespace ppb {
             if (!is_in_bounds(idx, offset)) continue;
             idx += offset;
             total_num_neighbors += (starts[idx + 1] - starts[idx]);
-        }
+        } */
 
         /**
         Shared memory layout
@@ -338,7 +463,7 @@ namespace ppb {
         Shared memory will contain as many positions and forces of the base cell as possible. If a base cell cannot
         be loaded completely the rest of it will always be loaded from global memory.
         */
-        extern __shared__ float3 c08_block[];
+        /* extern __shared__ float3 c08_block[];
 
         // Load shared memory. For now a single thread loads all the data. Obviously this can be optimized more.
         size_t shmem_idx = 0;
@@ -476,9 +601,8 @@ namespace ppb {
                 } 
             } 
         }
-    }
+    } */
 
-    //------------------------------------------- WORK IN PROGRESS ---------------------------------------------------
    /*  __device__ load_shmem_parallel() {
         
         // Load neighborhood into shared memory

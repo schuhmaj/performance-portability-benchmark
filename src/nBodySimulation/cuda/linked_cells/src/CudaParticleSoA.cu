@@ -18,15 +18,15 @@ namespace ppb {
             forcesHost[i] = {particles[i].getForce()[0], particles[i].getForce()[1], particles[i].getForce()[2]};
         }
 
-        CHECK_CUDA_ERROR(cudaMalloc(&positions, sizeof(float3) * size));
-        CHECK_CUDA_ERROR(cudaMalloc(&velocities, sizeof(float3) * size));
-        CHECK_CUDA_ERROR(cudaMalloc(&forces, sizeof(float3) * size));
-        CHECK_CUDA_ERROR(cudaMalloc(&oldForces, sizeof(float3) * size));
+        CHECK_CUDA_ERROR(cudaMalloc(&positions, sizeof(float4) * size));
+        CHECK_CUDA_ERROR(cudaMalloc(&velocities, sizeof(float4) * size));
+        CHECK_CUDA_ERROR(cudaMalloc(&forces, sizeof(float4) * size));
+        CHECK_CUDA_ERROR(cudaMalloc(&oldForces, sizeof(float4) * size));
 
-        CHECK_CUDA_ERROR(cudaMemcpy(positions, positionsHost.data(), sizeof(float3) * size, cudaMemcpyHostToDevice));
-        CHECK_CUDA_ERROR(cudaMemcpy(velocities, velocitiesHost.data(), sizeof(float3) * size, cudaMemcpyHostToDevice));
-        CHECK_CUDA_ERROR(cudaMemcpy(forces, forcesHost.data(), sizeof(float3) * size, cudaMemcpyHostToDevice));
-        CHECK_CUDA_ERROR(cudaMemset(oldForces, 0.0, sizeof(float3) * size));
+        CHECK_CUDA_ERROR(cudaMemcpy(positions, positionsHost.data(), sizeof(float4) * size, cudaMemcpyHostToDevice));
+        CHECK_CUDA_ERROR(cudaMemcpy(velocities, velocitiesHost.data(), sizeof(float4) * size, cudaMemcpyHostToDevice));
+        CHECK_CUDA_ERROR(cudaMemcpy(forces, forcesHost.data(), sizeof(float4) * size, cudaMemcpyHostToDevice));
+        CHECK_CUDA_ERROR(cudaMemset(oldForces, 0.0, sizeof(float4) * size));
     }
 
     template <typename FloatType>
@@ -40,13 +40,13 @@ namespace ppb {
     template <typename FloatType>
     std::vector<Particle<FloatType>> CudaParticleSoA<FloatType>::toParticles() {
         std::vector<Particle<FloatType>> particles{_ref};
-        CHECK_CUDA_ERROR(cudaMemcpy(positionsHost.data(), positions, sizeof(float3) * _ref.size(), cudaMemcpyDeviceToHost));
-        CHECK_CUDA_ERROR(cudaMemcpy(velocitiesHost.data(), velocities, sizeof(float3) * _ref.size(), cudaMemcpyDeviceToHost));
-        CHECK_CUDA_ERROR(cudaMemcpy(forcesHost.data(), forces, sizeof(float3) * _ref.size(), cudaMemcpyDeviceToHost));
+        CHECK_CUDA_ERROR(cudaMemcpy(positionsHost.data(), positions, sizeof(float4) * _ref.size(), cudaMemcpyDeviceToHost));
+        CHECK_CUDA_ERROR(cudaMemcpy(velocitiesHost.data(), velocities, sizeof(float4) * _ref.size(), cudaMemcpyDeviceToHost));
+        CHECK_CUDA_ERROR(cudaMemcpy(forcesHost.data(), forces, sizeof(float4) * _ref.size(), cudaMemcpyDeviceToHost));
         for (size_t i = 0; i < particles.size(); ++i) {
-            const float3& position = positionsHost[i];
-            const float3& velocity = velocitiesHost[i];
-            const float3& force = forcesHost[i];
+            const float4& position = positionsHost[i];
+            const float4& velocity = velocitiesHost[i];
+            const float4& force = forcesHost[i];
             particles[i].setPosition({position.x, position.y, position.z});
             particles[i].setVelocity({velocity.x, velocity.y, velocity.z});
             particles[i].setForce({force.x, force.y, force.z});
