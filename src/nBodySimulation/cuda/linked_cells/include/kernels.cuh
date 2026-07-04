@@ -276,6 +276,7 @@ namespace ppb {
     */
     __device__ inline size_t get_next_element_neighborhood(size_t base_idx, size_t offset, size_t base_cell_idx, const int* starts, const int* cells) {
         size_t result = base_idx;
+#pragma unroll 27
         for (size_t i = 0; i < 27; i++) {
             int offset_cell = offsets[i];
             if (!is_in_bounds(base_cell_idx, offset_cell)) continue;

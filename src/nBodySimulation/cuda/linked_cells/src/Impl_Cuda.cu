@@ -80,7 +80,7 @@ namespace ppb {
         _gridSizeForces = util::ceilDiv<unsigned int>(number_of_cells_with_same_color, _blockSizeColored);
 #elif PPB_ENABLE_CUDA_LINKED_CELL_OPTIMIZATION 
 /*         CHECK_CUDA_ERROR(cudaOccupancyMaxPotentialBlockSize(&minGridSize, &_blockSizeForces, reinterpret_cast<void *>(compute_forces_optimized), 0, 96 * 1024)); */
-        _blockSizeForces = 8 * WARP_SIZE;
+        _blockSizeForces = 16 * WARP_SIZE;
         _gridSizeForces = util::ceilDiv<unsigned int>(size, _blockSizeForces); 
 #else 
         _gridSizeForces = _gridSize;
