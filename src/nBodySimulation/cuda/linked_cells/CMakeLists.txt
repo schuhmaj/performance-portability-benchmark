@@ -1,6 +1,9 @@
 if (${PPB_ENABLE_DOMAIN_COLORING}) 
     add_compile_definitions(PPB_ENABLE_DOMAIN_COLORING)
 endif ()
+if (${PPB_ENABLE_CUDA_LINKED_CELL_OPTIMIZATION}) 
+    add_compile_definitions(PPB_ENABLE_CUDA_LINKED_CELL_OPTIMIZATION)
+endif ()
 
 
 include_directories(include)

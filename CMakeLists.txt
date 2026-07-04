@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.22)
 project(performance_portability_benchmark VERSION 1.0 LANGUAGES CXX)
 
 include(CheckLanguage)
+include(CMakeDependentOption)
 
 check_language(CUDA)
 if (CMAKE_CUDA_COMPILER)
@@ -61,7 +62,7 @@ option(PPB_ENABLE_Vulkan "Enable Vulkan Kompute Target" OFF)
 option(PPB_ENABLE_OpenCL "Enable OpenCL Targets" OFF)
 option(PPB_ENABLE_Boost "Enable Boost::Compute Target (requires OpenCL)" OFF)
 option(PPB_ENABLE_Kokkos "Enable Kokkos Target" OFF)
-option(PPB_ENABLE_Cuda "Enable Cuda and Thrust Targets" ON)
+option(PPB_ENABLE_Cuda "Enable Cuda and Thrust Targets" OFF)
 option(PPB_ENABLE_Metal "Enable MetalCpp (Only on macOS!)" OFF)
 option(PPB_ENABLE_Alpaka "Enable Alpaka" OFF)
 
@@ -70,11 +71,26 @@ option(PPB_ENABLE_MatrixMultiplication "Enable MatrixMultiplication Benchmarks" 
 option(PPB_ENABLE_NBodySimulation "Enable NBodySimulation Benchmarks" OFF)
 option(PPB_ENABLE_Testing "Enable Testing" OFF)
 
-option(PPB_ENABLE_Cuda_DirectSum "Enables the Cuda direct sum implementation" ON)
-option(PPB_ENABLE_Cuda_LinkedCells "Enables the Cuda linked cells implementation" ON)
-option(PPB_ENABLE_Cuda_VerletLists "Enables the Cuda verlet lists implementation" OFF)
-
-option(PPB_ENABLE_DOMAIN_COLORING "Enables the domain coloring optimization for nBodySimulation/cuda/linked_cells" OFF)
+cmake_dependent_option(
+    PPB_ENABLE_Cuda_DirectSum "Enables the Cuda direct sum implementation" ON 
+    "PPB_ENABLE_Cuda" OFF
+)
+cmake_dependent_option(
+    PPB_ENABLE_Cuda_LinkedCells "Enables the Cuda linked cells implementation" ON 
+    "PPB_ENABLE_Cuda" OFF
+)
+cmake_dependent_option(
+    PPB_ENABLE_Cuda_VerletLists "Enables the Cuda verlet lists implementation" ON 
+    "PPB_ENABLE_Cuda" OFF
+)
+cmake_dependent_option(
+    PPB_ENABLE_DOMAIN_COLORING "Enables the domain coloring optimization for linked cells" OFF
+    "PPB_ENABLE_Cuda_LinkedCells" OFF
+)
+cmake_dependent_option(
+    PPB_ENABLE_CUDA_LINKED_CELL_OPTIMIZATION "Enables the force computation optimization for linked cells" OFF 
+    "PPB_ENABLE_Cuda_LinkedCells" OFF
+)
 
 message(STATUS "####################################################")
 message(STATUS "Build Type                      ${CMAKE_BUILD_TYPE}")
@@ -102,6 +118,7 @@ message(STATUS "Cuda_LinkedCells                ${PPB_ENABLE_Cuda_LinkedCells}")
 message(STATUS "Cuda_VerletLists                ${PPB_ENABLE_Cuda_VerletLists}")
 message(STATUS "####################################################")
 message(STATUS "DOMAIN_COLORING                 ${PPB_ENABLE_DOMAIN_COLORING}")
+message(STATUS "LINKED_CELL_OPTIMIZATION        ${PPB_ENABLE_CUDA_LINKED_CELL_OPTIMIZATION}")
 message(STATUS "####################################################")
 
 #######################################################

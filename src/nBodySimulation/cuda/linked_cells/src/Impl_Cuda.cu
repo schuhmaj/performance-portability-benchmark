@@ -65,7 +65,7 @@ namespace ppb {
         constexpr unsigned int WARP_SIZE = 32;
         constexpr unsigned int MAX_THREADS = 1024;
         int minGridSize = 0;
-        CHECK_CUDA_ERROR(cudaOccupancyMaxPotentialBlockSize(&minGridSize, &_blockSize, reinterpret_cast<void *>(update_positions<FloatType>), 0, size));
+        CHECK_CUDA_ERROR(cudaOccupancyMaxPotentialBlockSize(&minGridSize, &_blockSize, reinterpret_cast<void *>(update_positions<FloatType>), 0, 0));
         _gridSize = util::ceilDiv<unsigned int>(size, _blockSize); 
 
 #ifdef PPB_ENABLE_DOMAIN_COLORING
@@ -73,16 +73,23 @@ namespace ppb {
         CHECK_CUDA_ERROR(cudaMemcpyToSymbol(offsets_colored, offsets_colored_h, sizeof(offsets_colored_h))); 
         size_t number_of_cells_with_same_color = util::ceilDiv<size_t>(x_dim_h * y_dim_h * z_dim_h, 8);
         if (number_of_cells_with_same_color <= MAX_THREADS) {
-            _blockSizeColored = number_of_cells_with_same_color;
+            _blockSizeForces = number_of_cells_with_same_color;
         } else {
-            CHECK_CUDA_ERROR(cudaOccupancyMaxPotentialBlockSize(&_gridSizeColored, &_blockSizeColored, reinterpret_cast<void *>(compute_forces_colored), 0, 0));
+            CHECK_CUDA_ERROR(cudaOccupancyMaxPotentialBlockSize(&minGridSize, &_blockSizeForces, reinterpret_cast<void *>(compute_forces_colored), 0, 0));
         }
-        _gridSizeColored = util::ceilDiv<unsigned int>(number_of_cells_with_same_color, _blockSizeColored);
-        std::cout
-        <<"gridSizeColored: "<<_gridSizeColored
-        <<"blockSizeColored: "<<_blockSizeColored
-        <<std::endl;
+        _gridSizeForces = util::ceilDiv<unsigned int>(number_of_cells_with_same_color, _blockSizeColored);
+#elif PPB_ENABLE_CUDA_LINKED_CELL_OPTIMIZATION 
+/*         CHECK_CUDA_ERROR(cudaOccupancyMaxPotentialBlockSize(&minGridSize, &_blockSizeForces, reinterpret_cast<void *>(compute_forces_optimized), 0, 96 * 1024)); */
+        _blockSizeForces = 8 * WARP_SIZE;
+        _gridSizeForces = util::ceilDiv<unsigned int>(size, _blockSizeForces); 
+#else 
+        _gridSizeForces = _gridSize;
+        _blockSizeForces = _blockSize;
 #endif
+        std::cout
+        <<"gridSizeForces: "<<_gridSizeForces
+        <<"blockSizeForces: "<<_blockSizeForces
+        <<std::endl;
         
         //---------------------------------Allocate device memory------------------------------------------
         const size_t num_cells = x_dim_h * y_dim_h * z_dim_h;        
@@ -145,18 +152,19 @@ namespace ppb {
         CHECK_CUDA_ERROR(cudaEventRecord(start));
 #ifdef PPB_ENABLE_DOMAIN_COLORING
         for (size_t color = 0; color < 8; color++) 
-            compute_forces_colored<<<_gridSizeColored, _blockSizeColored>>>(color, position, force, cells, starts); 
-#else
+            compute_forces_colored<<<_gridSizeForces, _blockSizeForces>>>(color, position, force, cells, starts); 
+#elif PPB_ENABLE_CUDA_LINKED_CELL_OPTIMIZATION
         // for now we'll just use the max available shared memory of 48KiB (idc about optimizing this rn this is already giving me a headache)
-        size_t shmem_size = 48 * 1024;
-        //std::cout<<"gridSize: "<<_gridSize<<" blockSize: "<<_blockSize<<std::endl;
-        compute_forces_optimized<<<_gridSize, _blockSize, shmem_size>>>(position, force, cells_positions, starts, cells, shmem_size / sizeof(float3));
-/*         compute_forces<<<_gridSize, _blockSize>>>(position, force, cells, starts); */
+        CHECK_CUDA_ERROR(cudaFuncSetAttribute(compute_forces_optimized, cudaFuncAttributeMaxDynamicSharedMemorySize, 96 * 1024));
+        size_t shmem_size = 96 * 1024;
+        compute_forces_optimized<<<_gridSizeForces, _blockSizeForces, shmem_size>>>(position, force, cells_positions, starts, cells, shmem_size / sizeof(float3));
+#else
+        compute_forces<<<_gridSizeForces, _blockSizeForces>>>(position, force, cells, starts);
 #endif
         CHECK_CUDA_ERROR(cudaEventRecord(stop));
         CHECK_CUDA_ERROR(cudaEventSynchronize(stop));
         CHECK_CUDA_ERROR(cudaEventElapsedTime(&elapsedTime, start, stop));
-        _timings.forceUpdateTime += (elapsedTime * 16);
+        _timings.forceUpdateTime += (elapsedTime * 1e6);
     }
 
     template<typename FloatType>

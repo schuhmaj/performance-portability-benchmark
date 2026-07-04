@@ -10,13 +10,11 @@ namespace ppb {
     class ImplCuda {
         int _blockSize;
         int _gridSize;
+        int _blockSizeForces;
+        int _gridSizeForces;
         int x_dim_h;
         int y_dim_h;
         int z_dim_h;
-#ifdef PPB_ENABLE_DOMAIN_COLORING
-        int _gridSizeColored;
-        int _blockSizeColored;
-#endif
 
         /**
          * @brief 'starts' looks like this:

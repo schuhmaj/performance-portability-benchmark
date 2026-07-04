@@ -326,18 +326,22 @@ namespace ppb {
         float4 fi = make_float4(0.f, 0.f, 0.f, 0.f);
         size_t idx = get_cell_idx(i, cells_positions);
         size_t shmem_tile_id = 0;
-        
+
         //determine #cells in tile (= threadblock)
+        if (i == 0 || get_cell_idx(i - 1, cells_positions) != idx) {
+            shared_neighbors[0].x = 0.f;
+        }
+        __syncthreads();
         if (i == 0 || get_cell_idx(i - 1, cells_positions) != idx) {
             shmem_tile_id = (size_t)atomicAdd(&shared_neighbors[0].x, 1.f);
         }
         __syncthreads();
         size_t num_cells_in_tile = (size_t)(shared_neighbors[0].x);
         if (num_cells_in_tile > shmem_size) {
+            printf("Thread %u: num_cells_in_tile: %lu\n", i, num_cells_in_tile);
             printf("ERROR!\n");
             return;
-        } //exit program if num_cells_in_tile > shmem_size. GONNA MAKE THIS NICER IN THE FUTURE!!!
-        //printf("Thread %u: num_cells_in_tile: %lu\n", i, num_cells_in_tile);
+        } //exit program if num_cells_in_tile > shmem_size. (might make this nicer in the future but probably not. Just tweak the tile size if need be.)
         
         //determine #neighbors the thread has to iterate over
         size_t num_neighbors = get_num_neighbors(idx, starts);
