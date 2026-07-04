@@ -77,10 +77,9 @@ namespace ppb {
         } else {
             CHECK_CUDA_ERROR(cudaOccupancyMaxPotentialBlockSize(&minGridSize, &_blockSizeForces, reinterpret_cast<void *>(compute_forces_colored), 0, 0));
         }
-        _gridSizeForces = util::ceilDiv<unsigned int>(number_of_cells_with_same_color, _blockSizeColored);
+        _gridSizeForces = util::ceilDiv<unsigned int>(number_of_cells_with_same_color, _blockSizeForces);
 #elif PPB_ENABLE_CUDA_LINKED_CELL_OPTIMIZATION 
-/*         CHECK_CUDA_ERROR(cudaOccupancyMaxPotentialBlockSize(&minGridSize, &_blockSizeForces, reinterpret_cast<void *>(compute_forces_optimized), 0, 96 * 1024)); */
-        _blockSizeForces = 16 * WARP_SIZE;
+        _blockSizeForces = 32 * WARP_SIZE;
         _gridSizeForces = util::ceilDiv<unsigned int>(size, _blockSizeForces); 
 #else 
         _gridSizeForces = _gridSize;
