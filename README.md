@@ -67,6 +67,7 @@ to explicit enable one technology:
 | PPB_LOGGING_LEVEL                | Logging Level                                   | N/A                    |
 | PPB_ENABLE_OnlyKernelRuntime     | Only Kernel Runtime (otherwise Wall Clock Time) | N/A                    |
 | PPB_ENABLE_Kokkos                | Kokkos                                          | LLVM, NVHPC            |
+| PPB_ENABLE_Raja                  | RAJA                                            | LLVM, NVHPC            |
 | PPB_ENABLE_AdaptiveCpp           | AdaptiveCpp (needs Boost)                       | LLVM, NVHPC            |
 | PPB_ENABLE_Vulkan                | Vulkan-Kompute                                  | LLVM + Vulkan          |
 | PPB_ENABLE_OpenACC               | OpenACC                                         | NVHPC or LLLVM (clacc) |

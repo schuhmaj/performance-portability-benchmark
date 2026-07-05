@@ -51,6 +51,7 @@
         "PPB_ENABLE_OpenCL": "ON",
         "PPB_ENABLE_Boost": "ON",
         "PPB_ENABLE_Kokkos": "ON",
+        "PPB_ENABLE_Raja": "ON",
         "PPB_ENABLE_Alpaka": "ON",
         "PPB_ENABLE_Metal": "OFF"
       }

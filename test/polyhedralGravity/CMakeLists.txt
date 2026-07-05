@@ -55,6 +55,10 @@ if (${PPB_ENABLE_Kokkos})
     create_polyhedral_test(kokkos)
 endif ()
 
+if (${PPB_ENABLE_Raja})
+    create_polyhedral_test(raja)
+endif ()
+
 if (${PPB_ENABLE_OpenACC})
     create_polyhedral_test(acc)
 endif ()

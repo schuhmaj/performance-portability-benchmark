@@ -12,6 +12,10 @@ if (${PPB_ENABLE_Kokkos})
     add_subdirectory(kokkos)
 endif ()
 
+if (${PPB_ENABLE_Raja})
+    add_subdirectory(raja)
+endif ()
+
 if (${PPB_ENABLE_OpenCL})
     add_subdirectory(opencl)
 endif()
