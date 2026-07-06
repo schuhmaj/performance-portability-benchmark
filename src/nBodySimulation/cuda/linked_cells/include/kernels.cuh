@@ -274,19 +274,18 @@ namespace ppb {
     * @param 'offset' is the offset which we have to the base_idx
     * @param 'base_cell_idx' is the index of the base cell
     */
-    __device__ inline size_t get_next_element_neighborhood(size_t base_idx, size_t offset, size_t base_cell_idx, const int* starts, const int* cells) {
-        size_t result = base_idx;
+    __device__ inline int get_next_element_neighborhood(int base_idx, int offset, int base_cell_idx, const int* starts, const int* cells) {
+        int result = base_idx;
 #pragma unroll 27
-        for (size_t i = 0; i < 27; i++) {
-            int offset_cell = offsets[i];
-            if (!is_in_bounds(base_cell_idx, offset_cell)) continue;
-            base_cell_idx += offset_cell;
+        for (int i = 0; i < 27; i++) {
+            if (!is_in_bounds(base_cell_idx, offsets[i])) continue;
+            base_cell_idx += offsets[i];
             int start_cell = starts[base_cell_idx];
             int end_cell = starts[base_cell_idx + 1];
             
             if (result + (end_cell - start_cell) < base_idx + offset) {
                 result += (end_cell - start_cell);
-                base_cell_idx -= offset_cell;
+                base_cell_idx -= offsets[i];
                 continue;
             } else {
                 result += (offset - result);
@@ -296,14 +295,14 @@ namespace ppb {
         return SIZE_MAX; //return this if offset starting at base_idx is no longer part of the neighborhood
     }
 
-    __device__ inline size_t get_num_neighbors(size_t base_cell_idx, const int* starts) {
-        size_t num_neighbors = 0;
-        for (size_t i = 0; i < 27; i++) {
-            int offset_cell = offsets[i];
-            if (!is_in_bounds(base_cell_idx, offset_cell)) continue;
-            base_cell_idx += offset_cell;
+    __device__ inline int get_num_neighbors(int base_cell_idx, const int* starts) {
+        int num_neighbors = 0;
+#pragma unroll 27
+        for (int i = 0; i < 27; i++) {
+            if (!is_in_bounds(base_cell_idx, offsets[i])) continue;
+            base_cell_idx += offsets[i];
             num_neighbors += starts[base_cell_idx + 1] - starts[base_cell_idx];
-            base_cell_idx -= offset_cell;
+            base_cell_idx -= offsets[i];
         }
         return num_neighbors;
     }
@@ -314,19 +313,18 @@ namespace ppb {
         const float4* __restrict__ cells_positions,
         const int* __restrict__ starts,
         const int* __restrict__ cells,
-        const size_t shmem_size //size of shared memory in float3
+        const int& shmem_size //size of shared memory in float3
     ) {
         const unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
         if (i >= numParticles) {
             return;
         }
-
         extern __shared__ float3 shared_neighbors[];
         
         float4 pi = cells_positions[i];
         float4 fi = make_float4(0.f, 0.f, 0.f, 0.f);
-        size_t idx = get_cell_idx(i, cells_positions);
-        size_t shmem_tile_id = 0;
+        int idx = get_cell_idx(i, cells_positions);
+        int shmem_tile_id = 0;
 
         //determine #cells in tile (= threadblock)
         if (i == 0 || get_cell_idx(i - 1, cells_positions) != idx) {
@@ -334,10 +332,10 @@ namespace ppb {
         }
         __syncthreads();
         if (i == 0 || get_cell_idx(i - 1, cells_positions) != idx) {
-            shmem_tile_id = (size_t)atomicAdd(&shared_neighbors[0].x, 1.f);
+            shmem_tile_id = (int)atomicAdd(&shared_neighbors[0].x, 1.f);
         }
         __syncthreads();
-        size_t num_cells_in_tile = (size_t)(shared_neighbors[0].x);
+        int num_cells_in_tile = (int)(shared_neighbors[0].x);
         if (num_cells_in_tile > shmem_size) {
             printf("Thread %u: num_cells_in_tile: %lu\n", i, num_cells_in_tile);
             printf("ERROR!\n");
@@ -345,26 +343,25 @@ namespace ppb {
         } //exit program if num_cells_in_tile > shmem_size. (might make this nicer in the future but probably not. Just tweak the tile size if need be.)
         
         //determine #neighbors the thread has to iterate over
-        size_t num_neighbors = get_num_neighbors(idx, starts);
+        int num_neighbors = get_num_neighbors(idx, starts);
 
         //determine start + size of shmem region for each cell
-        size_t size_shmem_tile = shmem_size / num_cells_in_tile; //for now idc about the remainder. That part is just gonna be unused. Will (probably) optimize this later.
+        int size_shmem_tile = shmem_size / num_cells_in_tile; //for now idc about the remainder. That part is just gonna be unused. Will (probably) optimize this later.
         if (i == 0 || get_cell_idx(i - 1, cells_positions) != idx) {
             shared_neighbors[shmem_tile_id].x = (float)idx;
         }
         __syncthreads();
-        for (size_t t = 0; t < num_cells_in_tile; t++) {
+        for (int t = 0; t < num_cells_in_tile; t++) {
             if (shared_neighbors[t].x == (float)idx) shmem_tile_id = t;
         }
-        size_t start_shmem_tile = shmem_tile_id * size_shmem_tile; 
+        int start_shmem_tile = shmem_tile_id * size_shmem_tile; 
         //printf("Thread %u: start_shmem_tile: %lu\n", i, start_shmem_tile);
 
-        for (size_t k = 0; k < num_neighbors; k += size_shmem_tile) {
+        for (int k = 0; k < num_neighbors; k += size_shmem_tile) {
             //load shmem region, for now only one thread per cell (in this case the first thread of the cell does all the copy work)
             if (i == 0 || get_cell_idx(i - 1, cells_positions) != idx) {
-                size_t start_cell = starts[idx];
-                for (size_t j = 0; j < size_shmem_tile; j++) {
-                    size_t cell_idx = get_next_element_neighborhood(start_cell, k + j, idx, starts, cells);
+                for (int j = 0; j < size_shmem_tile; j++) {
+                    int cell_idx = get_next_element_neighborhood(starts[idx], k + j, idx, starts, cells);
                     if (cell_idx == SIZE_MAX) break;
                     float4 loaded_position = cells_positions[cell_idx];
                     shared_neighbors[start_shmem_tile + j].x = loaded_position.x;
@@ -383,11 +380,11 @@ namespace ppb {
         } */
 
             //force computation (NO N3L!! -> no shared memory bank conflicts (and no headache))
-            size_t end_shmem_tile = k / size_shmem_tile == num_neighbors / size_shmem_tile
+            int end_shmem_tile = k / size_shmem_tile == num_neighbors / size_shmem_tile
                 ? start_shmem_tile + (num_neighbors - ((num_neighbors / size_shmem_tile) * size_shmem_tile))
                 : start_shmem_tile + size_shmem_tile;
            // printf("Thread %u: end_shmem_tile: %lu\n", i, end_shmem_tile);
-            for (size_t j = start_shmem_tile; j < end_shmem_tile; j++) {
+            for (int j = start_shmem_tile; j < end_shmem_tile; j++) {
                 float4 pj = {shared_neighbors[j].x, shared_neighbors[j].y, shared_neighbors[j].z, 0.f};
                 if (pi.x == pj.x && pi.y == pj.y && pi.z == pj.z) continue; //technically a bit meh cause two different particles could be on exactly the same position but whatever
 
