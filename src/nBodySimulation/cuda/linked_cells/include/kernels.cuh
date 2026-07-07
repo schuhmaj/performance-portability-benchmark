@@ -338,7 +338,6 @@ namespace ppb {
         __syncthreads();
         int num_cells_in_tile = (int)(shared_neighbors[0].x);
         if (num_cells_in_tile > shmem_size) {
-            printf("Thread %u: num_cells_in_tile: %lu\n", i, num_cells_in_tile);
             printf("ERROR!\n");
             return;
         } //exit program if num_cells_in_tile > shmem_size. (might make this nicer in the future but probably not. Just tweak the tile size if need be.)
