@@ -79,7 +79,8 @@ namespace ppb {
         }
         _gridSizeForces = util::ceilDiv<unsigned int>(number_of_cells_with_same_color, _blockSizeForces);
 #elif PPB_ENABLE_CUDA_LINKED_CELL_OPTIMIZATION 
-        _blockSizeForces = 12 * WARP_SIZE;
+        //CHECK_CUDA_ERROR(cudaOccupancyMaxPotentialBlockSize(&minGridSize, &_blockSizeForces, reinterpret_cast<void *>(compute_forces_optimized), 0, 0));
+        _blockSizeForces = 32 * WARP_SIZE;
         _gridSizeForces = util::ceilDiv<unsigned int>(size, _blockSizeForces); 
 #else 
         _gridSizeForces = _gridSize;
@@ -154,8 +155,8 @@ namespace ppb {
             compute_forces_colored<<<_gridSizeForces, _blockSizeForces>>>(color, position, force, cells, starts); 
 #elif PPB_ENABLE_CUDA_LINKED_CELL_OPTIMIZATION
         // for now we'll just use the max available shared memory of 48KiB (idc about optimizing this rn this is already giving me a headache)
-        //CHECK_CUDA_ERROR(cudaFuncSetAttribute(compute_forces_optimized, cudaFuncAttributeMaxDynamicSharedMemorySize, 96 * 1024));
-        size_t shmem_size = 48 * 1024;
+        CHECK_CUDA_ERROR(cudaFuncSetAttribute(compute_forces_optimized, cudaFuncAttributeMaxDynamicSharedMemorySize, 96 * 1024));
+        size_t shmem_size = 96 * 1024;
         compute_forces_optimized<<<_gridSizeForces, _blockSizeForces, shmem_size>>>(position, force, cells_positions, starts, cells, shmem_size / sizeof(float3));
 #else
         compute_forces<<<_gridSizeForces, _blockSizeForces>>>(position, force, cells, starts);

@@ -20,14 +20,14 @@ namespace ppb {
         return a.x * b.x + a.y * b.y + a.z * b.z;
     } 
 
-    __device__ inline bool is_in_bounds(size_t idx, size_t offset) {
-        size_t offset_idx = idx + offset;
-        size_t x_idx = idx % x_dim;
-        size_t y_idx = (idx / x_dim) % y_dim;
-        size_t z_idx = (idx / (x_dim * y_dim));
-        size_t x_offset = offset_idx % x_dim;
-        size_t y_offset = (offset_idx / x_dim) % y_dim;
-        size_t z_offset = (offset_idx / (x_dim * y_dim));
+    __device__ inline bool is_in_bounds(int idx, int offset) {
+        int offset_idx = idx + offset;
+        int x_idx = idx % x_dim;
+        int y_idx = (idx / x_dim) % y_dim;
+        int z_idx = (idx / (x_dim * y_dim));
+        int x_offset = offset_idx % x_dim;
+        int y_offset = (offset_idx / x_dim) % y_dim;
+        int z_offset = (offset_idx / (x_dim * y_dim));
 
         if (std::abs((int)(x_idx - x_offset)) > 1) return false;
         else if (std::abs((int)(y_idx - y_offset)) > 1) return false;
@@ -51,6 +51,7 @@ namespace ppb {
         int y_idx = clamp<int>(int(std::ceil((positions[particle_idx].y - boxMin[1]) / cell_size)), 0, y_dim - 1);
         int z_idx = clamp<int>(int(std::ceil((positions[particle_idx].z - boxMin[2]) / cell_size)), 0, z_dim - 1);
         return x_idx + (y_idx * x_dim) + (z_idx * x_dim * y_dim); 
+        return 1;
     }
 
     __global__ void printStartsCells(int* starts, int* cells) {
@@ -276,7 +277,7 @@ namespace ppb {
     */
     __device__ inline int get_next_element_neighborhood(int base_idx, int offset, int base_cell_idx, const int* starts, const int* cells) {
         int result = base_idx;
-#pragma unroll 27
+/* #pragma unroll 27 */ //not unrolled to preserve register space in compute_forces_optimized
         for (int i = 0; i < 27; i++) {
             if (!is_in_bounds(base_cell_idx, offsets[i])) continue;
             base_cell_idx += offsets[i];
