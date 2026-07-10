@@ -231,6 +231,7 @@ namespace ppb {
         for (int q = startBaseCell; q < endBaseCell; q++) {
             float4 fi = make_float4(0.f, 0.f, 0.f, 0.f);
             int i = cells[q];
+#pragma unroll 8
             for (int o = 0; o < 8; o++) {
                 int offset = offsets[offsets_colored[o]];
                 if (!is_in_bounds(idx, offset)) continue;

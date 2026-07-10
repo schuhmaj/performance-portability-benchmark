@@ -74,6 +74,16 @@ protected:
         ppb::Particle<float>({-19.561f, -22.7167f, 0.779729f}, {-29.4066f, -40.756f, 7.57473f}, {1.36785e-08f, 1.4923e-08f, -2.49879e-09f}),
         ppb::Particle<float>({-1.81841f, -1.06152f, -5.45934f}, {0.212958f, 1.75392f, -0.98065f}, {0.0173082f, -0.0628128f, 0.042503f})};
 
+    float get_total_energy(std::vector<ppb::Particle<float>> system) {
+        //assuming all particles have the same mass
+        float result = 0.f;
+        for (auto& p : system) {
+            result += p.getVelocity()[0] * p.getVelocity()[0] 
+                    + p.getVelocity()[1] * p.getVelocity()[1]
+                    + p.getVelocity()[2] * p.getVelocity()[2];
+        }
+        return result / 2;
+    }
 
     template <typename Implementation>
     void runTest(const int size, const double epsilon = EPSILON) {
@@ -81,19 +91,49 @@ protected:
         using namespace ppb;
 
         if (size == 10) {
+            //Positions
             ParticleSimulationConfig<float> config{static_cast<size_t>(size), ITERATIONS, TIME_STEP};
             Implementation nBodySim{config};
             const auto [actualResult, timings] = nBodySim.simulate(start_state);
             ASSERT_THAT(actualResult, ParticlesEq(end_state, epsilon));
+            
+            //Energy conservation
+            auto state = start_state;
+            for (size_t i = 0; i < ITERATIONS; i++) {
+                float total_energy_before = get_total_energy(state);
+                ParticleSimulationConfig<float> config{static_cast<size_t>(size), 1, TIME_STEP};
+                Implementation nBodySim{config};
+                const auto [new_state, timings] = nBodySim.simulate(state);
+                state = new_state;
+                float total_energy_after = get_total_energy(state);
+                printf("BEFORE: %f, AFTER: %f\n", total_energy_before, total_energy_after);
+            }
+
             return;
         }
 
-        ParticleSimulationConfig<float> config{static_cast<size_t>(size), ITERATIONS, 1e-10};
-        NBodySimulation<ImplCpp<float>> cppNBodySim{config};
-        NBodySimulation<Implementation> otherNBodySim{config};
-        const auto [expectedResult, timings1] = cppNBodySim();
-        const auto [actualResult, timings2]  = otherNBodySim();
-
-        ASSERT_THAT(actualResult, ParticlesEq(expectedResult, epsilon));
+        else if (size == 100) {
+            //Positions
+            ParticleSimulationConfig<float> config{static_cast<size_t>(size), ITERATIONS, 1e-10};
+            NBodySimulation<ImplCpp<float>> cppNBodySim{config};
+            NBodySimulation<Implementation> otherNBodySim{config};
+            const auto [expectedResult, timings1] = cppNBodySim();
+            const auto [actualResult, timings2]  = otherNBodySim();
+            ASSERT_THAT(actualResult, ParticlesEq(expectedResult, epsilon));
+            
+/*             //Energy conservation
+            ParticleSimulationConfig<float> config2{static_cast<size_t>(size), 1, TIME_STEP};
+            auto state = Particle<float>::generateUniform(config2.boxMin, config2.boxMax, config2.size, config2.seed)};
+            for (size_t i = 0; i < ITERATIONS; i++) {
+                float total_energy_before = get_total_energy(state);
+                config2{static_cast<size_t>(size), 1, TIME_STEP};
+                Implementation nBodySim{config};
+                const auto [new_state, timings] = nBodySim.simulate(state);
+                state = new_state;
+                float total_energy_after = get_total_energy(state);
+                printf("BEFORE: %f, AFTER: %f\n", total_energy_before, total_energy_after);
+            } */
+            return;
+        }
     }
 };
