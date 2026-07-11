@@ -25,8 +25,8 @@
 namespace ppb {
 
     namespace NBodyBenchmarkConf {
-        constexpr double MIN_SIZE = 1e3;
-        constexpr double MAX_SIZE = 1e6;
+        constexpr double MIN_SIZE = 1e7;
+        constexpr double MAX_SIZE = 1e7;
     }
 
     /**
@@ -44,7 +44,7 @@ namespace ppb {
         /**
          * Simulation end time.
          */
-        int numberTimeSteps{100};
+        int numberTimeSteps{1000};
 
         /**
          * Size of the simulation time step.

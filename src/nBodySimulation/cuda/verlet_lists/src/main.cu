@@ -17,8 +17,8 @@ int main(int argc, char** argv) {
 #else
 BENCHMARK(ppb::NBodySimulation<ppb::ImplCuda<float>>::benchmark)
     ->Name("NBody-Float-Cuda")
-    ->Iterations(1)
-    ->RangeMultiplier(10)
+    ->Iterations(1000)
+    ->RangeMultiplier(5)
     ->Range(ppb::NBodyBenchmarkConf::MIN_SIZE, ppb::NBodyBenchmarkConf::MAX_SIZE)
     ->Complexity();
 

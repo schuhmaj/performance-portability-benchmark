@@ -4,7 +4,8 @@
 
 BENCHMARK(ppb::NBodySimulation<ppb::ImplCuda<float>>::benchmark)
     ->Name("NBody-Float-Cuda")
-    ->RangeMultiplier(10)
+    ->Iterations(1)
+    ->RangeMultiplier(2)
     ->Range(ppb::NBodyBenchmarkConf::MIN_SIZE, ppb::NBodyBenchmarkConf::MAX_SIZE)
     ->Complexity();
 

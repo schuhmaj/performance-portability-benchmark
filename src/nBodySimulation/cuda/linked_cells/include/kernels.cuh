@@ -270,31 +270,35 @@ namespace ppb {
         }
     }
 
-
     /**
-    * @param 'base_idx' is the starting index inside of 'cells'
+    * @param 'current_idx' is the current index inside of 'cells'
     * @param 'offset' is the offset which we have to the base_idx
     * @param 'base_cell_idx' is the index of the base cell
     */
-    __device__ inline int get_next_element_neighborhood(int base_idx, int offset, int base_cell_idx, const int* starts, const int* cells) {
-        int result = base_idx;
-/* #pragma unroll 27 */ //not unrolled to preserve register space in compute_forces_optimized
-        for (int i = 0; i < 27; i++) {
-            if (!is_in_bounds(base_cell_idx, offsets[i])) continue;
-            base_cell_idx += offsets[i];
-            int start_cell = starts[base_cell_idx];
-            int end_cell = starts[base_cell_idx + 1];
-            
-            if (result + (end_cell - start_cell) < base_idx + offset) {
-                result += (end_cell - start_cell);
-                base_cell_idx -= offsets[i];
-                continue;
-            } else {
-                result += (offset - result);
-                return result;
-            }
+    __device__ inline int2 get_next_element_neighborhood(int current_idx, int base_cell_idx, int current_offset, const int* starts) {
+        //if next element still in current cell, return that
+        int end_current_cell = starts[base_cell_idx + offsets[current_offset] + 1];
+        if (current_idx + 1 < end_current_cell) {
+            return make_int2(current_idx + 1, current_offset);
         }
-        return SIZE_MAX; //return this if offset starting at base_idx is no longer part of the neighborhood
+
+        //if next element in different cell, go to next *non-empty* cell
+        current_offset++;
+        for (current_offset; current_offset < 27; current_offset++) {
+            if (!is_in_bounds(base_cell_idx, offsets[current_offset])) continue;
+            base_cell_idx += offsets[current_offset];
+            int start_cell = starts[base_cell_idx];
+            int end_cell = starts[base_cell_idx + 1]; 
+
+            if (end_cell - start_cell == 0) {
+                base_cell_idx -= offsets[current_offset];
+                continue;
+            }
+            else return make_int2(start_cell, current_offset);
+        }
+       
+        //if there there is no next element (i.e. current_idx is the last index of the neighborhood) return this
+        return make_int2(INT_MAX, -1);
     }
 
     __device__ inline int get_num_neighbors(int base_cell_idx, const int* starts) {
@@ -361,10 +365,14 @@ namespace ppb {
         for (int k = 0; k < num_neighbors; k += size_shmem_tile) {
             //load shmem region, for now only one thread per cell (in this case the first thread of the cell does all the copy work)
             if (i == 0 || get_cell_idx(i - 1, cells_positions) != idx) {
-                for (int j = 0; j < size_shmem_tile; j++) {
-                    int cell_idx = get_next_element_neighborhood(starts[idx], k + j, idx, starts, cells);
-                    if (cell_idx == SIZE_MAX) break;
-                    float4 loaded_position = cells_positions[cell_idx];
+                int current_idx = starts[idx];
+                int current_offset = 0;
+                for (int j = 0; j < size_shmem_tile; j++) { 
+                    int2 idx_and_offset = get_next_element_neighborhood(current_idx, idx, current_offset, starts);
+                    current_idx = idx_and_offset.x;
+                    current_offset = idx_and_offset.y;
+                    if (current_offset == -1) break; //we're at the end of the neighborhood. There is nothing left to copy.
+                    float4 loaded_position = cells_positions[current_idx];
                     shared_neighbors[start_shmem_tile + j].x = loaded_position.x;
                     shared_neighbors[start_shmem_tile + j].y = loaded_position.y;
                     shared_neighbors[start_shmem_tile + j].z = loaded_position.z;
