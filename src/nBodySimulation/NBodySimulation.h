@@ -25,7 +25,7 @@
 namespace ppb {
 
     namespace NBodyBenchmarkConf {
-        constexpr double MIN_SIZE = 1e7;
+        constexpr double MIN_SIZE = 1e6;
         constexpr double MAX_SIZE = 1e7;
     }
 

@@ -12,4 +12,8 @@ namespace ppb {
     __constant__ float verlet_skin;
 
     __constant__ float globalForce[3];
+
+    __constant__ float boxMin[3];
+
+    __constant__ float boxMax[3];
 } // namespace ppb

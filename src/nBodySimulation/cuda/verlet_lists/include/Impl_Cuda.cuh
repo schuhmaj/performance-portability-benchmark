@@ -22,12 +22,26 @@ namespace ppb {
          * describes the starting index of the neighbor list of the i-th particle inside 'verletLists'.
          */
         int* starts{nullptr};
+
+#ifdef PPB_ENABLE_VERLET_CLUSTER_LISTS
+        struct BoundingBox {
+            float3 lowerCorner; //corner of bounding box with min x, y, z coordinates
+            float3 upperCorner; //corner of bounding box with max x, y, z coordinates
+        }
+        int M = 8; //M must be a multiple of N
+        int N = 4;
+        int* starts_towers{nullptr}; //indicates where in 'clustersM' each tower starts
+        int* clustersM{nullptr};     //clusters of size M. Contains references to the particles. If the reference is -1, then that particle is a dummy particle.
+        BoundingBox* BBM{nullptr};   //i-th entry is i-th bounding box of i-th cluster in 'clustersM'
+        BoundingBox* BBN{nullptr};   //i-th entry is i-th bounding box of i-th cluster in 'clustersN'
+        int* pair_lists{nullptr};    //boundaries denoted by 'starts'
+#else
         /**
          * @brief 'cells' contains the sorted particle *indicies* to the particles contained in 'particles'.
          * 'starts' marks the start of each cell.
          */
         int* verletLists{nullptr};
-        
+#endif        
         ParticleSimulationConfig<FloatType> _config;
 
         std::optional<CudaParticleSoA<FloatType>> _particles{std::nullopt};

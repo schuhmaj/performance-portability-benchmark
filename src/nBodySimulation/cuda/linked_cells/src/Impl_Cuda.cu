@@ -156,9 +156,9 @@ namespace ppb {
 #elif PPB_ENABLE_CUDA_LINKED_CELL_OPTIMIZATION
         CHECK_CUDA_ERROR(cudaFuncSetAttribute(compute_forces_optimized, cudaFuncAttributeMaxDynamicSharedMemorySize, 96 * 1024));
         size_t shmem_size = 96 * 1024;
-        compute_forces_optimized<<<_gridSizeForces, _blockSizeForces, shmem_size>>>(position, force, cells_positions, starts, cells, shmem_size / sizeof(float3));
+        compute_forces_optimized<<<_gridSizeForces, _blockSizeForces, shmem_size>>>(cells_positions, force, starts, cells, shmem_size / sizeof(float3));
 #else
-        compute_forces<<<_gridSizeForces, _blockSizeForces>>>(position, force, cells, starts);
+        compute_forces<<<_gridSizeForces, _blockSizeForces>>>(cells_positions, force, cells, starts);
 #endif
         CHECK_CUDA_ERROR(cudaEventRecord(stop));
         CHECK_CUDA_ERROR(cudaEventSynchronize(stop));
