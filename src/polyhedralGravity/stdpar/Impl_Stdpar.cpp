@@ -54,10 +54,11 @@ public:
             //region 1-05 Step: Compute Hessian Normal Plane Representation
             HessianPlane hessianPlane{};
             {
-                constexpr Array3 origin{0.0, 0.0, 0.0};
+                // No constexpr Array3 origin{0,0,0} here: nvc++ -stdpar=gpu materializes it as a
+                // `__staticinit` device constant with malformed NVVM IR (NVHPC 26.3); negate directly.
                 const auto crossProduct = cross(face[0] - face[1], face[0] - face[2]);
-                const auto res = crossProduct * (origin - face[0]);
-                const auto d = res[0] + res[1] + res[2];
+                const auto res = crossProduct * face[0];
+                const auto d = -(res[0] + res[1] + res[2]);
 
                 hessianPlane = {crossProduct[0], crossProduct[1], crossProduct[2], d};
             }
@@ -326,7 +327,7 @@ public:
                 if (!anyAtVertex) {
                     //4. Case Otherwise P' is located outside the plane S_p and then the singularity equals zero
                     singularities.a = 0.0;
-                    singularities.b = {0.0, 0.0, 0.0};
+                    singularities.b = Array3{};
                 }
             } while (false);
             //endregion
@@ -342,7 +343,7 @@ public:
             //region 3. Step: Compute Sum 1 used for the gradiometric tensor (second derivative)
             // sum over: n_pq * LN_pq
             // --> Equation 13 the first summation in the brackets
-            Array3 sum1Tensor{0.0, 0.0, 0.0};
+            Array3 sum1Tensor{};
             for (unsigned int index = 0; index < 3; ++index)
                 sum1Tensor = sum1Tensor + segmentNormals[i][index] * transcendentalExpressions[index].ln;
             //endregion
