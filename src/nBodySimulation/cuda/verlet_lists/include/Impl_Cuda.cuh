@@ -28,13 +28,14 @@ namespace ppb {
             float3 lowerCorner; //corner of bounding box with min x, y, z coordinates
             float3 upperCorner; //corner of bounding box with max x, y, z coordinates
         }
+        // FOR NOW THE ONLY SUPPORTED M AND N ARE M = 8 AND N = 4!!! OTHER VALUES WILL LEAD TO UNDEFINED BEHAVIOUR!!!
         int M = 8; //M must be a multiple of N
         int N = 4;
-        int* starts_towers{nullptr}; //indicates where in 'clustersM' each tower starts
-        int* clustersM{nullptr};     //clusters of size M. Contains references to the particles. If the reference is -1, then that particle is a dummy particle.
-        BoundingBox* BBM{nullptr};   //i-th entry is i-th bounding box of i-th cluster in 'clustersM'
-        BoundingBox* BBN{nullptr};   //i-th entry is i-th bounding box of i-th cluster in 'clustersN'
-        int* pair_lists{nullptr};    //boundaries denoted by 'starts'
+        int* starts_towers{nullptr}; //indicates where in 'clusters' each tower starts
+        int* clusters{nullptr};      //towered + binned particles. Contains references to the particles. If the reference is -1, then that particle is a dummy particle.
+        BoundingBox* BBM{nullptr};   //k-th entry is bounding box of k-th i-cluster (which has size M)
+        BoundingBox* BBN{nullptr};   //k-th entry is bounding box of k-th j-cluster (which has size N)
+        int* cluster_pairs{nullptr}; //boundaries denoted by 'starts'
 #else
         /**
          * @brief 'cells' contains the sorted particle *indicies* to the particles contained in 'particles'.
@@ -80,6 +81,15 @@ namespace ppb {
          * accumulating the results in parallel.
          */
         void computeForces();
+
+#ifdef PPB_ENABLE_VERLET_CLUSTER_LISTS
+
+        void makeClusters();
+
+        void boundingBoxes();
+
+        void createPairList();
+#endif
         
         ~ImplCuda();
     };

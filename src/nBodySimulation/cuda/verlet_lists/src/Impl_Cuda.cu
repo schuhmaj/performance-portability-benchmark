@@ -39,8 +39,12 @@ namespace ppb {
         _gridSize = util::ceilDiv<unsigned int>(size, _blockSize);
 
         //---------------------------------Allocate device memory------------------------------------------
+#ifdef PPB_ENABLE_VERLET_CLUSTER_LISTS
+        CHECK_CUDA_ERROR(cudaMalloc(&));
+#else
         CHECK_CUDA_ERROR(cudaMalloc(&starts, sizeof(int) * (size + 1))); // +1 so the last element is the total number of neighbors
         CHECK_CUDA_ERROR(cudaMemset(starts, 0, sizeof(int) * (size + 1)));
+#endif
     }
 
     template<typename FloatType>
@@ -48,6 +52,70 @@ namespace ppb {
         CHECK_CUDA_ERROR(cudaFree(starts));
         CHECK_CUDA_ERROR(cudaFree(verletLists));
     }
+
+#ifdef PPB_ENABLE_VERLET_CLUSTER_LISTS
+    template<typename FloatType>
+    ImplCuda<FloatType>::makeClusters() {
+        // Split up the domain into towers
+        float volume_domain = (boxMax[0] - boxMin[0]) * (boxMax[1] - boxMin[1]) * (boxMax[2] - boxMin[2]);
+        float rho = volume_domain / numParticles;
+        float tower_size = std::pow(max(M, N) / rho, 1.0/3.0);
+       
+        // Determine total number of towers + allocate starts_towers
+        if (starts_towers != nullptr) CHECK_CUDA_ERROR(cudaFree(starts_towers));
+        size_t num_towers_x = util::ceilDiv((boxMax[0] - boxMin[0]), tower_size);
+        size_t num_towers_y = util::ceilDiv((boxMax[0] - boxMin[1]), tower_size);
+        size_t num_towers = num_towers_x * num_towers_y;
+        CHECK_CUDA_ERROR(cudaMalloc(&starts_towers, sizeof(int) * num_towers))
+       
+        // Get total size per tower (including dummy particles)
+        count_elements_in_towers<<<_gridSize, _blockSize>>>(position, starts_towers, tower_size); 
+        add_dummy_particles_to_towers<<<util::ceilDiv(sizeof(starts_towers - 1), 1024), 1024>>>(starts_towers, M);  
+        thrust::inclusive_scan(thrust::device, starts_towers, starts_towers + sizeof(starts_towers), starts_towers);
+
+        // Allocate space for clusters
+        size_t size_clusters = 0;
+        CHECK_CUDA_ERROR(cudaMemcpy(&size_clusters, &starts[size], sizeof(int), cudaMemcpyDeviceToHost)); 
+        if (size_clusters == 0) return;
+        if (clusters != nullptr) CHECK_CUDA_ERROR(cudaFree(clusters));
+        CHECK_CUDA_ERROR(cudaMalloc(&clusters, sizeof(int) * size_clusters));
+       
+        // Insert particles into towers and sort them along z-axis
+        insert_particles_into_towers<<<_gridSize, _blockSize>>>(position, clusters, starts_towers, tower_size);
+        sort_particles_along_z_axis<<<util::ceilDiv(sizeof(starts_towers - 1), 1024), 1024>>>();
+    }
+
+    template<typename FloatType>
+    ImplCuda<FloatType>::boundingBoxes() {
+        // Allocate the bounding box arrays
+        if (BBM != nullptr) CHECK_CUDA_ERROR(cudaFree(BBM));
+        if (BBN != nullptr) CHECK_CUDA_ERROR(cudaFree(BBN));
+        CHECK_CUDA_ERROR(cudaMalloc(&BBM, sizeof(BoundingBox) * (sizeof(clusters) / M)));
+        CHECK_CUDA_ERROR(cudaMalloc(&BBN, sizeof(BoundingBox) * (sizeof(clusters) / N)));
+
+        // Compute the bounding boxes
+        compute_bounding_boxes<<<util::ceilDiv(sizeof(clusters) / M, 1024), 1024>>>(BBM, clusters, M);
+        compute_bounding_boxes<<<util::ceilDiv(sizeof(clusters) / N, 1024), 1024>>>(BBN, clusters, N);
+    }
+
+    template<typename FloatType>
+    ImplCuda<FloatType>::createPairList() {
+        // Allocate 'starts', which will demarkate the borders between two pair lists in 'cluster_pairs'
+        if (starts != nullptr) CHECK_CUDA_ERROR(cudaFree(starts));
+        CHECK_CUDA_ERROR(cudaMalloc(&starts, sizeof(int) * size_clusters));
+       
+        // Allocate 'cluster_pairs' by first getting its size
+        cluster_pair_search<<<util::ceilDiv(sizeof(clusters) / M, 1024), 1024>>>(BBM, BBN, true, nullptr, starts, starts_towers, clusters, position, grid_size);
+        thrust::inclusive_scan(thrust::device, starts, starts + (size_clusters / M + 1), starts);
+        size_t size_cluster_pairs = 0;
+        CHECK_CUDA_ERROR(cudaMemcpy(&size_clusters, &starts[size_clusters / M], sizeof(int), cudaMemcpyDeviceToHost)); 
+        if (cluster_pairs != nullptr) CHECK_CUDA_ERROR(cudaFree(cluster_pairs));
+        CHECK_CUDA_ERROR(cudaMalloc(&cluster_pairs, sizeof(int) * size_cluster_pairs));
+        
+        // Do the pair search
+        cluster_pair_search<<<util::ceilDiv(sizeof(clusters) / M, 1024), 1024>>>(BBM, BBN, false, cluster_pairs, starts, starts_towers, clusters, position, grid_size);
+    }
+#endif
 
     template<typename FloatType>
     void ImplCuda<FloatType>::updatePositionsAndResetForce() {
@@ -67,31 +135,11 @@ namespace ppb {
         if (iteration % frequency == 0) {
 #ifdef PPB_ENABLE_VERLET_CLUSTER_LISTS 
             // TODO max occupancy for those kernel launches with magic numbers
-            // 1) Make clusters of size M and N by spatial gridding and binning
-            float volume_domain = (boxMax[0] - boxMin[0]) * (boxMax[1] - boxMin[1]) * (boxMax[2] - boxMin[2]);
-            float rho = volume_domain / numParticles;
-            float tower_size = std::pow(max(M, N) / rho, 1.0/3.0);
-            count_elements_in_towers<<<_gridSize, _blockSize>>>(position, starts_towers, tower_size); 
-            add_dummy_particles_to_towers<<<util::ceilDiv(sizeof(starts_towers - 1), 1024), 1024>>>(starts_towers, M); //might not be the optimal grid size but i dont think this really matters here.
-            thrust::inclusive_scan(thrust::device, starts_towers, starts_towers + sizeof(starts_towers), starts_towers);
-            size_t size_clustersM = 0;
-            CHECK_CUDA_ERROR(cudaMemcpy(&size_clustersM, &starts[size], sizeof(int), cudaMemcpyDeviceToHost)); 
-            if (size_clustersM == 0) return;
-            CHECK_CUDA_ERROR(cudaMalloc(&clustersM, sizeof(int) * size_clustersM));
-            insert_particles_into_towers<<<_gridSize, _blockSize>>>(position, clustersM, starts_towers, tower_size);
-            sort_particles_along_z_axis<<<util::ceilDiv(sizeof(starts_towers - 1), 1024), 1024>>>();
-            
-            // 2) Compute the bounding boxes
-            compute_bounding_boxes<<<util::ceilDiv(sizeof(clustersM) / M, 1024), 1024>>>(BBM, clustersM, M);
-            compute_bounding_boxes<<<util::ceilDiv(sizeof(clustersM) / N, 1024), 1024>>>(BBN, clustersM, N);
-            
-            // 3) Create the first preliminary cluster pair list
-            cluster_pair_search<<<util::ceilDiv(sizeof(clustersM) / M, 1024), 1024>>>(BBM, BBN, cluster_pairs, starts);
-           
-            // 4) Prune the cluster pair list
-            size_t gridSizePrune;
-            size_t blockSizePrune;
-            cluster_pair_prune<<<gridSizeSearch, blockSizeSearch>>>(clusters, pair_lists, starts); 
+            // TODO think about what we *really* need to reallocate every iteration (if that's a bottleneck)
+            makeClusters();
+            boundingBoxes();
+            createPairList();
+            // Potentially prune the constructed cluster pair list?
 #else
             if (verletLists != nullptr) {
                 CHECK_CUDA_ERROR(cudaFree(verletLists));
@@ -124,7 +172,11 @@ namespace ppb {
         CHECK_CUDA_ERROR(cudaEventCreate(&stop));
 
         CHECK_CUDA_ERROR(cudaEventRecord(start));
+#ifdef PPB_ENABLE_VERLET_CLUSTER_LISTS
+        compute_force_cluster_lists<<< , >>>(position, force, clusters, )
+#else
         compute_forces<<<_gridSize, _blockSize>>>(position, force, verletLists, starts);
+#endif 
         CHECK_CUDA_ERROR(cudaEventRecord(stop));
 
         CHECK_CUDA_ERROR(cudaEventSynchronize(stop));
