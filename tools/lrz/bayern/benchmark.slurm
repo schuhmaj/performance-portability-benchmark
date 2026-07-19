@@ -13,8 +13,8 @@
 cd /home/schuhmaj/performance-portability-benchmark
 module use /home/schuhmaj/modules
 module load llvm/20.1.8 google-benchmark/1.9.4 AdaptiveCpp/25.10.0
-rm -rf build
-mkdir build && cd build
-cmake .. -G Ninja -DPPB_ENABLE_AdaptiveCpp=ON
-cmake --build . --target matMul_acpp
-python3 /home/schuhmaj/performance-portability-benchmark/scripts/plot_benchmark.py -p ./src -r "matMul_*"
+rm -rf build-cuda-llvm
+cmake --preset cuda-llvm
+cd build-cuda-llvm
+cmake --build .
+python3 ../scripts/benchmark.py -p ./src -r "vec_.*" "matMul_.*" "polyhedral_.*" "nbody_.*" -x ".*_cpp" -H "NVIDIA H100"
