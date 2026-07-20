@@ -2,9 +2,11 @@
 """Create Cascade Plots and Navcharts from benchmark result CSV files.
 
 The script consumes one or more tidy CSV files produced by ``benchmark.py``.
-Without ``--complexity`` it creates a Cascade Plot of application efficiency
-and performance portability.  Supplying ``--complexity`` creates a Navchart
-of performance portability and the selected code-complexity metric instead.
+The ``--chart`` option explicitly selects a Cascade Plot, a Navchart of
+performance portability versus code complexity, or a combined plot.  The
+combined plot includes the Cascade and Navchart panels plus performance-
+portability scaling over problem size. Multiple ``--name`` values are
+distinguished using problem-specific markers.
 
 Application efficiency is calculated from wall-clock time: for every hardware
 and workload, the fastest implementation has efficiency 1 and every other
@@ -12,6 +14,15 @@ implementation has ``fastest_runtime / runtime``.  Efficiencies are averaged
 over the selected workloads, then performance portability is calculated as
 their harmonic mean over the complete set of selected hardware.  Missing
 hardware/workload results therefore give an implementation a PP score of zero.
+With ``--non-zero-pp``, unsupported platforms are excluded from the PP
+harmonic mean instead, without changing the application-efficiency data.
+
+References:
+    S.J. Pennycook, J.D. Sewall, D. Jacobsen, T. Deakin and S. McIntosh-Smith, "Navigating Performance Portability", in Computing in Science & Engineering, Volume: 23, Issue: 5, 01 Sept.-Oct. 2021
+
+See Also:
+    https://github.com/P3HPC/p3-analysis-library
+
 """
 
 from __future__ import annotations
@@ -23,6 +34,7 @@ from itertools import cycle
 from pathlib import Path
 from typing import Iterable
 
+import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -30,6 +42,7 @@ import seaborn as sns
 from loguru import logger
 from matplotlib.lines import Line2D
 from matplotlib.patches import Patch, Rectangle
+from matplotlib.ticker import EngFormatter
 
 BENCHMARK_PROBLEM = "Benchmark Problem"
 PARADIGM = "Paradigm"
@@ -43,6 +56,10 @@ TIME_UNIT = "Time Unit"
 APPLICATION = "Application"
 APPLICATION_EFFICIENCY = "Application Efficiency"
 PERFORMANCE_PORTABILITY = "Performance Portability"
+PROBLEM = "Problem"
+# Matplotlib's math text uses two negative thin spaces to approximate the
+# ``\kern-0.3em`` overlap in the conventional reflected-P PP symbol.
+PP_SYMBOL = r"$\mathrm{ꟼ\!\!P}$"
 
 COMPLEXITY_NAME = "Name"
 COMPLEXITY_FRAMEWORK = "Framework"
@@ -64,6 +81,49 @@ METRIC_ALIASES = {
 
 MARKERS = ("o", "s", "^", "D", "P", "X", "v", "<", ">", "*", "h", "p")
 
+TAB20 = matplotlib.colormaps["tab20"].colors
+FRAMEWORK_COLOR_MAP = {
+    "CPP": TAB20[0],
+    "Stdpar": TAB20[1],
+
+    "Vulkan": TAB20[2],
+    "Slang-Vulkan": TAB20[3],
+
+    "AdaptiveCpp": TAB20[4],
+    "Kokkos": TAB20[6],
+    "RAJA": TAB20[10],
+    "Alpaka": TAB20[12],
+
+    "Cuda": TAB20[8],
+    "Slang-Cuda": TAB20[9],
+    "Cublas": TAB20[13],
+
+    "Hip": "black",
+
+    "OpenACC": TAB20[14],
+    "OpenMP": TAB20[18],
+
+    "OpenCL": TAB20[16],
+    "Boost": TAB20[17],
+}
+
+PROBLEM_MARKER_MAP = {
+    "polyhedral": "s",
+    "polyhedralgravity": "s",
+    "vecadd": "+",
+    "vectoraddition": "+",
+    "matrixmultiplication": "x",
+    "nbody": "o",
+}
+
+HARDWARE_VENDOR_PATTERNS = {
+    "NVIDIA": re.compile(
+        r"(?i)\b(nvidia|geforce|quadro|tesla|rtx\d*|gtx\d*|gh\d+|h\d{2,3}|a\d{2,3})\b"
+    ),
+    "AMD": re.compile(r"(?i)\b(amd|radeon|instinct|mi\d+)\b"),
+    "Intel": re.compile(r"(?i)\b(intel|xeon|arc|pvc)\b"),
+}
+
 
 def build_parser() -> argparse.ArgumentParser:
     """Build the command-line argument parser.
@@ -73,47 +133,121 @@ def build_parser() -> argparse.ArgumentParser:
     """
     parser = argparse.ArgumentParser(
         description=(
-            "Create a Cascade Plot, or a Navchart when --complexity is given, "
-            "from benchmark.py CSV output."
+            "Create a Cascade Plot, Navchart, or combined P3 plot from "
+            "benchmark.py CSV output."
         ),
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-    parser.add_argument(
+    general = parser.add_argument_group("general script options")
+    general.add_argument(
         "csv_files",
         nargs="+",
         type=Path,
         metavar="CSV",
         help="One or more CSV files produced by benchmark.py.",
     )
-    parser.add_argument(
+    general.add_argument(
         "-n",
         "--name",
+        nargs="+",
         required=True,
         help=(
-            "Benchmark problem to plot. An exact case-insensitive match is "
-            "preferred; otherwise a unique substring match is accepted."
+            "One or more benchmark problems to plot. Exact case-insensitive "
+            "matches are preferred; unique substring matches are accepted."
         ),
     )
-    parser.add_argument(
+    general.add_argument(
         "-v",
         "--verbose",
         action="count",
         default=0,
         help="Verbosity (-v: DEBUG, -vv: TRACE).",
     )
-    parser.add_argument(
-        "-f",
-        "--filter",
-        dest="description_filter",
-        help="Regular expression matched against the Description column.",
+    general.add_argument(
+        "-o",
+        "--output",
+        type=Path,
+        help=(
+            "Output plot path. If no suffix is provided, .pdf is appended. "
+            "Defaults to <problems>_<cascade|navchart|combined>.pdf."
+        ),
     )
-    parser.add_argument(
+    general.add_argument(
         "-c",
+        "--chart",
+        choices=("cascade", "navchart", "combined"),
+        default="cascade",
+        help="Chart to create. Navchart and combined require --complexity.",
+    )
+    general.add_argument(
+        "-l",
+        "--legend",
+        action="store_true",
+        help=(
+            "Omit legends from the plot and save them as a separate PDF with "
+            "four columns."
+        ),
+    )
+    general.add_argument(
+        "--remove-description",
+        action="store_true",
+        help="Remove bracketed descriptions such as [Naive] from legends.",
+    )
+
+    complexity = parser.add_argument_group("code complexity options")
+    metrics = parser.add_argument_group(
+        "performance portability / application efficiency metric options"
+    )
+    metrics.add_argument(
+        "-i",
+        "--include",
+        dest="description_include",
+        help=(
+            "Only keep rows whose Description matches this regular expression."
+        ),
+    )
+    metrics.add_argument(
+        "-x",
+        "--exclude",
+        dest="description_exclude",
+        help="Exclude rows whose Description matches this regular expression.",
+    )
+    metrics.add_argument(
+        "-s",
+        "--size",
+        type=float,
+        help=(
+            "Use this exact Problem Size for application efficiency and the "
+            "aggregate PP/complexity point. Scaling still uses all sizes."
+        ),
+    )
+    metrics.add_argument(
+        "-p",
+        "--precision",
+        type=int,
+        choices=[32, 64],
+        help="Keep results with this floating-point precision.",
+    )
+    metrics.add_argument(
+        "--non-zero-pp",
+        action="store_true",
+        help=(
+            "Calculate PP over supported platforms only. Missing platforms "
+            "remain zero in application-efficiency plots."
+        ),
+    )
+    metrics.add_argument(
+        "--log-size",
+        action="store_true",
+        help="Use a logarithmic problem-size axis in the combined scaling plot.",
+    )
+
+    complexity.add_argument(
         "--complexity",
         type=Path,
-        help="Code-complexity CSV. Supplying it selects a Navchart.",
+        help="Code-complexity CSV used by navchart and combined charts.",
     )
-    parser.add_argument(
+    complexity.add_argument(
         "--complexity-metric",
         default="halstead-effort",
         help=(
@@ -121,19 +255,21 @@ def build_parser() -> argparse.ArgumentParser:
             "Halstead effort (common short aliases are accepted)."
         ),
     )
-    parser.add_argument(
-        "-o",
-        "--output",
-        type=Path,
-        help=(
-            "Output plot path. If no suffix is provided, .pdf is appended. "
-            "Defaults to <problem>_cascade.pdf or <problem>_navchart.pdf."
-        ),
-    )
-    parser.add_argument(
+    complexity_scaling = complexity.add_mutually_exclusive_group()
+    complexity_scaling.add_argument(
         "--normalize",
         action="store_true",
-        help="Normalize complexity to the CPP implementation (CPP = 100%%).",
+        help="Divide complexity by the CPP score (CPP = 100%%).",
+    )
+    complexity_scaling.add_argument(
+        "--additive",
+        action="store_true",
+        help="Subtract the CPP complexity score from every paradigm score.",
+    )
+    complexity.add_argument(
+        "--log-complexity",
+        action="store_true",
+        help="Use a logarithmic complexity axis in navchart/combined plots.",
     )
     return parser
 
@@ -181,6 +317,7 @@ def load_benchmark_csvs(paths: list[Path]) -> pd.DataFrame:
         BENCHMARK_PROBLEM,
         PARADIGM,
         DESCRIPTION,
+        PRECISION,
         HARDWARE,
         PROBLEM_SIZE,
         WALL_CLOCK_TIME,
@@ -227,16 +364,17 @@ def _resolve_unique_value(values: pd.Series, query: str, label: str) -> str:
         raise ValueError(
             f"No {label} matches {query!r}. Available values: {candidates}"
         )
-    raise ValueError(
-        f"{label.capitalize()} {query!r} is ambiguous; matches: {partial}"
-    )
+    raise ValueError(f"{label.capitalize()} {query!r} is ambiguous; matches: {partial}")
 
 
-def _compile_description_filter(pattern: str | None) -> re.Pattern[str] | None:
-    """Compile the optional description regular expression.
+def _compile_description_filter(
+    pattern: str | None, option: str
+) -> re.Pattern[str] | None:
+    """Compile an optional description regular expression.
 
     Args:
         pattern: User-supplied regular expression, or ``None``.
+        option: Command-line option name used in errors.
 
     Returns:
         A compiled expression, or ``None``.
@@ -249,7 +387,9 @@ def _compile_description_filter(pattern: str | None) -> re.Pattern[str] | None:
     try:
         return re.compile(pattern)
     except re.error as error:
-        raise ValueError(f"Invalid description regex {pattern!r}: {error}") from error
+        raise ValueError(
+            f"Invalid {option} description regex {pattern!r}: {error}"
+        ) from error
 
 
 def _description_is_workload(df: pd.DataFrame) -> bool:
@@ -275,17 +415,41 @@ def _description_is_workload(df: pd.DataFrame) -> bool:
     return bool((coverage >= 0.5).all())
 
 
+def _filter_problem_size(
+    df: pd.DataFrame, problem_size: float, problem_name: str
+) -> pd.DataFrame:
+    """Select one exact numeric problem size from already filtered rows."""
+    numeric_sizes = pd.to_numeric(df[PROBLEM_SIZE], errors="coerce")
+    size_mask = np.isclose(
+        numeric_sizes.to_numpy(dtype=float), problem_size, equal_nan=False
+    )
+    selected = df.loc[size_mask].copy()
+    if selected.empty:
+        available = sorted(numeric_sizes.dropna().unique())
+        raise ValueError(
+            f"Problem size {problem_size:g} has no rows for {problem_name}. "
+            f"Available sizes: {available}"
+        )
+    return selected
+
+
 def select_problem_rows(
     df: pd.DataFrame,
     name: str,
-    description_pattern: str | None,
+    description_include: str | None,
+    description_exclude: str | None,
+    problem_size: float | None,
+    precision: int | None,
 ) -> tuple[pd.DataFrame, str, bool]:
     """Select a problem and optionally filter its descriptions.
 
     Args:
         df: Combined benchmark results.
         name: Requested benchmark problem.
-        description_pattern: Optional description regular expression.
+        description_include: Optional regular expression descriptions must match.
+        description_exclude: Optional regular expression descriptions must not match.
+        problem_size: Optional exact problem size.
+        precision: Optional floating-point precision in bits.
 
     Returns:
         A tuple of filtered rows, resolved problem name, and a flag indicating
@@ -309,16 +473,52 @@ def select_problem_rows(
     # not look like a workload implemented by every remaining paradigm.
     description_is_workload = _description_is_workload(selected)
 
-    expression = _compile_description_filter(description_pattern)
-    if expression is not None:
+    include_expression = _compile_description_filter(
+        description_include, "--include"
+    )
+    if include_expression is not None:
         mask = selected[DESCRIPTION].map(
-            lambda value: expression.search(value) is not None
+            lambda value: include_expression.search(value) is not None
         )
         selected = selected.loc[mask].copy()
         if selected.empty:
             raise ValueError(
-                f"Description regex {description_pattern!r} matched no rows for "
-                f"{resolved_name}."
+                f"Description include regex {description_include!r} matched no "
+                f"rows for {resolved_name}."
+            )
+
+    exclude_expression = _compile_description_filter(
+        description_exclude, "--exclude"
+    )
+    if exclude_expression is not None:
+        mask = selected[DESCRIPTION].map(
+            lambda value: exclude_expression.search(value) is None
+        )
+        selected = selected.loc[mask].copy()
+        if selected.empty:
+            raise ValueError(
+                f"Description exclude regex {description_exclude!r} excluded "
+                f"all rows for {resolved_name}."
+            )
+
+    if problem_size is not None:
+        selected = _filter_problem_size(selected, problem_size, resolved_name)
+
+    if precision is not None:
+        numeric_precision = pd.to_numeric(selected[PRECISION], errors="coerce")
+        selected = selected.loc[numeric_precision.eq(precision)].copy()
+        if selected.empty:
+            available = sorted(
+                pd.to_numeric(
+                    df.loc[df[BENCHMARK_PROBLEM] == resolved_name, PRECISION],
+                    errors="coerce",
+                )
+                .dropna()
+                .unique()
+            )
+            raise ValueError(
+                f"Precision {precision} has no rows for {resolved_name}. "
+                f"Available precisions: {available}"
             )
 
     logger.info(
@@ -375,18 +575,26 @@ def _convert_runtime_to_ns(df: pd.DataFrame) -> pd.Series:
 def calculate_metrics(
     df: pd.DataFrame,
     description_is_workload: bool,
+    non_zero_pp: bool = False,
+    hardware_universe: Iterable[str] | None = None,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Calculate application efficiency and performance portability.
 
     Duplicate measurements are reduced to their median runtime. Application
     efficiencies are computed per hardware/workload and then arithmetically
     averaged over workloads. PP is the harmonic mean across all selected
-    hardware; an absent result contributes zero and makes PP zero.
+    hardware. By default, an absent result contributes zero and makes PP zero.
+    In non-zero PP mode, platforms with zero efficiency are omitted from the
+    harmonic mean; the application-efficiency output still retains those zeros.
 
     Args:
         df: Selected benchmark rows.
         description_is_workload: Whether Description belongs to the workload
             key rather than the application label.
+        non_zero_pp: Whether to exclude unsupported platforms from PP.
+        hardware_universe: Optional complete platform set. This is used for
+            per-size scaling so a platform with no row at one size contributes
+            zero rather than disappearing from that size's PP calculation.
 
     Returns:
         A pair ``(efficiency, portability)``. The first DataFrame has one row
@@ -429,7 +637,11 @@ def calculate_metrics(
     )
 
     applications = sorted(runtimes[APPLICATION].unique())
-    hardware = sorted(runtimes[HARDWARE].unique())
+    hardware = sorted(
+        set(hardware_universe)
+        if hardware_universe is not None
+        else set(runtimes[HARDWARE].unique())
+    )
     workloads = runtimes[workload_columns].drop_duplicates()
     full_index = pd.MultiIndex.from_frame(
         pd.DataFrame(
@@ -457,8 +669,13 @@ def calculate_metrics(
     )
 
     def harmonic_mean_or_zero(values: pd.Series) -> float:
-        """Calculate a harmonic mean, returning zero for unsupported values."""
+        """Calculate PP, optionally omitting unsupported platforms."""
         numeric = values.to_numpy(dtype=float)
+        if non_zero_pp:
+            numeric = numeric[numeric > 0.0]
+            if len(numeric) == 0:
+                return 0.0
+            return float(len(numeric) / np.reciprocal(numeric).sum())
         if len(numeric) != len(hardware) or np.any(numeric <= 0.0):
             return 0.0
         return float(len(numeric) / np.reciprocal(numeric).sum())
@@ -471,6 +688,43 @@ def calculate_metrics(
     )
     logger.debug(f"Performance portability:\n{portability.to_string(index=False)}")
     return efficiency, portability
+
+
+def calculate_scaling_metrics(
+    df: pd.DataFrame,
+    description_is_workload: bool,
+    non_zero_pp: bool = False,
+) -> pd.DataFrame:
+    """Calculate performance portability independently for each problem size.
+
+    Args:
+        df: Selected rows for one benchmark problem.
+        description_is_workload: Whether Description belongs to the workload key.
+        non_zero_pp: Whether unsupported platforms are excluded from PP.
+
+    Returns:
+        Application, problem-size, and performance-portability rows.
+    """
+    numeric_sizes = pd.to_numeric(df[PROBLEM_SIZE], errors="coerce")
+    sizes = sorted(numeric_sizes.dropna().unique())
+    if not sizes:
+        raise ValueError("No numeric problem sizes remain for the scaling plot.")
+
+    platforms = sorted(df[HARDWARE].unique())
+    frames: list[pd.DataFrame] = []
+    for size in sizes:
+        size_rows = df.loc[
+            np.isclose(numeric_sizes.to_numpy(dtype=float), size, equal_nan=False)
+        ]
+        _, portability = calculate_metrics(
+            size_rows,
+            description_is_workload,
+            non_zero_pp=non_zero_pp,
+            hardware_universe=platforms,
+        )
+        portability.insert(1, PROBLEM_SIZE, float(size))
+        frames.append(portability)
+    return pd.concat(frames, ignore_index=True)
 
 
 def _slugify(value: str) -> str:
@@ -486,82 +740,286 @@ def _slugify(value: str) -> str:
     return slug or "plot"
 
 
-def resolve_output_path(output: Path | None, problem: str, navchart: bool) -> Path:
+def resolve_output_path(
+    output: Path | None,
+    problems: list[str],
+    mode: str,
+) -> Path:
     """Resolve the plot output path and default PDF extension.
 
     Args:
         output: User-supplied path, or ``None``.
-        problem: Resolved problem name.
-        navchart: Whether the output is a Navchart.
+        problems: Resolved problem names.
+        mode: Plot mode: ``cascade``, ``navchart``, or ``combined``.
 
     Returns:
         Output path with a suffix.
     """
-    kind = "navchart" if navchart else "cascade"
-    path = output or Path(f"{_slugify(problem)}_{kind}.pdf")
+    problem_slug = _slugify("_".join(problems))
+    path = output or Path(f"{problem_slug}_{mode}.pdf")
     if not path.suffix:
         path = path.with_suffix(".pdf")
     return path
 
 
-def _plot_styles(names: list[str]) -> tuple[dict[str, object], dict[str, str]]:
-    """Assign stable colors and markers to application names.
+def _hardware_vendor(hardware: str) -> str:
+    """Classify a hardware label using vendor regular expressions.
 
     Args:
-        names: Ordered application names.
+        hardware: Hardware label from the benchmark CSV.
 
     Returns:
-        Color and marker mappings keyed by application.
+        ``NVIDIA``, ``AMD``, ``Intel``, or ``Other``.
     """
-    colors = sns.color_palette("tab20", n_colors=max(len(names), 1))
-    marker_cycle = cycle(MARKERS)
-    return dict(zip(names, colors)), {name: next(marker_cycle) for name in names}
+    for vendor, pattern in HARDWARE_VENDOR_PATTERNS.items():
+        if pattern.search(hardware):
+            return vendor
+    return "Other"
+
+
+def _hardware_colors(platforms: list[str]) -> dict[str, object]:
+    """Assign vendor-family color shades to hardware platforms.
+
+    NVIDIA hardware uses green shades, AMD red shades, Intel blue shades, and
+    unmatched labels neutral gray shades.
+
+    Args:
+        platforms: Hardware labels.
+
+    Returns:
+        Color mapping keyed by hardware label.
+    """
+    palette_names = {
+        "NVIDIA": "Greens",
+        "AMD": "Reds",
+        "Intel": "Blues",
+        "Other": "Greys",
+    }
+    colors: dict[str, object] = {}
+    for vendor, palette_name in palette_names.items():
+        matches = sorted(
+            platform for platform in platforms if _hardware_vendor(platform) == vendor
+        )
+        shades = sns.color_palette(palette_name, n_colors=len(matches) + 2)[2:]
+        colors.update(dict(zip(matches, shades)))
+    return colors
+
+
+def _framework_colors(
+    applications: list[str], remove_description: bool = False
+) -> dict[str, object]:
+    """Assign stable framework colors based on the requested tab20 scheme.
+
+    Args:
+        applications: Application/framework labels.
+        remove_description: Whether bracketed variants use their base framework
+            color so the shortened legend remains unambiguous.
+
+    Returns:
+        Color mapping keyed by application label.
+    """
+    known = sorted(
+        (
+            (_normalize_token(framework), color)
+            for framework, color in FRAMEWORK_COLOR_MAP.items()
+        ),
+        key=lambda item: len(item[0]),
+        reverse=True,
+    )
+    result: dict[str, object] = {}
+    unmatched: list[str] = []
+    for application in dict.fromkeys(applications):
+        style_name = _display_application(application, remove_description)
+        candidate_tokens = [
+            _normalize_token(candidate)
+            for candidate in _complexity_candidates(style_name)
+        ]
+        for framework_token, color in known:
+            if any(framework_token in token for token in candidate_tokens):
+                result[application] = color
+                break
+        else:
+            unmatched.append(application)
+
+    fallback = sns.color_palette("husl", n_colors=max(len(unmatched), 1))
+    result.update(dict(zip(sorted(unmatched), fallback)))
+    return result
+
+
+def _problem_markers(problems: list[str]) -> dict[str, str]:
+    """Assign stable markers to benchmark problems.
+
+    Args:
+        problems: Resolved benchmark problem names.
+
+    Returns:
+        Marker mapping keyed by problem.
+    """
+    result: dict[str, str] = {}
+    fallback = cycle(MARKERS)
+    for problem in dict.fromkeys(problems):
+        marker = PROBLEM_MARKER_MAP.get(_normalize_token(problem))
+        result[problem] = marker if marker is not None else next(fallback)
+    return result
+
+
+def _display_application(application: str, remove_description: bool) -> str:
+    """Format an application label for a legend.
+
+    Args:
+        application: Full application label.
+        remove_description: Whether to remove bracketed descriptions.
+
+    Returns:
+        Legend label.
+    """
+    if not remove_description:
+        return application
+    return re.sub(r"\[[^]]*]", "", application).strip()
+
+
+def _application_legend_handles(
+    applications: list[str],
+    colors: dict[str, object],
+    remove_description: bool,
+) -> list[Line2D]:
+    """Create framework-color legend handles.
+
+    Args:
+        applications: Ordered application labels.
+        colors: Application color mapping.
+        remove_description: Whether to hide bracketed descriptions.
+
+    Returns:
+        Matplotlib legend handles.
+    """
+    handles: list[Line2D] = []
+    seen: set[tuple[str, tuple[float, ...]]] = set()
+    ordered_applications = sorted(
+        dict.fromkeys(applications),
+        key=lambda application: _display_application(
+            application, remove_description
+        ).casefold(),
+    )
+    for application in ordered_applications:
+        label = _display_application(application, remove_description)
+        color = tuple(matplotlib.colors.to_rgba(colors[application]))
+        key = (label, color)
+        if key in seen:
+            continue
+        seen.add(key)
+        handles.append(Line2D([0], [0], color=color, linewidth=3.0, label=label))
+    return handles
+
+
+def _problem_legend_handles(
+    problems: list[str], markers: dict[str, str]
+) -> list[Line2D]:
+    """Create problem-marker legend handles.
+
+    Args:
+        problems: Ordered problem names.
+        markers: Problem marker mapping.
+
+    Returns:
+        Matplotlib legend handles.
+    """
+    return [
+        Line2D(
+            [0],
+            [0],
+            color="black",
+            marker=markers[problem],
+            linestyle="None",
+            markersize=8,
+            label=problem,
+        )
+        for problem in dict.fromkeys(problems)
+    ]
 
 
 def plot_cascade(
     efficiency: pd.DataFrame,
     portability: pd.DataFrame,
-    problem: str,
+    problem_title: str,
+    remove_description: bool = False,
+    navchart_data: pd.DataFrame | None = None,
+    complexity_metric: str | None = None,
+    scaling_data: pd.DataFrame | None = None,
+    log_complexity: bool = False,
+    log_size: bool = False,
+    selected_size: float | None = None,
+    show_legends: bool = True,
 ) -> plt.Figure:
     """Create a Cascade Plot following the P3 Analysis Library layout.
 
     Args:
-        efficiency: Application efficiency by application and hardware.
-        portability: Performance portability by application.
-        problem: Problem name used in the title.
+        efficiency: Application efficiency by problem, application, and hardware.
+        portability: Performance portability by problem and application.
+        problem_title: Problem name or names used in the title.
+        remove_description: Whether to hide bracketed legend descriptions.
+        navchart_data: Optional complexity/PP data for combined mode.
+        complexity_metric: Complexity column used in combined mode.
+        scaling_data: Optional per-size PP data for combined mode.
+        log_complexity: Whether the complexity axis is logarithmic.
+        log_size: Whether the problem-size scaling axis is logarithmic.
+        selected_size: Optional benchmark size used for the two upper panels.
+        show_legends: Whether legends are embedded in the plot.
 
     Returns:
         The Matplotlib figure.
+
+    Raises:
+        ValueError: If combined-mode inputs are incomplete.
     """
-    applications = portability[APPLICATION].tolist()
+    combined = navchart_data is not None
+    if combined and (complexity_metric is None or scaling_data is None):
+        raise ValueError(
+            "Combined plotting requires complexity and per-size scaling data."
+        )
+
+    series = portability.sort_values(
+        PERFORMANCE_PORTABILITY, ascending=False
+    ).reset_index(drop=True)
+    applications = list(dict.fromkeys(series[APPLICATION]))
+    problems = list(dict.fromkeys(series[PROBLEM]))
     platforms = sorted(efficiency[HARDWARE].unique())
-    colors, markers = _plot_styles(applications)
-    platform_colors = dict(
-        zip(platforms, sns.color_palette("vlag", n_colors=max(len(platforms), 1)))
-    )
+    colors = _framework_colors(applications, remove_description)
+    markers = _problem_markers(problems)
+    platform_colors = _hardware_colors(platforms)
     platform_labels = {
         platform: chr(ord("A") + index) if index < 26 else str(index + 1)
         for index, platform in enumerate(platforms)
     }
 
-    figure_width = max(8.0, 6.0 + 0.22 * len(applications))
-    figure_height = max(6.0, 4.8 + 0.25 * len(applications))
+    series_count = len(series)
+    figure_width = max(11.0, 7.5 + 0.25 * series_count)
+    figure_height = max(7.5, 5.6 + 0.27 * series_count)
     figure = plt.figure(figsize=(figure_width, figure_height))
+    right_ratio = 4.0 if combined else max(1.7, 0.22 * series_count)
     grid = figure.add_gridspec(
         2,
         2,
-        height_ratios=[4.5, max(1.5, 0.34 * len(applications))],
-        width_ratios=[5.5, max(1.5, 0.2 * len(applications))],
-        hspace=0.03,
-        wspace=0.05,
+        height_ratios=[4.5, max(1.5, 0.34 * series_count)],
+        width_ratios=[5.5, right_ratio],
+        hspace=0.3 if combined else 0.03,
+        wspace=0.08,
     )
     efficiency_axis = figure.add_subplot(grid[0, 0])
     platform_axis = figure.add_subplot(grid[1, 0], sharex=efficiency_axis)
     portability_axis = figure.add_subplot(grid[0, 1], sharey=efficiency_axis)
+    scaling_axis = (
+        figure.add_subplot(grid[1, 1], sharey=efficiency_axis)
+        if combined
+        else None
+    )
 
-    for application in applications:
+    for _, item in series.iterrows():
+        problem = str(item[PROBLEM])
+        application = str(item[APPLICATION])
         rows = efficiency.loc[
-            (efficiency[APPLICATION] == application)
+            (efficiency[PROBLEM] == problem)
+            & (efficiency[APPLICATION] == application)
             & efficiency[APPLICATION_EFFICIENCY].gt(0.0)
         ].sort_values(APPLICATION_EFFICIENCY, ascending=False)
         ranks = np.arange(1, len(rows) + 1)
@@ -569,10 +1027,9 @@ def plot_cascade(
             ranks,
             rows[APPLICATION_EFFICIENCY],
             color=colors[application],
-            marker=markers[application],
+            marker=markers[problem],
             linewidth=1.6,
             markersize=7,
-            label=application,
         )
 
     efficiency_axis.set_ylabel("Application Efficiency")
@@ -581,12 +1038,21 @@ def plot_cascade(
     efficiency_axis.set_xticks(np.arange(1, len(platforms) + 1))
     efficiency_axis.tick_params(axis="x", labelbottom=False)
     efficiency_axis.grid(True, linestyle="--", alpha=0.45)
-    figure.suptitle(f"{problem} Cascade Plot", y=0.98)
+    plot_name = (
+        f"{problem_title} {PP_SYMBOL} - Code Complexity Plot"
+        if combined
+        else f"{problem_title} {PP_SYMBOL} Cascade Plot"
+    )
+    figure.suptitle(plot_name, y=0.98)
 
     row_height = 1.0
-    for row_index, application in enumerate(reversed(applications)):
+    reversed_series = series.iloc[::-1].reset_index(drop=True)
+    for row_index, item in reversed_series.iterrows():
+        problem = str(item[PROBLEM])
+        application = str(item[APPLICATION])
         rows = efficiency.loc[
-            (efficiency[APPLICATION] == application)
+            (efficiency[PROBLEM] == problem)
+            & (efficiency[APPLICATION] == application)
             & efficiency[APPLICATION_EFFICIENCY].gt(0.0)
         ].sort_values(APPLICATION_EFFICIENCY, ascending=False)
         y = row_index * row_height
@@ -594,7 +1060,7 @@ def plot_cascade(
             [0.5, len(platforms) + 0.5],
             [y + 0.5, y + 0.5],
             color=colors[application],
-            marker=markers[application],
+            marker=markers[problem],
             markersize=6,
             linewidth=1.2,
             zorder=1,
@@ -621,41 +1087,100 @@ def plot_cascade(
                 zorder=3,
             )
     platform_axis.set_xlabel("Platform rank (highest efficiency first)")
-    platform_axis.set_ylim(0.0, max(len(applications), 1))
+    platform_axis.set_ylim(0.0, max(series_count, 1))
     platform_axis.set_yticks([])
     platform_axis.grid(False)
 
-    ordered_pp = portability.set_index(APPLICATION).reindex(applications)
-    portability_axis.bar(
-        np.arange(len(applications)),
-        ordered_pp[PERFORMANCE_PORTABILITY],
-        color="white",
-        edgecolor=[colors[name] for name in applications],
-        linewidth=1.5,
-    )
-    portability_axis.scatter(
-        np.arange(len(applications)),
-        ordered_pp[PERFORMANCE_PORTABILITY],
-        color=[colors[name] for name in applications],
-        marker="o",
-        zorder=3,
-    )
-    portability_axis.set_xticks([])
-    portability_axis.set_title("Performance\nPortability", fontsize=11)
-    portability_axis.yaxis.tick_right()
-    portability_axis.grid(True, axis="y", linestyle="--", alpha=0.45)
-
-    application_handles = [
-        Line2D(
-            [0],
-            [0],
-            color=colors[name],
-            marker=markers[name],
+    if combined:
+        assert navchart_data is not None
+        assert complexity_metric is not None
+        for _, item in navchart_data.iterrows():
+            problem = str(item[PROBLEM])
+            application = str(item[APPLICATION])
+            portability_axis.scatter(
+                item[complexity_metric],
+                item[PERFORMANCE_PORTABILITY],
+                color=colors[application],
+                marker=markers[problem],
+                s=80,
+                linewidth=1.0,
+                zorder=3,
+            )
+        portability_axis.set_xlabel(complexity_metric)
+        if log_complexity:
+            portability_axis.set_xscale("log")
+        else:
+            portability_axis.xaxis.set_major_formatter(EngFormatter())
+        portability_axis.grid(True, linestyle="--", alpha=0.45)
+    else:
+        positions = np.arange(series_count)
+        portability_axis.bar(
+            positions,
+            series[PERFORMANCE_PORTABILITY],
+            color="white",
+            edgecolor=[colors[name] for name in series[APPLICATION]],
             linewidth=1.5,
-            label=name,
         )
-        for name in applications
-    ]
+        for position, (_, item) in zip(positions, series.iterrows()):
+            portability_axis.scatter(
+                position,
+                item[PERFORMANCE_PORTABILITY],
+                color=colors[str(item[APPLICATION])],
+                marker=markers[str(item[PROBLEM])],
+                zorder=3,
+            )
+        portability_axis.set_xticks([])
+        portability_axis.grid(True, axis="y", linestyle="--", alpha=0.45)
+    portability_axis.yaxis.tick_right()
+    portability_axis.yaxis.set_label_position("right")
+    portability_axis.set_ylabel(PP_SYMBOL)
+
+    if combined:
+        assert scaling_axis is not None
+        assert scaling_data is not None
+        for (problem, application), rows in scaling_data.groupby(
+            [PROBLEM, APPLICATION], sort=False
+        ):
+            rows = rows.sort_values(PROBLEM_SIZE)
+            scaling_axis.plot(
+                rows[PROBLEM_SIZE],
+                rows[PERFORMANCE_PORTABILITY],
+                color=colors[str(application)],
+                marker=markers[str(problem)],
+                linewidth=1.5,
+                markersize=6,
+            )
+        scaling_axis.set_xlabel("Problem Size")
+        if log_size:
+            scaling_axis.set_xscale("log")
+        scaling_axis.yaxis.tick_right()
+        scaling_axis.yaxis.set_label_position("right")
+        scaling_axis.set_ylabel(PP_SYMBOL)
+        scaling_axis.grid(True, linestyle="--", alpha=0.45)
+
+    if show_legends:
+        application_handles = _application_legend_handles(
+            applications, colors, remove_description
+        )
+        app_legend = figure.legend(
+            handles=application_handles,
+            title="Paradigm",
+            loc="center left",
+            bbox_to_anchor=(0.72, 0.55),
+            frameon=True,
+        )
+        figure.add_artist(app_legend)
+
+        if len(problems) > 1:
+            problem_legend = figure.legend(
+                handles=_problem_legend_handles(problems, markers),
+                title="Problem",
+                loc="lower left",
+                bbox_to_anchor=(0.72, 0.08),
+                frameon=True,
+            )
+            figure.add_artist(problem_legend)
+
     platform_handles = [
         Patch(
             facecolor=platform_colors[name],
@@ -664,23 +1189,36 @@ def plot_cascade(
         )
         for name in platforms
     ]
-    app_legend = figure.legend(
-        handles=application_handles,
-        title="Application",
-        loc="center left",
-        bbox_to_anchor=(0.79, 0.55),
-        frameon=True,
-    )
-    figure.add_artist(app_legend)
-    figure.legend(
-        handles=platform_handles,
-        title="Platform",
-        loc="lower center",
-        bbox_to_anchor=(0.43, 0.01),
-        ncol=min(4, max(len(platforms), 1)),
-        frameon=True,
-    )
-    figure.subplots_adjust(right=0.76, bottom=0.25, top=0.9)
+    hardware_columns = min(2, max(len(platforms), 1))
+    hardware_rows = (len(platforms) + hardware_columns - 1) // hardware_columns
+    bottom_margin = 0.23 + 0.045 * max(hardware_rows - 1, 0)
+    if show_legends:
+        figure.legend(
+            handles=platform_handles,
+            title="Device",
+            loc="lower center",
+            bbox_to_anchor=(0.35, 0.01),
+            ncol=hardware_columns,
+            frameon=True,
+        )
+        figure.subplots_adjust(right=0.68, bottom=bottom_margin, top=0.9)
+    else:
+        figure.subplots_adjust(right=0.97, bottom=0.1, top=0.9)
+
+    if selected_size is not None:
+        upper_left = efficiency_axis.get_position()
+        upper_right = portability_axis.get_position()
+        figure.text(
+            (upper_left.x0 + upper_right.x1) / 2.0,
+            max(upper_left.y1, upper_right.y1) + 0.012,
+            (
+                f"{PP_SYMBOL} and $e_A$ plotted for benchmark size = "
+                f"{selected_size:g}"
+            ),
+            ha="center",
+            va="bottom",
+            fontsize=matplotlib.rcParams["axes.titlesize"],
+        )
     return figure
 
 
@@ -756,9 +1294,7 @@ def resolve_complexity_metric(
     canonical = METRIC_ALIASES.get(alias)
     if canonical is None:
         direct = [
-            column
-            for column in df.columns
-            if column.casefold() == requested.casefold()
+            column for column in df.columns if column.casefold() == requested.casefold()
         ]
         if len(direct) != 1:
             raise ValueError(
@@ -783,6 +1319,7 @@ def load_complexity_data(
     problem_query: str,
     metric_request: str,
     normalize: bool,
+    additive: bool,
 ) -> tuple[pd.DataFrame, str]:
     """Load, select, calculate, and optionally normalize complexity data.
 
@@ -791,6 +1328,7 @@ def load_complexity_data(
         problem_query: User-supplied benchmark problem query.
         metric_request: Requested metric or alias.
         normalize: Whether to express values relative to CPP.
+        additive: Whether to subtract the CPP value from every value.
 
     Returns:
         A pair of selected complexity rows and the plotted metric label.
@@ -817,20 +1355,31 @@ def load_complexity_data(
         .dropna(subset=[metric])
     )
 
-    label = metric
-    if normalize:
+    display_metric = "Source Lines of Code" if metric == "SLOC" else metric
+    label = f"{display_metric} [absolute]"
+    if normalize or additive:
         tokens = selected[COMPLEXITY_FRAMEWORK].map(_normalize_token)
         baseline_rows = selected.loc[tokens.isin({"cpp", "cplusplus", "cpu"}), metric]
-        if len(baseline_rows) != 1 or baseline_rows.iloc[0] <= 0.0:
+        if len(baseline_rows) != 1:
             raise ValueError(
-                "--normalize requires exactly one positive CPP complexity row "
+                f"--{'normalize' if normalize else 'additive'} requires exactly "
+                "one CPP complexity row "
                 f"for {problem}; found {len(baseline_rows)}."
             )
         baseline = float(baseline_rows.iloc[0])
-        selected[metric] = selected[metric] / baseline * 100.0
-        label = f"{metric} (% of CPP)"
-        selected = selected.rename(columns={metric: label})
-        logger.debug(f"Normalized {metric} to CPP baseline {baseline:g}")
+        if normalize:
+            if baseline <= 0.0:
+                raise ValueError(
+                    "--normalize requires a positive CPP complexity score."
+                )
+            selected[metric] = selected[metric] / baseline * 100.0
+            label = f"{display_metric} [normalized]"
+            logger.debug(f"Normalized {metric} to CPP baseline {baseline:g}")
+        else:
+            selected[metric] = selected[metric] - baseline
+            label = f"{display_metric} [additive]"
+            logger.debug(f"Subtracted CPP {metric} baseline {baseline:g}")
+    selected = selected.rename(columns={metric: label})
     logger.info(f"Loaded {len(selected)} complexity rows for {problem}")
     return selected, label
 
@@ -909,46 +1458,157 @@ def merge_portability_complexity(
     return pd.DataFrame(rows)
 
 
-def plot_navchart(data: pd.DataFrame, metric: str, problem: str) -> plt.Figure:
+def plot_navchart(
+    data: pd.DataFrame,
+    metric: str,
+    problem_title: str,
+    remove_description: bool = False,
+    log_complexity: bool = False,
+    show_legends: bool = True,
+) -> plt.Figure:
     """Create a Navchart of complexity and performance portability.
 
     Args:
-        data: Matched application PP and complexity data.
+        data: Matched problem, application, PP, and complexity data.
         metric: Complexity metric column and x-axis label.
-        problem: Problem name used in the title.
+        problem_title: Problem name or names used in the title.
+        remove_description: Whether to hide bracketed legend descriptions.
+        log_complexity: Whether the complexity axis is logarithmic.
+        show_legends: Whether legends are embedded in the plot.
 
     Returns:
         The Matplotlib figure.
     """
-    applications = data[APPLICATION].tolist()
-    colors, markers = _plot_styles(applications)
-    figure, axis = plt.subplots(figsize=(7.5, 6.0))
+    applications = list(dict.fromkeys(data[APPLICATION]))
+    problems = list(dict.fromkeys(data[PROBLEM]))
+    colors = _framework_colors(applications, remove_description)
+    markers = _problem_markers(problems)
+    figure, axis = plt.subplots(figsize=(9.5, 7.2))
     for _, row in data.iterrows():
         application = str(row[APPLICATION])
+        problem = str(row[PROBLEM])
+        marker = markers[problem]
+        marker_options = (
+            {"linewidth": 1.2}
+            if marker in {"x", "+", "1", "2", "3", "4", "|", "_"}
+            else {"edgecolor": "black", "linewidth": 0.5}
+        )
         axis.scatter(
             row[metric],
             row[PERFORMANCE_PORTABILITY],
             color=colors[application],
-            marker=markers[application],
+            marker=marker,
             s=95,
-            edgecolor="black",
-            linewidth=0.5,
-            label=application,
             zorder=3,
+            **marker_options,
         )
 
     axis.set_xlabel(metric)
-    axis.set_ylabel("Performance Portability")
+    axis.set_ylabel(PP_SYMBOL)
     axis.set_ylim(0.0, 1.05)
-    axis.set_title(f"{problem} Navigation Chart")
+    figure.suptitle(f"{problem_title} {PP_SYMBOL} - Code Complexity")
+    if log_complexity:
+        axis.set_xscale("log")
+    else:
+        axis.xaxis.set_major_formatter(EngFormatter())
     axis.grid(True, linestyle="--", alpha=0.45)
-    axis.legend(
-        title="Application",
-        loc="center left",
-        bbox_to_anchor=(1.02, 0.5),
+    if show_legends:
+        application_legend = figure.legend(
+            handles=_application_legend_handles(
+                applications, colors, remove_description
+            ),
+            title="Paradigm",
+            loc="center left",
+            bbox_to_anchor=(0.72, 0.55),
+            frameon=True,
+        )
+        figure.add_artist(application_legend)
+        if len(problems) > 1:
+            figure.legend(
+                handles=_problem_legend_handles(problems, markers),
+                title="Problem",
+                loc="lower center",
+                bbox_to_anchor=(0.34, 0.01),
+                ncol=len(problems),
+                frameon=True,
+            )
+        figure.subplots_adjust(
+            right=0.68, bottom=0.28 if len(problems) > 1 else 0.11
+        )
+    else:
+        figure.subplots_adjust(right=0.96, bottom=0.11)
+    return figure
+
+
+def create_separate_legend(
+    applications: list[str],
+    problems: list[str],
+    platforms: list[str],
+    remove_description: bool = False,
+) -> plt.Figure:
+    """Create a standalone four-column paradigm/device legend.
+
+    Paradigms are placed at the top and devices at the bottom. A problem-marker
+    section is included between them when more than one problem is plotted.
+
+    Args:
+        applications: Application labels in display order.
+        problems: Problem names in display order.
+        platforms: Hardware labels in display order.
+        remove_description: Whether bracketed descriptions are hidden.
+
+    Returns:
+        A standalone legend figure.
+    """
+    colors = _framework_colors(applications, remove_description)
+    markers = _problem_markers(problems)
+    platform_colors = _hardware_colors(platforms)
+    platform_labels = {
+        platform: chr(ord("A") + index) if index < 26 else str(index + 1)
+        for index, platform in enumerate(platforms)
+    }
+    paradigm_handles = _application_legend_handles(
+        applications, colors, remove_description
+    )
+    device_handles = [
+        Patch(
+            facecolor=platform_colors[name],
+            edgecolor="black",
+            label=f"{platform_labels[name]}: {name}",
+        )
+        for name in platforms
+    ]
+
+    paradigm_rows = max(1, (len(paradigm_handles) + 3) // 4)
+    device_rows = max(1, (len(device_handles) + 3) // 4)
+    problem_rows = 1 if len(problems) > 1 else 0
+    height = 1.0 + 0.55 * (paradigm_rows + device_rows + problem_rows)
+    figure = plt.figure(figsize=(13.0, height))
+    figure.legend(
+        handles=paradigm_handles,
+        title="Paradigm",
+        loc="upper center",
+        bbox_to_anchor=(0.5, 0.98),
+        ncol=4,
         frameon=True,
     )
-    figure.tight_layout()
+    if len(problems) > 1:
+        figure.legend(
+            handles=_problem_legend_handles(problems, markers),
+            title="Problem",
+            loc="center",
+            bbox_to_anchor=(0.5, 0.5),
+            ncol=4,
+            frameon=True,
+        )
+    figure.legend(
+        handles=device_handles,
+        title="Device",
+        loc="lower center",
+        bbox_to_anchor=(0.5, 0.02),
+        ncol=4,
+        frameon=True,
+    )
     return figure
 
 
@@ -973,38 +1633,180 @@ def main() -> int:
     """
     args = build_parser().parse_args()
     configure_logging(args.verbose)
-    sns.set_theme(style="whitegrid", context="talk")
+    sns.set_theme(style="whitegrid", context="talk", font="DejaVu Sans")
 
     try:
-        benchmark_data = load_benchmark_csvs(args.csv_files)
-        selected, problem, description_is_workload = select_problem_rows(
-            benchmark_data, args.name, args.description_filter
-        )
-        efficiency, portability = calculate_metrics(
-            selected, description_is_workload
-        )
-        output = resolve_output_path(
-            args.output, problem, navchart=args.complexity is not None
-        )
+        if args.chart in {"navchart", "combined"} and args.complexity is None:
+            raise ValueError(f"--chart {args.chart} requires --complexity.")
+        if (args.normalize or args.additive) and (
+            args.complexity is None or args.chart == "cascade"
+        ):
+            raise ValueError(
+                "--normalize/--additive are only valid for navchart/combined "
+                "with --complexity."
+            )
+        if args.log_complexity and args.chart == "cascade":
+            raise ValueError(
+                "--log-complexity is only valid for navchart/combined charts."
+            )
+        if args.log_size and args.chart != "combined":
+            raise ValueError("--log-size is only valid for combined charts.")
+        if args.chart == "cascade" and args.complexity is not None:
+            logger.warning("Ignoring --complexity for --chart cascade.")
 
-        if args.complexity is None:
-            if args.normalize:
-                raise ValueError("--normalize is only valid with --complexity.")
-            figure = plot_cascade(efficiency, portability, problem)
-        else:
-            complexity, metric = load_complexity_data(
-                args.complexity,
-                args.name,
-                args.complexity_metric,
-                args.normalize,
+        benchmark_data = load_benchmark_csvs(args.csv_files)
+        efficiency_frames: list[pd.DataFrame] = []
+        portability_frames: list[pd.DataFrame] = []
+        scaling_frames: list[pd.DataFrame] = []
+        problem_pairs: list[tuple[str, str]] = []
+        resolved_seen: set[str] = set()
+
+        for problem_query in args.name:
+            selection_size = None if args.chart == "combined" else args.size
+            all_size_rows, resolved_problem, description_is_workload = (
+                select_problem_rows(
+                    benchmark_data,
+                    problem_query,
+                    args.description_include,
+                    args.description_exclude,
+                    selection_size,
+                    args.precision,
+                )
             )
-            navchart_data = merge_portability_complexity(
-                portability, complexity, metric
+            if resolved_problem in resolved_seen:
+                logger.warning(
+                    f"Problem {resolved_problem} was selected more than once; "
+                    "ignoring the duplicate."
+                )
+                continue
+            resolved_seen.add(resolved_problem)
+            problem_pairs.append((problem_query, resolved_problem))
+
+            selected = all_size_rows
+            if args.chart == "combined" and args.size is not None:
+                selected = _filter_problem_size(
+                    all_size_rows, args.size, resolved_problem
+                )
+
+            problem_efficiency, problem_portability = calculate_metrics(
+                selected,
+                description_is_workload,
+                non_zero_pp=args.non_zero_pp,
             )
+            problem_efficiency.insert(0, PROBLEM, resolved_problem)
+            problem_portability.insert(0, PROBLEM, resolved_problem)
+            efficiency_frames.append(problem_efficiency)
+            portability_frames.append(problem_portability)
+            if args.chart == "combined":
+                problem_scaling = calculate_scaling_metrics(
+                    all_size_rows,
+                    description_is_workload,
+                    non_zero_pp=args.non_zero_pp,
+                )
+                problem_scaling.insert(0, PROBLEM, resolved_problem)
+                scaling_frames.append(problem_scaling)
+
+        efficiency = pd.concat(efficiency_frames, ignore_index=True)
+        portability = pd.concat(portability_frames, ignore_index=True)
+        problems = [resolved for _, resolved in problem_pairs]
+        problem_title = " + ".join(problems)
+        mode = args.chart
+        output = resolve_output_path(args.output, problems, mode)
+
+        navchart_data: pd.DataFrame | None = None
+        metric: str | None = None
+        if args.chart in {"navchart", "combined"}:
+            assert args.complexity is not None
+            navchart_frames: list[pd.DataFrame] = []
+            for problem_query, resolved_problem in problem_pairs:
+                complexity, current_metric = load_complexity_data(
+                    args.complexity,
+                    problem_query,
+                    args.complexity_metric,
+                    args.normalize,
+                    args.additive,
+                )
+                if metric is not None and current_metric != metric:
+                    raise ValueError(
+                        "Complexity metric labels differ between problems: "
+                        f"{metric!r} and {current_metric!r}."
+                    )
+                metric = current_metric
+                problem_pp = portability.loc[
+                    portability[PROBLEM] == resolved_problem
+                ].drop(columns=PROBLEM)
+                problem_navchart = merge_portability_complexity(
+                    problem_pp, complexity, current_metric
+                )
+                problem_navchart.insert(0, PROBLEM, resolved_problem)
+                navchart_frames.append(problem_navchart)
+            navchart_data = pd.concat(navchart_frames, ignore_index=True)
             logger.debug(f"Navchart data:\n{navchart_data.to_string(index=False)}")
-            figure = plot_navchart(navchart_data, metric, problem)
+            if args.log_complexity and navchart_data[metric].le(0.0).any():
+                raise ValueError(
+                    "--log-complexity requires all plotted complexity values "
+                    "to be positive."
+                )
+
+        if args.chart == "combined":
+            assert navchart_data is not None
+            assert metric is not None
+            scaling_data = pd.concat(scaling_frames, ignore_index=True)
+            if args.log_size and scaling_data[PROBLEM_SIZE].le(0.0).any():
+                raise ValueError(
+                    "--log-size requires all plotted problem sizes to be positive."
+                )
+            figure = plot_cascade(
+                efficiency,
+                portability,
+                problem_title,
+                remove_description=args.remove_description,
+                navchart_data=navchart_data,
+                complexity_metric=metric,
+                scaling_data=scaling_data,
+                log_complexity=args.log_complexity,
+                log_size=args.log_size,
+                selected_size=args.size,
+                show_legends=not args.legend,
+            )
+        elif args.chart == "navchart":
+            assert navchart_data is not None
+            assert metric is not None
+            figure = plot_navchart(
+                navchart_data,
+                metric,
+                problem_title,
+                remove_description=args.remove_description,
+                log_complexity=args.log_complexity,
+                show_legends=not args.legend,
+            )
+        else:
+            figure = plot_cascade(
+                efficiency,
+                portability,
+                problem_title,
+                remove_description=args.remove_description,
+                selected_size=args.size,
+                show_legends=not args.legend,
+            )
 
         save_figure(figure, output)
+        if args.legend:
+            legend_source = (
+                navchart_data if args.chart == "navchart" else portability
+            )
+            assert legend_source is not None
+            legend_applications = list(
+                dict.fromkeys(legend_source[APPLICATION].astype(str))
+            )
+            legend_figure = create_separate_legend(
+                legend_applications,
+                problems,
+                sorted(efficiency[HARDWARE].astype(str).unique()),
+                remove_description=args.remove_description,
+            )
+            legend_output = output.with_name(f"{output.stem}_legend.pdf")
+            save_figure(legend_figure, legend_output)
         return 0
     except (FileNotFoundError, OSError, ValueError) as error:
         logger.error(str(error))
