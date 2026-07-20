@@ -112,7 +112,6 @@ protected:
             return;
         }
 
-        else if (size == 100) {
             //Positions
             ParticleSimulationConfig<float> config{static_cast<size_t>(size), ITERATIONS, 1e-10};
             NBodySimulation<ImplCpp<float>> cppNBodySim{config};
@@ -133,7 +132,5 @@ protected:
                 float total_energy_after = get_total_energy(state);
                 printf("BEFORE: %f, AFTER: %f\n", total_energy_before, total_energy_after);
             } */
-            return;
         }
-    }
-};
+    };

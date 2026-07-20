@@ -4,6 +4,7 @@
 #include <thrust/sort.h>
 #include <thrust/functional.h>
 #include <thrust/execution_policy.h>
+#include <float.h>
 #include "constants.cuh"
 
 namespace ppb {
@@ -166,7 +167,7 @@ namespace ppb {
         return tower_x + (tower_y * x_dim);
     }
 
-    __device__ int2 get_tower_xy(int particle_idx, positions, grid_size) {
+    __device__ int2 get_tower_xy(int particle_idx, float3* __restrict__ positions, float grid_size) {
         int x_dim = util::ceilDiv((boxMax[0] - boxMin[0]), grid_size);
         int y_dim = util::ceilDiv((boxMax[1] - boxMin[1]), grid_size);
         int tower_x = clamp<int>(int(std::ceil((positions[particle_idx].x - boxMin[0]) / grid_size)), 0, x_dim - 1);
@@ -184,8 +185,8 @@ namespace ppb {
             return;
         }
 
-        int tower = get_tower_id(positions, grid_size);
-        atomicAdd(starts_towers[tower], 1);
+        int tower = get_tower_id(i, positions, grid_size);
+        atomicAdd(&starts_towers[tower + 1], 1);
     }
 
     __global__ void add_dummy_particles_to_towers(int* __restrict__ starts_towers, int cluster_size) {
@@ -194,12 +195,13 @@ namespace ppb {
             return;
         }
 
-        starts_towers[i] += (cluster_size - (starts_towers[i] % cluster_size)) % cluster_size;
+        starts_towers[i + 1] += (cluster_size - (starts_towers[i] % cluster_size)) % cluster_size;
     }
 
     __global__ void insert_particles_into_towers(
         float3* __restrict__ positions, 
         int* __restrict__ clusters, 
+        float* __restrict__ z_coordinates,
         int* __restrict__ starts_towers,
         float grid_size
     ) {
@@ -209,16 +211,17 @@ namespace ppb {
         }
  
         int tower = get_tower_id(i, positions, grid_size);
-        int position_in_tower = atomicAdd(clusters[starts_towers[tower]], 1);
+        int position_in_tower = atomicAdd(&clusters[starts_towers[tower]], 1);
         position_in_tower++; //because clusters is just -1, -1, ..., -1 at the start (for dummy particles)
-        cooperative_groups::this_grid.sync();
+        cooperative_groups::this_grid().sync();
         clusters[starts_towers[tower] + position_in_tower] = i;
+        z_coordinates[starts_towers[tower] + position_in_tower] = positions[i].z;        
     }
 
     __global__ void sort_particles_along_z_axis(
         int* __restrict__ clusters, 
         int* __restrict__ starts_towers, 
-        float3* __restrict__ positions
+        float* __restrict__ z_coordinates
     ) {
         const unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
         if (i >= sizeof(starts_towers) - 1) {
@@ -227,32 +230,33 @@ namespace ppb {
 
         int start = starts_towers[i];
         int size = starts_towers[i + 1] - start;
-        thrust::sort(thrust::device, clusters + start, clusters + start + size, 
-            [positions](int a, int b) int {
-                // dummy particles should be part of the very last cluster
-                if (a == -1) return true;
-                if (b == -1) return false;
-                // ordering between normal (non-dummy) particles
-                return positions[a].z < positions[b].z;
-            });
+        thrust::sort_by_key(thrust::device, z_coordinates + start, z_coordinates + start + size, clusters);
+        //dummy particles z-coordinate is set to INT_MAX. Undefined behaviour if there is another normal particle that
+        //has a bigger or equal z-coordinate (but that edge case should be irrelevant most of if not all the time)
     } 
 
-    __global__ void compute_bounding_boxes(BoundingBox* BB, int* __restrict__ clusters, int cluster_size) {
+    __global__ void compute_bounding_boxes(
+        BoundingBox* __restrict__ BB, 
+        int* __restrict__ clusters, 
+        float3* __restrict__ positions,
+        int cluster_size
+    ) {
         const unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
         if (i >= sizeof(clusters) / cluster_size) {
             return;
         }
 
-        float3* min = make_float3(FLT_MAX, FLT_MAX, FLT_MAX);
-        float3* max = make_float3(FLT_MIN, FLT_MIN, FLT_MIN);
+        float3 min = make_float3(INFINITY, INFINITY, INFINITY);
+        float3 max = make_float3(-INFINITY, -INFINITY, -INFINITY);
         
         for (int j = 0; j < cluster_size; j++) {
             if (clusters[(i * cluster_size) + j] == -1) { //handle dummy particles
                 continue; //we going to just pretend that the dummy particles are contained inside the bounding box of the normal particles
             }
-            float x_current = clusters[(i * cluster_size) + j].x;
-            float y_current = clusters[(i * cluster_size) + j].y;
-            float z_current = clusters[(i * cluster_size) + j].z;
+            float3 xyz_current = positions[clusters[(i * cluster_size) + j]];
+            float x_current = xyz_current.x;
+            float y_current = xyz_current.y;
+            float z_current = xyz_current.z;
             if (x_current < min.x) min.x = x_current;
             if (y_current < min.y) min.y = y_current;
             if (z_current < min.z) min.z = z_current;
@@ -261,28 +265,28 @@ namespace ppb {
             if (z_current > max.z) max.z = z_current;
         }
 
-        //if a cluster has lower corner = FLT_MAX, FLT_MAX, FLT_MAX and upper corner FLT_MIN, FLT_MIN, FLT_MIN it's a cluster
-        //that contains only dummy particles.
-        BB[i].lowerCorner = min;
-        BB[i].upperCorner = max;
+        //If the cluster consists entirely of dummy particles put its bounding box at (INF, INF, INF)
+        if (min.x == INFINITY && min.y == INFINITY && min.z == INFINITY && 
+            max.x == -INFINITY && max.y == -INFINITY && max.z == -INFINITY) {
+            BB[i].lowerCorner = min;
+            BB[i].upperCorner = min;
+        } else {
+            BB[i].lowerCorner = min;
+            BB[i].upperCorner = max;
+        }
     }
 
     //Inspired by AutoPas: 
     //https://github.com/AutoPas/AutoPas/blob/master/src/autopas/utils/ArrayMath.h
     //https://github.com/AutoPas/AutoPas/blob/af9a1530fca6543aa651600751256cf408deaf13/src/autopas/containers/verletClusterLists/VerletClusterListsRebuilder.h
-    __device__ inline float3 maxF3(float3& a, float3& b) {
-        float3 result = make_float3(0.f, 0.f, 0.f);
-#pragma unroll 3
-        for (short i = 0; i < 3; i++) {
-            result = max(a[i], b[i]);
-        }
-        return result;
+    __device__ inline float3 maxF3(const float3& a, const float3& b) {
+        return make_float3(max(a.x, b.x), max(a.y, b.y), max(a.z, b.z));
     }
 
     __device__ inline float BBdistanceSquared(BoundingBox& a, BoundingBox& b) {
-        float3 aToB = maxF3(make_float3(0.f, 0.f, 0.f), make_float3_sub(a.lower, b.upper));
-        float3 bToA = maxF3(make_float3(0.f, 0.f, 0.f), make_float3_sub(b.lower, a.upper));
-        return dot3(aToB) + dot3(bToA);
+        float3 aToB = maxF3(make_float3(0.f, 0.f, 0.f), make_float3_sub(a.lowerCorner, b.upperCorner));
+        float3 bToA = maxF3(make_float3(0.f, 0.f, 0.f), make_float3_sub(b.lowerCorner, a.upperCorner));
+        return dot3(aToB, aToB) + dot3(bToA, bToA);
     }
 
     /** Order of N3L: iterate over all x from 0 to x_dim - 1 in one y-dimension, then repeat on the next *higher* y-dimension
@@ -304,13 +308,11 @@ namespace ppb {
         float grid_size
     ) {
         const unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
-        if (i >= (sizeof(BBM) / sizeof(BoundingBox))) {
+/*         if (i >= (sizeof(BBM) / sizeof(BoundingBox))) {
             return;
-        }
-        if (!count) {
-            int pair_idx = 0;
-            int base_pair_idx = starts[i]; //assuming an inclusive scan was done on starts beforehand!
-        }
+        } */
+        int pair_idx = 0;
+        int base_pair_idx = starts[i]; //assuming an inclusive scan was done on starts beforehand!
         int x_dim = util::ceilDiv((boxMax[0] - boxMin[0]), grid_size);
         int y_dim = util::ceilDiv((boxMax[1] - boxMin[1]), grid_size);
 
@@ -335,7 +337,7 @@ namespace ppb {
                 int start_neighbor_tower = starts_towers[neighbor_tower_idx] + (neighbor_tower_idx == tower_idx ? (cluster_z + 8) : 0);
                 int end_neighbor_tower = starts_towers[neighbor_tower_idx + 1];
                 for (int j = start_neighbor_tower; j < end_neighbor_tower; j+=4) {
-                    float boxDistSquared = boxDistSquared(BBM[i], BBN[j / 4]);
+                    float boxDistSquared = BBdistanceSquared(BBM[i], BBN[j / 4]);
                     if (boxDistSquared <= interactionLengthSqr) {
                         if (count) {
                             starts[i + 1]++;
@@ -350,15 +352,15 @@ namespace ppb {
     }
     //-------------------------------------------------------------------------------------------------
     __device__ inline void compute_interaction(
-        int i_particle,
-        int j_particle,
+        float3& i_particle,
+        float3& j_particle,
+        int j_particle_idx,
         float3& fi,
-        const float3* __restrict__ positions,
         float3* __restrict__ forces
     ) {
-        const float3 dr = make_float3_sub(positions[i_particle], positions[j_particle]);
+        const float3 dr = make_float3_sub(i_particle, j_particle);
         const float dr2 = dot3(dr, dr);
-        if (dr2 >= cutoff_radius) continue;
+        if (dr2 >= cutoff_radius) return;
             
         const float sigma = 1.0f;
         const float sigmaSquared = sigma * sigma;
@@ -373,9 +375,9 @@ namespace ppb {
 
         const float3 f = make_float3_scale(dr, fac);
         fi = make_float3_add(fi, f);
-        atomicAdd(&forces[j_particle].x, f.x * -1.0f);
-        atomicAdd(&forces[j_particle].y, f.y * -1.0f);
-        atomicAdd(&forces[j_particle].z, f.z * -1.0f);
+        atomicAdd(&forces[j_particle_idx].x, f.x * -1.0f);
+        atomicAdd(&forces[j_particle_idx].y, f.y * -1.0f);
+        atomicAdd(&forces[j_particle_idx].z, f.z * -1.0f);
     }
 
     __global__ void compute_force_cluster_lists(
@@ -386,41 +388,53 @@ namespace ppb {
         const int* __restrict__ starts //starts for cluster_pairs
     ) {
         const unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
-        if (i >= 4 * numParticles) {
+        if (i >= 4 * (sizeof(clusters) / sizeof(int))) {
             return;
         }
 
         int i_cluster = i / 32;
-        int i_particle = i / 4;
+        int i_particle_idx = clusters[i / 4];
+        if (i_particle_idx == -1) return; //skip dummy particles
         int start_neighbors = starts[i_cluster];
         int end_neighbors = starts[i_cluster + 1];
         float3 fi = make_float3(0.f, 0.f, 0.f);
+        float3 i_particle = positions[i_particle_idx];
         
         //Compute interactions within the i-cluster
         for (int j = 0; j < 2; j++) {
-            int j_particle = clusters[i_cluster * 8 + (j * 4)] + (i % 4);
-            if (i_particle >= j_particle) continue; //N3L within the same i-cluster
-            compute_interaction(i_particle, j_particle, fi, positions, forces);
+            int j_particle_idx = clusters[i_cluster * 8 + (j * 4)] + (i % 4);
+            if (j_particle_idx == -1) continue; //skip dummy particles
+            if (i_particle_idx >= j_particle_idx) continue; //N3L within the same i-cluster
+            float3 j_particle = positions[j_particle_idx];
+            compute_interaction(i_particle, j_particle, j_particle_idx, fi, forces);
         }
 
         //N3L by construction. The pair list contains each pair of interacting clusters only once.
         for (int j_cluster = start_neighbors; j_cluster < end_neighbors; j_cluster++) {
-            int j_particle = clusters[j_cluster * 4] + (i % 4);
-            compute_interaction(i_particle, j_particle, fi, positions, forces);
+            int j_particle_idx = clusters[j_cluster * 4] + (i % 4);
+            if (j_particle_idx == -1) continue; //skip dummy particles
+            float3 j_particle = positions[j_particle_idx];
+            compute_interaction(i_particle, j_particle, j_particle_idx, fi, forces);
         }
 
         //We have 4 threads per i-particle. We assign the first of those threads to be the one that adds the accumulated fi's to the i-particle.
         if (i % 4 == 0) { 
             int MASK = 0x1111<<(i % 32);
-            float3 fi1 = __shfl_down_sync(MASK, fi, 1);
-            float3 fi2 = __shfl_down_sync(MASK, fi, 2);
-            float3 fi3 = __shfl_down_sync(MASK, fi, 3);
-            fi = make_float3_add(fi, fi1);
-            fi = make_float3_add(fi, fi2);
-            fi = make_float3_add(fi, fi3);
-            atomicAdd(&forces[i].x, fi.x);
-            atomicAdd(&forces[i].y, fi.y);
-            atomicAdd(&forces[i].z, fi.z);
+            float fi1_x = __shfl_down_sync(MASK, fi.x, 1);
+            float fi1_y = __shfl_down_sync(MASK, fi.y, 1);
+            float fi1_z = __shfl_down_sync(MASK, fi.z, 1);
+            float fi2_x = __shfl_down_sync(MASK, fi.x, 2);
+            float fi2_y = __shfl_down_sync(MASK, fi.y, 2);
+            float fi2_z = __shfl_down_sync(MASK, fi.z, 2);
+            float fi3_x = __shfl_down_sync(MASK, fi.x, 3);
+            float fi3_y = __shfl_down_sync(MASK, fi.y, 3);
+            float fi3_z = __shfl_down_sync(MASK, fi.z, 3);
+            fi.x += fi1_x + fi2_x + fi3_x;
+            fi.y += fi1_y + fi2_y + fi3_y;
+            fi.z += fi1_z + fi2_z + fi3_z;
+            atomicAdd(&forces[i_particle_idx].x, fi.x);
+            atomicAdd(&forces[i_particle_idx].y, fi.y);
+            atomicAdd(&forces[i_particle_idx].z, fi.z);
         }
     }
 #endif

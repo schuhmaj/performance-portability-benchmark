@@ -83,6 +83,7 @@ cmake_dependent_option(
     PPB_ENABLE_Cuda_VerletLists "Enables the Cuda verlet lists implementation" ON 
     "PPB_ENABLE_Cuda" OFF
 )
+
 cmake_dependent_option(
     PPB_ENABLE_DOMAIN_COLORING "Enables the domain coloring optimization for linked cells" OFF
     "PPB_ENABLE_Cuda_LinkedCells" OFF
@@ -90,6 +91,11 @@ cmake_dependent_option(
 cmake_dependent_option(
     PPB_ENABLE_CUDA_LINKED_CELL_OPTIMIZATION "Enables the force computation optimization for linked cells" OFF 
     "PPB_ENABLE_Cuda_LinkedCells" OFF
+)
+
+cmake_dependent_option(
+    PPB_ENABLE_CUDA_VERLET_CLUSTER_LISTS "Enables the Verlet Cluster Lists optimization for Verlet Lists" OFF 
+    "PPB_ENABLE_Cuda_VerletLists" OFF
 )
 
 message(STATUS "####################################################")
@@ -119,6 +125,7 @@ message(STATUS "Cuda_VerletLists                ${PPB_ENABLE_Cuda_VerletLists}")
 message(STATUS "####################################################")
 message(STATUS "DOMAIN_COLORING                 ${PPB_ENABLE_DOMAIN_COLORING}")
 message(STATUS "LINKED_CELL_OPTIMIZATION        ${PPB_ENABLE_CUDA_LINKED_CELL_OPTIMIZATION}")
+message(STATUS "VERLET_CLUSTER_LISTS            ${PPB_ENABLE_CUDA_LINKED_CELL_OPTIMIZATION}")
 message(STATUS "####################################################")
 
 #######################################################

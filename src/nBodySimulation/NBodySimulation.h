@@ -26,7 +26,7 @@ namespace ppb {
 
     namespace NBodyBenchmarkConf {
         constexpr double MIN_SIZE = 1e6;
-        constexpr double MAX_SIZE = 1e7;
+        constexpr double MAX_SIZE = 5e7;
     }
 
     /**
@@ -44,7 +44,7 @@ namespace ppb {
         /**
          * Simulation end time.
          */
-        int numberTimeSteps{1000};
+        int numberTimeSteps{100};
 
         /**
          * Size of the simulation time step.
@@ -72,7 +72,7 @@ namespace ppb {
         unsigned int seed{42};
 
         /**
-         * Cell size used in the linked cell implimentation (cell_size >= cutoff_radius!!!)
+         * Cell size used in the linked cell implementation (cell_size >= cutoff_radius!!!)
          */
         FloatType cell_size{20.0f};
         

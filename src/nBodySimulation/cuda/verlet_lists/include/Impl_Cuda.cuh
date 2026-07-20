@@ -6,6 +6,12 @@
 #include "CudaParticleSoA.cuh"
 
 namespace ppb {
+#ifdef PPB_ENABLE_VERLET_CLUSTER_LISTS
+    struct BoundingBox {
+        float3 lowerCorner; //corner of bounding box with min x, y, z coordinates
+        float3 upperCorner; //corner of bounding box with max x, y, z coordinates
+    };
+#endif
     template <typename FloatType>
     class ImplCuda {
         int _blockSize;
@@ -24,18 +30,20 @@ namespace ppb {
         int* starts{nullptr};
 
 #ifdef PPB_ENABLE_VERLET_CLUSTER_LISTS
-        struct BoundingBox {
-            float3 lowerCorner; //corner of bounding box with min x, y, z coordinates
-            float3 upperCorner; //corner of bounding box with max x, y, z coordinates
-        }
         // FOR NOW THE ONLY SUPPORTED M AND N ARE M = 8 AND N = 4!!! OTHER VALUES WILL LEAD TO UNDEFINED BEHAVIOUR!!!
+        int _gridSizeForces;
+        int _blockSizeForces;
         int M = 8; //M must be a multiple of N
         int N = 4;
-        int* starts_towers{nullptr}; //indicates where in 'clusters' each tower starts
-        int* clusters{nullptr};      //towered + binned particles. Contains references to the particles. If the reference is -1, then that particle is a dummy particle.
-        BoundingBox* BBM{nullptr};   //k-th entry is bounding box of k-th i-cluster (which has size M)
-        BoundingBox* BBN{nullptr};   //k-th entry is bounding box of k-th j-cluster (which has size N)
-        int* cluster_pairs{nullptr}; //boundaries denoted by 'starts'
+        int* starts_towers{nullptr};        //indicates where in 'clusters' each tower starts
+        int* clusters{nullptr};             //towered + binned particles. Contains references to the particles. If the reference is -1, then that particle is a dummy particle.
+        float* z_coordinates{nullptr};      //the z-coordinates of the particles in the cluster. Needed for sorting along the z-dimension.
+        struct BoundingBox* BBM{nullptr};   //k-th entry is bounding box of k-th i-cluster (which has size M)
+        struct BoundingBox* BBN{nullptr};   //k-th entry is bounding box of k-th j-cluster (which has size N)
+        int* cluster_pairs{nullptr};        //boundaries denoted by 'starts'
+        size_t num_towers{0};
+        float tower_size{0.0f};
+        size_t size_clusters{0};
 #else
         /**
          * @brief 'cells' contains the sorted particle *indicies* to the particles contained in 'particles'.

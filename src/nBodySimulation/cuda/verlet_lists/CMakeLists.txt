@@ -1,3 +1,7 @@
+if (${PPB_ENABLE_CUDA_VERLET_CLUSTER_LISTS}) 
+    add_compile_definitions(PPB_ENABLE_VERLET_CLUSTER_LISTS)
+endif ()
+
 include_directories(include)
 add_library(nbody_cuda_lib_verlet_lists STATIC
         src/common.cu
