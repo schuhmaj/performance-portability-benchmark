@@ -16,6 +16,8 @@ their harmonic mean over the complete set of selected hardware.  Missing
 hardware/workload results therefore give an implementation a PP score of zero.
 With ``--non-zero-pp``, unsupported platforms are excluded from the PP
 harmonic mean instead, without changing the application-efficiency data.
+With ``--export-to-csv``, the all-size, all-precision application-efficiency
+and performance-portability data are written beside the plot.
 
 References:
     S.J. Pennycook, J.D. Sewall, D. Jacobsen, T. Deakin and S. McIntosh-Smith, "Navigating Performance Portability", in Computing in Science & Engineering, Volume: 23, Issue: 5, 01 Sept.-Oct. 2021
@@ -175,6 +177,18 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     general.add_argument(
+        "-e",
+        "--export-to-csv",
+        action="store_true",
+        help=(
+            "Export application-efficiency and performance-portability data "
+            "to <plot-prefix>_application_efficiency.csv and "
+            "<plot-prefix>_performance_portability.csv. Exported metrics "
+            "include all sizes and precisions, and all available complexity "
+            "metrics when --complexity is supplied."
+        ),
+    )
+    general.add_argument(
         "-c",
         "--chart",
         choices=("cascade", "navchart", "combined"),
@@ -245,7 +259,10 @@ def build_parser() -> argparse.ArgumentParser:
     complexity.add_argument(
         "--complexity",
         type=Path,
-        help="Code-complexity CSV used by navchart and combined charts.",
+        help=(
+            "Code-complexity CSV used by navchart and combined charts, and "
+            "included in CSV exports."
+        ),
     )
     complexity.add_argument(
         "--complexity-metric",
@@ -1382,6 +1399,64 @@ def load_complexity_data(
     return selected, label
 
 
+def load_complexity_export_data(
+    path: Path,
+    problem_query: str,
+) -> pd.DataFrame:
+    """Load every numeric complexity metric and derive Halstead metrics.
+
+    Source metric columns such as SLOC and the primitive Halstead counts are
+    retained. When all four primitive counts are available, all supported
+    derived Halstead metrics are calculated even if they were not requested
+    for the plot.
+
+    Args:
+        path: Complexity CSV path.
+        problem_query: User-supplied benchmark problem query.
+
+    Returns:
+        Median numeric complexity metrics grouped by Framework.
+
+    Raises:
+        FileNotFoundError: If ``path`` does not exist.
+        ValueError: If the input schema or Halstead counts are invalid, or no
+            numeric metric columns are available.
+    """
+    if not path.is_file():
+        raise FileNotFoundError(f"Complexity CSV does not exist: {path}")
+    raw = pd.read_csv(path)
+    _require_columns(raw, [COMPLEXITY_NAME, COMPLEXITY_FRAMEWORK], path)
+    problem = _resolve_unique_value(
+        raw[COMPLEXITY_NAME], problem_query, "complexity problem"
+    )
+    selected = raw.loc[raw[COMPLEXITY_NAME] == problem].copy()
+    selected[COMPLEXITY_FRAMEWORK] = (
+        selected[COMPLEXITY_FRAMEWORK].fillna("").astype(str).str.strip()
+    )
+
+    halstead_counts = {"n1", "n2", "N1", "N2"}
+    if halstead_counts.issubset(selected.columns):
+        selected = _calculate_halstead_columns(selected, path)
+
+    metric_columns: list[str] = []
+    identity_columns = {COMPLEXITY_NAME, COMPLEXITY_FRAMEWORK}
+    for column in selected.columns:
+        if column in identity_columns:
+            continue
+        numeric = pd.to_numeric(selected[column], errors="coerce")
+        if numeric.notna().any():
+            selected[column] = numeric
+            metric_columns.append(column)
+    if not metric_columns:
+        raise ValueError(f"{path} contains no numeric complexity metrics.")
+
+    result = selected.groupby(COMPLEXITY_FRAMEWORK, as_index=False)[
+        metric_columns
+    ].median()
+    logger.info(f"Loaded {len(metric_columns)} export complexity metrics for {problem}")
+    return result
+
+
 def _complexity_candidates(application: str) -> list[str]:
     """Generate framework labels that may match an application.
 
@@ -1621,6 +1696,94 @@ def save_figure(figure: plt.Figure, output: Path) -> None:
     logger.success(f"Wrote plot: {output.resolve()}")
 
 
+def add_complexity_to_export(
+    data: pd.DataFrame,
+    complexity: pd.DataFrame,
+) -> pd.DataFrame:
+    """Add all matching complexity values to an export DataFrame.
+
+    Export rows are preserved when no complexity framework matches an
+    application; the metrics are left empty for those rows.
+
+    Args:
+        data: Application-efficiency or performance-portability data.
+        complexity: Complexity values keyed by Framework.
+
+    Returns:
+        A copy of ``data`` with every complexity metric after Application.
+    """
+    metric_columns = [
+        column for column in complexity.columns if column != COMPLEXITY_FRAMEWORK
+    ]
+    overlapping = set(metric_columns) & set(data.columns)
+    if overlapping:
+        raise ValueError(
+            "Complexity metric columns duplicate export columns: "
+            f"{sorted(overlapping)}"
+        )
+    lookup = {
+        _normalize_token(row[COMPLEXITY_FRAMEWORK]): {
+            column: float(row[column]) for column in metric_columns
+        }
+        for _, row in complexity.iterrows()
+    }
+    matched_values: list[dict[str, float] | None] = []
+    unmatched: set[str] = set()
+    for application_value in data[APPLICATION]:
+        application = str(application_value)
+        value = next(
+            (
+                lookup[token]
+                for candidate in _complexity_candidates(application)
+                if (token := _normalize_token(candidate)) in lookup
+            ),
+            None,
+        )
+        matched_values.append(value)
+        if value is None:
+            unmatched.add(application)
+
+    if unmatched:
+        logger.warning(
+            "No complexity value for exported application(s): "
+            + ", ".join(sorted(unmatched))
+        )
+    result = data.copy()
+    insert_position = result.columns.get_loc(APPLICATION) + 1
+    for offset, column in enumerate(metric_columns):
+        result.insert(
+            insert_position + offset,
+            column,
+            [np.nan if values is None else values[column] for values in matched_values],
+        )
+    return result
+
+
+def export_metrics_to_csv(
+    efficiency: pd.DataFrame,
+    portability: pd.DataFrame,
+    output: Path,
+) -> tuple[Path, Path]:
+    """Export metric DataFrames next to the plot using its filename prefix.
+
+    Args:
+        efficiency: Application-efficiency data to export.
+        portability: Performance-portability data to export.
+        output: Resolved plot path whose stem supplies the filename prefix.
+
+    Returns:
+        The application-efficiency and performance-portability CSV paths.
+    """
+    efficiency_output = output.with_name(f"{output.stem}_application_efficiency.csv")
+    portability_output = output.with_name(f"{output.stem}_performance_portability.csv")
+    output.parent.mkdir(parents=True, exist_ok=True)
+    efficiency.to_csv(efficiency_output, index=False)
+    portability.to_csv(portability_output, index=False)
+    logger.success(f"Wrote application efficiency: {efficiency_output.resolve()}")
+    logger.success(f"Wrote performance portability: {portability_output.resolve()}")
+    return efficiency_output, portability_output
+
+
 def main() -> int:
     """Run the P3 analysis command-line program.
 
@@ -1647,12 +1810,18 @@ def main() -> int:
             )
         if args.log_size and args.chart != "combined":
             raise ValueError("--log-size is only valid for combined charts.")
-        if args.chart == "cascade" and args.complexity is not None:
+        if (
+            args.chart == "cascade"
+            and args.complexity is not None
+            and not args.export_to_csv
+        ):
             logger.warning("Ignoring --complexity for --chart cascade.")
 
         benchmark_data = load_benchmark_csvs(args.csv_files)
         efficiency_frames: list[pd.DataFrame] = []
         portability_frames: list[pd.DataFrame] = []
+        export_efficiency_frames: list[pd.DataFrame] = []
+        export_portability_frames: list[pd.DataFrame] = []
         scaling_frames: list[pd.DataFrame] = []
         problem_pairs: list[tuple[str, str]] = []
         resolved_seen: set[str] = set()
@@ -1693,6 +1862,27 @@ def main() -> int:
             problem_portability.insert(0, PROBLEM, resolved_problem)
             efficiency_frames.append(problem_efficiency)
             portability_frames.append(problem_portability)
+
+            if args.export_to_csv:
+                export_rows, export_problem, export_description_is_workload = (
+                    select_problem_rows(
+                        benchmark_data,
+                        problem_query,
+                        args.description_include,
+                        args.description_exclude,
+                        None,
+                        None,
+                    )
+                )
+                export_efficiency, export_portability = calculate_metrics(
+                    export_rows,
+                    export_description_is_workload,
+                    non_zero_pp=args.non_zero_pp,
+                )
+                export_efficiency.insert(0, PROBLEM, export_problem)
+                export_portability.insert(0, PROBLEM, export_problem)
+                export_efficiency_frames.append(export_efficiency)
+                export_portability_frames.append(export_portability)
             if args.chart == "combined":
                 problem_scaling = calculate_scaling_metrics(
                     all_size_rows,
@@ -1711,6 +1901,12 @@ def main() -> int:
 
         navchart_data: pd.DataFrame | None = None
         metric: str | None = None
+        export_efficiency: pd.DataFrame | None = None
+        export_portability: pd.DataFrame | None = None
+        if args.export_to_csv:
+            export_efficiency = pd.concat(export_efficiency_frames, ignore_index=True)
+            export_portability = pd.concat(export_portability_frames, ignore_index=True)
+
         if args.chart in {"navchart", "combined"}:
             assert args.complexity is not None
             navchart_frames: list[pd.DataFrame] = []
@@ -1736,13 +1932,51 @@ def main() -> int:
                 )
                 problem_navchart.insert(0, PROBLEM, resolved_problem)
                 navchart_frames.append(problem_navchart)
+
             navchart_data = pd.concat(navchart_frames, ignore_index=True)
             logger.debug(f"Navchart data:\n{navchart_data.to_string(index=False)}")
+            assert metric is not None
             if args.log_complexity and navchart_data[metric].le(0.0).any():
                 raise ValueError(
                     "--log-complexity requires all plotted complexity values "
                     "to be positive."
                 )
+
+        if args.export_to_csv and args.complexity is not None:
+            assert export_efficiency is not None
+            assert export_portability is not None
+            for problem_query, resolved_problem in problem_pairs:
+                export_complexity = load_complexity_export_data(
+                    args.complexity, problem_query
+                )
+                complexity_columns = [
+                    column
+                    for column in export_complexity.columns
+                    if column != COMPLEXITY_FRAMEWORK
+                ]
+                portability_mask = export_portability[PROBLEM] == resolved_problem
+                problem_export_portability = add_complexity_to_export(
+                    export_portability.loc[
+                        portability_mask,
+                        [PROBLEM, APPLICATION, PERFORMANCE_PORTABILITY],
+                    ],
+                    export_complexity,
+                )
+                for column in complexity_columns:
+                    export_portability.loc[portability_mask, column] = (
+                        problem_export_portability[column].to_numpy()
+                    )
+
+                efficiency_mask = export_efficiency[PROBLEM] == resolved_problem
+                complexity_by_application = problem_export_portability.set_index(
+                    APPLICATION
+                )[complexity_columns]
+                for column in complexity_columns:
+                    export_efficiency.loc[efficiency_mask, column] = (
+                        export_efficiency.loc[efficiency_mask, APPLICATION]
+                        .map(complexity_by_application[column])
+                        .to_numpy()
+                    )
 
         if args.chart == "combined":
             assert navchart_data is not None
@@ -1787,6 +2021,37 @@ def main() -> int:
             )
 
         save_figure(figure, output)
+        if args.export_to_csv:
+            assert export_efficiency is not None
+            assert export_portability is not None
+            portability_columns = {
+                PROBLEM,
+                APPLICATION,
+                PERFORMANCE_PORTABILITY,
+            }
+            complexity_columns = [
+                column
+                for column in export_portability.columns
+                if column not in portability_columns
+            ]
+            export_efficiency = export_efficiency[
+                [
+                    PROBLEM,
+                    APPLICATION,
+                    *complexity_columns,
+                    HARDWARE,
+                    APPLICATION_EFFICIENCY,
+                ]
+            ]
+            export_portability = export_portability[
+                [
+                    PROBLEM,
+                    APPLICATION,
+                    *complexity_columns,
+                    PERFORMANCE_PORTABILITY,
+                ]
+            ]
+            export_metrics_to_csv(export_efficiency, export_portability, output)
         if args.legend:
             legend_source = navchart_data if args.chart == "navchart" else portability
             assert legend_source is not None
