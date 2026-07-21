@@ -17,7 +17,8 @@ hardware/workload results therefore give an implementation a PP score of zero.
 With ``--non-zero-pp``, unsupported platforms are excluded from the PP
 harmonic mean instead, without changing the application-efficiency data.
 With ``--export-to-csv``, application-efficiency and performance-portability
-data are written separately for every problem-size/precision combination.
+data are written separately for every problem-size/precision combination,
+along with per-precision averages over problem size.
 
 References:
     S.J. Pennycook, J.D. Sewall, D. Jacobsen, T. Deakin and S. McIntosh-Smith, "Navigating Performance Portability", in Computing in Science & Engineering, Volume: 23, Issue: 5, 01 Sept.-Oct. 2021
@@ -185,8 +186,9 @@ def build_parser() -> argparse.ArgumentParser:
             "Export application-efficiency and performance-portability data "
             "to <plot-prefix>_application_efficiency.csv and "
             "<plot-prefix>_performance_portability.csv. Exported metrics "
-            "include all sizes and precisions, and all available complexity "
-            "metrics when --complexity is supplied."
+            "include separate and average rows for all sizes and precisions, "
+            "and all available complexity metrics when --complexity is "
+            "supplied."
         ),
     )
     general.add_argument(
@@ -832,7 +834,9 @@ def calculate_export_metrics(
     """Calculate export metrics without combining sizes or precisions.
 
     Returns one efficiency row per application, size, precision, and hardware,
-    and one portability row per application, size, and precision.
+    and one portability row per application, size, and precision. Additional
+    rows with Problem Size ``average`` contain per-precision arithmetic means
+    over the independently calculated size metrics.
     """
     dimensions = [PROBLEM_SIZE, PRECISION]
     platforms = sorted(df[HARDWARE].unique())
@@ -861,9 +865,31 @@ def calculate_export_metrics(
         portability_frames.append(portability)
     if not efficiency_frames:
         raise ValueError("No problem-size/precision groups remain for CSV export.")
+    efficiency = pd.concat(efficiency_frames, ignore_index=True)
+    portability = pd.concat(portability_frames, ignore_index=True)
+    average_efficiency = (
+        efficiency.groupby(
+            [APPLICATION, PRECISION, HARDWARE],
+            as_index=False,
+            dropna=False,
+        )[APPLICATION_EFFICIENCY]
+        .mean()
+        .sort_values([APPLICATION, PRECISION, HARDWARE])
+    )
+    average_efficiency.insert(1, PROBLEM_SIZE, AVERAGE_SIZE)
+    average_portability = (
+        portability.groupby(
+            [APPLICATION, PRECISION],
+            as_index=False,
+            dropna=False,
+        )[PERFORMANCE_PORTABILITY]
+        .mean()
+        .sort_values([APPLICATION, PRECISION])
+    )
+    average_portability.insert(1, PROBLEM_SIZE, AVERAGE_SIZE)
     return (
-        pd.concat(efficiency_frames, ignore_index=True),
-        pd.concat(portability_frames, ignore_index=True),
+        pd.concat([efficiency, average_efficiency], ignore_index=True),
+        pd.concat([portability, average_portability], ignore_index=True),
     )
 
 
