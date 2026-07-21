@@ -68,15 +68,23 @@ TIME_UNIT_TO_NS = {"ns": 1.0, "us": 1e3, "ms": 1e6, "s": 1e9}
 
 METRIC_ALIASES = {
     "sloc": "SLOC",
+    "halstead-vocabulary": "Halstead Vocabulary",
+    "vocabulary": "Halstead Vocabulary",
+    "Eta": "Halstead Vocabulary",
+    "halstead-program-length": "Halstead Program Length",
+    "halstead-length": "Halstead Program Length",
+    "program-length": "Halstead Program Length",
+    "length": "Halstead Program Length",
+    "N": "Halstead Program Length",
     "halstead-volume": "Halstead Volume",
     "volume": "Halstead Volume",
-    "v": "Halstead Volume",
+    "V": "Halstead Volume",
     "halstead-difficulty": "Halstead Difficulty",
     "difficulty": "Halstead Difficulty",
-    "d": "Halstead Difficulty",
+    "D": "Halstead Difficulty",
     "halstead-effort": "Halstead Effort",
     "effort": "Halstead Effort",
-    "e": "Halstead Effort",
+    "E": "Halstead Effort",
 }
 
 MARKERS = ("o", "s", "^", "D", "P", "X", "v", "<", ">", "*", "h", "p")
@@ -85,24 +93,18 @@ TAB20 = matplotlib.colormaps["tab20"].colors
 FRAMEWORK_COLOR_MAP = {
     "CPP": TAB20[0],
     "Stdpar": TAB20[1],
-
     "Vulkan": TAB20[2],
     "Slang-Vulkan": TAB20[3],
-
     "AdaptiveCpp": TAB20[4],
     "Kokkos": TAB20[6],
     "RAJA": TAB20[10],
     "Alpaka": TAB20[12],
-
     "Cuda": TAB20[8],
     "Slang-Cuda": TAB20[9],
     "Cublas": TAB20[13],
-
     "Hip": "black",
-
     "OpenACC": TAB20[14],
     "OpenMP": TAB20[18],
-
     "OpenCL": TAB20[16],
     "Boost": TAB20[17],
 }
@@ -202,9 +204,7 @@ def build_parser() -> argparse.ArgumentParser:
         "-i",
         "--include",
         dest="description_include",
-        help=(
-            "Only keep rows whose Description matches this regular expression."
-        ),
+        help=("Only keep rows whose Description matches this regular expression."),
     )
     metrics.add_argument(
         "-x",
@@ -251,8 +251,9 @@ def build_parser() -> argparse.ArgumentParser:
         "--complexity-metric",
         default="halstead-effort",
         help=(
-            "Navchart metric: SLOC, Halstead volume, Halstead difficulty, or "
-            "Halstead effort (common short aliases are accepted)."
+            "Navchart metric: SLOC, Halstead vocabulary, Halstead program "
+            "length, Halstead volume, Halstead difficulty, or Halstead effort "
+            "(common short aliases are accepted)."
         ),
     )
     complexity_scaling = complexity.add_mutually_exclusive_group()
@@ -473,9 +474,7 @@ def select_problem_rows(
     # not look like a workload implemented by every remaining paradigm.
     description_is_workload = _description_is_workload(selected)
 
-    include_expression = _compile_description_filter(
-        description_include, "--include"
-    )
+    include_expression = _compile_description_filter(description_include, "--include")
     if include_expression is not None:
         mask = selected[DESCRIPTION].map(
             lambda value: include_expression.search(value) is not None
@@ -487,9 +486,7 @@ def select_problem_rows(
                 f"rows for {resolved_name}."
             )
 
-    exclude_expression = _compile_description_filter(
-        description_exclude, "--exclude"
-    )
+    exclude_expression = _compile_description_filter(description_exclude, "--exclude")
     if exclude_expression is not None:
         mask = selected[DESCRIPTION].map(
             lambda value: exclude_expression.search(value) is None
@@ -1009,9 +1006,7 @@ def plot_cascade(
     platform_axis = figure.add_subplot(grid[1, 0], sharex=efficiency_axis)
     portability_axis = figure.add_subplot(grid[0, 1], sharey=efficiency_axis)
     scaling_axis = (
-        figure.add_subplot(grid[1, 1], sharey=efficiency_axis)
-        if combined
-        else None
+        figure.add_subplot(grid[1, 1], sharey=efficiency_axis) if combined else None
     )
 
     for _, item in series.iterrows():
@@ -1257,6 +1252,8 @@ def _calculate_halstead_columns(df: pd.DataFrame, source: Path) -> pd.DataFrame:
 
     vocabulary = result["n1"] + result["n2"]
     length = result["N1"] + result["N2"]
+    result["Halstead Vocabulary"] = vocabulary
+    result["Halstead Program Length"] = length
     result["Halstead Volume"] = np.where(
         vocabulary > 0.0, length * np.log2(vocabulary), np.nan
     )
@@ -1299,7 +1296,8 @@ def resolve_complexity_metric(
         if len(direct) != 1:
             raise ValueError(
                 f"Unknown complexity metric {requested!r}. Use one of: "
-                "SLOC, Halstead volume, Halstead difficulty, Halstead effort."
+                "SLOC, Halstead vocabulary, Halstead program length, Halstead "
+                "volume, Halstead difficulty, Halstead effort."
             )
         canonical = direct[0]
 
@@ -1532,9 +1530,7 @@ def plot_navchart(
                 ncol=len(problems),
                 frameon=True,
             )
-        figure.subplots_adjust(
-            right=0.68, bottom=0.28 if len(problems) > 1 else 0.11
-        )
+        figure.subplots_adjust(right=0.68, bottom=0.28 if len(problems) > 1 else 0.11)
     else:
         figure.subplots_adjust(right=0.96, bottom=0.11)
     return figure
@@ -1792,9 +1788,7 @@ def main() -> int:
 
         save_figure(figure, output)
         if args.legend:
-            legend_source = (
-                navchart_data if args.chart == "navchart" else portability
-            )
+            legend_source = navchart_data if args.chart == "navchart" else portability
             assert legend_source is not None
             legend_applications = list(
                 dict.fromkeys(legend_source[APPLICATION].astype(str))
