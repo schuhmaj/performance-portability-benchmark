@@ -38,7 +38,7 @@
     "library_build_type": "release",
     "json_schema_version": 1,
     "float_type": "32",
-    "paradigm": "Vulkan"
+    "paradigm": "OpenMP"
   },
   "benchmarks": [
     {

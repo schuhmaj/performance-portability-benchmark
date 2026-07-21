@@ -9,7 +9,7 @@ BENCHMARK(ppb::NBodySimulation<ppb::ImplOpenMP<ppb::NBodyBenchmarkConf::float_ty
     ->Complexity();
 
 int main(int argc, char** argv) {
-    ppb::NBodyBenchmarkConf::addContext("Vulkan");
+    ppb::NBodyBenchmarkConf::addContext("OpenMP");
     benchmark::MaybeReenterWithoutASLR(argc, argv);
     benchmark::Initialize(&argc, argv);
     benchmark::RunSpecifiedBenchmarks();
