@@ -16,23 +16,22 @@ Collect the `*.json` files with the benchmark script and generate a `*.csv` by:
 ## Generate Plots
 
 To generate the plots, use the following commands:
-
 ```bash
 # For NBody Plots
-../scripts/p3_analysis.py NBody ./Results_* --complexity ./code-complexity/code-complexity.csv -c combined \
+ppbcc p3analysis NBody ./Results_* --complexity ./code-complexity/code-complexity.csv -c combined \
   --complexity-metric halstead-difficulty --additive --log-size \
   --non-zero-pp -s avg -x "VerletLists|LinkedCells|Reduction" --remove-description -l --export-to-csv
 # For Polyhedral Plots
-../scripts/p3_analysis.py Polyhedral ./Results_* --complexity ./code-complexity/code-complexity.csv -c combined \
+ppbcc p3analysis Polyhedral ./Results_* --complexity ./code-complexity/code-complexity.csv -c combined \
   --complexity-metric halstead-difficulty --additive --log-size \
   --non-zero-pp --remove-description -s avg -l --export-to-csv
 # For MatrixMultiplication Plots (no --log-complexity: --additive yields
 # non-positive complexity values for this problem)
-../scripts/p3_analysis.py MatrixMultiplication ./Results_* --complexity ./code-complexity/code-complexity.csv -c combined \
+ppbcc p3analysis MatrixMultiplication ./Results_* --complexity ./code-complexity/code-complexity.csv -c combined \
   --complexity-metric halstead-difficulty --additive --log-size \
-  --non-zero-pp --remove-description -s avg -l --export-to-csv
+  --non-zero-pp --remove-description -s avg -x "Cublas" -l --export-to-csv
 # For vector Addition Plots
-../scripts/p3_analysis.py VecAdd ./Results_* --complexity ./code-complexity/code-complexity.csv -c combined \
+ppbcc p3analysis VecAdd ./Results_* --complexity ./code-complexity/code-complexity.csv -c combined \
   --complexity-metric halstead-difficulty --additive --log-size \
   --non-zero-pp --remove-description -s avg -l --export-to-csv
 ```
