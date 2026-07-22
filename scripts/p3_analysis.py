@@ -5,8 +5,8 @@ The script consumes one or more tidy CSV files produced by ``benchmark.py``.
 The ``--chart`` option explicitly selects a Cascade Plot, a Navchart of
 performance portability versus code complexity, or a combined plot.  The
 combined plot includes the Cascade and Navchart panels plus performance-
-portability scaling over problem size. Multiple ``--name`` values are
-distinguished using problem-specific markers.
+portability scaling over problem size. The benchmark problem is supplied as
+the first positional argument.
 
 Application efficiency is calculated from wall-clock time: for every hardware
 and workload, the fastest implementation has efficiency 1 and every other
@@ -33,7 +33,6 @@ from __future__ import annotations
 import argparse
 import re
 import sys
-from itertools import cycle
 from pathlib import Path
 from typing import Iterable
 
@@ -67,6 +66,8 @@ PP_SYMBOL = r"$\mathrm{ꟼ\!\!P}$"
 COMPLEXITY_NAME = "Name"
 COMPLEXITY_FRAMEWORK = "Framework"
 AVERAGE_SIZE = "average"
+BEST_SIZE = "best"
+WORST_SIZE = "worst"
 
 TIME_UNIT_TO_NS = {"ns": 1.0, "us": 1e3, "ms": 1e6, "s": 1e9}
 
@@ -91,7 +92,9 @@ METRIC_ALIASES = {
     "E": "Halstead Effort",
 }
 
-MARKERS = ("o", "s", "^", "D", "P", "X", "v", "<", ">", "*", "h", "p")
+PLOT_MARKER_SIZE = 10
+LEGEND_MARKER_SIZE = 11
+SCATTER_MARKER_AREA = 140
 
 TAB20 = matplotlib.colormaps["tab20"].colors
 FRAMEWORK_COLOR_MAP = {
@@ -111,15 +114,6 @@ FRAMEWORK_COLOR_MAP = {
     "OpenMP": TAB20[18],
     "OpenCL": TAB20[16],
     "Boost": TAB20[17],
-}
-
-PROBLEM_MARKER_MAP = {
-    "polyhedral": "s",
-    "polyhedralgravity": "s",
-    "vecadd": "+",
-    "vectoraddition": "+",
-    "matrixmultiplication": "x",
-    "nbody": "o",
 }
 
 HARDWARE_VENDOR_PATTERNS = {
@@ -146,21 +140,19 @@ def build_parser() -> argparse.ArgumentParser:
     )
     general = parser.add_argument_group("general script options")
     general.add_argument(
+        "name",
+        metavar="NAME",
+        help=(
+            "Benchmark problem to plot. Exact case-insensitive matches are "
+            "preferred; a unique substring match is accepted."
+        ),
+    )
+    general.add_argument(
         "csv_files",
         nargs="+",
         type=Path,
         metavar="CSV",
         help="One or more CSV files produced by benchmark.py.",
-    )
-    general.add_argument(
-        "-n",
-        "--name",
-        nargs="+",
-        required=True,
-        help=(
-            "One or more benchmark problems to plot. Exact case-insensitive "
-            "matches are preferred; unique substring matches are accepted."
-        ),
     )
     general.add_argument(
         "-v",
@@ -175,7 +167,7 @@ def build_parser() -> argparse.ArgumentParser:
         type=Path,
         help=(
             "Output plot path. If no suffix is provided, .pdf is appended. "
-            "Defaults to <problems>_<cascade|navchart|combined>.pdf."
+            "Defaults to <problem>_<cascade|navchart|combined>.pdf."
         ),
     )
     general.add_argument(
@@ -235,8 +227,10 @@ def build_parser() -> argparse.ArgumentParser:
         type=parse_problem_size,
         help=(
             "Use this exact Problem Size for application efficiency and the "
-            "aggregate PP/complexity point, or 'avg'/'average' to average "
-            "both metrics over problem sizes. Scaling still uses all sizes."
+            "aggregate PP/complexity point; 'avg', 'average', or 'mean' takes "
+            "the arithmetic mean; 'best' takes the maximum; and 'worst' "
+            "takes the minimum of each metric over problem sizes. Scaling "
+            "still uses all sizes."
         ),
     )
     metrics.add_argument(
@@ -297,14 +291,18 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def parse_problem_size(value: str) -> float | str:
-    """Parse a numeric problem size or the ``avg``/``average`` sentinel."""
-    if value.casefold() in {"avg", AVERAGE_SIZE}:
+    """Parse a numeric problem size or a size-summary sentinel."""
+    normalized = value.casefold()
+    if normalized in {"avg", AVERAGE_SIZE, "mean"}:
         return AVERAGE_SIZE
+    if normalized in {BEST_SIZE, WORST_SIZE}:
+        return normalized
     try:
         return float(value)
     except ValueError as error:
         raise argparse.ArgumentTypeError(
-            "problem size must be numeric, 'avg', or 'average'"
+            "problem size must be numeric, 'avg', 'average', 'mean', "
+            "'best', or 'worst'"
         ) from error
 
 
@@ -826,6 +824,57 @@ def calculate_average_size_metrics(
     return efficiency, portability
 
 
+def calculate_extreme_size_metrics(
+    df: pd.DataFrame,
+    description_is_workload: bool,
+    mode: str,
+    non_zero_pp: bool = False,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Select each application's best or worst metrics over problem sizes.
+
+    Application efficiency is reduced independently for every application and
+    hardware pair. Performance portability is reduced independently for every
+    application, so both Cascade panels represent the requested size-axis
+    extreme of the metric they display.
+
+    Args:
+        df: Selected rows for one benchmark problem.
+        description_is_workload: Whether Description belongs to the workload key.
+        mode: ``best`` for maxima or ``worst`` for minima.
+        non_zero_pp: Whether unsupported platforms are excluded from PP.
+
+    Returns:
+        Application-efficiency and performance-portability extrema.
+
+    Raises:
+        ValueError: If mode is not ``best`` or ``worst``.
+    """
+    if mode not in {BEST_SIZE, WORST_SIZE}:
+        raise ValueError(f"Unsupported size-extreme mode: {mode!r}")
+
+    per_size_efficiency, per_size_portability = calculate_metrics_by_size(
+        df,
+        description_is_workload,
+        non_zero_pp=non_zero_pp,
+    )
+    reduction = "max" if mode == BEST_SIZE else "min"
+    efficiency = (
+        per_size_efficiency.groupby([APPLICATION, HARDWARE], as_index=False)[
+            APPLICATION_EFFICIENCY
+        ]
+        .agg(reduction)
+        .sort_values([APPLICATION, HARDWARE])
+    )
+    portability = (
+        per_size_portability.groupby(APPLICATION, as_index=False)[
+            PERFORMANCE_PORTABILITY
+        ]
+        .agg(reduction)
+        .sort_values(PERFORMANCE_PORTABILITY, ascending=False)
+    )
+    return efficiency, portability
+
+
 def calculate_export_metrics(
     df: pd.DataFrame,
     description_is_workload: bool,
@@ -1013,7 +1062,7 @@ def _framework_colors(
 
 
 def _problem_markers(problems: list[str]) -> dict[str, str]:
-    """Assign stable markers to benchmark problems.
+    """Assign the common dot marker to every benchmark problem.
 
     Args:
         problems: Resolved benchmark problem names.
@@ -1021,12 +1070,7 @@ def _problem_markers(problems: list[str]) -> dict[str, str]:
     Returns:
         Marker mapping keyed by problem.
     """
-    result: dict[str, str] = {}
-    fallback = cycle(MARKERS)
-    for problem in dict.fromkeys(problems):
-        marker = PROBLEM_MARKER_MAP.get(_normalize_token(problem))
-        result[problem] = marker if marker is not None else next(fallback)
-    return result
+    return {problem: "o" for problem in dict.fromkeys(problems)}
 
 
 def _display_application(application: str, remove_description: bool) -> str:
@@ -1097,7 +1141,8 @@ def _problem_legend_handles(
             color="black",
             marker=markers[problem],
             linestyle="None",
-            markersize=8,
+            markersize=LEGEND_MARKER_SIZE,
+            markeredgewidth=1.5,
             label=problem,
         )
         for problem in dict.fromkeys(problems)
@@ -1129,8 +1174,8 @@ def plot_cascade(
         scaling_data: Optional per-size PP data for combined mode.
         log_complexity: Whether the complexity axis is logarithmic.
         log_size: Whether the problem-size scaling axis is logarithmic.
-        selected_size: Optional benchmark size, or ``average`` when the two
-            upper panels average their metrics over all sizes.
+        selected_size: Optional benchmark size or size-summary mode for the two
+            upper panels.
         show_legends: Whether legends are embedded in the plot.
 
     Returns:
@@ -1194,7 +1239,8 @@ def plot_cascade(
             color=colors[application],
             marker=markers[problem],
             linewidth=1.6,
-            markersize=7,
+            markersize=PLOT_MARKER_SIZE,
+            markeredgewidth=1.5,
         )
 
     efficiency_axis.set_ylabel("Application Efficiency")
@@ -1226,7 +1272,8 @@ def plot_cascade(
             [y + 0.5, y + 0.5],
             color=colors[application],
             marker=markers[problem],
-            markersize=6,
+            markersize=PLOT_MARKER_SIZE,
+            markeredgewidth=1.5,
             linewidth=1.2,
             zorder=1,
         )
@@ -1267,8 +1314,8 @@ def plot_cascade(
                 item[PERFORMANCE_PORTABILITY],
                 color=colors[application],
                 marker=markers[problem],
-                s=80,
-                linewidth=1.0,
+                s=SCATTER_MARKER_AREA,
+                linewidth=1.5,
                 zorder=3,
             )
         portability_axis.set_xlabel(complexity_metric)
@@ -1292,6 +1339,8 @@ def plot_cascade(
                 item[PERFORMANCE_PORTABILITY],
                 color=colors[str(item[APPLICATION])],
                 marker=markers[str(item[PROBLEM])],
+                s=SCATTER_MARKER_AREA,
+                linewidth=1.5,
                 zorder=3,
             )
         portability_axis.set_xticks([])
@@ -1313,7 +1362,8 @@ def plot_cascade(
                 color=colors[str(application)],
                 marker=markers[str(problem)],
                 linewidth=1.5,
-                markersize=6,
+                markersize=PLOT_MARKER_SIZE,
+                markeredgewidth=1.5,
             )
         scaling_axis.set_xlabel("Problem Size")
         if log_size:
@@ -1373,14 +1423,18 @@ def plot_cascade(
     if selected_size is not None:
         upper_left = efficiency_axis.get_position()
         upper_right = portability_axis.get_position()
-        size_note = (
-            f"{PP_SYMBOL} and $e_A$ averaged over benchmark sizes"
-            if selected_size == AVERAGE_SIZE
-            else (
+        if selected_size == AVERAGE_SIZE:
+            size_note = f"{PP_SYMBOL} and $e_A$ averaged over benchmark sizes"
+        elif selected_size in {BEST_SIZE, WORST_SIZE}:
+            size_note = (
+                f"{PP_SYMBOL} and $e_A$ use the {selected_size} value over "
+                "benchmark sizes"
+            )
+        else:
+            size_note = (
                 f"{PP_SYMBOL} and $e_A$ plotted for benchmark size = "
                 f"{float(selected_size):g}"
             )
-        )
         figure.text(
             (upper_left.x0 + upper_right.x1) / 2.0,
             max(upper_left.y1, upper_right.y1) + 0.012,
@@ -1729,7 +1783,7 @@ def plot_navchart(
             row[PERFORMANCE_PORTABILITY],
             color=colors[application],
             marker=marker,
-            s=95,
+            s=SCATTER_MARKER_AREA,
             zorder=3,
             **marker_options,
         )
@@ -2025,9 +2079,8 @@ def main() -> int:
         export_portability_frames: list[pd.DataFrame] = []
         scaling_frames: list[pd.DataFrame] = []
         problem_pairs: list[tuple[str, str]] = []
-        resolved_seen: set[str] = set()
 
-        for problem_query in args.name:
+        for problem_query in (args.name,):
             numeric_size = args.size if isinstance(args.size, float) else None
             selection_size = None if args.chart == "combined" else numeric_size
             all_size_rows, resolved_problem, description_is_workload = (
@@ -2040,13 +2093,6 @@ def main() -> int:
                     args.precision,
                 )
             )
-            if resolved_problem in resolved_seen:
-                logger.warning(
-                    f"Problem {resolved_problem} was selected more than once; "
-                    "ignoring the duplicate."
-                )
-                continue
-            resolved_seen.add(resolved_problem)
             problem_pairs.append((problem_query, resolved_problem))
 
             selected = all_size_rows
@@ -2060,6 +2106,15 @@ def main() -> int:
                     calculate_average_size_metrics(
                         selected,
                         description_is_workload,
+                        non_zero_pp=args.non_zero_pp,
+                    )
+                )
+            elif args.size in {BEST_SIZE, WORST_SIZE}:
+                problem_efficiency, problem_portability = (
+                    calculate_extreme_size_metrics(
+                        selected,
+                        description_is_workload,
+                        args.size,
                         non_zero_pp=args.non_zero_pp,
                     )
                 )

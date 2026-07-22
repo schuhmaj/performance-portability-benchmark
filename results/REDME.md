@@ -19,20 +19,20 @@ To generate the plots, use the following commands:
 
 ```bash
 # For NBody Plots
-../scripts/p3_analysis.py -n NBody --complexity ./code-complexity/code-complexity.csv -c combined ./Results_* \
+../scripts/p3_analysis.py NBody ./Results_* --complexity ./code-complexity/code-complexity.csv -c combined \
   --complexity-metric halstead-difficulty --additive --log-size \
   --non-zero-pp -s avg -x "VerletLists|LinkedCells|Reduction" --remove-description -l --export-to-csv
 # For Polyhedral Plots
-../scripts/p3_analysis.py -n Polyhedral --complexity ./code-complexity/code-complexity.csv -c combined ./Results_* \
+../scripts/p3_analysis.py Polyhedral ./Results_* --complexity ./code-complexity/code-complexity.csv -c combined \
   --complexity-metric halstead-difficulty --additive --log-size \
   --non-zero-pp --remove-description -s avg -l --export-to-csv
 # For MatrixMultiplication Plots (no --log-complexity: --additive yields
 # non-positive complexity values for this problem)
-../scripts/p3_analysis.py -n MatrixMultiplication --complexity ./code-complexity/code-complexity.csv -c combined ./Results_* \
+../scripts/p3_analysis.py MatrixMultiplication ./Results_* --complexity ./code-complexity/code-complexity.csv -c combined \
   --complexity-metric halstead-difficulty --additive --log-size \
   --non-zero-pp --remove-description -s avg -l --export-to-csv
 # For vector Addition Plots
-../scripts/p3_analysis.py -n VecAdd --complexity ./code-complexity/code-complexity.csv -c combined ./Results_* \
+../scripts/p3_analysis.py VecAdd ./Results_* --complexity ./code-complexity/code-complexity.csv -c combined \
   --complexity-metric halstead-difficulty --additive --log-size \
   --non-zero-pp --remove-description -s avg -l --export-to-csv
 ```
