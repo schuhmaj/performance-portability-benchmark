@@ -33,7 +33,7 @@ ppbcc p3analysis MatrixMultiplication ./Results_* --complexity ./code-complexity
 # For vector Addition Plots
 ppbcc p3analysis VecAdd ./Results_* --complexity ./code-complexity/code-complexity.csv -c combined \
   --complexity-metric halstead-difficulty --additive --log-size \
-  --non-zero-pp --remove-description -s avg -l --export-to-csv
+  --non-zero-pp --remove-description -s avg -x "Cublas" -l --export-to-csv
 ```
 
 ## Generate Code-Complexity results
