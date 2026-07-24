@@ -35,11 +35,12 @@ namespace ppb {
         int _blockSizeForces;
         int M = 8; //M must be a multiple of N
         int N = 4;
-        int* starts_towers{nullptr};        //indicates where in 'clusters' each tower starts
+        size_t* tower_ids{nullptr};
+        int* starts_towers{nullptr};
         int* clusters{nullptr};             //towered + binned particles. Contains references to the particles. If the reference is -1, then that particle is a dummy particle.
         float* z_coordinates{nullptr};      //the z-coordinates of the particles in the cluster. Needed for sorting along the z-dimension.
-        struct BoundingBox* BBM{nullptr};   //k-th entry is bounding box of k-th i-cluster (which has size M)
-        struct BoundingBox* BBN{nullptr};   //k-th entry is bounding box of k-th j-cluster (which has size N)
+        BoundingBox* BBM{nullptr};   //k-th entry is bounding box of k-th i-cluster (which has size M)
+        BoundingBox* BBN{nullptr};   //k-th entry is bounding box of k-th j-cluster (which has size N)
         int* cluster_pairs{nullptr};        //boundaries denoted by 'starts'
         size_t num_towers{0};
         float tower_size{0.0f};

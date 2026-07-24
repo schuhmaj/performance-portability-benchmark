@@ -8,8 +8,8 @@ add_library(nbody_cuda_lib_verlet_lists STATIC
         src/CudaParticleSoA.cu 
         src/Impl_Cuda.cu)
 target_compile_features(nbody_cuda_lib_verlet_lists PUBLIC cxx_std_20)
-target_link_libraries(nbody_cuda_lib_verlet_lists PUBLIC nbody_lib)
 target_compile_options(nbody_cuda_lib_verlet_lists PUBLIC $<$<COMPILE_LANGUAGE:CUDA>:--ptxas-options=-v>)
+target_link_libraries(nbody_cuda_lib_verlet_lists PUBLIC nbody_lib)
 set_target_properties(nbody_cuda_lib_linked_cells PROPERTIES
         CUDA_SEPARABLE_COMPILATION ON
         CUDA_ARCHITECTURES native

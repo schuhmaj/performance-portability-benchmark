@@ -80,7 +80,7 @@ namespace ppb {
         _gridSizeForces = util::ceilDiv<unsigned int>(number_of_cells_with_same_color, _blockSizeForces);
 #elif PPB_ENABLE_CUDA_LINKED_CELL_OPTIMIZATION 
         CHECK_CUDA_ERROR(cudaFuncSetAttribute(compute_forces_optimized, cudaFuncAttributeMaxDynamicSharedMemorySize, 96 * 1024));
-        CHECK_CUDA_ERROR(cudaOccupancyMaxPotentialBlockSize(&minGridSize, &_blockSizeForces, reinterpret_cast<void *>(compute_forces_optimized), 96 * 1024, 0));
+        CHECK_CUDA_ERROR(cudaOccupancyMaxPotentialBlockSize(&minGridSize, &_blockSizeForces, reinterpret_cast<void *>(compute_forces_optimized), 24 * 1024, 0));
         _gridSizeForces = util::ceilDiv<unsigned int>(size, _blockSizeForces); 
 #else 
         _gridSizeForces = _gridSize;
@@ -154,8 +154,8 @@ namespace ppb {
         for (size_t color = 0; color < 8; color++) 
             compute_forces_colored<<<_gridSizeForces, _blockSizeForces>>>(color, position, force, cells, starts); 
 #elif PPB_ENABLE_CUDA_LINKED_CELL_OPTIMIZATION
-        CHECK_CUDA_ERROR(cudaFuncSetAttribute(compute_forces_optimized, cudaFuncAttributeMaxDynamicSharedMemorySize, 96 * 1024));
-        size_t shmem_size = 96 * 1024;
+        //CHECK_CUDA_ERROR(cudaFuncSetAttribute(compute_forces_optimized, cudaFuncAttributeMaxDynamicSharedMemorySize, 96 * 1024));
+        size_t shmem_size = 24 * 1024;
         compute_forces_optimized<<<_gridSizeForces, _blockSizeForces, shmem_size>>>(cells_positions, force, starts, cells, shmem_size / sizeof(float3));
 #else
         compute_forces<<<_gridSizeForces, _blockSizeForces>>>(cells_positions, force, cells, starts);

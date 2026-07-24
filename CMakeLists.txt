@@ -1,8 +1,9 @@
-cmake_minimum_required(VERSION 3.22)
+cmake_minimum_required(VERSION 3.23.1 FATAL_ERROR) #changed to 3.23.1 for cuCollections
 project(performance_portability_benchmark VERSION 1.0 LANGUAGES CXX)
 
 include(CheckLanguage)
 include(CMakeDependentOption)
+
 
 check_language(CUDA)
 if (CMAKE_CUDA_COMPILER)
@@ -125,7 +126,7 @@ message(STATUS "Cuda_VerletLists                ${PPB_ENABLE_Cuda_VerletLists}")
 message(STATUS "####################################################")
 message(STATUS "DOMAIN_COLORING                 ${PPB_ENABLE_DOMAIN_COLORING}")
 message(STATUS "LINKED_CELL_OPTIMIZATION        ${PPB_ENABLE_CUDA_LINKED_CELL_OPTIMIZATION}")
-message(STATUS "VERLET_CLUSTER_LISTS            ${PPB_ENABLE_CUDA_LINKED_CELL_OPTIMIZATION}")
+message(STATUS "VERLET_CLUSTER_LISTS            ${PPB_ENABLE_CUDA_VERLET_CLUSTER_LISTS}")
 message(STATUS "####################################################")
 
 #######################################################

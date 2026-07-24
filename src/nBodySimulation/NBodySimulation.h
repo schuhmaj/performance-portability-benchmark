@@ -79,7 +79,7 @@ namespace ppb {
         /**
          * Cutoff radius used in the linked cell and verlet lists implementation
          */
-        FloatType cutoff_radius{20.0f};
+        FloatType cutoff_radius{200.0f};
 
         /**
         * Size of the Verlet skin.
