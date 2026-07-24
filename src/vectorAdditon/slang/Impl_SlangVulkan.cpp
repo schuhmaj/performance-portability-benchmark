@@ -1,7 +1,6 @@
 #include <chrono>
 #include <utility>
 #include "common/vulkan/VulkanUtility.h"
-#include "matrixMultiplication/MatrixMultiplication.h"
 #include "VectorAdditionShader.h"
 #include "vectorAdditon/VectorAddition.h"
 

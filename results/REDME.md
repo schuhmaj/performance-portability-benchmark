@@ -48,7 +48,7 @@ python scripts/generate_code_complexity.py
 The file-level results correspond to:
 
 ```bash
-python -m code_complexity src \
+ppbcc code-complexity src \
   --output results/code-complexity/code-complexity-files.csv
 ```
 
@@ -56,7 +56,7 @@ Each implementation aggregate is generated with the same form, using the
 explicit source manifest in `scripts/generate_code_complexity.py`:
 
 ```bash
-python -m code_complexity <implementation-and-shared-source-files...> \
+ppbcc code-complexity <implementation-and-shared-source-files...> \
   --dialect <dialect-list> --aggregate \
   --metrics sloc distinct_operators distinct_operands total_operators total_operands \
   --output <temporary-csv>
@@ -79,4 +79,6 @@ aggregated twice: with CUDA host code for `Slang-Cuda` and with Vulkan host
 code for `Slang-Vulkan`. OpenCL kernels reused by Boost.Compute are included
 in the Boost aggregates as well. Quoted repository-local includes are resolved
 transitively, and implementation units for required utilities from
-`src/common` are added automatically.
+`src/common` are added automatically. The generator rejects dependencies on a
+different benchmark problem, which prevents unrelated application code from
+silently inflating an aggregate.

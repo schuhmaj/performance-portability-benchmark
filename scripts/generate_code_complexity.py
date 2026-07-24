@@ -12,7 +12,6 @@ import argparse
 import csv
 import shlex
 import subprocess
-import sys
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
@@ -23,6 +22,13 @@ SRC = ROOT / "src"
 RESULTS = ROOT / "results" / "code-complexity"
 FILE_RESULTS = RESULTS / "code-complexity-files.csv"
 AGGREGATE_RESULTS = RESULTS / "code-complexity.csv"
+
+PROBLEM_SOURCE_ROOTS = {
+    "VecAdd": "src/vectorAdditon/",
+    "MatrixMultiplication": "src/matrixMultiplication/",
+    "NBody": "src/nBodySimulation/",
+    "PolyhedralGravity": "src/polyhedralGravity/",
+}
 
 SOURCE_SUFFIXES = {
     ".c", ".cc", ".cpp", ".cxx", ".c++",
@@ -310,6 +316,27 @@ def local_dependencies(seed_sources: tuple[str, ...]) -> tuple[Path, ...]:
     return tuple(sorted(selected))
 
 
+def validate_dependencies(
+    implementation: Implementation,
+    sources: tuple[Path, ...],
+) -> None:
+    """Reject accidental dependencies on a different benchmark problem."""
+    expected_root = PROBLEM_SOURCE_ROOTS[implementation.problem]
+    problem_roots = tuple(PROBLEM_SOURCE_ROOTS.values())
+    relative_sources = tuple(path.relative_to(ROOT).as_posix() for path in sources)
+    foreign_sources = [
+        path
+        for path in relative_sources
+        if path.startswith(problem_roots) and not path.startswith(expected_root)
+    ]
+    if foreign_sources:
+        formatted = ", ".join(foreign_sources)
+        raise RuntimeError(
+            f"{implementation.problem}/{implementation.framework} includes "
+            f"source from another benchmark problem: {formatted}"
+        )
+
+
 def command_for(
     sources: tuple[Path, ...],
     output: Path,
@@ -317,7 +344,7 @@ def command_for(
     dialect: str | None = None,
     aggregate: bool = False,
 ) -> list[str]:
-    command = [sys.executable, "-m", "code_complexity"]
+    command = ["ppbcc", "code-complexity"]
     command.extend(path.relative_to(ROOT).as_posix() for path in sources)
     if dialect is not None:
         command.extend(("--dialect", dialect))
@@ -348,6 +375,7 @@ def generate(dry_run: bool) -> None:
         temporary_dir = Path(temporary)
         for index, implementation in enumerate(implementation_manifest()):
             sources = local_dependencies(implementation.sources)
+            validate_dependencies(implementation, sources)
             output = temporary_dir / f"aggregate-{index:03d}.csv"
             run(
                 command_for(sources, output, dialect=implementation.dialect, aggregate=True),
@@ -400,7 +428,7 @@ def main() -> int:
     parser.add_argument(
         "--dry-run",
         action="store_true",
-        help="print every python -m code_complexity command without executing it",
+        help="print every ppbcc code-complexity command without executing it",
     )
     arguments = parser.parse_args()
     generate(arguments.dry_run)

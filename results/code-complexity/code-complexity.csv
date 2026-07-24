@@ -17,8 +17,8 @@ VecAdd,Cublas,227,82,136,947,529
 VecAdd,Cuda[Chunked],138,65,59,606,349
 VecAdd,Thrust,208,72,140,881,507
 VecAdd,Stdpar[NVHPC],171,68,140,703,424
-VecAdd,Slang-Cuda,780,122,433,3233,2115
-VecAdd,Slang-Vulkan,813,115,457,3716,2403
+VecAdd,Slang-Cuda,351,109,247,1228,766
+VecAdd,Slang-Vulkan,384,104,280,1711,1054
 MatrixMultiplication,CPP,533,78,304,2539,1651
 MatrixMultiplication,Alpaka,599,103,341,2848,1817
 MatrixMultiplication,Boost,576,92,326,2706,1755

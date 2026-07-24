@@ -2,7 +2,6 @@
 #include <utility>
 #include "common/cuda/Common_Structs.cuh"
 #include "common/UtilityFloatArithmetic.h"
-#include "matrixMultiplication/MatrixMultiplication.h"
 #include "vectorAdditon/VectorAddition.h"
 
 
