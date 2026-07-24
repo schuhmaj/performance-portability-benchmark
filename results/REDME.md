@@ -36,6 +36,22 @@ ppbcc p3analysis VecAdd ./Results_* --complexity ./code-complexity/code-complexi
   --non-zero-pp --remove-description -s avg -x "Cublas" -l --export-to-csv
 ```
 
+```bash
+# For NBody Plots
+ppbcc p3analysis NBody ./Results_* -c boxplot \
+  --non-zero-pp -s all -x "VerletLists|LinkedCells|Reduction" --remove-description
+# For Polyhedral Plots
+ppbcc p3analysis Polyhedral ./Results_* -c boxplot \
+  --non-zero-pp --remove-description -s all
+# For MatrixMultiplication Plots (no --log-complexity: --additive yields
+# non-positive complexity values for this problem)
+ppbcc p3analysis MatrixMultiplication ./Results_* -c boxplot \
+  --non-zero-pp --remove-description -s all -x "Cublas"
+# For vector Addition Plots
+ppbcc p3analysis VecAdd ./Results_* -c boxplot \
+  --non-zero-pp --remove-description -s all -x "Cublas"
+```
+
 ## Generate Code-Complexity results
 
 The plot commands above require `results/code-complexity/code-complexity.csv`.
