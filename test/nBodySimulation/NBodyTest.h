@@ -100,6 +100,7 @@ protected:
             //Energy conservation
             auto state = start_state;
             for (size_t i = 0; i < ITERATIONS; i++) {
+                printf("ITERATION %lu\n", i);
                 float total_energy_before = get_total_energy(state);
                 ParticleSimulationConfig<float> config{static_cast<size_t>(size), 1, TIME_STEP};
                 Implementation nBodySim{config};
@@ -113,11 +114,19 @@ protected:
         }
 
             //Positions
-            ParticleSimulationConfig<float> config{static_cast<size_t>(size), ITERATIONS, 1e-10};
+            ParticleSimulationConfig<float> config{static_cast<size_t>(size), ITERATIONS, 0.0005};
             NBodySimulation<ImplCpp<float>> cppNBodySim{config};
             NBodySimulation<Implementation> otherNBodySim{config};
             const auto [expectedResult, timings1] = cppNBodySim();
-            const auto [actualResult, timings2]  = otherNBodySim();
+            const auto [actualResult, timings2] = otherNBodySim();
+            std::cout<<"Expected:"<<std::endl;
+            for (auto& p : expectedResult) {
+                std::cout<<p<<std::endl;
+            }
+            std::cout<<"Actual:"<<std::endl;
+            for (auto& p : actualResult) {
+                std::cout<<p<<std::endl;
+            }
             ASSERT_THAT(actualResult, ParticlesEq(expectedResult, epsilon));
             
 /*             //Energy conservation

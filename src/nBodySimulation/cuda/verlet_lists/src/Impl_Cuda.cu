@@ -9,6 +9,7 @@
 #include <vector>
 #include <thrust/scan.h>
 #include <thrust/execution_policy.h>
+#include <cub/device/device_segmented_sort.cuh>
 
 #define CHECK_CUDA_ERROR(val) ppb::check((val), #val, __FILE__, __LINE__)
 #define CHECK_LAST_CUDA_ERROR() checkLast(__FILE__, __LINE__)
@@ -52,12 +53,6 @@ namespace ppb {
             CHECK_CUDA_ERROR(cudaOccupancyMaxPotentialBlockSize(&minGridSize, &_blockSize, reinterpret_cast<void *>(update_positions), 0, size));
         }
         _gridSize = util::ceilDiv<unsigned int>(size, _blockSize);
-#ifdef PPB_ENABLE_VERLET_CLUSTER_LISTS
-        int minGridSize = 0;
-        CHECK_CUDA_ERROR(cudaOccupancyMaxPotentialBlockSize(&minGridSize, &_blockSizeForces, reinterpret_cast<void *>(compute_force_cluster_lists), 0, 0));
-        _gridSizeForces = util::ceilDiv<size_t>(4 * size, _blockSizeForces);
-        
-#endif
         //---------------------------------Allocate device memory------------------------------------------
 #ifndef PPB_ENABLE_VERLET_CLUSTER_LISTS
         CHECK_CUDA_ERROR(cudaMalloc(&starts, sizeof(int) * (size + 1))); // +1 so the last element is the total number of neighbors
@@ -95,34 +90,21 @@ namespace ppb {
     void ImplCuda<FloatType>::makeClusters() {
         // Split up the domain into towers
         float volume_domain = (_config.boxMax[0] - _config.boxMin[0]) * (_config.boxMax[1] - _config.boxMin[1]) * (_config.boxMax[2] - _config.boxMin[2]);
-        float rho = volume_domain / _config.size;
+        float rho = _config.size / volume_domain;
         tower_size = std::pow(max(M, N) / rho, 1.0/3.0);
+        size_t num_towers_x = std::ceil((_config.boxMax[0] - _config.boxMin[0]) / tower_size);
+        size_t num_towers_y = std::ceil((_config.boxMax[1] - _config.boxMin[1]) / tower_size);
+        num_towers = num_towers_x * num_towers_y;
+        //printf("num_towers: %lu\n", num_towers);
 
-        // Get tower id per particle
-        size_t* particle_tower_id{nullptr};
-        CHECK_CUDA_ERROR(cudaMalloc(&particle_tower_id, sizeof(size_t) * _config.size));
-        get_tower_id_per_particle<<<_gridSize, _blockSize>>>(_particles->positions, particle_tower_id, tower_size);
-
-        // Determine non-empty towers and sort them in ascending tower_id
-        size_t* particle_tower_id_host = (size_t*)malloc(_config.size * sizeof(size_t));
-        if (particle_tower_id_host == nullptr) exit(-1);
-        CHECK_CUDA_ERROR(cudaMemcpy(particle_tower_id_host, particle_tower_id, sizeof(size_t) * _config.size, cudaMemcpyDeviceToHost));
-        std::vector<size_t> non_empty_towers = get_unique_towers(particle_tower_id_host, _config.size);
-        num_towers = non_empty_towers.size();
-        thrust::sort(thrust::host, non_empty_towers.data(), non_empty_towers.data() + non_empty_towers.size());
-        CHECK_CUDA_ERROR(cudaFree(particle_tower_id));
-
-        // Get total size per tower (including dummy particles)
-        if (tower_ids != nullptr) CHECK_CUDA_ERROR(cudaFree(tower_ids));
+        // Get number of particles + dummy particles in towers
         if (starts_towers != nullptr) CHECK_CUDA_ERROR(cudaFree(starts_towers));
-        CHECK_CUDA_ERROR(cudaMalloc(&tower_ids, sizeof(size_t) * num_towers));
         CHECK_CUDA_ERROR(cudaMalloc(&starts_towers, sizeof(int) * (num_towers + 1)));
-        CHECK_CUDA_ERROR(cudaMemcpy(tower_ids, non_empty_towers.data(), sizeof(size_t) * num_towers, cudaMemcpyHostToDevice));
         CHECK_CUDA_ERROR(cudaMemset(starts_towers, 0, sizeof(int) * (num_towers + 1)));
-        count_particles_in_towers<<<_gridSize, _blockSize>>>(_particles->positions, tower_ids, starts_towers, tower_size, num_towers); 
+        count_particles_in_towers<<<_gridSize, _blockSize>>>(_particles->positions, starts_towers, tower_size); 
         add_dummy_particles_to_towers<<<util::ceilDiv(num_towers, (size_t)1024), 1024>>>(starts_towers, M, num_towers);  
-        thrust::inclusive_scan(thrust::device, starts_towers, starts_towers + non_empty_towers.size() + 1, starts_towers);
-
+        thrust::inclusive_scan(thrust::device, starts_towers, starts_towers + num_towers + 1, starts_towers);
+        
         // Allocate space for clusters
         CHECK_CUDA_ERROR(cudaMemcpy(&size_clusters, &starts_towers[num_towers], sizeof(int), cudaMemcpyDeviceToHost)); 
         if (size_clusters == 0) return;
@@ -131,15 +113,52 @@ namespace ppb {
         CHECK_CUDA_ERROR(cudaMalloc(&clusters, sizeof(int) * size_clusters));
         CHECK_CUDA_ERROR(cudaMalloc(&z_coordinates, sizeof(float) * size_clusters));
         init_clusters_and_z_coordinates<<<util::ceilDiv(size_clusters, (size_t)1024), 1024>>>(clusters, z_coordinates, size_clusters);
-        
+
+        //std::cout<<"size_clusters: "<<size_clusters<<std::endl;
+
         // Insert particles into towers and sort them along z-axis
         int* positions_in_tower;
-        CHECK_CUDA_ERROR(cudaMalloc(&positions_in_tower, sizeof(int) * size));
-        get_particle_position_in_tower<<<_gridSize, _blockSize>>>(_particles->positions, clusters, z_coordinates, tower_ids, starts_towers, positions_in_tower, num_towers, tower_size); 
-        insert_particles_into_towers<<<_gridSize, _blockSize>>>(_particles->positions, clusters, z_coordinates, tower_ids, starts_towers, positions_in_tower, num_towers, tower_size); 
-        sort_particles_along_z_axis<<<util::ceilDiv(num_towers, (size_t)1024), 1024>>>(clusters, starts_towers, z_coordinates);
-       // printTowersAndStarts<<<1,1>>>(tower_ids, starts_towers);
-       // printClusters<<<1,1>>>(clusters, size_clusters);
+        CHECK_CUDA_ERROR(cudaMalloc(&positions_in_tower, sizeof(int) * size)); 
+        get_particle_position_in_tower<<<_gridSize, _blockSize>>>(_particles->positions, clusters, starts_towers, positions_in_tower, tower_size); 
+        insert_particles_into_towers<<<_gridSize, _blockSize>>>(_particles->positions, clusters, z_coordinates, starts_towers, positions_in_tower, tower_size); 
+        //sort_particles_along_z_axis<<<util::ceilDiv(num_towers, (size_t)512), 512>>>(clusters, starts_towers, z_coordinates, num_towers);
+
+        // Sort particles along z axis
+        int num_items = size_clusters;
+        int num_segments = num_towers;
+        int* d_offsets = starts_towers;
+        float* d_keys_in = z_coordinates;
+        float* d_keys_out;
+        CHECK_CUDA_ERROR(cudaMalloc(&d_keys_out, sizeof(float) * size_clusters));
+        int* d_values_in = clusters;
+        int* d_values_out;
+        CHECK_CUDA_ERROR(cudaMalloc(&d_values_out, sizeof(int) * size_clusters));
+
+        void* d_temp_storage = nullptr;
+        size_t temp_storage_bytes = 0;
+        cub::DeviceSegmentedSort::SortPairs(
+            d_temp_storage, temp_storage_bytes,
+            d_keys_in, d_keys_out, d_values_in, d_values_out,
+            num_items, num_segments, d_offsets, d_offsets + 1);
+
+        // Allocate temporary storage
+        CHECK_CUDA_ERROR(cudaMalloc(&d_temp_storage, temp_storage_bytes));
+
+        // Run sorting operation
+        cub::DeviceSegmentedSort::SortPairs(
+            d_temp_storage, temp_storage_bytes,
+            d_keys_in, d_keys_out, d_values_in, d_values_out,
+            num_items, num_segments, d_offsets, d_offsets + 1);
+
+
+        clusters = d_values_out;
+        z_coordinates = d_keys_out;
+
+        CHECK_CUDA_ERROR(cudaFree(d_keys_in));
+        CHECK_CUDA_ERROR(cudaFree(d_values_in));
+
+/*         printClusters<<<1,1>>>(clusters, size_clusters);
+        printZCoordinates<<<1,1>>>(z_coordinates, size_clusters); */
     }
 
     template<typename FloatType>
@@ -149,6 +168,8 @@ namespace ppb {
         if (BBN != nullptr) CHECK_CUDA_ERROR(cudaFree(BBN));
         CHECK_CUDA_ERROR(cudaMalloc(&BBM, sizeof(BoundingBox) * (size_clusters / M)));
         CHECK_CUDA_ERROR(cudaMalloc(&BBN, sizeof(BoundingBox) * (size_clusters / N)));
+        CHECK_CUDA_ERROR(cudaMemset(BBM, 0, sizeof(BoundingBox) * (size_clusters / M)));
+        CHECK_CUDA_ERROR(cudaMemset(BBN, 0, sizeof(BoundingBox) * (size_clusters / N)));
 
         // Compute the bounding boxes
         compute_bounding_boxes<<<util::ceilDiv(size_clusters / M, (size_t)1024), 1024>>>(BBM, clusters, _particles->positions, M, size_clusters / M);
@@ -165,19 +186,18 @@ namespace ppb {
         CHECK_CUDA_ERROR(cudaMemset(starts, 0, sizeof(int) * (size_clusters + 1)));
         
         // Allocate 'cluster_pairs' by first getting its size
-        printTowersAndStarts<<<1,1>>>(tower_ids, starts_towers);
-        printClusters<<<1,1>>>(clusters, size_clusters);
         cluster_pair_search<<<util::ceilDiv(size_clusters / M, (size_t)1024), 1024>>>(BBM, BBN, true, nullptr, starts, clusters, _particles->positions, tower_size, size_clusters);
         thrust::inclusive_scan(thrust::device, starts, starts + (size_clusters / M + 1), starts);
         size_t size_cluster_pairs = 0;
         CHECK_CUDA_ERROR(cudaMemcpy(&size_cluster_pairs, &starts[size_clusters / M], sizeof(int), cudaMemcpyDeviceToHost)); 
-        printf("size_cluster_pairs: %lu\n", size_cluster_pairs);
         if (cluster_pairs != nullptr) CHECK_CUDA_ERROR(cudaFree(cluster_pairs));
         CHECK_CUDA_ERROR(cudaMalloc(&cluster_pairs, sizeof(int) * size_cluster_pairs));
+   
+        //std::cout<<"size_cluster_pairs: "<<size_cluster_pairs<<std::endl;
         
         // Do the pair search
-        cluster_pair_search<<<util::ceilDiv(size_clusters / M, (size_t)1024), 1024>>>(BBM, BBN, false, cluster_pairs, starts,  clusters, _particles->positions, tower_size, size_clusters);
-        printPairList<<<1,1>>>(starts, size_clusters / M, cluster_pairs, size_cluster_pairs);
+        cluster_pair_search<<<util::ceilDiv(size_clusters / M, (size_t)1024), 1024>>>(BBM, BBN, false, cluster_pairs, starts, clusters, _particles->positions, tower_size, size_clusters); 
+        //printPairList<<<1,1>>>(starts, size_clusters / M, cluster_pairs, size_cluster_pairs);
     }
 #endif
 
@@ -237,7 +257,11 @@ namespace ppb {
 
         CHECK_CUDA_ERROR(cudaEventRecord(start));
 #ifdef PPB_ENABLE_VERLET_CLUSTER_LISTS
-        compute_force_cluster_lists<<<_gridSizeForces, _blockSizeForces>>>(position, force, clusters, cluster_pairs, starts);
+        int minGridSize = 0;
+        int _blockSizeForces = 0;
+        CHECK_CUDA_ERROR(cudaOccupancyMaxPotentialBlockSize(&minGridSize, &_blockSizeForces, reinterpret_cast<void *>(compute_force_cluster_lists), 0, 0));
+        int _gridSizeForces = util::ceilDiv<int>(4 * size_clusters, _blockSizeForces);
+        compute_force_cluster_lists<<<_gridSizeForces, _blockSizeForces>>>(position, force, clusters, cluster_pairs, starts, size_clusters);
 #else
         compute_forces<<<_gridSize, _blockSize>>>(position, force, verletLists, starts);
 #endif 
@@ -275,6 +299,7 @@ namespace ppb {
         _particles.emplace(particles);
 
         for (iteration = 0; iteration < _config.numberTimeSteps; ++iteration) {
+            //printf("--------------------------------------ITERATION %lu-----------------------------------\n", iteration);
             updatePositionsAndResetForce();
             computeForces();
             updateVelocities();

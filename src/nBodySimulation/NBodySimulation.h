@@ -26,7 +26,7 @@ namespace ppb {
 
     namespace NBodyBenchmarkConf {
         constexpr double MIN_SIZE = 1e6;
-        constexpr double MAX_SIZE = 5e7;
+        constexpr double MAX_SIZE = 1e7;
     }
 
     /**
@@ -74,12 +74,12 @@ namespace ppb {
         /**
          * Cell size used in the linked cell implementation (cell_size >= cutoff_radius!!!)
          */
-        FloatType cell_size{20.0f};
+        FloatType cell_size{2.0f};
         
         /**
          * Cutoff radius used in the linked cell and verlet lists implementation
          */
-        FloatType cutoff_radius{200.0f};
+        FloatType cutoff_radius{2.0f};
 
         /**
         * Size of the Verlet skin.

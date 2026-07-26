@@ -4,8 +4,6 @@
 #include <thrust/sort.h>
 #include <thrust/functional.h>
 #include <thrust/execution_policy.h>
-#include <thrust/binary_search.h>
-#include <thrust/device_ptr.h>
 #include <float.h>
 #include "constants.cuh"
 
@@ -155,13 +153,9 @@ namespace ppb {
 
 //--------------------------------------------- VERLET CLUSTER LISTS --------------------------------------------------
 #ifdef PPB_ENABLE_VERLET_CLUSTER_LISTS
-    __global__ void printTowersAndStarts(size_t* tower_ids, int* starts_towers) {
-        printf("tower_ids:\n");
-        for (int i = 0; i < 10; i++) {
-            printf("%lu, ", tower_ids[i]);
-        }
+    __global__ void printStartsTowers(int* starts_towers, size_t num_towers) {
         printf("starts_towers:\n");
-        for (int i = 0; i < 11; i++) {
+        for (int i = 0; i <= num_towers; i++) {
             printf("%d, ", starts_towers[i]);
         }
         printf("\n");
@@ -195,6 +189,21 @@ namespace ppb {
         printf("\n");
     }
 
+    __global__ void printPositionsInTowers(int* positions_in_tower, size_t size) {
+        printf("positions_in_towers:\n");
+        for (int i = 0; i < size; i++) {
+            printf("%d, ", positions_in_tower[i]);
+        }
+        printf("\n");
+    }
+
+    __global__ void printZCoordinates(float* z_coordinates, size_t size) {
+        printf("z_coordinates:\n");
+        for (int i = 0; i < size; i++) {
+            printf("%f, ", z_coordinates[i]);
+        }
+        printf("\n");
+    }
 
     //taken from: https://github.com/dangets/cuda_examples/blob/master/clamp_function.cu (last accessed 14.6.26)
     template <typename T>
@@ -235,10 +244,8 @@ namespace ppb {
 
     __global__ void count_particles_in_towers(
         float3* __restrict__ positions, 
-        size_t* __restrict__ tower_ids,
         int* __restrict__ starts_towers,
-        float grid_size,
-        int num_towers
+        float grid_size
     ) {
         const unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
         if (i >= numParticles) {
@@ -246,9 +253,7 @@ namespace ppb {
         }
 
         size_t tower = get_tower_id(i, positions, grid_size);
-        for (int j = 0; j < num_towers; j++) {
-            if (tower_ids[j] == tower) atomicAdd(&starts_towers[j + 1], 1);
-        }
+        atomicAdd(&starts_towers[tower + 1], 1);
     }
 
     __global__ void add_dummy_particles_to_towers(int* __restrict__ starts_towers, int cluster_size, int num_towers) {
@@ -260,19 +265,11 @@ namespace ppb {
         starts_towers[i + 1] += (cluster_size - (starts_towers[i + 1] % cluster_size)) % cluster_size;
     }
 
-    __device__ inline int get_start_tower(size_t tower_idx, size_t* tower_ids, int num_towers) {
-        size_t* found_it = thrust::lower_bound(thrust::seq, tower_ids, tower_ids + num_towers, tower_idx);
-        return tower_idx == *found_it ? found_it - tower_ids : -1;
-    }
-
     __global__ void get_particle_position_in_tower(
         float3* __restrict__ positions, 
         int* __restrict__ clusters, 
-        float* __restrict__ z_coordinates,
-        size_t* __restrict__ tower_ids,
         int* __restrict__ starts_towers,
         int* __restrict__ positions_in_tower,
-        int num_towers,
         float grid_size
     ) {
         const unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
@@ -280,12 +277,7 @@ namespace ppb {
             return;
         }
  
-        size_t tower_idx = get_tower_id(i, positions, grid_size);
-        int tower = get_start_tower(tower_idx, tower_ids, num_towers);
-        if (tower == -1) {
-            printf("ERROR!\n");
-            return; //THIS SHOULD NOT HAPPEN!!!
-        }
+        size_t tower = get_tower_id(i, positions, grid_size);
         int position_in_tower = atomicAdd(&clusters[starts_towers[tower]], 1);
         position_in_tower++; //because clusters is just -1, -1, ..., -1 at the start (for dummy particles)
         positions_in_tower[i] = starts_towers[tower] + position_in_tower;
@@ -296,10 +288,8 @@ namespace ppb {
         float3* __restrict__ positions, 
         int* __restrict__ clusters, 
         float* __restrict__ z_coordinates,
-        size_t* __restrict__ tower_ids,
         int* __restrict__ starts_towers,
         int* __restrict__ positions_in_tower,
-        int num_towers,
         float grid_size
     ) {
         const unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
@@ -307,12 +297,6 @@ namespace ppb {
             return;
         }
 
-        size_t tower_idx = get_tower_id(i, positions, grid_size);
-        int tower = get_start_tower(tower_idx, tower_ids, num_towers);
-        if (tower == -1) {
-            printf("ERROR!\n");
-            return; //THIS SHOULD NOT HAPPEN!!!
-        }
         clusters[positions_in_tower[i]] = i;
         z_coordinates[positions_in_tower[i]] = positions[i].z;        
     }
@@ -331,24 +315,6 @@ namespace ppb {
         clusters[i] = -1;
         z_coordinates[i] = FLT_MAX;
     }
-
-
-    __global__ void sort_particles_along_z_axis(
-        int* __restrict__ clusters, 
-        int* __restrict__ starts_towers, 
-        float* __restrict__ z_coordinates
-    ) {
-        const unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
-        if (i >= sizeof(starts_towers) - 1) {
-            return;
-        }
-
-        int start = starts_towers[i];
-        int size = starts_towers[i + 1] - start;
-        thrust::sort_by_key(thrust::device, z_coordinates + start, z_coordinates + start + size, clusters);
-        //dummy particles z-coordinate is set to FLT_MAX. Undefined behaviour if there is another normal particle that
-        //has a bigger or equal z-coordinate (but that edge case should be irrelevant most of if not all the time)
-    } 
 
     __global__ void compute_bounding_boxes(
         BoundingBox* __restrict__ BB, 
@@ -437,7 +403,7 @@ namespace ppb {
 
         for (int j = 0; j < size_clusters; j+=4) {
             int j_cluster = j / 4;
-            if (j_cluster <= 2 * i) continue; //N3L
+            if (j_cluster <= 2 * i + 1) continue; //N3L + skip same cluster
             float boxDistSquared = BBdistanceSquared(bbi, BBN[j_cluster]);
             
             if (boxDistSquared <= interactionLengthSqr) {
@@ -455,7 +421,7 @@ namespace ppb {
     /**
         Immediately excludes entire towers based on their x and y coordinates.
     */
-    __global__ void cluster_pair_search_optimized(
+/*     __global__ void cluster_pair_search_optimized(
         BoundingBox* __restrict__ BBM,
         BoundingBox* __restrict__ BBN,
         bool count,
@@ -525,7 +491,7 @@ namespace ppb {
                 }
             }
         }
-    }
+    } */
     //-------------------------------------------------------------------------------------------------
     __device__ inline void compute_interaction(
         float3& i_particle,
@@ -537,11 +503,14 @@ namespace ppb {
         const float3 dr = make_float3_sub(i_particle, j_particle);
         const float dr2 = dot3(dr, dr);
         if (dr2 >= cutoff_radius) return;
-            
+
         const float sigma = 1.0f;
         const float sigmaSquared = sigma * sigma;
         const float epsilon24 = 24.0f; // 1.0 * 24.0
 
+        if (dr2 == 0) {
+            printf("ALERT ALERT!!!\n");
+        }
         const float invdr2 = 1.0f / dr2;
         float lj6 = sigmaSquared * invdr2;
         lj6 = lj6 * lj6 * lj6;
@@ -561,10 +530,11 @@ namespace ppb {
         float3* __restrict__ forces,
         const int* __restrict__ clusters,
         const int* __restrict__ cluster_pairs,
-        const int* __restrict__ starts //starts for cluster_pairs
+        const int* __restrict__ starts, //starts for cluster_pairs
+        int size_clusters
     ) {
         const unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
-        if (i >= 4 * (sizeof(clusters) / sizeof(int))) {
+        if (i >= 4 * size_clusters) {
             return;
         }
 
@@ -578,33 +548,38 @@ namespace ppb {
         
         //Compute interactions within the i-cluster
         for (int j = 0; j < 2; j++) {
-            int j_particle_idx = clusters[i_cluster * 8 + (j * 4)] + (i % 4);
+            int j_particle_idx = clusters[i_cluster * 8 + (j * 4) + (i % 4)];
             if (j_particle_idx == -1) continue; //skip dummy particles
             if (i_particle_idx >= j_particle_idx) continue; //N3L within the same i-cluster
             float3 j_particle = positions[j_particle_idx];
+            //printf("Thread %u: SAME CLUSTER Check out %d <-> %d\n", i,  i_particle_idx, j_particle_idx);
             compute_interaction(i_particle, j_particle, j_particle_idx, fi, forces);
         }
 
         //N3L by construction. The pair list contains each pair of interacting clusters only once.
-        for (int j_cluster = start_neighbors; j_cluster < end_neighbors; j_cluster++) {
-            int j_particle_idx = clusters[j_cluster * 4] + (i % 4);
-            if (j_particle_idx == -1) continue; //skip dummy particles
-            float3 j_particle = positions[j_particle_idx];
-            compute_interaction(i_particle, j_particle, j_particle_idx, fi, forces);
+        for (int j = start_neighbors; j < end_neighbors; j++) {
+            int j_cluster = cluster_pairs[j];
+            int j_particle_idx = clusters[j_cluster * 4 + (i % 4)];
+            if (j_particle_idx != -1) { //skip dummy particles
+                float3 j_particle = positions[j_particle_idx];
+                //printf("Thread %u: Check out %d <-> %d\n", i, i_particle_idx, j_particle_idx);
+                compute_interaction(i_particle, j_particle, j_particle_idx, fi, forces);
+            } 
         }
 
+        int MASK = 0xffffffff;
+        float fi1_x = __shfl_down_sync(MASK, fi.x, 1);
+        float fi1_y = __shfl_down_sync(MASK, fi.y, 1);
+        float fi1_z = __shfl_down_sync(MASK, fi.z, 1);
+        float fi2_x = __shfl_down_sync(MASK, fi.x, 2);
+        float fi2_y = __shfl_down_sync(MASK, fi.y, 2);
+        float fi2_z = __shfl_down_sync(MASK, fi.z, 2);
+        float fi3_x = __shfl_down_sync(MASK, fi.x, 3);
+        float fi3_y = __shfl_down_sync(MASK, fi.y, 3);
+        float fi3_z = __shfl_down_sync(MASK, fi.z, 3);
+        
         //We have 4 threads per i-particle. We assign the first of those threads to be the one that adds the accumulated fi's to the i-particle.
         if (i % 4 == 0) { 
-            int MASK = 0x1111<<(i % 32);
-            float fi1_x = __shfl_down_sync(MASK, fi.x, 1);
-            float fi1_y = __shfl_down_sync(MASK, fi.y, 1);
-            float fi1_z = __shfl_down_sync(MASK, fi.z, 1);
-            float fi2_x = __shfl_down_sync(MASK, fi.x, 2);
-            float fi2_y = __shfl_down_sync(MASK, fi.y, 2);
-            float fi2_z = __shfl_down_sync(MASK, fi.z, 2);
-            float fi3_x = __shfl_down_sync(MASK, fi.x, 3);
-            float fi3_y = __shfl_down_sync(MASK, fi.y, 3);
-            float fi3_z = __shfl_down_sync(MASK, fi.z, 3);
             fi.x += fi1_x + fi2_x + fi3_x;
             fi.y += fi1_y + fi2_y + fi3_y;
             fi.z += fi1_z + fi2_z + fi3_z;

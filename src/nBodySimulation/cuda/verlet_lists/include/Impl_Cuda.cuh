@@ -31,11 +31,8 @@ namespace ppb {
 
 #ifdef PPB_ENABLE_VERLET_CLUSTER_LISTS
         // FOR NOW THE ONLY SUPPORTED M AND N ARE M = 8 AND N = 4!!! OTHER VALUES WILL LEAD TO UNDEFINED BEHAVIOUR!!!
-        int _gridSizeForces;
-        int _blockSizeForces;
         int M = 8; //M must be a multiple of N
         int N = 4;
-        size_t* tower_ids{nullptr};
         int* starts_towers{nullptr};
         int* clusters{nullptr};             //towered + binned particles. Contains references to the particles. If the reference is -1, then that particle is a dummy particle.
         float* z_coordinates{nullptr};      //the z-coordinates of the particles in the cluster. Needed for sorting along the z-dimension.
