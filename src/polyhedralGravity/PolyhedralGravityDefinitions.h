@@ -369,7 +369,12 @@ public:
     GravityEvaluableBase(const std::vector<Array3> &Vertices, const std::vector<IndexArray3> &Faces, const double density)
         : _density{density}, _vertices{Vertices}, _faces{Faces}, _initialized{false} {
     }
-    virtual ~GravityEvaluableBase() = default;
+    // The body is written out instead of using '= default' on purpose: hipcc/ clang infer
+    // '__host__ __device__' for defaulted special member functions, so a defaulted virtual destructor
+    // is emitted for the device as well (it is referenced by the vtable) and drags whatever the
+    // derived destructors touch - e.g. the host-only camp resource of the RAJA backend - into the
+    // device image, where it fails to link. A user-provided destructor is plain '__host__'.
+    virtual ~GravityEvaluableBase() {}
     virtual GravityModelResult evaluate(const Array3 &Point) {
         return {};
     };

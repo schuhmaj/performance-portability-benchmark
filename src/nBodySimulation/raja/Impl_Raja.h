@@ -129,7 +129,18 @@ namespace ppb {
          */
         explicit ImplRaja(const ParticleSimulationConfig<FloatType> &config);
 
-        virtual ~ImplRaja() = default;
+        /**
+         * Destroys the simulation implementation.
+         *
+         * Note: The body is written out instead of using '= default' on purpose. hipcc/ clang infer
+         * '__host__ __device__' for defaulted special member functions, and since a virtual destructor is
+         * referenced by the vtable, the device compilation pass would then emit it for the GPU as well.
+         * Its body destroys the std::optional<RajaParticleSoA> member, whose destructor calls into the
+         * host-only camp resource (hipFree, hipStreamCreate, ...), which fails at device link time with
+         * undefined symbols. A user-provided destructor is plain '__host__', so the device vtable slot
+         * stays empty and nothing host-only is dragged into the device image.
+         */
+        virtual ~ImplRaja() {}
 
         /**
          * Runs the simulation for the configured total time using parallel RAJA kernels to update
