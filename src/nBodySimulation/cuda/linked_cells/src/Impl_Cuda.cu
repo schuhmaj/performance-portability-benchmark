@@ -30,9 +30,9 @@ namespace ppb {
     ImplCuda<FloatType>::ImplCuda(const ParticleSimulationConfig<FloatType> &config) 
         : _config{config}
     {
-        x_dim_h = (_config.boxMax[0] - _config.boxMin[0]) / _config.cell_size;
-        y_dim_h = (_config.boxMax[1] - _config.boxMin[1]) / _config.cell_size;
-        z_dim_h = (_config.boxMax[2] - _config.boxMin[2]) / _config.cell_size;
+        x_dim_h = util::ceilDiv((_config.boxMax[0] - _config.boxMin[0]), _config.cell_size);
+        y_dim_h = util::ceilDiv((_config.boxMax[1] - _config.boxMin[1]), _config.cell_size);
+        z_dim_h = util::ceilDiv((_config.boxMax[2] - _config.boxMin[2]), _config.cell_size);
         int offsets_h[27] = {
             //front section
             -((x_dim_h + 1) * y_dim_h) - 1, -((x_dim_h + 1) * y_dim_h), -((x_dim_h + 1) * y_dim_h) + 1,
@@ -70,7 +70,9 @@ namespace ppb {
 
 #ifdef PPB_ENABLE_DOMAIN_COLORING
         int offsets_colored_h[8] = { 13, 14, 16, 17, 22, 23, 25, 26 };
+        int offsets_colored_non_base_cell_h[12] = { 14, 16, 14, 25, 14, 22, 16, 22, 16, 23, 17, 22 };
         CHECK_CUDA_ERROR(cudaMemcpyToSymbol(offsets_colored, offsets_colored_h, sizeof(offsets_colored_h))); 
+        CHECK_CUDA_ERROR(cudaMemcpyToSymbol(offsets_colored_non_base_cell, offsets_colored_non_base_cell_h, sizeof(offsets_colored_non_base_cell_h))); 
         size_t number_of_cells_with_same_color = util::ceilDiv<size_t>(x_dim_h * y_dim_h * z_dim_h, 8);
         if (number_of_cells_with_same_color <= MAX_THREADS) {
             _blockSizeForces = number_of_cells_with_same_color;
@@ -86,10 +88,6 @@ namespace ppb {
         _gridSizeForces = _gridSize;
         _blockSizeForces = _blockSize;
 #endif
-        std::cout
-        <<"gridSizeForces: "<<_gridSizeForces
-        <<" blockSizeForces: "<<_blockSizeForces
-        <<std::endl;
         
         //---------------------------------Allocate device memory------------------------------------------
         const size_t num_cells = x_dim_h * y_dim_h * z_dim_h;        
@@ -193,9 +191,17 @@ namespace ppb {
         _particles.emplace(particles);
 
         for (int i = 0; i < _config.numberTimeSteps; ++i) {
+            std::cout<<"-----------------------ITERATION "<<i<<"--------------------------"<<std::endl;
             updatePositionsAndResetForce();
             computeForces();
             updateVelocities();
+            int j = 0;
+            for (auto& p : _particles->toParticles()) {
+                if (j == 38) {
+                    std::cout<<p<<std::endl;
+                }
+                j++;
+            }
         }
         return std::make_pair(_particles->toParticles(), _timings);
     }

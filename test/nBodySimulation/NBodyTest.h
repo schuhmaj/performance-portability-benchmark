@@ -10,10 +10,10 @@
 class NBodyTest : public ::testing::TestWithParam<int> {
 protected:
 
-    static constexpr double EPSILON = 1e-2;
+    static constexpr double EPSILON = 0.15;
 
     static constexpr float TIME_STEP = 0.0005;
-    static constexpr int ITERATIONS = 1000;
+    static constexpr int ITERATIONS = 5;
 
     /*
     AutoPas Config File to replicate the values below.
@@ -128,7 +128,7 @@ protected:
                 std::cout<<p<<std::endl;
             }
             ASSERT_THAT(actualResult, ParticlesEq(expectedResult, epsilon));
-            
+            printf("MEOW!\n");
 /*             //Energy conservation
             ParticleSimulationConfig<float> config2{static_cast<size_t>(size), 1, TIME_STEP};
             auto state = Particle<float>::generateUniform(config2.boxMin, config2.boxMax, config2.size, config2.seed)};

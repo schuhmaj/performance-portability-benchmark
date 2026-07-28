@@ -12,6 +12,8 @@ namespace ppb {
     __constant__ int offsets[27];
 
     __constant__ int offsets_colored[8]; 
+    
+    __constant__ int offsets_colored_non_base_cell[12]; 
 
     __constant__ float deltaT; 
     

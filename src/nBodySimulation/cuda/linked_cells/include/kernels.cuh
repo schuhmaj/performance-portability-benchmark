@@ -53,15 +53,23 @@ namespace ppb {
         return x_idx + (y_idx * x_dim) + (z_idx * x_dim * y_dim); 
     }
 
-    __global__ void printStartsCells(int* starts, int* cells) {
+    __global__ void printStartsCells(int* starts, int* cells, float4* cells_positions, float4* positions) {
         size_t numCells = x_dim * y_dim * z_dim;
-        printf("starts:\n");
+/*         printf("starts:\n");
         for (size_t j = 0; j <= numCells; j++) {
             printf("%d, ", starts[j]);
-        }
+        } */
         printf("\ncells:");
         for (size_t j = 0; j < numParticles; j++) {
             printf("%d, ", cells[j]);
+        }
+        printf("\ncells_positions:");
+        for (size_t j = 0; j < numParticles; j++) {
+            printf("(%f, %f, %f, %f), ", cells_positions[j].x, cells_positions[j].y, cells_positions[j].z, cells_positions[j].w);
+        }
+        printf("\npositions:");
+        for (size_t j = 0; j < numParticles; j++) {
+            printf("(%f, %f, %f, %f), ", positions[j].x, positions[j].y, positions[j].z, positions[j].w);
         }
         printf("\n");
     }
@@ -211,6 +219,8 @@ namespace ppb {
 
         float4 fi = make_float4(0.f, 0.f, 0.f, 0.f);
         size_t idx = get_cell_idx(i, cells_positions);
+        float4 pi = cells_positions[i];
+        size_t ci = cells[i];
 #pragma unroll 27
         for (size_t offset = 0; offset < 27; offset++) {
             if (!is_in_bounds(idx, offsets[offset])) continue; 
@@ -219,12 +229,16 @@ namespace ppb {
             size_t end = starts[idx + 1];
             for (size_t k = start; k < end; k++) {
                 size_t j = cells[k];
-                float4 pj = cells_positions[j];
-                if (i >= j) continue; //N3L via natural ordering of indicies
+                float4 pj = cells_positions[k];
+                if (ci >= j) continue; //N3L via natural ordering of indicies
 
-                const float4 dr = make_float4_sub(cells_positions[i], pj);
+                const float4 dr = make_float4_sub(pi, pj);
                 const float dr2 = dot3(dr, dr);
-                if (std::sqrt(dr2) >= cutoff_radius) continue; // = here too because less atomics in domain coloring
+                if (std::sqrt(dr2) >= cutoff_radius) continue; // = here too because less atomics
+                
+                if (ci == 2 || j == 2) {
+                    printf("Thread %u: %lu (Cell: %lu) <-> %lu (Cell: %lu)\n", i, ci, idx-offsets[offset], j, idx);
+                }
 
                 const float sigma = 1.0f;
                 const float sigmaSquared = sigma * sigma;
@@ -246,9 +260,9 @@ namespace ppb {
             idx -= offsets[offset];
         }
 
-        atomicAdd(&forces[i].x, fi.x);
-        atomicAdd(&forces[i].y, fi.y);
-        atomicAdd(&forces[i].z, fi.z);
+        atomicAdd(&forces[ci].x, fi.x);
+        atomicAdd(&forces[ci].y, fi.y);
+        atomicAdd(&forces[ci].z, fi.z);
     }
 
 
@@ -276,6 +290,7 @@ namespace ppb {
         int y_cell = 2 * y_thread + ((color>>1) % 2);
         int z_cell = 2 * z_thread + ((color>>2) % 2);
         int idx = x_cell + (y_cell * x_dim) + (z_cell * x_dim * y_dim);
+        if (!is_in_bounds(idx, 0)) return;
         int startBaseCell = starts[idx];
         int endBaseCell = starts[idx + 1];
 
@@ -283,6 +298,9 @@ namespace ppb {
         for (int q = startBaseCell; q < endBaseCell; q++) {
             float4 fi = make_float4(0.f, 0.f, 0.f, 0.f);
             int i = cells[q];
+            if (i == 38) {
+                printf("Thread %u: Cell of particle 38: %d, x_cell: %d, y_cell: %d, z_cell: %d\n", t_id, idx, x_cell, y_cell, z_cell);
+            }
 #pragma unroll 8
             for (int o = 0; o < 8; o++) {
                 int offset = offsets[offsets_colored[o]];
@@ -300,6 +318,10 @@ namespace ppb {
 
                     // = here too because this way we never get into a race condition with another cell of the same color
                     if (std::sqrt(dr2) >= cutoff_radius) continue;
+
+                    if (i == 2 || j == 2) {
+                        printf("Thread %u: color: %d, %d (Cell: %d) <-> %d (Cell: %d)\n", t_id, color, i, idx-offset, j, idx);
+                    }
 
                     const float sigma = 1.0f;
                     const float sigmaSquared = sigma * sigma;
@@ -319,6 +341,47 @@ namespace ppb {
                 idx -= offset;
             }
             forces[i] = make_float4_add(forces[i], fi);
+        }
+
+        //non-base-cell interactions
+        for (int o = 0; o < 12; o+=2) {
+            int cell_i = idx + offsets[offsets_colored_non_base_cell[o]];
+            int cell_j = idx + offsets[offsets_colored_non_base_cell[o+1]];
+            if (!is_in_bounds(cell_i, 0) || !is_in_bounds(cell_j, 0)) continue;
+            int start_cell_i = starts[cell_i];     
+            int end_cell_i = starts[cell_i + 1]; 
+            int start_cell_j = starts[cell_j];
+            int end_cell_j = starts[cell_j + 1]; 
+            for (int i = start_cell_i; i < end_cell_i; i++) {
+                float4 fi = make_float4(0.f, 0.f, 0.f, 0.f);
+                for (int j = start_cell_j; j < end_cell_j; j++) {
+                    const float4 dr = make_float4_sub(positions[i], positions[j]);
+                    const float dr2 = dot3(dr, dr); 
+
+                    // = here too because this way we never get into a race condition with another cell of the same color
+                    if (std::sqrt(dr2) >= cutoff_radius) continue;
+
+                    if (i == 2 || j == 2) {
+                        printf("Thread %u: basecellidx: %d, color: %d, NON BASE CELL %d (Cell: %d / %d) <-> %d (Cell: %d / %d)\n", t_id, idx, color, i, cell_i, offsets_colored_non_base_cell[o], j, cell_j, offsets_colored_non_base_cell[o + 1]);
+                    }
+
+                    const float sigma = 1.0f;
+                    const float sigmaSquared = sigma * sigma;
+                    const float epsilon24 = 24.0f; // 1.0 * 24.0
+
+                    const float invdr2 = 1.0f / dr2;
+                    float lj6 = sigmaSquared * invdr2;
+                    lj6 = lj6 * lj6 * lj6;
+                    const float lj12 = lj6 * lj6;
+                    const float lj12m6 = lj12 - lj6;
+                    const float fac = epsilon24 * (lj12 + lj12m6) * invdr2;
+                
+                    const float4 f = make_float4_scale(dr, fac);
+                    fi = make_float4_add(fi, f); 
+                    forces[j] = make_float4_sub(forces[j], f);
+                }
+                forces[i] = make_float4_add(forces[i], fi);
+            }
         }
     }
 

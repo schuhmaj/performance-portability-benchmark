@@ -41,9 +41,8 @@ namespace ppb::util {
     template<typename FloatType>
     bool almostEqualRelative(FloatType lhs, FloatType rhs, double epsilon) {
         const FloatType diff = std::abs(rhs - lhs);
-        return diff <= epsilon;
-/*         const FloatType largerValue = std::max(std::abs(rhs), std::abs(lhs));
-        return diff <= largerValue * epsilon; */
+        const FloatType largerValue = std::max(std::abs(rhs), std::abs(lhs));
+        return diff <= largerValue * epsilon || diff <= epsilon;
     }
 
     template bool almostEqualRelative<float>(float lhs, float rhs, double epsilon);
