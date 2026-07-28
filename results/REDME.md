@@ -20,7 +20,7 @@ To generate the plots, use the following commands:
 # For NBody Plots
 ppbcc p3analysis NBody ./Results_* --complexity ./code-complexity/code-complexity.csv -c combined \
   --complexity-metric halstead-difficulty --additive --log-size \
-  --non-zero-pp -s avg -x "VerletLists|LinkedCells|Reduction" --remove-description -l --export-to-csv
+  --non-zero-pp -s avg -x "VerletLists|LinkedCells|Reduction" --remove-description -l --export-to-csv --legend--vertical
 # For Polyhedral Plots
 ppbcc p3analysis Polyhedral ./Results_* --complexity ./code-complexity/code-complexity.csv -c combined \
   --complexity-metric halstead-difficulty --additive --log-size \
