@@ -53,23 +53,15 @@ namespace ppb {
         return x_idx + (y_idx * x_dim) + (z_idx * x_dim * y_dim); 
     }
 
-    __global__ void printStartsCells(int* starts, int* cells, float4* cells_positions, float4* positions) {
+    __global__ void printStartsCells(int* starts, int* cells) {
         size_t numCells = x_dim * y_dim * z_dim;
-/*         printf("starts:\n");
+        printf("starts:\n");
         for (size_t j = 0; j <= numCells; j++) {
             printf("%d, ", starts[j]);
-        } */
+        }
         printf("\ncells:");
         for (size_t j = 0; j < numParticles; j++) {
             printf("%d, ", cells[j]);
-        }
-        printf("\ncells_positions:");
-        for (size_t j = 0; j < numParticles; j++) {
-            printf("(%f, %f, %f, %f), ", cells_positions[j].x, cells_positions[j].y, cells_positions[j].z, cells_positions[j].w);
-        }
-        printf("\npositions:");
-        for (size_t j = 0; j < numParticles; j++) {
-            printf("(%f, %f, %f, %f), ", positions[j].x, positions[j].y, positions[j].z, positions[j].w);
         }
         printf("\n");
     }
@@ -236,9 +228,9 @@ namespace ppb {
                 const float dr2 = dot3(dr, dr);
                 if (std::sqrt(dr2) >= cutoff_radius) continue; // = here too because less atomics
                 
-                if (ci == 2 || j == 2) {
+/*                 if (ci == 2 || j == 2) {
                     printf("Thread %u: %lu (Cell: %lu) <-> %lu (Cell: %lu)\n", i, ci, idx-offsets[offset], j, idx);
-                }
+                } */
 
                 const float sigma = 1.0f;
                 const float sigmaSquared = sigma * sigma;
@@ -298,9 +290,6 @@ namespace ppb {
         for (int q = startBaseCell; q < endBaseCell; q++) {
             float4 fi = make_float4(0.f, 0.f, 0.f, 0.f);
             int i = cells[q];
-            if (i == 38) {
-                printf("Thread %u: Cell of particle 38: %d, x_cell: %d, y_cell: %d, z_cell: %d\n", t_id, idx, x_cell, y_cell, z_cell);
-            }
 #pragma unroll 8
             for (int o = 0; o < 8; o++) {
                 int offset = offsets[offsets_colored[o]];
@@ -318,10 +307,6 @@ namespace ppb {
 
                     // = here too because this way we never get into a race condition with another cell of the same color
                     if (std::sqrt(dr2) >= cutoff_radius) continue;
-
-                    if (i == 2 || j == 2) {
-                        printf("Thread %u: color: %d, %d (Cell: %d) <-> %d (Cell: %d)\n", t_id, color, i, idx-offset, j, idx);
-                    }
 
                     const float sigma = 1.0f;
                     const float sigmaSquared = sigma * sigma;
@@ -353,17 +338,15 @@ namespace ppb {
             int start_cell_j = starts[cell_j];
             int end_cell_j = starts[cell_j + 1]; 
             for (int i = start_cell_i; i < end_cell_i; i++) {
+                int ci = cells[i];
                 float4 fi = make_float4(0.f, 0.f, 0.f, 0.f);
                 for (int j = start_cell_j; j < end_cell_j; j++) {
-                    const float4 dr = make_float4_sub(positions[i], positions[j]);
+                    int cj = cells[j];
+                    const float4 dr = make_float4_sub(positions[ci], positions[cj]);
                     const float dr2 = dot3(dr, dr); 
 
                     // = here too because this way we never get into a race condition with another cell of the same color
                     if (std::sqrt(dr2) >= cutoff_radius) continue;
-
-                    if (i == 2 || j == 2) {
-                        printf("Thread %u: basecellidx: %d, color: %d, NON BASE CELL %d (Cell: %d / %d) <-> %d (Cell: %d / %d)\n", t_id, idx, color, i, cell_i, offsets_colored_non_base_cell[o], j, cell_j, offsets_colored_non_base_cell[o + 1]);
-                    }
 
                     const float sigma = 1.0f;
                     const float sigmaSquared = sigma * sigma;
@@ -378,9 +361,9 @@ namespace ppb {
                 
                     const float4 f = make_float4_scale(dr, fac);
                     fi = make_float4_add(fi, f); 
-                    forces[j] = make_float4_sub(forces[j], f);
+                    forces[cj] = make_float4_sub(forces[cj], f);
                 }
-                forces[i] = make_float4_add(forces[i], fi);
+                forces[ci] = make_float4_add(forces[ci], fi);
             }
         }
     }

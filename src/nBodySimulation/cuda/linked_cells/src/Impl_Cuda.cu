@@ -191,17 +191,10 @@ namespace ppb {
         _particles.emplace(particles);
 
         for (int i = 0; i < _config.numberTimeSteps; ++i) {
-            std::cout<<"-----------------------ITERATION "<<i<<"--------------------------"<<std::endl;
+            //std::cout<<"-----------------------ITERATION "<<i<<"--------------------------"<<std::endl;
             updatePositionsAndResetForce();
             computeForces();
             updateVelocities();
-            int j = 0;
-            for (auto& p : _particles->toParticles()) {
-                if (j == 38) {
-                    std::cout<<p<<std::endl;
-                }
-                j++;
-            }
         }
         return std::make_pair(_particles->toParticles(), _timings);
     }

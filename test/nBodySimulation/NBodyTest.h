@@ -10,7 +10,7 @@
 class NBodyTest : public ::testing::TestWithParam<int> {
 protected:
 
-    static constexpr double EPSILON = 0.15;
+    static constexpr double EPSILON = 0.05;
 
     static constexpr float TIME_STEP = 0.0005;
     static constexpr int ITERATIONS = 5;
@@ -119,14 +119,14 @@ protected:
             NBodySimulation<Implementation> otherNBodySim{config};
             const auto [expectedResult, timings1] = cppNBodySim();
             const auto [actualResult, timings2] = otherNBodySim();
-            std::cout<<"Expected:"<<std::endl;
+/*             std::cout<<"Expected:"<<std::endl;
             for (auto& p : expectedResult) {
                 std::cout<<p<<std::endl;
             }
             std::cout<<"Actual:"<<std::endl;
             for (auto& p : actualResult) {
                 std::cout<<p<<std::endl;
-            }
+            } */
             ASSERT_THAT(actualResult, ParticlesEq(expectedResult, epsilon));
             printf("MEOW!\n");
 /*             //Energy conservation
