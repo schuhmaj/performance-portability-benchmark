@@ -159,7 +159,6 @@ namespace ppb {
 
         float4 fi = make_float4(0.f, 0.f, 0.f, 0.f);
         size_t idx = get_cell_idx(i, positions);
-#pragma unroll 27
         for (size_t offset = 0; offset < 27; offset++) {
             if (!is_in_bounds(idx, offsets[offset])) continue; 
             idx += offsets[offset];
@@ -172,7 +171,7 @@ namespace ppb {
                 const float4 dr = make_float4_sub(positions[i], positions[j]);
                 const float dr2 = dot3(dr, dr);
                 if (std::sqrt(dr2) >= cutoff_radius) continue; // = here too because less atomics in domain coloring
-
+                
                 const float sigma = 1.0f;
                 const float sigmaSquared = sigma * sigma;
                 const float epsilon24 = 24.0f; // 1.0 * 24.0
@@ -213,7 +212,6 @@ namespace ppb {
         size_t idx = get_cell_idx(i, cells_positions);
         float4 pi = cells_positions[i];
         size_t ci = cells[i];
-#pragma unroll 27
         for (size_t offset = 0; offset < 27; offset++) {
             if (!is_in_bounds(idx, offsets[offset])) continue; 
             idx += offsets[offset];
@@ -227,11 +225,7 @@ namespace ppb {
                 const float4 dr = make_float4_sub(pi, pj);
                 const float dr2 = dot3(dr, dr);
                 if (std::sqrt(dr2) >= cutoff_radius) continue; // = here too because less atomics
-                
-/*                 if (ci == 2 || j == 2) {
-                    printf("Thread %u: %lu (Cell: %lu) <-> %lu (Cell: %lu)\n", i, ci, idx-offsets[offset], j, idx);
-                } */
-
+               
                 const float sigma = 1.0f;
                 const float sigmaSquared = sigma * sigma;
                 const float epsilon24 = 24.0f; // 1.0 * 24.0
@@ -375,13 +369,15 @@ namespace ppb {
     */
     __device__ inline int2 get_next_element_neighborhood(int current_idx, int base_cell_idx, int current_offset, const int* starts) {
         //if next element still in current cell, return that
-        int end_current_cell = starts[base_cell_idx + offsets[current_offset] + 1];
-        if (current_idx + 1 < end_current_cell) {
-            return make_int2(current_idx + 1, current_offset);
+        if (current_idx != -1) {
+            int end_current_cell = starts[base_cell_idx + offsets[current_offset] + 1];
+            if (current_idx + 1 < end_current_cell) {
+                return make_int2(current_idx + 1, current_offset);
+            }
+            current_offset++;
         }
 
         //if next element in different cell, go to next *non-empty* cell
-        current_offset++;
         for (current_offset; current_offset < 27; current_offset++) {
             if (!is_in_bounds(base_cell_idx, offsets[current_offset])) continue;
             base_cell_idx += offsets[current_offset];
@@ -401,7 +397,6 @@ namespace ppb {
 
     __device__ inline int get_num_neighbors(int base_cell_idx, const int* starts) {
         int num_neighbors = 0;
-#pragma unroll 27
         for (int i = 0; i < 27; i++) {
             if (!is_in_bounds(base_cell_idx, offsets[i])) continue;
             base_cell_idx += offsets[i];
@@ -459,11 +454,16 @@ namespace ppb {
         int start_shmem_tile = shmem_tile_id * size_shmem_tile; 
         //printf("Thread %u: start_shmem_tile: %lu\n", i, start_shmem_tile);
 
+        int current_idx;
+        int current_offset;
         for (int k = 0; k < num_neighbors; k += size_shmem_tile) {
             //load shmem region, for now only one thread per cell (in this case the first thread of the cell does all the copy work)
+            //NOTE: THIS IS A BIG BOTTLENECK. WILL NOT BE CHANGED SINCE THIS OPTIMIZATION IS POINTLESS!
             if (i == 0 || get_cell_idx(i - 1, cells_positions) != idx) {
-                int current_idx = starts[idx];
-                int current_offset = 0;
+                if (k == 0) {
+                    current_idx = -1;
+                    current_offset = 0;
+                }
                 for (int j = 0; j < size_shmem_tile; j++) { 
                     int2 idx_and_offset = get_next_element_neighborhood(current_idx, idx, current_offset, starts);
                     current_idx = idx_and_offset.x;
@@ -489,16 +489,15 @@ namespace ppb {
             int end_shmem_tile = k / size_shmem_tile == num_neighbors / size_shmem_tile
                 ? start_shmem_tile + (num_neighbors - ((num_neighbors / size_shmem_tile) * size_shmem_tile))
                 : start_shmem_tile + size_shmem_tile;
-           // printf("Thread %u: end_shmem_tile: %lu\n", i, end_shmem_tile);
             for (int j = start_shmem_tile; j < end_shmem_tile; j++) {
                 float4 pj = {shared_neighbors[j].x, shared_neighbors[j].y, shared_neighbors[j].z, 0.f};
+                
                 if (pi.x == pj.x && pi.y == pj.y && pi.z == pj.z) continue; //technically a bit meh cause two different particles could be on exactly the same position but whatever
 
                 const float4 dr = make_float4_sub(pi, pj);
                 const float dr2 = dot3(dr, dr);
                 if (std::sqrt(dr2) >= cutoff_radius) continue;
 
-                //printf("Thread %u: pi: (x: %f, y: %f, z: %f) <-> pj: %lu (x: %f, y: %f, z: %f)\n", i, pi.x, pi.y, pi.z, j, pj.x, pj.y, pj.z);
                 const float sigma = 1.0f;
                 const float sigmaSquared = sigma * sigma;
                 const float epsilon24 = 24.0f; // 1.0 * 24.0
@@ -513,252 +512,8 @@ namespace ppb {
                 const float4 f = make_float4_scale(dr, fac);
                 fi = make_float4_add(fi, f); 
             }
-            forces[cells[i]] = make_float4_add(forces[cells[i]], fi);
             __syncthreads();
         }
-
+        forces[cells[i]] = make_float4_add(forces[cells[i]], fi);
     }
-    //------------------------------------------- WORK IN PROGRESS (probably deprecated) ---------------------------------------------------
-    /* __global__ void compute_forces_colored_optimized(
-        int color,
-        const float3* __restrict__ positions,
-        float3* __restrict__ forces,
-        int* cells,
-        int* starts,
-        size_t size_shmem //size of shmem in float3 units
-    ) {
-        size_t n_t = blockDim.x;
-        unsigned int t_id = blockIdx.x * blockDim.x + threadIdx.x;
-        const size_t num_cells = x_dim * y_dim * z_dim;
-        if (t_id >= util::ceilDiv<size_t>(num_cells, 8)) {
-            return;
-        }
-
-        // Map threads to their respective base cells based on the current color
-        size_t x_dim_thread = x_dim % 2 != 0 && color & 1 == 0 ? util::ceilDiv<int>(x_dim, 2) : x_dim / 2;
-        size_t y_dim_thread = y_dim % 2 != 0 && color & 2 == 0 ? util::ceilDiv<int>(y_dim, 2) : y_dim / 2;
-        size_t z_dim_thread = z_dim % 2 != 0 && color & 4 == 0 ? util::ceilDiv<int>(z_dim, 2) : z_dim / 2;
-        size_t x_thread = threadIdx.x % x_dim_thread;
-        size_t y_thread = (threadIdx.x / x_dim_thread) % y_dim_thread;
-        size_t z_thread = (threadIdx.x / (x_dim_thread * y_dim_thread));
-        size_t x_cell = 2 * x_thread + (color % 2);
-        size_t y_cell = 2 * y_thread + ((color>>1) % 2);
-        size_t z_cell = 2 * z_thread + ((color>>2) % 2);
-        size_t idx = x_cell + (y_cell * x_dim) + (z_cell * x_dim * y_dim);
-        size_t startBaseCell = starts[idx];
-        size_t endBaseCell = starts[idx + 1];
-
-        size_t total_num_neighbors;
-        for (int o = 0; o < 8; o++) {
-            int offset = offsets[offsets_colored[o]];
-            if (!is_in_bounds(idx, offset)) continue;
-            idx += offset;
-            total_num_neighbors += (starts[idx + 1] - starts[idx]);
-        } */
-
-        /**
-        Shared memory layout
-        (one | means next entry in float3 array two || means here is where the next cell starts)
-            ________________________________________________________________
-            p00  | p01 | ... || p10 | p11 | ... || ... || ... | ... | ... ||  ...
-            ----------------------------------------------------------------
-            ________________________________________________________________ 
-        ... f00  | f01 | ... || f10 | f11 | ... || ... || ... | ... | ... || 
-            ----------------------------------------------------------------
-        where pij indicates that this is the float3 of the position of the j-th particle of the i-th cell
-        and   fij indicates that this is the float3 of the force of the j-th particle of the i-th cell
-
-        Shared memory will contain as many positions and forces of the base cell as possible. If a base cell cannot
-        be loaded completely the rest of it will always be loaded from global memory.
-        */
-        /* extern __shared__ float3 c08_block[];
-
-        // Load shared memory. For now a single thread loads all the data. Obviously this can be optimized more.
-        size_t shmem_idx = 0;
-        for (size_t c = 0; c < 2; c++) {
-            for (size_t i = startBaseCell; i < endBaseCell; i++, shmem_idx++) {
-                if (shmem_idx >= size_shmem) goto SYNC;
-                //thread 0 of each thread block is responsible for loading the entire base cell into shared memory
-                if (threadIdx.x == 0) { 
-                    size_t j = cells[i];
-                    if (c == 0) c08_block[shmem_idx] = positions[j];
-                    else c08_block[shmem_idx] = forces[j]; 
-                } 
-            } 
-        }
-        SYNC: __syncthreads();
-
-        size_t numParticlesBaseCell = endBaseCell - startBaseCell;
-        size_t startShmemBaseCell = threadIdx.x * (numParticlesBaseCell / n_t) + min(numParticlesBaseCell % n_t, (size_t)threadIdx.x);
-        size_t endShmemBaseCell = threadIdx.x < n_t - 1 
-            ? (threadIdx.x + 1) * (numParticlesBaseCell / n_t) + min(numParticlesBaseCell % n_t, (size_t)threadIdx.x) 
-            : numParticlesBaseCell;
-        
-        // Iterate over the n_t neighbor-chunks
-        for (size_t c = 0; c < n_t; c++) { 
-            size_t size_chunk = total_num_neighbors % n_t != 0 && c < (total_num_neighbors % n_t) 
-                ? (total_num_neighbors / n_t) + 1 
-                : total_num_neighbors / n_t;
-            for (size_t i = startShmemBaseCell; i < endShmemBaseCell; i++) { 
-                float3 fi = make_float3(0.f, 0.f, 0.f);
-
-                //get starting index of chunk
-                size_t start_chunk = 0;
-                size_t absolute_chunk_idx = (threadIdx.x + c) % n_t;
-                size_t chunk_start_idx = absolute_chunk_idx * (total_num_neighbors / n_t) + min(total_num_neighbors % n_t, absolute_chunk_idx); 
-                get_next_element_neighbor_chunk(start_chunk, 0, chunk_start_idx, idx, starts, cells);
-
-                //iterate over neighbor-chunk and update forces between base-cell-chunk and neighbor-chunk
-                for (size_t k = 0; k < size_chunk; k++) {
-                    // get to next element in neighbor chunk
-                    size_t j = 0;
-                    get_next_element_neighbor_chunk(j, 0, start_chunk + k, idx, starts, cells); 
-
-                    float3 dr = make_float3(0.f, 0.f, 0.f);
-                    if (i < size_shmem) {
-                        dr = make_float3_sub(c08_block[i], positions[j]);
-                    } else {
-                        dr = make_float3_sub(positions[i], positions[j]);
-                    }
-
-                    const float dr2 = dot3(dr, dr); 
-
-                    // = here too because this way we never get into a race condition with another cell of the same color
-                    if (std::sqrt(dr2) >= cutoff_radius) continue;
-
-                    const float sigma = 1.0f;
-                    const float sigmaSquared = sigma * sigma;
-                    const float epsilon24 = 24.0f; // 1.0 * 24.0
-
-                    const float invdr2 = 1.0f / dr2;
-                    float lj6 = sigmaSquared * invdr2;
-                    lj6 = lj6 * lj6 * lj6;
-                    const float lj12 = lj6 * lj6;
-                    const float lj12m6 = lj12 - lj6;
-                    const float fac = epsilon24 * (lj12 + lj12m6) * invdr2;
-                
-                    const float3 f = make_float3_scale(dr, fac);
-                    fi = make_float3_add(fi, f); 
-                    forces[j] = make_float3_sub(forces[j], f);
-
-                }
-                if (i + numParticlesBaseCell < size_shmem) { 
-                    c08_block[i + numParticlesBaseCell] = make_float3_add(c08_block[i + numParticlesBaseCell], fi);
-                } else {
-                    forces[i] = make_float3_add(forces[i], fi);
-                }
-            }
-            // sync threads
-            __syncthreads();
-        } 
-
-        // update forces in base cell. 
-        // For now no N3L, because this way we can use the advantage of having multiple threads without synchronization overhead.
-        // To be confirmed via benchmarking but I feel like since one cell doesn't contain that many particles in general this is actually the more performant solution (in general).
-        for (size_t i = startShmemBaseCell; i < endShmemBaseCell; i++) {
-            float3 acc = make_float3(0.f, 0.f, 0.f);
-            float3 pi = i < size_shmem ? c08_block[i] : positions[i];
-            float3 fi = i + numParticlesBaseCell < size_shmem ? c08_block[i + numParticlesBaseCell] : forces[i];
-            for (size_t j = 0; j < numParticlesBaseCell * 2; j++) {
-                float3 pj = j < size_shmem ? c08_block[j] : positions[j];
-                float3 fj = j + numParticlesBaseCell < size_shmem ? c08_block[j + numParticlesBaseCell] : forces[j];
-                
-                const float3 dr = make_float3_sub(pi, pj);
-                const float dr2 = dot3(dr, dr); 
-
-                // = here too because this way we never get into a race condition with another cell of the same color
-                if (std::sqrt(dr2) >= cutoff_radius) continue;
-
-                const float sigma = 1.0f;
-                const float sigmaSquared = sigma * sigma;
-                const float epsilon24 = 24.0f; // 1.0 * 24.0
-
-                const float invdr2 = 1.0f / dr2;
-                float lj6 = sigmaSquared * invdr2;
-                lj6 = lj6 * lj6 * lj6;
-                const float lj12 = lj6 * lj6;
-                const float lj12m6 = lj12 - lj6;
-                const float fac = epsilon24 * (lj12 + lj12m6) * invdr2;
-                
-                const float3 f = make_float3_scale(dr, fac);
-                acc = make_float3_add(acc, f); 
-                if (j + numParticlesBaseCell < size_shmem) {
-                    c08_block[j + numParticlesBaseCell] = make_float3_sub(fj, f);
-                } else {
-                    forces[j] = make_float3_sub(fj, f);
-                }
-            }
-            if (i + numParticlesBaseCell < size_shmem) {
-                c08_block[i + numParticlesBaseCell] = make_float3_add(fi, acc);
-            } else {
-                forces[i] = make_float3_add(fi, acc);
-            }
-        }
-    
-
-        // Write back shared memory contents into global memory. For now this is just done by one single thread
-        shmem_idx = 0;
-        for (size_t c = 0; c < 2; c++) {
-            for (size_t i = startBaseCell; i < endBaseCell; i++, shmem_idx++) {
-                if (shmem_idx >= size_shmem) return;
-                //thread 0 of each thread block is responsible for loading the entire base cell into shared memory
-                if (threadIdx.x == 0) { 
-                    size_t j = cells[i];
-                    if (c == 0) continue;
-                    else forces[j] = c08_block[shmem_idx]; 
-                } 
-            } 
-        }
-    } */
-
-   /*  __device__ load_shmem_parallel() {
-        
-        // Load neighborhood into shared memory
-        size_t total_num_neighbors;
-        size_t size_shmem;   //size of the chunk that is loaded by the thread
-        size_t start_shmem;  //where the chunk that is loaded by the thread starts in shared memory
-     
-        // init total_num_neighbors
-
-        // init size_shmem
-        if (total_num_neighbors % n_t != 0) {
-            size_shmem = t_id < total_num_neighbors % n_t ? total_num_neighbors / n_t + 1 : total_num_neighbors;
-        } else {
-            size_shmem = total_num_neighbors / n_t;
-        }
-
-        // init start_shmem
-
-
-
-        size_t at_cells = 0;
-        size_t at_shmem = 0;
-        for (size_t o = 0; o < 8; o++) {
-            int offset = offsets[offsets_colored[o]];
-            if (!is_in_bounds(idx, offset)) continue;
-            idx += offset;
-            int start_cell = starts[idx];
-            int end_cell = starts[idx + 1];
-            
-            //get to starting index of chunk the thread must load into shared memory
-            if (at_shmem == 0 && at_cells + (end_cell - start_cell) < start_shmem) {
-                at_cells += (end_cell - start_cell);
-                idx -= offset;
-                continue;
-            }
-            
-            //now the thread arrived at the starting index of the chunk it must load into shared memory
-            size_t start_copy = at_shmem == 0 ? start_cell + (start_shmem - at_cells) : start_cell;
-            size_t end_copy = at_shmem + ((end_cell - start_copy) * 2) >= size_shmem ? start_copy + ((size_shmem - at_shmem) / 2) : end_cell;
-            for (size_t i = start_copy; i < end_copy; i++, at_shmem+=2) {
-                c08_block[startShmem + at_shmem] = positions[i];
-                c08_block[startShmem + at_shmem + 1] = forces[i];
-            }
-        }
-
-        // Wait until entire neighborhood has been loaded into shared memory
-        __syncthreads();
-    } */
-    
-    
 } // namespace ppb
