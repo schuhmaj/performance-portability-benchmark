@@ -9,22 +9,9 @@
 #include <thrust/scan.h>
 #include <thrust/execution_policy.h>
 
-#define CHECK_CUDA_ERROR(val) ppb::check((val), #val, __FILE__, __LINE__)
-#define CHECK_LAST_CUDA_ERROR() checkLast(__FILE__, __LINE__)
-void checkLast(char const* file, int line)
-{
-    cudaError_t const err{cudaGetLastError()};
-    if (err != cudaSuccess)
-    {
-        std::cerr << "LAST CUDA Runtime Error at: " << file << ":" << line
-                  << std::endl;
-        std::cerr << cudaGetErrorString(err) << std::endl;
-        // We don't exit when we encounter CUDA errors in this example.
-        // std::exit(EXIT_FAILURE);
-    }
-}
+#define CHECK_CUDA_ERROR(val) ppb::cuda::nbody::check((val), #val, __FILE__, __LINE__)
 
-namespace ppb {   
+namespace ppb::cuda::nbody {   
 
     template<typename FloatType>
     ImplCuda<FloatType>::ImplCuda(const ParticleSimulationConfig<FloatType> &config) 
@@ -200,4 +187,4 @@ namespace ppb {
 
 
     template class ImplCuda<float>;
-  } // namespace ppb
+  } // namespace ppb::cuda::nbody

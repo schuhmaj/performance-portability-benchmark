@@ -1,7 +1,7 @@
 #include "Impl_Cuda.cuh"
 #include <cuda_runtime.h>
 
-namespace ppb {
+namespace ppb::cuda::nbody {
 
     template <typename FloatType>
     CudaParticleSoA<FloatType>::CudaParticleSoA(const std::vector<Particle<FloatType>> &particles)
@@ -245,4 +245,4 @@ namespace ppb {
 
     template class ImplCuda<float>;
 
-};
+}; // namespace ppb::cuda::nbody

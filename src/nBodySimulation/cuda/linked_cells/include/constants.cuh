@@ -1,6 +1,6 @@
 #pragma once
 
-namespace ppb {
+namespace ppb::cuda::nbody {
     __constant__ size_t numParticles;
 
     __constant__ int x_dim;
@@ -24,4 +24,4 @@ namespace ppb {
     __constant__ float boxMin[3];
 
     __constant__ float globalForce[3];
-} // namespace ppb
+} // namespace ppb::cuda::nbody

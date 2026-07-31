@@ -4,7 +4,7 @@
 #include "nBodySimulation/Particle.h"
 #include "common/UtilityContainer.h"
 
-namespace ppb {
+namespace ppb::cuda::nbody {
 
 
     template <typename FloatType>
@@ -74,4 +74,4 @@ namespace ppb {
          */
         void computeForces();
     };
-} // namespace ppb
+} // namespace ppb::cuda::nbody

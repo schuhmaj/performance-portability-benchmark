@@ -2,7 +2,7 @@
 
 #include "constants.cuh"
 
-namespace ppb {
+namespace ppb::cuda::nbody {
     //------------------------------------------------------------------HELPER FUNCTIONS---------------------------------------------------------------------
     __device__ inline float4 make_float4_add(const float4 a, const float4 b) {
         return make_float4(a.x + b.x, a.y + b.y, a.z + b.z, 0.f);
@@ -477,14 +477,6 @@ namespace ppb {
             }
             __syncthreads(); 
 
-/*         if (i == 0) {
-            printf("shmem:\n");
-            for (size_t j = 0; j < shmem_size; j++) {
-                float3 pj = shared_neighbors[j];
-                printf("x: %f, y: %f, z: %f\n", pj.x, pj.y, pj.z);
-            }
-        } */
-
             //force computation (NO N3L!! -> no shared memory bank conflicts (and no headache))
             int end_shmem_tile = k / size_shmem_tile == num_neighbors / size_shmem_tile
                 ? start_shmem_tile + (num_neighbors - ((num_neighbors / size_shmem_tile) * size_shmem_tile))
@@ -516,4 +508,4 @@ namespace ppb {
         }
         forces[cells[i]] = make_float4_add(forces[cells[i]], fi);
     }
-} // namespace ppb
+} // namespace ppb::cuda::nbody

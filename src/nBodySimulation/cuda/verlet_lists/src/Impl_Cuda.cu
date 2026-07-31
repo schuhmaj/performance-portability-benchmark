@@ -11,22 +11,9 @@
 #include <thrust/execution_policy.h>
 #include <cub/device/device_segmented_sort.cuh>
 
-#define CHECK_CUDA_ERROR(val) ppb::check((val), #val, __FILE__, __LINE__)
-#define CHECK_LAST_CUDA_ERROR() checkLast(__FILE__, __LINE__)
-void checkLast(char const* file, int line)
-{
-    cudaError_t const err{cudaGetLastError()};
-    if (err != cudaSuccess)
-    {
-        std::cerr << "LAST CUDA Runtime Error at: " << file << ":" << line
-                  << std::endl;
-        std::cerr << cudaGetErrorString(err) << std::endl;
-        // We don't exit when we encounter CUDA errors in this example.
-        // std::exit(EXIT_FAILURE);
-    }
-}
+#define CHECK_CUDA_ERROR(val) ppb::cuda::nbody::check((val), #val, __FILE__, __LINE__)
 
-namespace ppb {
+namespace ppb::cuda::nbody {
     template<typename FloatType>
     ImplCuda<FloatType>::ImplCuda(const ParticleSimulationConfig<FloatType> &config) 
         : _config{config}
@@ -284,16 +271,12 @@ namespace ppb {
         _particles.emplace(particles);
 
         for (iteration = 0; iteration < _config.numberTimeSteps; ++iteration) {
-            std::cout<<"--------------------------ITERATION "<<iteration<<"----------------------------"<<std::endl;
             updatePositionsAndResetForce();
             computeForces();
             updateVelocities();
-            for (auto& p : _particles->toParticles()) {
-                std::cout<<p<<std::endl;
-            }
         }
         return std::make_pair(_particles->toParticles(), _timings);
     }
 
     template class ImplCuda<float>;
-  } // namespace ppb
+  } // namespace ppb::cuda::nbody

@@ -2,7 +2,7 @@
 #include "Impl_Cuda.cuh"
 #include "nBodySimulation/NBodySimulation.h"
 
-BENCHMARK(ppb::NBodySimulation<ppb::ImplCuda<float>>::benchmark)
+BENCHMARK(ppb::NBodySimulation<ppb::cuda::nbody::ImplCuda<float>>::benchmark)
     ->Name("NBody-Float-Cuda")
     ->Iterations(1)
     ->RangeMultiplier(2)

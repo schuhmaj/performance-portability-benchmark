@@ -5,17 +5,7 @@
 #include <string>
 #include <iostream>
 
-#ifndef NDEBUG
-int main(int argc, char** argv) {
-    std::string filename = "/u/home/ge95mis/performance-portability-benchmark/input/particles.csv";
-    ppb::CSVFileHandler<float>* reader = new ppb::CSVFileHandler<float>(filename);
-    std::vector<ppb::Particle<float>> particles = reader->read();     
-    ppb::ParticleSimulationConfig<float>* config = new ppb::ParticleSimulationConfig<float>(particles.size(), 100, 0.01f);
-    ppb::ImplCuda<float>* impl = new ppb::ImplCuda<float>(*config);
-    impl->simulate(particles);
-}
-#else
-BENCHMARK(ppb::NBodySimulation<ppb::ImplCuda<float>>::benchmark)
+BENCHMARK(ppb::NBodySimulation<ppb::cuda::nbody::ImplCuda<float>>::benchmark)
     ->Name("NBody-Float-Cuda")
     ->Iterations(1)
     ->RangeMultiplier(2)
@@ -28,4 +18,3 @@ int main(int argc, char** argv) {
     benchmark::RunSpecifiedBenchmarks();
     benchmark::Shutdown();
 }
-#endif

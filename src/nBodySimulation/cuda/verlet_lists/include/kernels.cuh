@@ -7,7 +7,7 @@
 #include <float.h>
 #include "constants.cuh"
 
-namespace ppb {
+namespace ppb::cuda::nbody {
     __device__ inline float3 make_float3_add(const float3 a, const float3 b) {
         return make_float3(a.x + b.x, a.y + b.y, a.z + b.z);
     }

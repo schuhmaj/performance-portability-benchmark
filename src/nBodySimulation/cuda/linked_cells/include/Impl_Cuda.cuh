@@ -5,7 +5,7 @@
 #include "common/UtilityContainer.h"
 #include "CudaParticleSoA.cuh"
 
-namespace ppb {
+namespace ppb::cuda::nbody {
     template <typename FloatType>
     class ImplCuda {
         int _blockSize;
@@ -83,4 +83,4 @@ namespace ppb {
         ~ImplCuda();
     };
 
-} // namespace ppb
+} // namespace ppb::cuda::nbody

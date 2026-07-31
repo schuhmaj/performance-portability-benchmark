@@ -5,7 +5,7 @@
 #include "common/UtilityContainer.h"
 #include "CudaParticleSoA.cuh"
 
-namespace ppb {
+namespace ppb::cuda::nbody {
     struct BoundingBox {
         float3 lowerCorner; //corner of bounding box with min x, y, z coordinates
         float3 upperCorner; //corner of bounding box with max x, y, z coordinates
@@ -93,4 +93,4 @@ namespace ppb {
         ~ImplCuda();
     };
 
-} // namespace ppb
+} // namespace ppb::cuda::nbody
