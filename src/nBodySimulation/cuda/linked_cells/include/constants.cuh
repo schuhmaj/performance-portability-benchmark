@@ -1,27 +1,27 @@
 #pragma once
 
 namespace ppb::cuda::nbody {
-    __constant__ size_t numParticles;
+    __constant__ size_t NUM_PARTICLES;
 
-    __constant__ int x_dim;
+    __constant__ int X_DIM;
 
-    __constant__ int y_dim;
+    __constant__ int Y_DIM;
 
-    __constant__ int z_dim;
+    __constant__ int Z_DIM;
 
-    __constant__ int offsets[27];
+    __constant__ int OFFSETS[27];
 
-    __constant__ int offsets_colored[8]; 
+    __constant__ int OFFSETS_COLORED[8]; 
     
-    __constant__ int offsets_colored_non_base_cell[12]; 
+    __constant__ int OFFSETS_COLORED_NON_BASE_CELL[12]; 
 
-    __constant__ float deltaT; 
+    __constant__ float DELTA_T; 
     
-    __constant__ float cutoff_radius;
+    __constant__ float CUTOFF_RADIUS;
 
-    __constant__ float cell_size;
+    __constant__ float CELL_SIZE;
 
-    __constant__ float boxMin[3];
+    __constant__ float BOX_MIN[3];
 
-    __constant__ float globalForce[3];
+    __constant__ float GLOBAL_FORCE[3];
 } // namespace ppb::cuda::nbody

@@ -36,16 +36,16 @@ namespace ppb::cuda::nbody {
         };
         
         //-------------------------------------Init constant memory----------------------------------------
-        CHECK_CUDA_ERROR(cudaMemcpyToSymbol(numParticles, &_config.size, sizeof(_config.size)));
-        CHECK_CUDA_ERROR(cudaMemcpyToSymbol(x_dim, &x_dim_h, sizeof(x_dim_h)));
-        CHECK_CUDA_ERROR(cudaMemcpyToSymbol(y_dim, &y_dim_h, sizeof(y_dim_h)));
-        CHECK_CUDA_ERROR(cudaMemcpyToSymbol(z_dim, &z_dim_h, sizeof(z_dim_h)));
-        CHECK_CUDA_ERROR(cudaMemcpyToSymbol(offsets, offsets_h, sizeof(offsets_h)));
-        CHECK_CUDA_ERROR(cudaMemcpyToSymbol(deltaT, &_config.deltaT, sizeof(_config.deltaT)));
-        CHECK_CUDA_ERROR(cudaMemcpyToSymbol(cutoff_radius, &_config.cutoff_radius, sizeof(_config.cutoff_radius)));
-        CHECK_CUDA_ERROR(cudaMemcpyToSymbol(cell_size, &_config.cell_size, sizeof(_config.cell_size)));
-        CHECK_CUDA_ERROR(cudaMemcpyToSymbol(boxMin, _config.boxMin.data(), sizeof(_config.boxMin)));
-        CHECK_CUDA_ERROR(cudaMemcpyToSymbol(globalForce, _config.globalForce.data(), sizeof(_config.globalForce)));
+        CHECK_CUDA_ERROR(cudaMemcpyToSymbol(NUM_PARTICLES, &_config.size, sizeof(_config.size)));
+        CHECK_CUDA_ERROR(cudaMemcpyToSymbol(X_DIM, &x_dim_h, sizeof(x_dim_h)));
+        CHECK_CUDA_ERROR(cudaMemcpyToSymbol(Y_DIM, &y_dim_h, sizeof(y_dim_h)));
+        CHECK_CUDA_ERROR(cudaMemcpyToSymbol(Z_DIM, &z_dim_h, sizeof(z_dim_h)));
+        CHECK_CUDA_ERROR(cudaMemcpyToSymbol(OFFSETS, offsets_h, sizeof(offsets_h)));
+        CHECK_CUDA_ERROR(cudaMemcpyToSymbol(DELTA_T, &_config.deltaT, sizeof(_config.deltaT)));
+        CHECK_CUDA_ERROR(cudaMemcpyToSymbol(CUTOFF_RADIUS, &_config.cutoff_radius, sizeof(_config.cutoff_radius)));
+        CHECK_CUDA_ERROR(cudaMemcpyToSymbol(CELL_SIZE, &_config.cell_size, sizeof(_config.cell_size)));
+        CHECK_CUDA_ERROR(cudaMemcpyToSymbol(BOX_MIN, _config.boxMin.data(), sizeof(_config.boxMin)));
+        CHECK_CUDA_ERROR(cudaMemcpyToSymbol(GLOBAL_FORCE, _config.globalForce.data(), sizeof(_config.globalForce)));
         
         //------------------------------Determine optimal grid sizes----------------------------------------
         const size_t size = _config.size;
@@ -58,8 +58,8 @@ namespace ppb::cuda::nbody {
 #ifdef PPB_ENABLE_DOMAIN_COLORING
         int offsets_colored_h[8] = { 13, 14, 16, 17, 22, 23, 25, 26 };
         int offsets_colored_non_base_cell_h[12] = { 14, 16, 14, 25, 14, 22, 16, 22, 16, 23, 17, 22 };
-        CHECK_CUDA_ERROR(cudaMemcpyToSymbol(offsets_colored, offsets_colored_h, sizeof(offsets_colored_h))); 
-        CHECK_CUDA_ERROR(cudaMemcpyToSymbol(offsets_colored_non_base_cell, offsets_colored_non_base_cell_h, sizeof(offsets_colored_non_base_cell_h))); 
+        CHECK_CUDA_ERROR(cudaMemcpyToSymbol(OFFSETS_COLORED, offsets_colored_h, sizeof(offsets_colored_h))); 
+        CHECK_CUDA_ERROR(cudaMemcpyToSymbol(OFFSETS_COLORED_NON_BASE_CELL, offsets_colored_non_base_cell_h, sizeof(offsets_colored_non_base_cell_h))); 
         size_t number_of_cells_with_same_color = util::ceilDiv<size_t>(x_dim_h * y_dim_h * z_dim_h, 8);
         if (number_of_cells_with_same_color <= MAX_THREADS) {
             _blockSizeForces = number_of_cells_with_same_color;
@@ -68,7 +68,7 @@ namespace ppb::cuda::nbody {
         }
         _gridSizeForces = util::ceilDiv<unsigned int>(number_of_cells_with_same_color, _blockSizeForces);
 #elif PPB_ENABLE_CUDA_LINKED_CELL_OPTIMIZATION 
-        CHECK_CUDA_ERROR(cudaFuncSetAttribute(compute_forces_optimized, cudaFuncAttributeMaxDynamicSharedMemorySize, 96 * 1024));
+        //CHECK_CUDA_ERROR(cudaFuncSetAttribute(compute_forces_optimized, cudaFuncAttributeMaxDynamicSharedMemorySize, 96 * 1024));
         CHECK_CUDA_ERROR(cudaOccupancyMaxPotentialBlockSize(&minGridSize, &_blockSizeForces, reinterpret_cast<void *>(compute_forces_optimized), 24 * 1024, 0));
         _gridSizeForces = util::ceilDiv<unsigned int>(size, _blockSizeForces); 
 #else 

@@ -31,7 +31,7 @@ namespace ppb::cuda::nbody {
         float3* oldForces 
     ) {
         const unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
-        if (i >= numParticles) {
+        if (i >= NUM_PARTICLES) {
             return;
         }
 
@@ -39,12 +39,12 @@ namespace ppb::cuda::nbody {
         const float3 force = forces[i];
         const float3 velocity = velocities[i];
         oldForces[i] = force;
-        forces[i].x = globalForce[0];
-        forces[i].y = globalForce[1];
-        forces[i].z = globalForce[2];
+        forces[i].x = GLOBAL_FORCE[0];
+        forces[i].y = GLOBAL_FORCE[1];
+        forces[i].z = GLOBAL_FORCE[2];
 
-        const float3 velocityPart = {velocity.x * deltaT, velocity.y * deltaT, velocity.z * deltaT};
-        const float tt2m = deltaT * deltaT / (2.0f * mass);
+        const float3 velocityPart = {velocity.x * DELTA_T, velocity.y * DELTA_T, velocity.z * DELTA_T};
+        const float tt2m = DELTA_T * DELTA_T / (2.0f * mass);
         const float3 forcePart = {force.x * tt2m, force.y * tt2m, force.z * tt2m};
         const float3 displacement = {velocityPart.x + forcePart.x, velocityPart.y + forcePart.y, velocityPart.z + forcePart.z};
         positions[i] = {positions[i].x + displacement.x, positions[i].y + displacement.y, positions[i].z + displacement.z};
@@ -52,7 +52,7 @@ namespace ppb::cuda::nbody {
 
     __global__ void update_velocities(float3* velocities, const float3* forces, const float3* oldForces) {
         const unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
-        if (i >= numParticles) {
+        if (i >= NUM_PARTICLES) {
             return;
         }
 
@@ -62,7 +62,7 @@ namespace ppb::cuda::nbody {
         const float3 velocity = velocities[i];
 
         const float3 forcePart = {force.x + oldForce.x, force.y + oldForce.y, force.z + oldForce.z};
-        const float t2m =  deltaT / (2.0f * mass);
+        const float t2m =  DELTA_T / (2.0f * mass);
         const float3 velChange = {forcePart.x * t2m, forcePart.y * t2m, forcePart.z * t2m};
         velocities[i] = {velocity.x + velChange.x, velocity.y + velChange.y, velocity.z + velChange.z};
     }
@@ -74,7 +74,7 @@ namespace ppb::cuda::nbody {
         const int* __restrict__ starts
     ) {
         const unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
-        if (i >= numParticles) {
+        if (i >= NUM_PARTICLES) {
             return;
         }
 
@@ -92,11 +92,7 @@ namespace ppb::cuda::nbody {
 
             const float3 dr = make_float3_sub(positions[i], positions[j]);
             const float dr2 = dot3(dr, dr);
-            if (std::sqrt(dr2) >= cutoff_radius) continue;
-
-/*             if (i == 1 || j == 1) {
-                printf("Thread %u: %u (%f, %f, %f) <-> %lu (%f, %f, %f)\n", i, i, positions[i].x, positions[i].y, positions[i].z, j, positions[j].x, positions[j].y, positions[j].z);
-            } */
+            if (std::sqrt(dr2) >= CUTOFF_RADIUS) continue;
 
             const float invdr2 = 1.0f / dr2;
             float lj6 = sigmaSquared * invdr2;
@@ -118,17 +114,17 @@ namespace ppb::cuda::nbody {
 
     __global__ void get_number_of_neighbors(int* starts, float3* positions) {
         const unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
-        if (i >= numParticles) {
+        if (i >= NUM_PARTICLES) {
             return;
         }
 
         int neighbors = 0;
         float3 pi = positions[i];
-        for (size_t j = 0; j < numParticles; j++) {
+        for (size_t j = 0; j < NUM_PARTICLES; j++) {
             if (i == j) continue;
             const float3 dr = make_float3_sub(pi, positions[j]);
             const float dr2 = dot3(dr, dr);
-            if (std::sqrt(dr2) <= cutoff_radius + verlet_skin) {
+            if (std::sqrt(dr2) <= CUTOFF_RADIUS + VERLET_SKIN) {
                 neighbors++;
             }
         }
@@ -138,18 +134,18 @@ namespace ppb::cuda::nbody {
 
     __global__ void make_verlet_lists(int* verletLists, int* starts, float3* positions) {
         const unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
-        if (i >= numParticles) {
+        if (i >= NUM_PARTICLES) {
             return;
         }
 
         float3 pi = positions[i];
         size_t base = starts[i];
         int offset = 0;
-        for (size_t j = 0; j < numParticles; j++) {
+        for (size_t j = 0; j < NUM_PARTICLES; j++) {
             if (i == j) continue;
             const float3 dr = make_float3_sub(pi, positions[j]);
             const float dr2 = dot3(dr, dr);
-            if (std::sqrt(dr2) <= cutoff_radius + verlet_skin) {
+            if (std::sqrt(dr2) <= CUTOFF_RADIUS + VERLET_SKIN) {
                 verletLists[base + offset] = j;
                 offset++;
             }
@@ -158,58 +154,6 @@ namespace ppb::cuda::nbody {
 
 //--------------------------------------------- VERLET CLUSTER LISTS --------------------------------------------------
 #ifdef PPB_ENABLE_VERLET_CLUSTER_LISTS
-    __global__ void printStartsTowers(int* starts_towers, size_t num_towers) {
-        printf("starts_towers:\n");
-        for (int i = 0; i <= num_towers; i++) {
-            printf("%d, ", starts_towers[i]);
-        }
-        printf("\n");
-    }
-
-    __global__ void printClusters(int* clusters, size_t size) {
-        printf("clusters:\n");
-        for (int i = 0; i < size; i++) {
-            printf("%d, ", clusters[i]);
-        }
-    }
-
-    __global__ void printBB(BoundingBox* BB, size_t num_boxes) {
-        printf("bounding boxes:\n");
-        for (int i = 0; i < num_boxes; i++) {
-            float3 l = BB[i].lowerCorner;
-            float3 u = BB[i].upperCorner;
-            printf("BB[%d]:\nlower_corner: (%f, %f, %f)\nupper_corner: (%f, %f, %f)\n", i, l.x, l.y, l.z, u.x, u.y, u.z);
-        }
-    }
-    
-    __global__ void printPairList(int* starts, int num_clusters, int* cluster_pairs, int num_pairs) {
-        printf("starts:\n");
-        for (int i = 0; i < num_clusters + 1; i++) {
-            printf("%d, ", starts[i]);
-        }
-        printf("pair list:\n");
-        for (int i = 0; i < num_pairs; i++) {
-            printf("%d, ", cluster_pairs[i]);
-        }
-        printf("\n");
-    }
-
-    __global__ void printPositionsInTowers(int* positions_in_tower, size_t size) {
-        printf("positions_in_towers:\n");
-        for (int i = 0; i < size; i++) {
-            printf("%d, ", positions_in_tower[i]);
-        }
-        printf("\n");
-    }
-
-    __global__ void printZCoordinates(float* z_coordinates, size_t size) {
-        printf("z_coordinates:\n");
-        for (int i = 0; i < size; i++) {
-            printf("%f, ", z_coordinates[i]);
-        }
-        printf("\n");
-    }
-
     //taken from: https://github.com/dangets/cuda_examples/blob/master/clamp_function.cu (last accessed 14.6.26)
     template <typename T>
     __device__ inline T clamp(T val, T vMin, T vMax) {
@@ -217,20 +161,20 @@ namespace ppb::cuda::nbody {
     }
 
     __device__ size_t get_tower_id(int particle_idx, float3* __restrict__ positions, float grid_size) {
-        size_t x_dim = util::ceilDiv((boxMax[0] - boxMin[0]), grid_size);
-        size_t y_dim = util::ceilDiv((boxMax[1] - boxMin[1]), grid_size);
-        size_t tower_x = clamp<int>(int(std::ceil((positions[particle_idx].x - boxMin[0]) / grid_size)), 0, x_dim - 1);
-        size_t tower_y = clamp<int>(int(std::ceil((positions[particle_idx].y - boxMin[1]) / grid_size)), 0, y_dim - 1);
+        size_t x_dim = util::ceilDiv((BOX_MAX[0] - BOX_MIN[0]), grid_size);
+        size_t y_dim = util::ceilDiv((BOX_MAX[1] - BOX_MIN[1]), grid_size);
+        size_t tower_x = clamp<int>(int(std::ceil((positions[particle_idx].x - BOX_MIN[0]) / grid_size)), 0, x_dim - 1);
+        size_t tower_y = clamp<int>(int(std::ceil((positions[particle_idx].y - BOX_MIN[1]) / grid_size)), 0, y_dim - 1);
         return tower_x + (tower_y * x_dim);
     }
 
-    __device__ int2 get_tower_xy(int particle_idx, float3* __restrict__ positions, float grid_size) {
-        int x_dim = util::ceilDiv((boxMax[0] - boxMin[0]), grid_size);
-        int y_dim = util::ceilDiv((boxMax[1] - boxMin[1]), grid_size);
-        int tower_x = clamp<int>(int(std::ceil((positions[particle_idx].x - boxMin[0]) / grid_size)), 0, x_dim - 1);
-        int tower_y = clamp<int>(int(std::ceil((positions[particle_idx].y - boxMin[1]) / grid_size)), 0, y_dim - 1);
+/*     __device__ int2 get_tower_xy(int particle_idx, float3* __restrict__ positions, float grid_size) {
+        int x_dim = util::ceilDiv((BOX_MAX[0] - BOX_MIN[0]), grid_size);
+        int y_dim = util::ceilDiv((BOX_MAX[1] - BOX_MIN[1]), grid_size);
+        int tower_x = clamp<int>(int(std::ceil((positions[particle_idx].x - BOX_MIN[0]) / grid_size)), 0, x_dim - 1);
+        int tower_y = clamp<int>(int(std::ceil((positions[particle_idx].y - BOX_MIN[1]) / grid_size)), 0, y_dim - 1);
         return make_int2(tower_x, tower_y);
-    }
+    } */
 
     __global__ void get_tower_id_per_particle(
         float3* __restrict__ positions,
@@ -238,13 +182,12 @@ namespace ppb::cuda::nbody {
         float grid_size
     ) {
         const unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
-        if (i >= numParticles) {
+        if (i >= NUM_PARTICLES) {
             return;
         }
         
         size_t tower = get_tower_id(i, positions, grid_size);
         particle_tower_id[i] = tower;
-        //printf("Particle %u at tower %lu\n", i, tower);
     }
 
     __global__ void count_particles_in_towers(
@@ -253,7 +196,7 @@ namespace ppb::cuda::nbody {
         float grid_size
     ) {
         const unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
-        if (i >= numParticles) {
+        if (i >= NUM_PARTICLES) {
             return;
         }
 
@@ -278,7 +221,7 @@ namespace ppb::cuda::nbody {
         float grid_size
     ) {
         const unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
-        if (i >= numParticles) {
+        if (i >= NUM_PARTICLES) {
             return;
         }
  
@@ -298,7 +241,7 @@ namespace ppb::cuda::nbody {
         float grid_size
     ) {
         const unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
-        if (i >= numParticles) {
+        if (i >= NUM_PARTICLES) {
             return;
         }
 
@@ -402,7 +345,7 @@ namespace ppb::cuda::nbody {
         int pair_idx = 0;
         int base_pair_idx = starts[i]; //assuming an inclusive scan was done on starts beforehand!
         
-        float interactionLength = cutoff_radius + verlet_skin;
+        float interactionLength = CUTOFF_RADIUS + VERLET_SKIN;
         float interactionLengthSqr = interactionLength * interactionLength;
         BoundingBox bbi = BBM[i];
 
@@ -509,18 +452,12 @@ namespace ppb::cuda::nbody {
         const float3 dr = make_float3_sub(i_particle, j_particle);
         const float dr2 = dot3(dr, dr);
 
-        if (std::sqrt(dr2) >= cutoff_radius) return;
-/*         if (i_particle_idx == 1 || j_particle_idx == 1) {
-            printf("Thread %u: %d <-> %d\n", i, i_particle_idx, j_particle_idx);
-        } */
+        if (std::sqrt(dr2) >= CUTOFF_RADIUS) return;
 
         const float sigma = 1.0f;
         const float sigmaSquared = sigma * sigma;
         const float epsilon24 = 24.0f; // 1.0 * 24.0
-
-/*         if (dr2 == 0) {
-            printf("ALERT ALERT!!!\n");
-        } */
+        
         const float invdr2 = 1.0f / dr2;
         float lj6 = sigmaSquared * invdr2;
         lj6 = lj6 * lj6 * lj6;
@@ -562,7 +499,6 @@ namespace ppb::cuda::nbody {
             if (j_particle_idx == -1) continue; //skip dummy particles
             if (i_particle_idx >= j_particle_idx) continue; //N3L within the same i-cluster
             float3 j_particle = positions[j_particle_idx];
-//             printf("Thread %u: SAME CLUSTER Check out %d (%f, %f, %f) <-> %d (%f, %f, %f)\n", i,  i_particle_idx, i_particle.x, i_particle.y, i_particle.z, j_particle_idx, j_particle.x, j_particle.y, j_particle.z);
             compute_interaction(i_particle, i_particle_idx, j_particle, j_particle_idx, fi, forces);
         }
 
@@ -570,11 +506,9 @@ namespace ppb::cuda::nbody {
         for (int j = start_neighbors; j < end_neighbors; j++) {
             int j_cluster = cluster_pairs[j];
             int j_particle_idx = clusters[j_cluster * 4 + (i % 4)];
-            if (j_particle_idx != -1) { //skip dummy particles
-                float3 j_particle = positions[j_particle_idx];
-//                 printf("Thread %u: Check out %d (%f, %f, %f) <-> %d (%f, %f, %f)\n", i, i_particle_idx, i_particle.x, i_particle.y, i_particle.z, j_particle_idx, j_particle.x, j_particle.y, j_particle.z);
-                compute_interaction(i_particle, i_particle_idx, j_particle, j_particle_idx, fi, forces);
-            } 
+            if (j_particle_idx != -1) continue; //skip dummy particles
+            float3 j_particle = positions[j_particle_idx];
+            compute_interaction(i_particle, i_particle_idx, j_particle, j_particle_idx, fi, forces);
         }
 
         int MASK = 0xffffffff;

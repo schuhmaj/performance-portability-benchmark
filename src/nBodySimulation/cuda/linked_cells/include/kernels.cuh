@@ -22,19 +22,19 @@ namespace ppb::cuda::nbody {
 
     __device__ inline bool is_in_bounds(int idx, int offset) {
         int offset_idx = idx + offset;
-        int x_idx = idx % x_dim;
-        int y_idx = (idx / x_dim) % y_dim;
-        int z_idx = (idx / (x_dim * y_dim));
-        int x_offset = offset_idx % x_dim;
-        int y_offset = (offset_idx / x_dim) % y_dim;
-        int z_offset = (offset_idx / (x_dim * y_dim));
+        int x_idx = idx % X_DIM;
+        int y_idx = (idx / X_DIM) % Y_DIM;
+        int z_idx = (idx / (X_DIM * Y_DIM));
+        int x_offset = offset_idx % X_DIM;
+        int y_offset = (offset_idx / X_DIM) % Y_DIM;
+        int z_offset = (offset_idx / (X_DIM * Y_DIM));
 
         if (std::abs((int)(x_idx - x_offset)) > 1) return false;
         else if (std::abs((int)(y_idx - y_offset)) > 1) return false;
         else if (std::abs((int)(z_idx - z_offset)) > 1) return false;
-        else if (x_offset >= x_dim) return false;
-        else if (y_offset >= y_dim) return false;
-        else if (z_offset >= z_dim) return false;
+        else if (x_offset >= X_DIM) return false;
+        else if (y_offset >= Y_DIM) return false;
+        else if (z_offset >= Z_DIM) return false;
         return true;
     }
 
@@ -47,23 +47,10 @@ namespace ppb::cuda::nbody {
 
 
     __device__ inline int get_cell_idx(size_t particle_idx, const float4* positions) {
-        int x_idx = clamp<int>(int(std::ceil((positions[particle_idx].x - boxMin[0]) / cell_size)), 0, x_dim - 1);
-        int y_idx = clamp<int>(int(std::ceil((positions[particle_idx].y - boxMin[1]) / cell_size)), 0, y_dim - 1);
-        int z_idx = clamp<int>(int(std::ceil((positions[particle_idx].z - boxMin[2]) / cell_size)), 0, z_dim - 1);
-        return x_idx + (y_idx * x_dim) + (z_idx * x_dim * y_dim); 
-    }
-
-    __global__ void printStartsCells(int* starts, int* cells) {
-        size_t numCells = x_dim * y_dim * z_dim;
-        printf("starts:\n");
-        for (size_t j = 0; j <= numCells; j++) {
-            printf("%d, ", starts[j]);
-        }
-        printf("\ncells:");
-        for (size_t j = 0; j < numParticles; j++) {
-            printf("%d, ", cells[j]);
-        }
-        printf("\n");
+        int x_idx = clamp<int>(int(std::ceil((positions[particle_idx].x - BOX_MIN[0]) / CELL_SIZE)), 0, X_DIM - 1);
+        int y_idx = clamp<int>(int(std::ceil((positions[particle_idx].y - BOX_MIN[1]) / CELL_SIZE)), 0, Y_DIM - 1);
+        int z_idx = clamp<int>(int(std::ceil((positions[particle_idx].z - BOX_MIN[2]) / CELL_SIZE)), 0, Z_DIM - 1);
+        return x_idx + (y_idx * X_DIM) + (z_idx * X_DIM * Y_DIM); 
     }
     //-------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -77,7 +64,7 @@ namespace ppb::cuda::nbody {
         float4* positions
     ) {
         const unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
-        if (i >= numParticles) {
+        if (i >= NUM_PARTICLES) {
             return;
         } 
         
@@ -98,7 +85,7 @@ namespace ppb::cuda::nbody {
         int* starts 
     ) {
         const unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
-        if (i >= numParticles) {
+        if (i >= NUM_PARTICLES) {
             return;
         }
 
@@ -106,12 +93,12 @@ namespace ppb::cuda::nbody {
         const float4 force = forces[i];
         const float4 velocity = velocities[i];
         oldForces[i] = force;
-        forces[i].x = globalForce[0];
-        forces[i].y = globalForce[1];
-        forces[i].z = globalForce[2];
+        forces[i].x = GLOBAL_FORCE[0];
+        forces[i].y = GLOBAL_FORCE[1];
+        forces[i].z = GLOBAL_FORCE[2];
 
-        const float3 velocityPart = {velocity.x * deltaT, velocity.y * deltaT, velocity.z * deltaT};
-        const float tt2m = deltaT * deltaT / (2.0f * mass);
+        const float3 velocityPart = {velocity.x * DELTA_T, velocity.y * DELTA_T, velocity.z * DELTA_T};
+        const float tt2m = DELTA_T * DELTA_T / (2.0f * mass);
         const float3 forcePart = {force.x * tt2m, force.y * tt2m, force.z * tt2m};
         const float3 displacement = {velocityPart.x + forcePart.x, velocityPart.y + forcePart.y, velocityPart.z + forcePart.z};
         positions[i] = {positions[i].x + displacement.x, positions[i].y + displacement.y, positions[i].z + displacement.z, 0.f};
@@ -130,7 +117,7 @@ namespace ppb::cuda::nbody {
         const float4* oldForces
     ) {
         const unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
-        if (i >= numParticles) {
+        if (i >= NUM_PARTICLES) {
             return;
         }
 
@@ -140,7 +127,7 @@ namespace ppb::cuda::nbody {
         const float4 velocity = velocities[i];
 
         const float3 forcePart = {force.x + oldForce.x, force.y + oldForce.y, force.z + oldForce.z};
-        const float t2m =  deltaT / (2.0f * mass);
+        const float t2m =  DELTA_T / (2.0f * mass);
         const float3 velChange = {forcePart.x * t2m, forcePart.y * t2m, forcePart.z * t2m};
         velocities[i] = {velocity.x + velChange.x, velocity.y + velChange.y, velocity.z + velChange.z, 0.f};
     }
@@ -153,15 +140,15 @@ namespace ppb::cuda::nbody {
         const int* __restrict__ starts 
     ) {
         const unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
-        if (i >= numParticles) {
+        if (i >= NUM_PARTICLES) {
             return;
         }
 
         float4 fi = make_float4(0.f, 0.f, 0.f, 0.f);
         size_t idx = get_cell_idx(i, positions);
         for (size_t offset = 0; offset < 27; offset++) {
-            if (!is_in_bounds(idx, offsets[offset])) continue; 
-            idx += offsets[offset];
+            if (!is_in_bounds(idx, OFFSETS[offset])) continue; 
+            idx += OFFSETS[offset];
             size_t start = starts[idx];
             size_t end = starts[idx + 1];
             for (size_t k = start; k < end; k++) {
@@ -170,7 +157,7 @@ namespace ppb::cuda::nbody {
 
                 const float4 dr = make_float4_sub(positions[i], positions[j]);
                 const float dr2 = dot3(dr, dr);
-                if (std::sqrt(dr2) >= cutoff_radius) continue; // = here too because less atomics in domain coloring
+                if (std::sqrt(dr2) >= CUTOFF_RADIUS) continue; // = here too because less atomics in domain coloring
                 
                 const float sigma = 1.0f;
                 const float sigmaSquared = sigma * sigma;
@@ -189,7 +176,7 @@ namespace ppb::cuda::nbody {
                 atomicAdd(&forces[j].y, f.y * -1.0f);
                 atomicAdd(&forces[j].z, f.z * -1.0f);
             }
-            idx -= offsets[offset];
+            idx -= OFFSETS[offset];
         }
 
         atomicAdd(&forces[i].x, fi.x);
@@ -204,7 +191,7 @@ namespace ppb::cuda::nbody {
         const int* __restrict__ starts 
     ) {
         const unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
-        if (i >= numParticles) {
+        if (i >= NUM_PARTICLES) {
             return;
         }
 
@@ -213,8 +200,8 @@ namespace ppb::cuda::nbody {
         float4 pi = cells_positions[i];
         size_t ci = cells[i];
         for (size_t offset = 0; offset < 27; offset++) {
-            if (!is_in_bounds(idx, offsets[offset])) continue; 
-            idx += offsets[offset];
+            if (!is_in_bounds(idx, OFFSETS[offset])) continue; 
+            idx += OFFSETS[offset];
             size_t start = starts[idx];
             size_t end = starts[idx + 1];
             for (size_t k = start; k < end; k++) {
@@ -224,7 +211,7 @@ namespace ppb::cuda::nbody {
 
                 const float4 dr = make_float4_sub(pi, pj);
                 const float dr2 = dot3(dr, dr);
-                if (std::sqrt(dr2) >= cutoff_radius) continue; // = here too because less atomics
+                if (std::sqrt(dr2) >= CUTOFF_RADIUS) continue; // = here too because less atomics
                
                 const float sigma = 1.0f;
                 const float sigmaSquared = sigma * sigma;
@@ -243,7 +230,7 @@ namespace ppb::cuda::nbody {
                 atomicAdd(&forces[j].y, f.y * -1.0f);
                 atomicAdd(&forces[j].z, f.z * -1.0f);
             }
-            idx -= offsets[offset];
+            idx -= OFFSETS[offset];
         }
 
         atomicAdd(&forces[ci].x, fi.x);
@@ -260,22 +247,22 @@ namespace ppb::cuda::nbody {
         int* starts
     ) {
         unsigned int t_id = blockIdx.x * blockDim.x + threadIdx.x;
-        const size_t num_cells = x_dim * y_dim * z_dim;
+        const size_t num_cells = X_DIM * Y_DIM * Z_DIM;
         if (t_id >= util::ceilDiv<size_t>(num_cells, 8)) {
             return;
         }
 
         // Map threads to their respective base cells based on the current color
-        int x_dim_thread = x_dim % 2 != 0 && color & 1 == 0 ? util::ceilDiv<int>(x_dim, 2) : x_dim / 2;
-        int y_dim_thread = y_dim % 2 != 0 && color & 2 == 0 ? util::ceilDiv<int>(y_dim, 2) : y_dim / 2;
-        int z_dim_thread = z_dim % 2 != 0 && color & 4 == 0 ? util::ceilDiv<int>(z_dim, 2) : z_dim / 2;
+        int x_dim_thread = X_DIM % 2 != 0 && color & 1 == 0 ? util::ceilDiv<int>(X_DIM, 2) : X_DIM / 2;
+        int y_dim_thread = Y_DIM % 2 != 0 && color & 2 == 0 ? util::ceilDiv<int>(Y_DIM, 2) : Y_DIM / 2;
+        int z_dim_thread = Z_DIM % 2 != 0 && color & 4 == 0 ? util::ceilDiv<int>(Y_DIM, 2) : Z_DIM / 2;
         int x_thread = t_id % x_dim_thread;
         int y_thread = (t_id / x_dim_thread) % y_dim_thread;
         int z_thread = (t_id / (x_dim_thread * y_dim_thread));
         int x_cell = 2 * x_thread + (color % 2);
         int y_cell = 2 * y_thread + ((color>>1) % 2);
         int z_cell = 2 * z_thread + ((color>>2) % 2);
-        int idx = x_cell + (y_cell * x_dim) + (z_cell * x_dim * y_dim);
+        int idx = x_cell + (y_cell * X_DIM) + (z_cell * X_DIM * Y_DIM);
         if (!is_in_bounds(idx, 0)) return;
         int startBaseCell = starts[idx];
         int endBaseCell = starts[idx + 1];
@@ -286,7 +273,7 @@ namespace ppb::cuda::nbody {
             int i = cells[q];
 #pragma unroll 8
             for (int o = 0; o < 8; o++) {
-                int offset = offsets[offsets_colored[o]];
+                int offset = OFFSETS[OFFSETS_COLORED[o]];
                 if (!is_in_bounds(idx, offset)) continue;
                 idx += offset;
                 int start = starts[idx];
@@ -300,7 +287,7 @@ namespace ppb::cuda::nbody {
                     const float dr2 = dot3(dr, dr); 
 
                     // = here too because this way we never get into a race condition with another cell of the same color
-                    if (std::sqrt(dr2) >= cutoff_radius) continue;
+                    if (std::sqrt(dr2) >= CUTOFF_RADIUS) continue;
 
                     const float sigma = 1.0f;
                     const float sigmaSquared = sigma * sigma;
@@ -324,8 +311,8 @@ namespace ppb::cuda::nbody {
 
         //non-base-cell interactions
         for (int o = 0; o < 12; o+=2) {
-            int cell_i = idx + offsets[offsets_colored_non_base_cell[o]];
-            int cell_j = idx + offsets[offsets_colored_non_base_cell[o+1]];
+            int cell_i = idx + OFFSETS[OFFSETS_COLORED_NON_BASE_CELL[o]];
+            int cell_j = idx + OFFSETS[OFFSETS_COLORED_NON_BASE_CELL[o+1]];
             if (!is_in_bounds(cell_i, 0) || !is_in_bounds(cell_j, 0)) continue;
             int start_cell_i = starts[cell_i];     
             int end_cell_i = starts[cell_i + 1]; 
@@ -340,7 +327,7 @@ namespace ppb::cuda::nbody {
                     const float dr2 = dot3(dr, dr); 
 
                     // = here too because this way we never get into a race condition with another cell of the same color
-                    if (std::sqrt(dr2) >= cutoff_radius) continue;
+                    if (std::sqrt(dr2) >= CUTOFF_RADIUS) continue;
 
                     const float sigma = 1.0f;
                     const float sigmaSquared = sigma * sigma;
@@ -370,7 +357,7 @@ namespace ppb::cuda::nbody {
     __device__ inline int2 get_next_element_neighborhood(int current_idx, int base_cell_idx, int current_offset, const int* starts) {
         //if next element still in current cell, return that
         if (current_idx != -1) {
-            int end_current_cell = starts[base_cell_idx + offsets[current_offset] + 1];
+            int end_current_cell = starts[base_cell_idx + OFFSETS[current_offset] + 1];
             if (current_idx + 1 < end_current_cell) {
                 return make_int2(current_idx + 1, current_offset);
             }
@@ -378,14 +365,14 @@ namespace ppb::cuda::nbody {
         }
 
         //if next element in different cell, go to next *non-empty* cell
-        for (current_offset; current_offset < 27; current_offset++) {
-            if (!is_in_bounds(base_cell_idx, offsets[current_offset])) continue;
-            base_cell_idx += offsets[current_offset];
+        for (; current_offset < 27; current_offset++) {
+            if (!is_in_bounds(base_cell_idx, OFFSETS[current_offset])) continue;
+            base_cell_idx += OFFSETS[current_offset];
             int start_cell = starts[base_cell_idx];
             int end_cell = starts[base_cell_idx + 1]; 
 
             if (end_cell - start_cell == 0) {
-                base_cell_idx -= offsets[current_offset];
+                base_cell_idx -= OFFSETS[current_offset];
                 continue;
             }
             else return make_int2(start_cell, current_offset);
@@ -398,10 +385,10 @@ namespace ppb::cuda::nbody {
     __device__ inline int get_num_neighbors(int base_cell_idx, const int* starts) {
         int num_neighbors = 0;
         for (int i = 0; i < 27; i++) {
-            if (!is_in_bounds(base_cell_idx, offsets[i])) continue;
-            base_cell_idx += offsets[i];
+            if (!is_in_bounds(base_cell_idx, OFFSETS[i])) continue;
+            base_cell_idx += OFFSETS[i];
             num_neighbors += starts[base_cell_idx + 1] - starts[base_cell_idx];
-            base_cell_idx -= offsets[i];
+            base_cell_idx -= OFFSETS[i];
         }
         return num_neighbors;
     }
@@ -414,7 +401,7 @@ namespace ppb::cuda::nbody {
         const int& shmem_size //size of shared memory in float3
     ) {
         const unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
-        if (i >= numParticles) {
+        if (i >= NUM_PARTICLES) {
             return;
         }
         extern __shared__ float3 shared_neighbors[];
@@ -452,7 +439,6 @@ namespace ppb::cuda::nbody {
             if (shared_neighbors[t].x == (float)idx) shmem_tile_id = t;
         }
         int start_shmem_tile = shmem_tile_id * size_shmem_tile; 
-        //printf("Thread %u: start_shmem_tile: %lu\n", i, start_shmem_tile);
 
         int current_idx;
         int current_offset;
@@ -477,7 +463,7 @@ namespace ppb::cuda::nbody {
             }
             __syncthreads(); 
 
-            //force computation (NO N3L!! -> no shared memory bank conflicts (and no headache))
+            //force computation (NO N3L!! -> no shared memory write bank conflicts (and no headache))
             int end_shmem_tile = k / size_shmem_tile == num_neighbors / size_shmem_tile
                 ? start_shmem_tile + (num_neighbors - ((num_neighbors / size_shmem_tile) * size_shmem_tile))
                 : start_shmem_tile + size_shmem_tile;
@@ -488,7 +474,7 @@ namespace ppb::cuda::nbody {
 
                 const float4 dr = make_float4_sub(pi, pj);
                 const float dr2 = dot3(dr, dr);
-                if (std::sqrt(dr2) >= cutoff_radius) continue;
+                if (std::sqrt(dr2) >= CUTOFF_RADIUS) continue;
 
                 const float sigma = 1.0f;
                 const float sigmaSquared = sigma * sigma;

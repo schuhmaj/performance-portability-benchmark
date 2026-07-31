@@ -19,14 +19,14 @@ namespace ppb::cuda::nbody {
         : _config{config}
     {
         //-------------------------------------Init constant memory----------------------------------------
-        CHECK_CUDA_ERROR(cudaMemcpyToSymbol(numParticles, &_config.size, sizeof(_config.size)));
-        CHECK_CUDA_ERROR(cudaMemcpyToSymbol(deltaT, &_config.deltaT, sizeof(_config.deltaT)));
-        CHECK_CUDA_ERROR(cudaMemcpyToSymbol(cutoff_radius, &_config.cutoff_radius, sizeof(_config.cutoff_radius)));
-        CHECK_CUDA_ERROR(cudaMemcpyToSymbol(verlet_skin, &_config.verlet_skin, sizeof(_config.verlet_skin)));
-        CHECK_CUDA_ERROR(cudaMemcpyToSymbol(globalForce, _config.globalForce.data(), sizeof(_config.globalForce)));
+        CHECK_CUDA_ERROR(cudaMemcpyToSymbol(NUM_PARTICLES, &_config.size, sizeof(_config.size)));
+        CHECK_CUDA_ERROR(cudaMemcpyToSymbol(DELTA_T, &_config.deltaT, sizeof(_config.deltaT)));
+        CHECK_CUDA_ERROR(cudaMemcpyToSymbol(CUTOFF_RADIUS, &_config.cutoff_radius, sizeof(_config.cutoff_radius)));
+        CHECK_CUDA_ERROR(cudaMemcpyToSymbol(VERLET_SKIN, &_config.verlet_skin, sizeof(_config.verlet_skin)));
+        CHECK_CUDA_ERROR(cudaMemcpyToSymbol(GLOBAL_FORCE, _config.globalForce.data(), sizeof(_config.globalForce)));
 #ifdef PPB_ENABLE_VERLET_CLUSTER_LISTS
-        CHECK_CUDA_ERROR(cudaMemcpyToSymbol(boxMin, _config.boxMin.data(), sizeof(_config.boxMin)));
-        CHECK_CUDA_ERROR(cudaMemcpyToSymbol(boxMax, _config.boxMax.data(), sizeof(_config.boxMax)));
+        CHECK_CUDA_ERROR(cudaMemcpyToSymbol(BOX_MIN, _config.boxMin.data(), sizeof(_config.boxMin)));
+        CHECK_CUDA_ERROR(cudaMemcpyToSymbol(BOX_MAX, _config.boxMax.data(), sizeof(_config.boxMax)));
 #endif 
         //------------------------------Determine optimal grid size----------------------------------------
         size = _config.size;
@@ -69,7 +69,6 @@ namespace ppb::cuda::nbody {
         size_t num_towers_x = std::ceil((_config.boxMax[0] - _config.boxMin[0]) / tower_size);
         size_t num_towers_y = std::ceil((_config.boxMax[1] - _config.boxMin[1]) / tower_size);
         num_towers = num_towers_x * num_towers_y;
-        //printf("num_towers: %lu\n", num_towers);
 
         // Get number of particles + dummy particles in towers
         if (starts_towers != nullptr) CHECK_CUDA_ERROR(cudaFree(starts_towers));
@@ -88,17 +87,15 @@ namespace ppb::cuda::nbody {
         CHECK_CUDA_ERROR(cudaMalloc(&z_coordinates, sizeof(float) * size_clusters));
         init_clusters_and_z_coordinates<<<util::ceilDiv(size_clusters, (size_t)1024), 1024>>>(clusters, z_coordinates, size_clusters);
 
-        //std::cout<<"size_clusters: "<<size_clusters<<std::endl;
-
         // Insert particles into towers and sort them along z-axis
         int* positions_in_tower = nullptr;
         CHECK_CUDA_ERROR(cudaMalloc(&positions_in_tower, sizeof(int) * size)); 
         get_particle_position_in_tower<<<_gridSize, _blockSize>>>(_particles->positions, clusters, starts_towers, positions_in_tower, tower_size); 
         insert_particles_into_towers<<<_gridSize, _blockSize>>>(_particles->positions, clusters, z_coordinates, starts_towers, positions_in_tower, tower_size); 
         CHECK_CUDA_ERROR(cudaFree(positions_in_tower));
-        //sort_particles_along_z_axis<<<util::ceilDiv(num_towers, (size_t)512), 512>>>(clusters, starts_towers, z_coordinates, num_towers);
-
+        
         // Sort particles along z axis
+        // Code taken from https://nvidia.github.io/cccl/unstable/cub/api/structcub_1_1DeviceSegmentedSort.html#id16 (Last accessed: 31.7.26, 22:47)
         int num_items = size_clusters;
         int num_segments = num_towers;
         int* d_offsets = starts_towers;
@@ -147,8 +144,6 @@ namespace ppb::cuda::nbody {
         // Compute the bounding boxes
         compute_bounding_boxes<<<util::ceilDiv(size_clusters / M, (size_t)1024), 1024>>>(BBM, clusters, _particles->positions, M, size_clusters / M);
         compute_bounding_boxes<<<util::ceilDiv(size_clusters / N, (size_t)1024), 1024>>>(BBN, clusters, _particles->positions, N, size_clusters / N);
-        //printBB<<<1,1>>>(BBM, size_clusters / M);
-        //printBB<<<1,1>>>(BBN, size_clusters / N);
     }
 
     template<typename FloatType>
@@ -166,8 +161,6 @@ namespace ppb::cuda::nbody {
         if (cluster_pairs != nullptr) CHECK_CUDA_ERROR(cudaFree(cluster_pairs));
         CHECK_CUDA_ERROR(cudaMalloc(&cluster_pairs, sizeof(int) * size_cluster_pairs));
    
-        //std::cout<<"size_cluster_pairs: "<<size_cluster_pairs<<std::endl;
-        
         // Do the pair search
         cluster_pair_search<<<util::ceilDiv(size_clusters / M, (size_t)1024), 1024>>>(BBM, BBN, false, cluster_pairs, starts, clusters, _particles->positions, tower_size, size_clusters); 
     }

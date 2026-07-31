@@ -1,19 +1,19 @@
 #pragma once
 
 namespace ppb::cuda::nbody {
-    __constant__ size_t numParticles;
+    __constant__ size_t NUM_PARTICLES;
     
-    __constant__ size_t frequency;
+    __constant__ size_t FREQUENCY;
 
-    __constant__ float deltaT;
+    __constant__ float DELTA_T;
 
-    __constant__ float cutoff_radius;
+    __constant__ float CUTOFF_RADIUS;
 
-    __constant__ float verlet_skin;
+    __constant__ float VERLET_SKIN;
 
-    __constant__ float globalForce[3];
+    __constant__ float GLOBAL_FORCE[3];
 
-    __constant__ float boxMin[3];
+    __constant__ float BOX_MIN[3];
 
-    __constant__ float boxMax[3];
+    __constant__ float BOX_MAX[3];
 } // namespace ppb::cuda::nbody
