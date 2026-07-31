@@ -6,12 +6,10 @@
 #include "CudaParticleSoA.cuh"
 
 namespace ppb {
-#ifdef PPB_ENABLE_VERLET_CLUSTER_LISTS
     struct BoundingBox {
         float3 lowerCorner; //corner of bounding box with min x, y, z coordinates
         float3 upperCorner; //corner of bounding box with max x, y, z coordinates
     };
-#endif
     template <typename FloatType>
     class ImplCuda {
         int _blockSize;
@@ -28,8 +26,7 @@ namespace ppb {
          * describes the starting index of the neighbor list of the i-th particle inside 'verletLists'.
          */
         int* starts{nullptr};
-
-#ifdef PPB_ENABLE_VERLET_CLUSTER_LISTS
+        
         // FOR NOW THE ONLY SUPPORTED M AND N ARE M = 8 AND N = 4!!! OTHER VALUES WILL LEAD TO UNDEFINED BEHAVIOUR!!!
         int M = 8; //M must be a multiple of N
         int N = 4;
@@ -39,16 +36,15 @@ namespace ppb {
         BoundingBox* BBM{nullptr};   //k-th entry is bounding box of k-th i-cluster (which has size M)
         BoundingBox* BBN{nullptr};   //k-th entry is bounding box of k-th j-cluster (which has size N)
         int* cluster_pairs{nullptr};        //boundaries denoted by 'starts'
-        size_t num_towers{0};
-        float tower_size{0.0f};
-        size_t size_clusters{0};
-#else
+        size_t num_towers = 0;
+        float tower_size = 0.f;
+        size_t size_clusters = 0;
+
         /**
          * @brief 'cells' contains the sorted particle *indicies* to the particles contained in 'particles'.
          * 'starts' marks the start of each cell.
          */
         int* verletLists{nullptr};
-#endif        
         ParticleSimulationConfig<FloatType> _config;
 
         std::optional<CudaParticleSoA<FloatType>> _particles{std::nullopt};
@@ -88,14 +84,11 @@ namespace ppb {
          */
         void computeForces();
 
-#ifdef PPB_ENABLE_VERLET_CLUSTER_LISTS
-
         void makeClusters();
 
         void boundingBoxes();
 
         void createPairList();
-#endif
         
         ~ImplCuda();
     };

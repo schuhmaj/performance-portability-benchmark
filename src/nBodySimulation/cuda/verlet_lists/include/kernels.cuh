@@ -92,6 +92,11 @@ namespace ppb {
 
             const float3 dr = make_float3_sub(positions[i], positions[j]);
             const float dr2 = dot3(dr, dr);
+            if (std::sqrt(dr2) >= cutoff_radius) continue;
+
+/*             if (i == 1 || j == 1) {
+                printf("Thread %u: %u (%f, %f, %f) <-> %lu (%f, %f, %f)\n", i, i, positions[i].x, positions[i].y, positions[i].z, j, positions[j].x, positions[j].y, positions[j].z);
+            } */
 
             const float invdr2 = 1.0f / dr2;
             float lj6 = sigmaSquared * invdr2;
@@ -495,6 +500,7 @@ namespace ppb {
     //-------------------------------------------------------------------------------------------------
     __device__ inline void compute_interaction(
         float3& i_particle,
+        int i_particle_idx,
         float3& j_particle,
         int j_particle_idx,
         float3& fi,
@@ -502,15 +508,19 @@ namespace ppb {
     ) {
         const float3 dr = make_float3_sub(i_particle, j_particle);
         const float dr2 = dot3(dr, dr);
-        if (dr2 >= cutoff_radius) return;
+
+        if (std::sqrt(dr2) >= cutoff_radius) return;
+/*         if (i_particle_idx == 1 || j_particle_idx == 1) {
+            printf("Thread %u: %d <-> %d\n", i, i_particle_idx, j_particle_idx);
+        } */
 
         const float sigma = 1.0f;
         const float sigmaSquared = sigma * sigma;
         const float epsilon24 = 24.0f; // 1.0 * 24.0
 
-        if (dr2 == 0) {
+/*         if (dr2 == 0) {
             printf("ALERT ALERT!!!\n");
-        }
+        } */
         const float invdr2 = 1.0f / dr2;
         float lj6 = sigmaSquared * invdr2;
         lj6 = lj6 * lj6 * lj6;
@@ -552,8 +562,8 @@ namespace ppb {
             if (j_particle_idx == -1) continue; //skip dummy particles
             if (i_particle_idx >= j_particle_idx) continue; //N3L within the same i-cluster
             float3 j_particle = positions[j_particle_idx];
-            //printf("Thread %u: SAME CLUSTER Check out %d <-> %d\n", i,  i_particle_idx, j_particle_idx);
-            compute_interaction(i_particle, j_particle, j_particle_idx, fi, forces);
+//             printf("Thread %u: SAME CLUSTER Check out %d (%f, %f, %f) <-> %d (%f, %f, %f)\n", i,  i_particle_idx, i_particle.x, i_particle.y, i_particle.z, j_particle_idx, j_particle.x, j_particle.y, j_particle.z);
+            compute_interaction(i_particle, i_particle_idx, j_particle, j_particle_idx, fi, forces);
         }
 
         //N3L by construction. The pair list contains each pair of interacting clusters only once.
@@ -562,8 +572,8 @@ namespace ppb {
             int j_particle_idx = clusters[j_cluster * 4 + (i % 4)];
             if (j_particle_idx != -1) { //skip dummy particles
                 float3 j_particle = positions[j_particle_idx];
-                //printf("Thread %u: Check out %d <-> %d\n", i, i_particle_idx, j_particle_idx);
-                compute_interaction(i_particle, j_particle, j_particle_idx, fi, forces);
+//                 printf("Thread %u: Check out %d (%f, %f, %f) <-> %d (%f, %f, %f)\n", i, i_particle_idx, i_particle.x, i_particle.y, i_particle.z, j_particle_idx, j_particle.x, j_particle.y, j_particle.z);
+                compute_interaction(i_particle, i_particle_idx, j_particle, j_particle_idx, fi, forces);
             } 
         }
 

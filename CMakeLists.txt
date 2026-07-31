@@ -44,6 +44,11 @@ if(NOT CMAKE_CONFIGURATION_TYPES AND NOT CMAKE_BUILD_TYPE)
     set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
 endif()
 
+if (${CMAKE_BUILD_TYPE} EQUAL "Debug")
+    add_compile_options(-O0)
+    add_compile_options(-g)
+endif()
+
 set(PPB_LOGGING_LEVEL_LIST "TRACE" "DEBUG" "INFO" "WARN" "ERROR" "CRITICAL" "OFF")
 set(PPB_LOGGING_LEVEL "INFO" CACHE STRING "Set the Logging level, default (INFO), available options: TRACE, DEBUG, INFO, WARN, ERROR, CRITICAL, OFF")
 set_property(CACHE PPB_LOGGING_LEVEL PROPERTY STRINGS ${PPB_LOGGING_LEVEL_LIST})

@@ -156,7 +156,7 @@ namespace ppb {
         size_t shmem_size = 24 * 1024;
         compute_forces_optimized<<<_gridSizeForces, _blockSizeForces, shmem_size>>>(cells_positions, force, starts, cells, shmem_size / sizeof(float3));
 #else
-        compute_forces_old<<<util::ceilDiv<size_t>(_config.size, (size_t)512), 512>>>(position, force, cells, starts);
+        compute_forces<<<util::ceilDiv<size_t>(_config.size, (size_t)512), 512>>>(cells_positions, force, cells, starts);
 #endif
         CHECK_CUDA_ERROR(cudaEventRecord(stop));
         CHECK_CUDA_ERROR(cudaEventSynchronize(stop));

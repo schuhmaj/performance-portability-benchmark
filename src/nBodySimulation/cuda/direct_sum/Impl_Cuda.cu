@@ -136,14 +136,20 @@ namespace ppb {
             const float3 f = make_float3_scale(dr, fac);
             fi = make_float3_add(fi, f);
         }
-        forces[i] = fi;
+        forces[i].x = fi.x;
+        forces[i].y = fi.y;
+        forces[i].z = fi.z;
     }
 
 
     template<typename FloatType>
-    ImplCuda<FloatType>::ImplCuda(const ParticleSimulationConfig<FloatType> &config) : _config{config}, _globalForce{_config.globalForce[0], _config.globalForce[1], _config.globalForce[2]} {
+    ImplCuda<FloatType>::ImplCuda(const ParticleSimulationConfig<FloatType> &config) :_config{config} {
+        _globalForce.x = _config.globalForce[0];
+        _globalForce.y = _config.globalForce[1];
+        _globalForce.z = _config.globalForce[2];
+        
         const size_t size = _config.size;
-        constexpr unsigned int WRAP_SIZE = 32;
+        constexpr unsigned int WARP_SIZE = 32;
         constexpr unsigned int MAX_THREADS = 1024;
 
         if (size <= MAX_THREADS) {
@@ -157,12 +163,10 @@ namespace ppb {
     }
 
 
-
     template<typename FloatType>
     void ImplCuda<FloatType>::updatePositionsAndResetForce() {
         const size_t size = _config.size;
         const auto dt = static_cast<FloatType>(_config.deltaT);
-        const auto &globalForce = _config.globalForce;
         auto &force = _particles->forces;
         auto &oldForce = _particles->oldForces;
         auto &velocity = _particles->velocities;
@@ -223,7 +227,7 @@ namespace ppb {
 
         cudaEventSynchronize(stop);
         cudaEventElapsedTime(&elapsedTime, start, stop);
-        _timings.forceUpdateTime += (elapsedTime * 16);
+        _timings.forceUpdateTime += (elapsedTime * 1e6);
     }
 
     template<typename FloatType>

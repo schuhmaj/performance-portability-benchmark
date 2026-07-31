@@ -62,30 +62,17 @@ namespace ppb {
 
     template<typename FloatType>
     ImplCuda<FloatType>::~ImplCuda() {
-        CHECK_CUDA_ERROR(cudaFree(starts));
-#ifdef PPB_ENABLE_VERLET_CLUSTER_LISTS
-        CHECK_CUDA_ERROR(cudaFree(clusters));
-        CHECK_CUDA_ERROR(cudaFree(z_coordinates));
-        CHECK_CUDA_ERROR(cudaFree(BBM));
-        CHECK_CUDA_ERROR(cudaFree(BBN));
-        CHECK_CUDA_ERROR(cudaFree(cluster_pairs));
-#else
-        CHECK_CUDA_ERROR(cudaFree(verletLists));
-#endif
+        if (starts != nullptr) CHECK_CUDA_ERROR(cudaFree(starts));
+        if (starts_towers != nullptr) CHECK_CUDA_ERROR(cudaFree(starts_towers));
+        if (clusters != nullptr) CHECK_CUDA_ERROR(cudaFree(clusters));
+        if (z_coordinates != nullptr) CHECK_CUDA_ERROR(cudaFree(z_coordinates));
+        if (BBM != nullptr) CHECK_CUDA_ERROR(cudaFree(BBM));
+        if (BBN != nullptr) CHECK_CUDA_ERROR(cudaFree(BBN));
+        if (cluster_pairs != nullptr) CHECK_CUDA_ERROR(cudaFree(cluster_pairs));
+        if (verletLists != nullptr) CHECK_CUDA_ERROR(cudaFree(verletLists));
     }
     
 #ifdef PPB_ENABLE_VERLET_CLUSTER_LISTS
-    std::vector<size_t> get_unique_towers(size_t* particle_tower_id, size_t N) {
-        std::vector<size_t> result;
-        for (int i = 0; i < N; i++) {
-            size_t tower = particle_tower_id[i];
-            if (std::find(result.begin(), result.end(), tower) == result.end()) {
-                result.push_back(tower);
-            }
-        }
-        return result;
-    }
-
     template<typename FloatType>
     void ImplCuda<FloatType>::makeClusters() {
         // Split up the domain into towers
@@ -117,10 +104,11 @@ namespace ppb {
         //std::cout<<"size_clusters: "<<size_clusters<<std::endl;
 
         // Insert particles into towers and sort them along z-axis
-        int* positions_in_tower;
+        int* positions_in_tower = nullptr;
         CHECK_CUDA_ERROR(cudaMalloc(&positions_in_tower, sizeof(int) * size)); 
         get_particle_position_in_tower<<<_gridSize, _blockSize>>>(_particles->positions, clusters, starts_towers, positions_in_tower, tower_size); 
         insert_particles_into_towers<<<_gridSize, _blockSize>>>(_particles->positions, clusters, z_coordinates, starts_towers, positions_in_tower, tower_size); 
+        CHECK_CUDA_ERROR(cudaFree(positions_in_tower));
         //sort_particles_along_z_axis<<<util::ceilDiv(num_towers, (size_t)512), 512>>>(clusters, starts_towers, z_coordinates, num_towers);
 
         // Sort particles along z axis
@@ -128,10 +116,10 @@ namespace ppb {
         int num_segments = num_towers;
         int* d_offsets = starts_towers;
         float* d_keys_in = z_coordinates;
-        float* d_keys_out;
+        float* d_keys_out = nullptr;
         CHECK_CUDA_ERROR(cudaMalloc(&d_keys_out, sizeof(float) * size_clusters));
         int* d_values_in = clusters;
-        int* d_values_out;
+        int* d_values_out = nullptr;
         CHECK_CUDA_ERROR(cudaMalloc(&d_values_out, sizeof(int) * size_clusters));
 
         void* d_temp_storage = nullptr;
@@ -156,9 +144,7 @@ namespace ppb {
 
         CHECK_CUDA_ERROR(cudaFree(d_keys_in));
         CHECK_CUDA_ERROR(cudaFree(d_values_in));
-
-/*         printClusters<<<1,1>>>(clusters, size_clusters);
-        printZCoordinates<<<1,1>>>(z_coordinates, size_clusters); */
+        CHECK_CUDA_ERROR(cudaFree(d_temp_storage));
     }
 
     template<typename FloatType>
@@ -197,7 +183,6 @@ namespace ppb {
         
         // Do the pair search
         cluster_pair_search<<<util::ceilDiv(size_clusters / M, (size_t)1024), 1024>>>(BBM, BBN, false, cluster_pairs, starts, clusters, _particles->positions, tower_size, size_clusters); 
-        //printPairList<<<1,1>>>(starts, size_clusters / M, cluster_pairs, size_cluster_pairs);
     }
 #endif
 
@@ -217,7 +202,7 @@ namespace ppb {
         update_positions<<<_gridSize, _blockSize>>>(position, velocity, force, oldForce); 
         // every frequency iterations update verlet lists
         if (iteration % frequency == 0) {
-#ifdef PPB_ENABLE_VERLET_CLUSTER_LISTS 
+ #ifdef PPB_ENABLE_VERLET_CLUSTER_LISTS 
             // TODO max occupancy for those kernel launches with magic numbers
             // TODO think about what we *really* need to reallocate every iteration (if that's a bottleneck)
             makeClusters();
@@ -269,7 +254,7 @@ namespace ppb {
 
         CHECK_CUDA_ERROR(cudaEventSynchronize(stop));
         CHECK_CUDA_ERROR(cudaEventElapsedTime(&elapsedTime, start, stop));
-        _timings.forceUpdateTime += (elapsedTime * 16);
+        _timings.forceUpdateTime += (elapsedTime * 1e6);
     }
 
     template<typename FloatType>
@@ -299,10 +284,13 @@ namespace ppb {
         _particles.emplace(particles);
 
         for (iteration = 0; iteration < _config.numberTimeSteps; ++iteration) {
-            //printf("--------------------------------------ITERATION %lu-----------------------------------\n", iteration);
+            std::cout<<"--------------------------ITERATION "<<iteration<<"----------------------------"<<std::endl;
             updatePositionsAndResetForce();
             computeForces();
             updateVelocities();
+            for (auto& p : _particles->toParticles()) {
+                std::cout<<p<<std::endl;
+            }
         }
         return std::make_pair(_particles->toParticles(), _timings);
     }

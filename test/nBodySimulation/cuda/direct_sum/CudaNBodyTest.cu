@@ -9,4 +9,4 @@ TEST_P(NBodyTest, ImplCuda_Implementation) {
     this->runTest<ppb::ImplCuda<float>>(size);
 }
 
-INSTANTIATE_TEST_SUITE_P(BySize, NBodyTest, ::testing::Values(10, 100));
+INSTANTIATE_TEST_SUITE_P(BySize, NBodyTest, ::testing::Values(10, 100, 1000));
