@@ -4,22 +4,30 @@
 #include "nBodySimulation/Particle.h"
 #include "common/UtilityContainer.h"
 
+#if FLOAT_BITS == 32
+using VectorType3 = float3;
+using VectorType4 = float4;
+using float_type = float;
+#elif FLOAT_BITS == 64
+using VectorType3 = double3;
+using VectorType4 = double4;
+using float_type = double;
+#endif
+
 namespace ppb::cuda::nbody {
-
-
     template <typename FloatType>
     struct CudaParticleSoA {
 
         const std::vector<Particle<FloatType>> &_ref;
 
-        float3 *positions{nullptr};
-        float3 *velocities{nullptr};
-        float3 *forces{nullptr};
-        float3 *oldForces{nullptr};
+        VectorType3 *positions{nullptr};
+        VectorType3 *velocities{nullptr};
+        VectorType3 *forces{nullptr};
+        VectorType3 *oldForces{nullptr};
 
-        std::vector<float3> positionsHost;
-        std::vector<float3> velocitiesHost;
-        std::vector<float3> forcesHost;
+        std::vector<VectorType3> positionsHost;
+        std::vector<VectorType3> velocitiesHost;
+        std::vector<VectorType3> forcesHost;
 
         explicit CudaParticleSoA(const std::vector<Particle<FloatType>> &particles);
 
@@ -39,7 +47,7 @@ namespace ppb::cuda::nbody {
 
         int _blockSize;
         int _gridSize;
-        float3 _globalForce;
+        VectorType3 _globalForce;
 
     public:
         using float_type = FloatType;

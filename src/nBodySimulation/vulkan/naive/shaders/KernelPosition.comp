@@ -1,0 +1,46 @@
+#version 450
+layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
+
+layout(std430, binding = 0) buffer Positions {
+    vec4 positions[];
+};
+
+layout(std430, binding = 1) readonly buffer Velocities {
+    vec4 velocities[];
+};
+
+layout(std430, binding = 2) buffer Forces {
+    vec4 forces[];
+};
+
+layout(std430, binding = 3) buffer OldForces {
+    vec4 oldForces[];
+};
+
+layout(push_constant) uniform ParamsPos {
+    float globalForce_x;
+    float globalForce_y;
+    float globalForce_z;
+    float dt;
+    uint numParticles;
+} pc;
+
+void main() {
+    uint i = gl_GlobalInvocationID.x;
+    if (i >= pc.numParticles) {
+        return;
+    }
+
+    float m = 1.0;
+
+    vec3 force = forces[i].xyz;
+    oldForces[i].xyz = force;
+    forces[i].xyz = vec3(pc.globalForce_x, pc.globalForce_y, pc.globalForce_z);
+
+    vec3 velocityPart = velocities[i].xyz * pc.dt;
+    float tt2m = (pc.dt * pc.dt) / (2.0 * m);
+    vec3 forcePart = force * tt2m;
+    vec3 displacement = velocityPart + forcePart;
+
+    positions[i].xyz += displacement;
+}

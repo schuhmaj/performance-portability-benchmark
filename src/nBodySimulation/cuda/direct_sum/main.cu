@@ -10,6 +10,7 @@ BENCHMARK(ppb::NBodySimulation<ppb::cuda::nbody::ImplCuda<float>>::benchmark)
     ->Complexity();
 
 int main(int argc, char** argv) {
+    ppb::NBodyBenchmarkConf::addContext("Cuda");
     benchmark::MaybeReenterWithoutASLR(argc, argv);
     benchmark::Initialize(&argc, argv);
     benchmark::RunSpecifiedBenchmarks();

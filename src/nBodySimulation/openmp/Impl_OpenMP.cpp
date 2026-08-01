@@ -176,6 +176,9 @@ namespace ppb {
     template class ImplOpenMP<float>;
     template class OpenMPParticleSoA<float>;
 
+    template class ImplOpenMP<double>;
+    template class OpenMPParticleSoA<double>;
+
 } // namespace ppb
 
 

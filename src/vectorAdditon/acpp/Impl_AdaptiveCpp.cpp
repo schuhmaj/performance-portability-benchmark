@@ -49,8 +49,8 @@ namespace ppb {
 
 }
 
-BENCHMARK(ppb::VectorAddition<ppb::ImplAcpp<float>>::benchmark)
-    ->Name("VecAdd-Float-AdaptiveCpp")
+BENCHMARK(ppb::VectorAddition<ppb::ImplAcpp<ppb::VectorAdditionBenchmarkConf::float_type>>::benchmark)
+    ->Name("VecAdd")
     ->RangeMultiplier(10)
     ->Range(ppb::VectorAdditionBenchmarkConf::MIN_SIZE, ppb::VectorAdditionBenchmarkConf::MAX_SIZE)
 #ifdef PPB_MEASURE_ONLY_KERNEL
@@ -58,16 +58,8 @@ BENCHMARK(ppb::VectorAddition<ppb::ImplAcpp<float>>::benchmark)
 #endif
     ->Complexity();
 
-// BENCHMARK(ppb::VectorAddition<ppb::ImplAcpp<double>>::benchmark)
-//     ->Name("VecAdd-Double-AdaptiveCpp")
-//     ->RangeMultiplier(10)
-//     ->Range(ppb::VectorAdditionBenchmarkConf::MIN_SIZE, ppb::VectorAdditionBenchmarkConf::MAX_SIZE)
-// #ifdef PPB_MEASURE_ONLY_KERNEL
-//     ->UseManualTime()
-// #endif
-//     ->Complexity();
-
 int main(int argc, char **argv) {
+    ppb::VectorAdditionBenchmarkConf::addContext("AdaptiveCpp");
     benchmark::MaybeReenterWithoutASLR(argc, argv);
     benchmark::Initialize(&argc, argv);
     benchmark::RunSpecifiedBenchmarks();

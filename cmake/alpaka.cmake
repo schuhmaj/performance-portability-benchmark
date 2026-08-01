@@ -1,6 +1,16 @@
 message(STATUS "Setting up Alpaka")
 set(Alpaka_VERSION 2.0.0)
 
+# Enable CUDA backend if CUDA language is enabled
+get_property(languages GLOBAL PROPERTY ENABLED_LANGUAGES)
+if ("CUDA" IN_LIST languages)
+    set(alpaka_ACC_GPU_CUDA_ENABLE ON CACHE BOOL "Enable Alpaka CUDA backend" FORCE)
+endif ()
+# Enable HIP backend if HIP language is enabled
+if ("HIP" IN_LIST languages)
+    set(alpaka_ACC_GPU_HIP_ENABLE ON CACHE BOOL "Enable Alpaka HIP backend" FORCE)
+endif ()
+
 find_package(Alpaka ${Alpaka_VERSION} CONFIG QUIET)
 
 if (${Alpaka_FOUND})

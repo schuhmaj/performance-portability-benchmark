@@ -1,0 +1,54 @@
+#version 450
+
+#ifndef FloatType
+#define FloatType double
+#define FloatType3 dvec3
+#define FloatTypeM dmat3
+#define FloatTypeM23 dmat2x3
+#endif
+
+layout (local_size_x = 32) in;
+
+layout(binding = 0) readonly buffer bufVertices { FloatType3 vertices[]; };
+layout(binding = 1) readonly buffer bufFaces { uvec3 faces[]; };
+
+layout(binding = 2) buffer bufNormals { FloatType3 normals[]; };
+layout(binding = 3) buffer bufSegmentVectors { FloatTypeM segmentVectors[]; };
+layout(binding = 4) buffer bufSegmentNormals { FloatTypeM segmentNormals[]; };
+
+layout(binding = 5) readonly buffer bufPotential { FloatType potential; };
+layout(binding = 6) readonly buffer bufAcceleration { FloatType3 acceleration; };
+layout(binding = 7) readonly buffer bufGradiometricTensor { FloatType gradiometricTensor[]; };
+
+layout(push_constant) uniform PushConstants {
+    FloatType3 point;
+    uint num_faces;
+} push_const;
+
+FloatType3 normal(FloatType3 first, FloatType3 second) {
+    return normalize(cross(first, second));
+}
+
+void main() {
+    uint index = gl_GlobalInvocationID.x;
+
+    if (index >= push_const.num_faces) {
+        return;
+    }
+
+    FloatType3 Face[3] = {
+    vertices[faces[index][0]],
+    vertices[faces[index][1]],
+    vertices[faces[index][2]]
+    };
+
+    segmentVectors[index][0] = Face[1] - Face[0];
+    segmentVectors[index][1] = Face[2] - Face[1];
+    segmentVectors[index][2] = Face[0] - Face[2];
+
+    normals[index] = normal(segmentVectors[index][0], segmentVectors[index][1]);
+
+    segmentNormals[index][0] = normal(segmentVectors[index][0], normals[index]);
+    segmentNormals[index][1] = normal(segmentVectors[index][1], normals[index]);
+    segmentNormals[index][2] = normal(segmentVectors[index][2], normals[index]);
+}

@@ -36,4 +36,5 @@ namespace ppb {
     }
 
     template class ImplOpenACC<float>;
+    template class ImplOpenACC<double>;
 }

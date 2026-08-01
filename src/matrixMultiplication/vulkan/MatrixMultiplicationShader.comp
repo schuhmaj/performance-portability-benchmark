@@ -1,9 +1,17 @@
 #version 450
+
+#ifndef FloatType
+#define FloatType double
+#define FloatType3 dvec3
+#define FloatType4 dvec4
+#define FloatTypeM dmat3
+#endif
+
 layout (local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
 
-layout(std430, set = 0, binding = 0) readonly buffer buf_in_a { float A[]; };
-layout(std430, set = 0, binding = 1) readonly buffer buf_in_b { float B[]; };
-layout(std430, set = 0, binding = 2) writeonly buffer buf_out_c { float C[]; };
+layout(std430, set = 0, binding = 0) readonly buffer buf_in_a { FloatType A[]; };
+layout(std430, set = 0, binding = 1) readonly buffer buf_in_b { FloatType B[]; };
+layout(std430, set = 0, binding = 2) writeonly buffer buf_out_c { FloatType C[]; };
 
 layout(push_constant) uniform PushConsts {
     uint M;
@@ -19,7 +27,7 @@ void main() {
         return;
     }
 
-    float acc = 0.0;
+    FloatType acc = 0.0;
     for (uint k = 0u; k < pc.K; ++k) {
         acc += A[row + k * pc.M] * B[k + col * pc.K];
     }

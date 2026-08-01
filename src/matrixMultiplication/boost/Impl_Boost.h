@@ -24,15 +24,6 @@ namespace ppb {
 
         ImplBoost();
 
-        constexpr std::string_view kernel_name() const {
-            if constexpr (std::is_same_v<FloatType, float>) {
-                return "matrix_multiplication_float";
-            } else if constexpr (std::is_same_v<FloatType, double>) {
-                return "matrix_multiplication_double";
-            }
-            return "Unknown type";
-        }
-
         std::pair<std::vector<FloatType>, double> operator()(const std::vector<FloatType> &a, const std::vector<FloatType> &b, const MatrixMultiplicationConfig &config);
 
     };

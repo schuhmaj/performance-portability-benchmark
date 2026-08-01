@@ -9,9 +9,10 @@
 namespace ppb {
 
 
+    template<typename FloatType>
     struct AlpakaImpl {
         /** Float Type of Implementation, Required by the Benchmark **/
-        using float_type = float;
+        using float_type = FloatType;
 
         /** Dimensionality of the Problem, for Vector Addition it's 1D */
         using Dim = alpaka::DimInt<1u>;
@@ -111,10 +112,12 @@ namespace ppb {
             return std::make_pair(std::move(result), elapsed_nanoseconds);
         }
     };
+
+    template class AlpakaImpl<float>;
 };
 
-BENCHMARK(ppb::VectorAddition<ppb::AlpakaImpl>::benchmark)
-    ->Name("VecAdd-Float-Alpaka")
+BENCHMARK(ppb::VectorAddition<ppb::AlpakaImpl<ppb::VectorAdditionBenchmarkConf::float_type>>::benchmark)
+    ->Name("VecAdd")
     ->RangeMultiplier(10)
     ->Range(ppb::VectorAdditionBenchmarkConf::MIN_SIZE, ppb::VectorAdditionBenchmarkConf::MAX_SIZE)
 #ifdef PPB_MEASURE_ONLY_KERNEL
@@ -125,6 +128,7 @@ BENCHMARK(ppb::VectorAddition<ppb::AlpakaImpl>::benchmark)
 
 
 int main(int argc, char **argv) {
+    ppb::VectorAdditionBenchmarkConf::addContext("Alpaka");
     benchmark::MaybeReenterWithoutASLR(argc, argv);
 
     std::cout << "Alpaka Enabled Accelerator Tags:" << std::endl;

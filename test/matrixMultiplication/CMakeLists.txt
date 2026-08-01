@@ -18,7 +18,7 @@ include(GoogleTest)
 
 add_subdirectory(cpp)
 
-if (CMAKE_CUDA_COMPILER AND PPB_ENABLE_Cuda)
+if (CMAKE_CUDA_COMPILER AND PPB_ENABLE_CUDA)
     add_subdirectory(cuda)
 endif ()
 
@@ -52,4 +52,16 @@ endif ()
 
 if (${PPB_ENABLE_OpenACC})
     add_subdirectory(openacc)
+endif ()
+
+if (${PPB_ENABLE_HIP})
+    add_subdirectory(hip)
+endif ()
+
+if (${PPB_ENABLE_Slang_Vulkan})
+    add_subdirectory(slang/vulkan)
+endif ()
+
+if (${PPB_ENABLE_Slang_Cuda})
+    add_subdirectory(slang/cuda)
 endif ()

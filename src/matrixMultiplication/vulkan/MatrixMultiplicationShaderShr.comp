@@ -1,9 +1,17 @@
 #version 450
+
+#ifndef FloatType
+#define FloatType double
+#define FloatType3 dvec3
+#define FloatType4 dvec4
+#define FloatTypeM dmat3
+#endif
+
 layout (local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
 
-layout(std430, set = 0, binding = 0) readonly buffer ABuffer { float A[]; };
-layout(std430, set = 0, binding = 1) readonly buffer BBuffer { float B[]; };
-layout(std430, set = 0, binding = 2) writeonly buffer CBuffer { float C[]; };
+layout(std430, set = 0, binding = 0) readonly buffer ABuffer { FloatType A[]; };
+layout(std430, set = 0, binding = 1) readonly buffer BBuffer { FloatType B[]; };
+layout(std430, set = 0, binding = 2) writeonly buffer CBuffer { FloatType C[]; };
 
 // Matrix dimensions passed via push constants
 layout(push_constant) uniform PushConsts {
@@ -13,8 +21,8 @@ layout(push_constant) uniform PushConsts {
 } pc;
 
 // Shared tiles for better locality
-shared float shrA[16][16];
-shared float shrB[16][16];
+shared FloatType shrA[16][16];
+shared FloatType shrB[16][16];
 
 void main() {
     const uint row = gl_GlobalInvocationID.y;
@@ -27,7 +35,7 @@ void main() {
     const uint lx = gl_LocalInvocationID.x;
     const uint ly = gl_LocalInvocationID.y;
 
-    float acc = 0.0;
+    FloatType acc = 0.0;
 
     // Number of tiles along K dimension
     const uint tiles = (pc.K + 16u - 1u) / 16u;
