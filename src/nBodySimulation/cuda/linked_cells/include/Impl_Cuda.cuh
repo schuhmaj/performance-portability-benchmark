@@ -32,12 +32,10 @@ namespace ppb::cuda::nbody {
 
         int* cell_offsets{nullptr};
         
-        float4* cells_positions{nullptr};
-
-        float4* cells_forces{nullptr};
+        float3* cells_positions{nullptr};
 
         /**
-        * @brief Permanent array that is used in update_cells. (TODO: replace this with cooperative groups!!)
+        * @brief Permanent array that is used in update_cells.
         */
         int* tmp{nullptr};
 

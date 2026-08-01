@@ -72,8 +72,8 @@ namespace ppb::cuda::nbody {
         CHECK_CUDA_ERROR(cudaOccupancyMaxPotentialBlockSize(&minGridSize, &_blockSizeForces, reinterpret_cast<void *>(compute_forces_optimized), 24 * 1024, 0));
         _gridSizeForces = util::ceilDiv<unsigned int>(size, _blockSizeForces); 
 #else 
-        _gridSizeForces = _gridSize;
-        _blockSizeForces = _blockSize;
+        CHECK_CUDA_ERROR(cudaOccupancyMaxPotentialBlockSize(&minGridSize, &_blockSizeForces, reinterpret_cast<void *>(compute_forces), 0, 0));
+        _gridSizeForces = util::ceilDiv<unsigned int>(size, _blockSizeForces); 
 #endif
         
         //---------------------------------Allocate device memory------------------------------------------
@@ -82,12 +82,12 @@ namespace ppb::cuda::nbody {
         CHECK_CUDA_ERROR(cudaMalloc(&tmp, sizeof(int) * size));
         CHECK_CUDA_ERROR(cudaMalloc(&cell_offsets, sizeof(int) * size));
         CHECK_CUDA_ERROR(cudaMalloc(&starts, sizeof(int) * (num_cells + 1)));
-        CHECK_CUDA_ERROR(cudaMalloc(&cells_positions, sizeof(float4) * size));
+        CHECK_CUDA_ERROR(cudaMalloc(&cells_positions, sizeof(float3) * size));
         CHECK_CUDA_ERROR(cudaMemset(cells, 0, sizeof(int) * size));
         CHECK_CUDA_ERROR(cudaMemset(tmp, 0, sizeof(int) * size));
         CHECK_CUDA_ERROR(cudaMemset(cell_offsets, 0, sizeof(int) * size));
         CHECK_CUDA_ERROR(cudaMemset(starts, 0, sizeof(int) * (num_cells + 1)));
-        CHECK_CUDA_ERROR(cudaMemset(cells_positions, 0, sizeof(float4) * size));
+        CHECK_CUDA_ERROR(cudaMemset(cells_positions, 0, sizeof(float3) * size));
     }
 
     template<typename FloatType>
@@ -143,7 +143,7 @@ namespace ppb::cuda::nbody {
         size_t shmem_size = 24 * 1024;
         compute_forces_optimized<<<_gridSizeForces, _blockSizeForces, shmem_size>>>(cells_positions, force, starts, cells, shmem_size / sizeof(float3));
 #else
-        compute_forces<<<util::ceilDiv<size_t>(_config.size, (size_t)512), 512>>>(cells_positions, force, cells, starts);
+        compute_forces<<<_gridSizeForces, _blockSizeForces>>>(cells_positions, force, cells, starts);
 #endif
         CHECK_CUDA_ERROR(cudaEventRecord(stop));
         CHECK_CUDA_ERROR(cudaEventSynchronize(stop));

@@ -4,19 +4,19 @@
 
 namespace ppb::cuda::nbody {
     //------------------------------------------------------------------HELPER FUNCTIONS---------------------------------------------------------------------
-    __device__ inline float4 make_float4_add(const float4 a, const float4 b) {
-        return make_float4(a.x + b.x, a.y + b.y, a.z + b.z, 0.f);
+    __device__ inline float3 make_float3_add(const float3 a, const float3 b) {
+        return make_float3(a.x + b.x, a.y + b.y, a.z + b.z);
     }
 
-    __device__ inline float4 make_float4_sub(const float4 a, const float4 b) {
-        return make_float4(a.x - b.x, a.y - b.y, a.z - b.z, 0.f);
+    __device__ inline float3 make_float3_sub(const float3 a, const float3 b) {
+        return make_float3(a.x - b.x, a.y - b.y, a.z - b.z);
     }
 
-    __device__ inline float4 make_float4_scale(const float4 v, const float s) {
-        return make_float4(v.x * s, v.y * s, v.z * s, 0.f);
+    __device__ inline float3 make_float3_scale(const float3 v, const float s) {
+        return make_float3(v.x * s, v.y * s, v.z * s);
     }
 
-    __device__ inline float dot3(const float4 a, const float4 b) {
+    __device__ inline float dot3(const float3 a, const float3 b) {
         return a.x * b.x + a.y * b.y + a.z * b.z;
     } 
 
@@ -46,7 +46,7 @@ namespace ppb::cuda::nbody {
     }
 
 
-    __device__ inline int get_cell_idx(size_t particle_idx, const float4* positions) {
+    __device__ inline int get_cell_idx(size_t particle_idx, const float3* positions) {
         int x_idx = clamp<int>(int(std::ceil((positions[particle_idx].x - BOX_MIN[0]) / CELL_SIZE)), 0, X_DIM - 1);
         int y_idx = clamp<int>(int(std::ceil((positions[particle_idx].y - BOX_MIN[1]) / CELL_SIZE)), 0, Y_DIM - 1);
         int z_idx = clamp<int>(int(std::ceil((positions[particle_idx].z - BOX_MIN[2]) / CELL_SIZE)), 0, Z_DIM - 1);
@@ -60,8 +60,8 @@ namespace ppb::cuda::nbody {
         int* tmp, 
         int* cell_offsets, 
         int* starts,
-        float4* cells_positions,
-        float4* positions
+        float3* cells_positions,
+        float3* positions
     ) {
         const unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
         if (i >= NUM_PARTICLES) {
@@ -76,10 +76,10 @@ namespace ppb::cuda::nbody {
     }
 
     __global__ void update_positions(
-        float4* positions, 
-        const float4* velocities, 
-        float4* forces, 
-        float4* oldForces, 
+        float3* positions, 
+        const float3* velocities, 
+        float3* forces, 
+        float3* oldForces, 
         int* tmp, 
         int* cell_offsets,
         int* starts 
@@ -90,8 +90,8 @@ namespace ppb::cuda::nbody {
         }
 
         constexpr float mass = 1.0;
-        const float4 force = forces[i];
-        const float4 velocity = velocities[i];
+        const float3 force = forces[i];
+        const float3 velocity = velocities[i];
         oldForces[i] = force;
         forces[i].x = GLOBAL_FORCE[0];
         forces[i].y = GLOBAL_FORCE[1];
@@ -101,7 +101,7 @@ namespace ppb::cuda::nbody {
         const float tt2m = DELTA_T * DELTA_T / (2.0f * mass);
         const float3 forcePart = {force.x * tt2m, force.y * tt2m, force.z * tt2m};
         const float3 displacement = {velocityPart.x + forcePart.x, velocityPart.y + forcePart.y, velocityPart.z + forcePart.z};
-        positions[i] = {positions[i].x + displacement.x, positions[i].y + displacement.y, positions[i].z + displacement.z, 0.f};
+        positions[i] = {positions[i].x + displacement.x, positions[i].y + displacement.y, positions[i].z + displacement.z};
         
 
         int idx = get_cell_idx(i, positions);
@@ -112,9 +112,9 @@ namespace ppb::cuda::nbody {
 
 
     __global__ void update_velocities(
-        float4* velocities, 
-        const float4* forces, 
-        const float4* oldForces
+        float3* velocities, 
+        const float3* forces, 
+        const float3* oldForces
     ) {
         const unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
         if (i >= NUM_PARTICLES) {
@@ -122,20 +122,20 @@ namespace ppb::cuda::nbody {
         }
 
         constexpr float mass = 1.0;
-        const float4 force = forces[i];
-        const float4 oldForce = oldForces[i];
-        const float4 velocity = velocities[i];
+        const float3 force = forces[i];
+        const float3 oldForce = oldForces[i];
+        const float3 velocity = velocities[i];
 
         const float3 forcePart = {force.x + oldForce.x, force.y + oldForce.y, force.z + oldForce.z};
         const float t2m =  DELTA_T / (2.0f * mass);
         const float3 velChange = {forcePart.x * t2m, forcePart.y * t2m, forcePart.z * t2m};
-        velocities[i] = {velocity.x + velChange.x, velocity.y + velChange.y, velocity.z + velChange.z, 0.f};
+        velocities[i] = {velocity.x + velChange.x, velocity.y + velChange.y, velocity.z + velChange.z};
     }
 
     
-    __global__ void compute_forces_old(
-        const float4* __restrict__ positions,
-        float4* __restrict__ forces,
+    __global__ void compute_forces_unoptimized(
+        const float3* __restrict__ positions,
+        float3* __restrict__ forces,
         const int* __restrict__ cells,
         const int* __restrict__ starts 
     ) {
@@ -144,7 +144,7 @@ namespace ppb::cuda::nbody {
             return;
         }
 
-        float4 fi = make_float4(0.f, 0.f, 0.f, 0.f);
+        float3 fi = make_float3(0.f, 0.f, 0.f);
         size_t idx = get_cell_idx(i, positions);
         for (size_t offset = 0; offset < 27; offset++) {
             if (!is_in_bounds(idx, OFFSETS[offset])) continue; 
@@ -155,7 +155,7 @@ namespace ppb::cuda::nbody {
                 size_t j = cells[k];
                 if (i >= j) continue; //N3L via natural ordering of indicies
 
-                const float4 dr = make_float4_sub(positions[i], positions[j]);
+                const float3 dr = make_float3_sub(positions[i], positions[j]);
                 const float dr2 = dot3(dr, dr);
                 if (std::sqrt(dr2) >= CUTOFF_RADIUS) continue; // = here too because less atomics in domain coloring
                 
@@ -170,8 +170,8 @@ namespace ppb::cuda::nbody {
                 const float lj12m6 = lj12 - lj6;
                 const float fac = epsilon24 * (lj12 + lj12m6) * invdr2;
                 
-                const float4 f = make_float4_scale(dr, fac);
-                fi = make_float4_add(fi, f); 
+                const float3 f = make_float3_scale(dr, fac);
+                fi = make_float3_add(fi, f); 
                 atomicAdd(&forces[j].x, f.x * -1.0f);
                 atomicAdd(&forces[j].y, f.y * -1.0f);
                 atomicAdd(&forces[j].z, f.z * -1.0f);
@@ -185,8 +185,8 @@ namespace ppb::cuda::nbody {
     }
 
     __global__ void compute_forces(
-        const float4* __restrict__ cells_positions,
-        float4* __restrict__ forces,
+        const float3* __restrict__ cells_positions,
+        float3* __restrict__ forces,
         const int* __restrict__ cells,
         const int* __restrict__ starts 
     ) {
@@ -195,9 +195,9 @@ namespace ppb::cuda::nbody {
             return;
         }
 
-        float4 fi = make_float4(0.f, 0.f, 0.f, 0.f);
+        float3 fi = make_float3(0.f, 0.f, 0.f);
         size_t idx = get_cell_idx(i, cells_positions);
-        float4 pi = cells_positions[i];
+        float3 pi = cells_positions[i];
         size_t ci = cells[i];
         for (size_t offset = 0; offset < 27; offset++) {
             if (!is_in_bounds(idx, OFFSETS[offset])) continue; 
@@ -206,10 +206,10 @@ namespace ppb::cuda::nbody {
             size_t end = starts[idx + 1];
             for (size_t k = start; k < end; k++) {
                 size_t j = cells[k];
-                float4 pj = cells_positions[k];
+                float3 pj = cells_positions[k];
                 if (ci >= j) continue; //N3L via natural ordering of indicies
 
-                const float4 dr = make_float4_sub(pi, pj);
+                const float3 dr = make_float3_sub(pi, pj);
                 const float dr2 = dot3(dr, dr);
                 if (std::sqrt(dr2) >= CUTOFF_RADIUS) continue; // = here too because less atomics
                
@@ -224,8 +224,8 @@ namespace ppb::cuda::nbody {
                 const float lj12m6 = lj12 - lj6;
                 const float fac = epsilon24 * (lj12 + lj12m6) * invdr2;
                 
-                const float4 f = make_float4_scale(dr, fac);
-                fi = make_float4_add(fi, f); 
+                const float3 f = make_float3_scale(dr, fac);
+                fi = make_float3_add(fi, f); 
                 atomicAdd(&forces[j].x, f.x * -1.0f);
                 atomicAdd(&forces[j].y, f.y * -1.0f);
                 atomicAdd(&forces[j].z, f.z * -1.0f);
@@ -241,8 +241,8 @@ namespace ppb::cuda::nbody {
 
     __global__ void compute_forces_colored(
         int color,
-        const float4* __restrict__ positions,
-        float4* __restrict__ forces,
+        const float3* __restrict__ positions,
+        float3* __restrict__ forces,
         int* cells,
         int* starts
     ) {
@@ -269,7 +269,7 @@ namespace ppb::cuda::nbody {
 
         // Iterations: for each particle in base cell iterate through all the particles of the 8 cell region
         for (int q = startBaseCell; q < endBaseCell; q++) {
-            float4 fi = make_float4(0.f, 0.f, 0.f, 0.f);
+            float3 fi = make_float3(0.f, 0.f, 0.f);
             int i = cells[q];
 #pragma unroll 8
             for (int o = 0; o < 8; o++) {
@@ -283,7 +283,7 @@ namespace ppb::cuda::nbody {
 
                     //N3L via natural ordering of indicies (only necessary in same cell)
                     if (offset == 0 && i >= j) continue;
-                    const float4 dr = make_float4_sub(positions[i], positions[j]);
+                    const float3 dr = make_float3_sub(positions[i], positions[j]);
                     const float dr2 = dot3(dr, dr); 
 
                     // = here too because this way we never get into a race condition with another cell of the same color
@@ -300,13 +300,13 @@ namespace ppb::cuda::nbody {
                     const float lj12m6 = lj12 - lj6;
                     const float fac = epsilon24 * (lj12 + lj12m6) * invdr2;
                 
-                    const float4 f = make_float4_scale(dr, fac);
-                    fi = make_float4_add(fi, f); 
-                    forces[j] = make_float4_sub(forces[j], f);
+                    const float3 f = make_float3_scale(dr, fac);
+                    fi = make_float3_add(fi, f); 
+                    forces[j] = make_float3_sub(forces[j], f);
                 }
                 idx -= offset;
             }
-            forces[i] = make_float4_add(forces[i], fi);
+            forces[i] = make_float3_add(forces[i], fi);
         }
 
         //non-base-cell interactions
@@ -320,10 +320,10 @@ namespace ppb::cuda::nbody {
             int end_cell_j = starts[cell_j + 1]; 
             for (int i = start_cell_i; i < end_cell_i; i++) {
                 int ci = cells[i];
-                float4 fi = make_float4(0.f, 0.f, 0.f, 0.f);
+                float3 fi = make_float3(0.f, 0.f, 0.f);
                 for (int j = start_cell_j; j < end_cell_j; j++) {
                     int cj = cells[j];
-                    const float4 dr = make_float4_sub(positions[ci], positions[cj]);
+                    const float3 dr = make_float3_sub(positions[ci], positions[cj]);
                     const float dr2 = dot3(dr, dr); 
 
                     // = here too because this way we never get into a race condition with another cell of the same color
@@ -340,11 +340,11 @@ namespace ppb::cuda::nbody {
                     const float lj12m6 = lj12 - lj6;
                     const float fac = epsilon24 * (lj12 + lj12m6) * invdr2;
                 
-                    const float4 f = make_float4_scale(dr, fac);
-                    fi = make_float4_add(fi, f); 
-                    forces[cj] = make_float4_sub(forces[cj], f);
+                    const float3 f = make_float3_scale(dr, fac);
+                    fi = make_float3_add(fi, f); 
+                    forces[cj] = make_float3_sub(forces[cj], f);
                 }
-                forces[ci] = make_float4_add(forces[ci], fi);
+                forces[ci] = make_float3_add(forces[ci], fi);
             }
         }
     }
@@ -394,8 +394,8 @@ namespace ppb::cuda::nbody {
     }
 
     __global__ void compute_forces_optimized(
-        const float4* __restrict__ cells_positions,
-        float4* __restrict__ forces,
+        const float3* __restrict__ cells_positions,
+        float3* __restrict__ forces,
         const int* __restrict__ starts,
         const int* __restrict__ cells,
         const int& shmem_size //size of shared memory in float3
@@ -406,8 +406,8 @@ namespace ppb::cuda::nbody {
         }
         extern __shared__ float3 shared_neighbors[];
         
-        float4 pi = cells_positions[i];
-        float4 fi = make_float4(0.f, 0.f, 0.f, 0.f);
+        float3 pi = cells_positions[i];
+        float3 fi = make_float3(0.f, 0.f, 0.f);
         int idx = get_cell_idx(i, cells_positions);
         int shmem_tile_id = 0;
 
@@ -424,13 +424,13 @@ namespace ppb::cuda::nbody {
         if (num_cells_in_tile > shmem_size) {
             printf("ERROR!\n");
             return;
-        } //exit program if num_cells_in_tile > shmem_size. (might make this nicer in the future but probably not. Just tweak the tile size if need be.)
+        } //error if num_cells_in_tile > shmem_size. (might make this nicer in the future but probably not. Just tweak the tile size if need be.)
         
         //determine #neighbors the thread has to iterate over
         int num_neighbors = get_num_neighbors(idx, starts);
 
         //determine start + size of shmem region for each cell
-        int size_shmem_tile = shmem_size / num_cells_in_tile; //for now idc about the remainder. That part is just gonna be unused. Will (probably) optimize this later.
+        int size_shmem_tile = shmem_size / num_cells_in_tile; //for now I dont care about the remainder. That part is just gonna be unused.
         if (i == 0 || get_cell_idx(i - 1, cells_positions) != idx) {
             shared_neighbors[shmem_tile_id].x = (float)idx;
         }
@@ -455,7 +455,7 @@ namespace ppb::cuda::nbody {
                     current_idx = idx_and_offset.x;
                     current_offset = idx_and_offset.y;
                     if (current_offset == -1) break; //we're at the end of the neighborhood. There is nothing left to copy.
-                    float4 loaded_position = cells_positions[current_idx];
+                    float3 loaded_position = cells_positions[current_idx];
                     shared_neighbors[start_shmem_tile + j].x = loaded_position.x;
                     shared_neighbors[start_shmem_tile + j].y = loaded_position.y;
                     shared_neighbors[start_shmem_tile + j].z = loaded_position.z;
@@ -468,11 +468,11 @@ namespace ppb::cuda::nbody {
                 ? start_shmem_tile + (num_neighbors - ((num_neighbors / size_shmem_tile) * size_shmem_tile))
                 : start_shmem_tile + size_shmem_tile;
             for (int j = start_shmem_tile; j < end_shmem_tile; j++) {
-                float4 pj = {shared_neighbors[j].x, shared_neighbors[j].y, shared_neighbors[j].z, 0.f};
+                float3 pj = {shared_neighbors[j].x, shared_neighbors[j].y, shared_neighbors[j].z};
                 
                 if (pi.x == pj.x && pi.y == pj.y && pi.z == pj.z) continue; //technically a bit meh cause two different particles could be on exactly the same position but whatever
 
-                const float4 dr = make_float4_sub(pi, pj);
+                const float3 dr = make_float3_sub(pi, pj);
                 const float dr2 = dot3(dr, dr);
                 if (std::sqrt(dr2) >= CUTOFF_RADIUS) continue;
 
@@ -487,11 +487,11 @@ namespace ppb::cuda::nbody {
                 const float lj12m6 = lj12 - lj6;
                 const float fac = epsilon24 * (lj12 + lj12m6) * invdr2;
                 
-                const float4 f = make_float4_scale(dr, fac);
-                fi = make_float4_add(fi, f); 
+                const float3 f = make_float3_scale(dr, fac);
+                fi = make_float3_add(fi, f); 
             }
             __syncthreads();
         }
-        forces[cells[i]] = make_float4_add(forces[cells[i]], fi);
+        forces[cells[i]] = make_float3_add(forces[cells[i]], fi);
     }
 } // namespace ppb::cuda::nbody
