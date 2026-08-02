@@ -154,6 +154,59 @@ namespace ppb::cuda::nbody {
 
 //--------------------------------------------- VERLET CLUSTER LISTS --------------------------------------------------
 #ifdef PPB_ENABLE_VERLET_CLUSTER_LISTS
+    __global__ void printStartsTowers(int* starts_towers, size_t num_towers) {
+        printf("starts_towers:\n");
+        for (int i = 0; i <= num_towers; i++) {
+            printf("%d, ", starts_towers[i]);
+        }
+        printf("\n");
+    }
+
+    __global__ void printClusters(int* clusters, size_t size) {
+        printf("clusters:\n");
+        for (int i = 0; i < size; i++) {
+            printf("%d, ", clusters[i]);
+        }
+    }
+
+    __global__ void printBB(BoundingBox* BB, size_t num_boxes) {
+        printf("bounding boxes:\n");
+        for (int i = 0; i < num_boxes; i++) {
+            float3 l = BB[i].lowerCorner;
+            float3 u = BB[i].upperCorner;
+            printf("BB[%d]:\nlower_corner: (%f, %f, %f)\nupper_corner: (%f, %f, %f)\n", i, l.x, l.y, l.z, u.x, u.y, u.z);
+        }
+    }
+    
+    __global__ void printPairList(int* starts, int num_clusters, int* cluster_pairs, int num_pairs) {
+        printf("starts:\n");
+        for (int i = 0; i < num_clusters + 1; i++) {
+            printf("%d, ", starts[i]);
+        }
+        printf("pair list:\n");
+        for (int i = 0; i < num_pairs; i++) {
+            printf("%d, ", cluster_pairs[i]);
+        }
+        printf("\n");
+    }
+
+    __global__ void printPositionsInTowers(int* positions_in_tower, size_t size) {
+        printf("positions_in_towers:\n");
+        for (int i = 0; i < size; i++) {
+            printf("%d, ", positions_in_tower[i]);
+        }
+        printf("\n");
+    }
+
+    __global__ void printZCoordinates(float* z_coordinates, size_t size) {
+        printf("z_coordinates:\n");
+        for (int i = 0; i < size; i++) {
+            printf("%f, ", z_coordinates[i]);
+        }
+        printf("\n");
+    }
+
+
     //taken from: https://github.com/dangets/cuda_examples/blob/master/clamp_function.cu (last accessed 14.6.26)
     template <typename T>
     __device__ inline T clamp(T val, T vMin, T vMax) {
@@ -163,16 +216,16 @@ namespace ppb::cuda::nbody {
     __device__ size_t get_tower_id(int particle_idx, float3* __restrict__ positions, float grid_size) {
         size_t x_dim = util::ceilDiv((BOX_MAX[0] - BOX_MIN[0]), grid_size);
         size_t y_dim = util::ceilDiv((BOX_MAX[1] - BOX_MIN[1]), grid_size);
-        size_t tower_x = clamp<int>(int(std::ceil((positions[particle_idx].x - BOX_MIN[0]) / grid_size)), 0, x_dim - 1);
-        size_t tower_y = clamp<int>(int(std::ceil((positions[particle_idx].y - BOX_MIN[1]) / grid_size)), 0, y_dim - 1);
+        size_t tower_x = clamp<int>(int(((positions[particle_idx].x - BOX_MIN[0]) / grid_size)), 0, x_dim - 1);
+        size_t tower_y = clamp<int>(int(((positions[particle_idx].y - BOX_MIN[1]) / grid_size)), 0, y_dim - 1);
         return tower_x + (tower_y * x_dim);
     }
 
 /*     __device__ int2 get_tower_xy(int particle_idx, float3* __restrict__ positions, float grid_size) {
         int x_dim = util::ceilDiv((BOX_MAX[0] - BOX_MIN[0]), grid_size);
         int y_dim = util::ceilDiv((BOX_MAX[1] - BOX_MIN[1]), grid_size);
-        int tower_x = clamp<int>(int(std::ceil((positions[particle_idx].x - BOX_MIN[0]) / grid_size)), 0, x_dim - 1);
-        int tower_y = clamp<int>(int(std::ceil((positions[particle_idx].y - BOX_MIN[1]) / grid_size)), 0, y_dim - 1);
+        int tower_x = clamp<int>(int(((positions[particle_idx].x - BOX_MIN[0]) / grid_size)), 0, x_dim - 1);
+        int tower_y = clamp<int>(int(((positions[particle_idx].y - BOX_MIN[1]) / grid_size)), 0, y_dim - 1);
         return make_int2(tower_x, tower_y);
     } */
 
@@ -449,10 +502,15 @@ namespace ppb::cuda::nbody {
         float3& fi,
         float3* __restrict__ forces
     ) {
+        const unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
         const float3 dr = make_float3_sub(i_particle, j_particle);
         const float dr2 = dot3(dr, dr);
 
         if (std::sqrt(dr2) >= CUTOFF_RADIUS) return;
+
+/*         if (i_particle_idx == 1 || j_particle_idx == 1) {
+            printf("Thread %u: %d <-> %d", i, i_particle_idx, j_particle_idx);
+        } */
 
         const float sigma = 1.0f;
         const float sigmaSquared = sigma * sigma;
@@ -506,7 +564,7 @@ namespace ppb::cuda::nbody {
         for (int j = start_neighbors; j < end_neighbors; j++) {
             int j_cluster = cluster_pairs[j];
             int j_particle_idx = clusters[j_cluster * 4 + (i % 4)];
-            if (j_particle_idx != -1) continue; //skip dummy particles
+            if (j_particle_idx == -1) continue; //skip dummy particles
             float3 j_particle = positions[j_particle_idx];
             compute_interaction(i_particle, i_particle_idx, j_particle, j_particle_idx, fi, forces);
         }

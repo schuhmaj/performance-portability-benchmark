@@ -163,6 +163,9 @@ namespace ppb::cuda::nbody {
    
         // Do the pair search
         cluster_pair_search<<<util::ceilDiv(size_clusters / M, (size_t)1024), 1024>>>(BBM, BBN, false, cluster_pairs, starts, clusters, _particles->positions, tower_size, size_clusters); 
+        
+/*         printPairList<<<1,1>>>(starts, size_clusters / M, cluster_pairs, size_cluster_pairs);
+        printClusters<<<1,1>>>(clusters, size_clusters); */
     }
 #endif
 
@@ -264,9 +267,17 @@ namespace ppb::cuda::nbody {
         _particles.emplace(particles);
 
         for (iteration = 0; iteration < _config.numberTimeSteps; ++iteration) {
+/*             std::cout<<"-----------------------ITERATION "<<iteration<<"--------------------------"<<std::endl; */
             updatePositionsAndResetForce();
             computeForces();
             updateVelocities();
+/*             int j = 0;
+            for (auto& p : _particles->toParticles()) {
+                if (j == 1) {
+                    std::cout<<p<<std::endl;
+                }
+                j++;
+            } */
         }
         return std::make_pair(_particles->toParticles(), _timings);
     }

@@ -119,14 +119,6 @@ protected:
             NBodySimulation<Implementation> otherNBodySim{config};
             const auto [actualResult, timings2] = otherNBodySim();
             const auto [expectedResult, timings1] = cppNBodySim();
-/*             std::cout<<"Expected:"<<std::endl;
-            for (auto& p : expectedResult) {
-                std::cout<<p<<std::endl;
-            }
-            std::cout<<"Actual:"<<std::endl;
-            for (auto& p : actualResult) {
-                std::cout<<p<<std::endl;
-            } */
             ASSERT_THAT(actualResult, ParticlesEq(expectedResult, epsilon));
 /*             //Energy conservation
             ParticleSimulationConfig<float> config2{static_cast<size_t>(size), 1, TIME_STEP};

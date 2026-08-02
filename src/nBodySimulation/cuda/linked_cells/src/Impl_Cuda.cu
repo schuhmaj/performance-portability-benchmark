@@ -58,9 +58,16 @@ namespace ppb::cuda::nbody {
 #ifdef PPB_ENABLE_DOMAIN_COLORING
         int offsets_colored_h[8] = { 13, 14, 16, 17, 22, 23, 25, 26 };
         int offsets_colored_non_base_cell_h[12] = { 14, 16, 14, 25, 14, 22, 16, 22, 16, 23, 17, 22 };
+        int x_dim_nearest_4 = std::ceil(x_dim_h / 4.0) * 4;
+        int y_dim_nearest_4 = std::ceil(x_dim_h / 4.0) * 4;
+        int z_dim_nearest_4 = std::ceil(x_dim_h / 4.0) * 4;
+        int number_of_cells_with_same_color = (x_dim_nearest_4 * y_dim_nearest_4 * z_dim_nearest_4) / 8;
         CHECK_CUDA_ERROR(cudaMemcpyToSymbol(OFFSETS_COLORED, offsets_colored_h, sizeof(offsets_colored_h))); 
         CHECK_CUDA_ERROR(cudaMemcpyToSymbol(OFFSETS_COLORED_NON_BASE_CELL, offsets_colored_non_base_cell_h, sizeof(offsets_colored_non_base_cell_h))); 
-        size_t number_of_cells_with_same_color = util::ceilDiv<size_t>(x_dim_h * y_dim_h * z_dim_h, 8);
+        CHECK_CUDA_ERROR(cudaMemcpyToSymbol(NUM_CELLS_SAME_COLOR, &number_of_cells_with_same_color, sizeof(number_of_cells_with_same_color)));
+        CHECK_CUDA_ERROR(cudaMemcpyToSymbol(X_DIM_NEAREST_4, &x_dim_nearest_4, sizeof(x_dim_nearest_4)));
+        CHECK_CUDA_ERROR(cudaMemcpyToSymbol(Y_DIM_NEAREST_4, &y_dim_nearest_4, sizeof(y_dim_nearest_4)));
+        CHECK_CUDA_ERROR(cudaMemcpyToSymbol(Z_DIM_NEAREST_4, &z_dim_nearest_4, sizeof(z_dim_nearest_4)));
         if (number_of_cells_with_same_color <= MAX_THREADS) {
             _blockSizeForces = number_of_cells_with_same_color;
         } else {
@@ -141,9 +148,12 @@ namespace ppb::cuda::nbody {
 #elif PPB_ENABLE_CUDA_LINKED_CELL_OPTIMIZATION
         //CHECK_CUDA_ERROR(cudaFuncSetAttribute(compute_forces_optimized, cudaFuncAttributeMaxDynamicSharedMemorySize, 96 * 1024));
         size_t shmem_size = 24 * 1024;
+/*         printStartsCells<<<1,1>>>(starts, cells, position);
+        _blockSizeForces = 5;
+        _gridSizeForces = util::ceilDiv(_config.size, (size_t)_blockSizeForces); */
         compute_forces_optimized<<<_gridSizeForces, _blockSizeForces, shmem_size>>>(cells_positions, force, starts, cells, shmem_size / sizeof(float3));
 #else
-        compute_forces<<<_gridSizeForces, _blockSizeForces>>>(cells_positions, force, cells, starts);
+        compute_forces_unoptimized<<<_gridSizeForces, _blockSizeForces>>>(position, force, cells, starts);
 #endif
         CHECK_CUDA_ERROR(cudaEventRecord(stop));
         CHECK_CUDA_ERROR(cudaEventSynchronize(stop));
@@ -178,9 +188,17 @@ namespace ppb::cuda::nbody {
         _particles.emplace(particles);
 
         for (int i = 0; i < _config.numberTimeSteps; ++i) {
+/*             std::cout<<"-------------------------ITERATION "<<i<<"--------------------------"<<std::endl; */
             updatePositionsAndResetForce();
             computeForces();
             updateVelocities();
+/*             int j = 0;
+            for (auto& p : _particles->toParticles()) {
+                if (j == 42) {
+                    std::cout<<p<<std::endl;
+                }
+                j++;
+            } */
         }
         return std::make_pair(_particles->toParticles(), _timings);
     }

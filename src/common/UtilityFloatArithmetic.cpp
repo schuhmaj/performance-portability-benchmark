@@ -37,12 +37,12 @@ namespace ppb::util {
     template bool almostEqualUlps<float>(float lhs, float rhs, int ulpDistance);
     template bool almostEqualUlps<double>(double lhs, double rhs, int ulpDistance);
 
-
     template<typename FloatType>
     bool almostEqualRelative(FloatType lhs, FloatType rhs, double epsilon) {
         const FloatType diff = std::abs(rhs - lhs);
         const FloatType largerValue = std::max(std::abs(rhs), std::abs(lhs));
-        return diff <= largerValue * epsilon || diff <= epsilon;
+        if (std::abs(lhs) <= epsilon && std::abs(rhs) <= epsilon) return diff <= epsilon;
+        return diff <= largerValue * epsilon;
     }
 
     template bool almostEqualRelative<float>(float lhs, float rhs, double epsilon);

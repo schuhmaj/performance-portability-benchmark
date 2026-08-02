@@ -29,6 +29,7 @@ namespace ppb::cuda::nbody {
         int y_offset = (offset_idx / X_DIM) % Y_DIM;
         int z_offset = (offset_idx / (X_DIM * Y_DIM));
 
+        if (offset_idx < 0) return false;
         if (std::abs((int)(x_idx - x_offset)) > 1) return false;
         else if (std::abs((int)(y_idx - y_offset)) > 1) return false;
         else if (std::abs((int)(z_idx - z_offset)) > 1) return false;
@@ -38,7 +39,6 @@ namespace ppb::cuda::nbody {
         return true;
     }
 
-
     //taken from: https://github.com/dangets/cuda_examples/blob/master/clamp_function.cu (last accessed 14.6.26)
     template <typename T>
     __device__ inline T clamp(T val, T vMin, T vMax) {
@@ -47,10 +47,28 @@ namespace ppb::cuda::nbody {
 
 
     __device__ inline int get_cell_idx(size_t particle_idx, const float3* positions) {
-        int x_idx = clamp<int>(int(std::ceil((positions[particle_idx].x - BOX_MIN[0]) / CELL_SIZE)), 0, X_DIM - 1);
-        int y_idx = clamp<int>(int(std::ceil((positions[particle_idx].y - BOX_MIN[1]) / CELL_SIZE)), 0, Y_DIM - 1);
-        int z_idx = clamp<int>(int(std::ceil((positions[particle_idx].z - BOX_MIN[2]) / CELL_SIZE)), 0, Z_DIM - 1);
+        int x_idx = clamp<int>(int(((positions[particle_idx].x - BOX_MIN[0]) / CELL_SIZE)), 0, X_DIM - 1);
+        int y_idx = clamp<int>(int(((positions[particle_idx].y - BOX_MIN[1]) / CELL_SIZE)), 0, Y_DIM - 1);
+        int z_idx = clamp<int>(int(((positions[particle_idx].z - BOX_MIN[2]) / CELL_SIZE)), 0, Z_DIM - 1);
         return x_idx + (y_idx * X_DIM) + (z_idx * X_DIM * Y_DIM); 
+    }
+
+    __global__ void printStartsCells(int* starts, int* cells, float3* positions) {
+        int num_cells = X_DIM * Y_DIM * Z_DIM;
+        printf("starts:\n");
+        for (int i = 0; i < num_cells; i++) {
+            printf("%d, ", starts[i]);
+        }
+        printf("\ncells:\n");
+        for (int i = 0; i < NUM_PARTICLES; i++) {
+            printf("%d, ", cells[i]);
+        }
+        printf("\ncells_positions:\n");
+        for (int i = 0; i < NUM_PARTICLES; i++) {
+            float3 pi = positions[cells[i]];
+            printf("%d (%f, %f, %f)\n", cells[i], pi.x, pi.y, pi.z);
+        }
+        printf("\n");
     }
     //-------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -212,7 +230,7 @@ namespace ppb::cuda::nbody {
                 const float3 dr = make_float3_sub(pi, pj);
                 const float dr2 = dot3(dr, dr);
                 if (std::sqrt(dr2) >= CUTOFF_RADIUS) continue; // = here too because less atomics
-               
+
                 const float sigma = 1.0f;
                 const float sigmaSquared = sigma * sigma;
                 const float epsilon24 = 24.0f; // 1.0 * 24.0
@@ -247,23 +265,26 @@ namespace ppb::cuda::nbody {
         int* starts
     ) {
         unsigned int t_id = blockIdx.x * blockDim.x + threadIdx.x;
-        const size_t num_cells = X_DIM * Y_DIM * Z_DIM;
-        if (t_id >= util::ceilDiv<size_t>(num_cells, 8)) {
+        if (t_id >= NUM_CELLS_SAME_COLOR) {
             return;
         }
 
         // Map threads to their respective base cells based on the current color
-        int x_dim_thread = X_DIM % 2 != 0 && color & 1 == 0 ? util::ceilDiv<int>(X_DIM, 2) : X_DIM / 2;
-        int y_dim_thread = Y_DIM % 2 != 0 && color & 2 == 0 ? util::ceilDiv<int>(Y_DIM, 2) : Y_DIM / 2;
-        int z_dim_thread = Z_DIM % 2 != 0 && color & 4 == 0 ? util::ceilDiv<int>(Y_DIM, 2) : Z_DIM / 2;
+        int x_dim_thread = X_DIM_NEAREST_4 / 2;
+        int y_dim_thread = Y_DIM_NEAREST_4 / 2;
+        int z_dim_thread = Z_DIM_NEAREST_4 / 2;
         int x_thread = t_id % x_dim_thread;
         int y_thread = (t_id / x_dim_thread) % y_dim_thread;
         int z_thread = (t_id / (x_dim_thread * y_dim_thread));
         int x_cell = 2 * x_thread + (color % 2);
         int y_cell = 2 * y_thread + ((color>>1) % 2);
         int z_cell = 2 * z_thread + ((color>>2) % 2);
+        
+        if (x_cell >= X_DIM || y_cell >= Y_DIM || z_cell >= Z_DIM) {
+            return;
+        }
+ 
         int idx = x_cell + (y_cell * X_DIM) + (z_cell * X_DIM * Y_DIM);
-        if (!is_in_bounds(idx, 0)) return;
         int startBaseCell = starts[idx];
         int endBaseCell = starts[idx + 1];
 
@@ -289,6 +310,10 @@ namespace ppb::cuda::nbody {
                     // = here too because this way we never get into a race condition with another cell of the same color
                     if (std::sqrt(dr2) >= CUTOFF_RADIUS) continue;
 
+/*                 if (i == 0 || j == 0) {
+                    printf("Thread %u: %d (Cell: %d) <-> %d (Cell: %d)\n", t_id, i, idx - offset, j, idx);
+                } */
+
                     const float sigma = 1.0f;
                     const float sigmaSquared = sigma * sigma;
                     const float epsilon24 = 24.0f; // 1.0 * 24.0
@@ -311,9 +336,10 @@ namespace ppb::cuda::nbody {
 
         //non-base-cell interactions
         for (int o = 0; o < 12; o+=2) {
+            if (!is_in_bounds(idx, OFFSETS[OFFSETS_COLORED_NON_BASE_CELL[o]]) 
+            || !is_in_bounds(idx, OFFSETS[OFFSETS_COLORED_NON_BASE_CELL[o+1]])) continue;
             int cell_i = idx + OFFSETS[OFFSETS_COLORED_NON_BASE_CELL[o]];
             int cell_j = idx + OFFSETS[OFFSETS_COLORED_NON_BASE_CELL[o+1]];
-            if (!is_in_bounds(cell_i, 0) || !is_in_bounds(cell_j, 0)) continue;
             int start_cell_i = starts[cell_i];     
             int end_cell_i = starts[cell_i + 1]; 
             int start_cell_j = starts[cell_j];
@@ -328,6 +354,10 @@ namespace ppb::cuda::nbody {
 
                     // = here too because this way we never get into a race condition with another cell of the same color
                     if (std::sqrt(dr2) >= CUTOFF_RADIUS) continue;
+                
+/*                     if (ci == 0 || cj == 0) {
+                        printf("Thread %u: NON BASE CELL %d (Cell: %d) <-> %d (Cell: %d)\n", t_id, ci, cell_i, cj, cell_j);
+                    } */
 
                     const float sigma = 1.0f;
                     const float sigmaSquared = sigma * sigma;
@@ -405,18 +435,18 @@ namespace ppb::cuda::nbody {
             return;
         }
         extern __shared__ float3 shared_neighbors[];
-        
+
         float3 pi = cells_positions[i];
         float3 fi = make_float3(0.f, 0.f, 0.f);
         int idx = get_cell_idx(i, cells_positions);
         int shmem_tile_id = 0;
 
         //determine #cells in tile (= threadblock)
-        if (i == 0 || get_cell_idx(i - 1, cells_positions) != idx) {
+        if (threadIdx.x == 0) {
             shared_neighbors[0].x = 0.f;
         }
         __syncthreads();
-        if (i == 0 || get_cell_idx(i - 1, cells_positions) != idx) {
+        if (threadIdx.x == 0 || get_cell_idx(i - 1, cells_positions) != idx) {
             shmem_tile_id = (int)atomicAdd(&shared_neighbors[0].x, 1.f);
         }
         __syncthreads();
@@ -425,13 +455,13 @@ namespace ppb::cuda::nbody {
             printf("ERROR!\n");
             return;
         } //error if num_cells_in_tile > shmem_size. (might make this nicer in the future but probably not. Just tweak the tile size if need be.)
-        
+    
         //determine #neighbors the thread has to iterate over
         int num_neighbors = get_num_neighbors(idx, starts);
 
         //determine start + size of shmem region for each cell
         int size_shmem_tile = shmem_size / num_cells_in_tile; //for now I dont care about the remainder. That part is just gonna be unused.
-        if (i == 0 || get_cell_idx(i - 1, cells_positions) != idx) {
+        if (threadIdx.x == 0 || get_cell_idx(i - 1, cells_positions) != idx) {
             shared_neighbors[shmem_tile_id].x = (float)idx;
         }
         __syncthreads();
@@ -445,7 +475,7 @@ namespace ppb::cuda::nbody {
         for (int k = 0; k < num_neighbors; k += size_shmem_tile) {
             //load shmem region, for now only one thread per cell (in this case the first thread of the cell does all the copy work)
             //NOTE: THIS IS A BIG BOTTLENECK. WILL NOT BE CHANGED SINCE THIS OPTIMIZATION IS POINTLESS!
-            if (i == 0 || get_cell_idx(i - 1, cells_positions) != idx) {
+            if (threadIdx.x == 0 || get_cell_idx(i - 1, cells_positions) != idx) {
                 if (k == 0) {
                     current_idx = -1;
                     current_offset = 0;
@@ -461,7 +491,7 @@ namespace ppb::cuda::nbody {
                     shared_neighbors[start_shmem_tile + j].z = loaded_position.z;
                 }
             }
-            __syncthreads(); 
+            __syncthreads();
 
             //force computation (NO N3L!! -> no shared memory write bank conflicts (and no headache))
             int end_shmem_tile = k / size_shmem_tile == num_neighbors / size_shmem_tile

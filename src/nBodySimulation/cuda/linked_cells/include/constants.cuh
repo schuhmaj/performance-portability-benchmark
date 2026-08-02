@@ -15,6 +15,14 @@ namespace ppb::cuda::nbody {
     
     __constant__ int OFFSETS_COLORED_NON_BASE_CELL[12]; 
 
+    __constant__ int NUM_CELLS_SAME_COLOR;
+    
+    __constant__ int X_DIM_NEAREST_4;
+    
+    __constant__ int Y_DIM_NEAREST_4;
+    
+    __constant__ int Z_DIM_NEAREST_4;
+
     __constant__ float DELTA_T; 
     
     __constant__ float CUTOFF_RADIUS;
