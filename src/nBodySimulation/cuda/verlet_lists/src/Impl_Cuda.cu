@@ -163,9 +163,6 @@ namespace ppb::cuda::nbody {
    
         // Do the pair search
         cluster_pair_search<<<util::ceilDiv(size_clusters / M, (size_t)1024), 1024>>>(BBM, BBN, false, cluster_pairs, starts, clusters, _particles->positions, tower_size, size_clusters); 
-        
-/*         printPairList<<<1,1>>>(starts, size_clusters / M, cluster_pairs, size_cluster_pairs);
-        printClusters<<<1,1>>>(clusters, size_clusters); */
     }
 #endif
 

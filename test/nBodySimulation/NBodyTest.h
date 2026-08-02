@@ -120,17 +120,5 @@ protected:
             const auto [actualResult, timings2] = otherNBodySim();
             const auto [expectedResult, timings1] = cppNBodySim();
             ASSERT_THAT(actualResult, ParticlesEq(expectedResult, epsilon));
-/*             //Energy conservation
-            ParticleSimulationConfig<float> config2{static_cast<size_t>(size), 1, TIME_STEP};
-            auto state = Particle<float>::generateUniform(config2.boxMin, config2.boxMax, config2.size, config2.seed)};
-            for (size_t i = 0; i < ITERATIONS; i++) {
-                float total_energy_before = get_total_energy(state);
-                config2{static_cast<size_t>(size), 1, TIME_STEP};
-                Implementation nBodySim{config};
-                const auto [new_state, timings] = nBodySim.simulate(state);
-                state = new_state;
-                float total_energy_after = get_total_energy(state);
-                printf("BEFORE: %f, AFTER: %f\n", total_energy_before, total_energy_after);
-            } */
         }
     };

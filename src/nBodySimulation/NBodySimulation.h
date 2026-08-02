@@ -55,7 +55,7 @@ namespace ppb {
         /**
          * Simulation end time.
          */
-        int numberTimeSteps{1000};
+        int numberTimeSteps{100};
 
         /**
          * Size of the simulation time step.
@@ -70,12 +70,12 @@ namespace ppb {
         /**
          * Minimum box coordinates of the initial simulation domain (lower-left-corner)
          */
-        std::array<FloatType, 3> boxMin{-10, -10, -10};
+        std::array<FloatType, 3> boxMin{-1000, -1000, -1000};
 
         /**
          * Maximum box coordinates of the initial simulation domain (upper-right-corner)
          */
-        std::array<FloatType, 3> boxMax{10, 10, 10};
+        std::array<FloatType, 3> boxMax{1000, 1000, 1000};
 
 
         /**
@@ -119,16 +119,15 @@ namespace ppb {
          */
         unsigned int seed{42};
 
-
         /**
          * Cell size used in the linked cell implementation (cell_size >= cutoff_radius!!!)
          */
-        FloatType cell_size{7.0f};
+        FloatType cell_size{20.0f};
         
         /**
          * Cutoff radius used in the linked cell and verlet lists implementation
          */
-        FloatType cutoff_radius{7.0f};
+        FloatType cutoff_radius{10.0f};
 
         /**
         * Size of the Verlet skin.
@@ -139,7 +138,7 @@ namespace ppb {
         * Frequency of updates of verlet lists. 
         * Updates the verlet lists every 'frequency' iterations.
         */
-        size_t frequency{2};
+        size_t frequency{15};
 
         /**
          * Creates a simulation configuration.
