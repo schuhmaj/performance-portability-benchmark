@@ -9,7 +9,7 @@
 #include <vector>
 #include <thrust/scan.h>
 #include <thrust/execution_policy.h>
-#include <cub/device/device_segmented_sort.cuh>
+#include <cub/cub.cuh>
 
 #define CHECK_CUDA_ERROR(val) ppb::cuda::nbody::check((val), #val, __FILE__, __LINE__)
 
@@ -108,7 +108,7 @@ namespace ppb::cuda::nbody {
 
         void* d_temp_storage = nullptr;
         size_t temp_storage_bytes = 0;
-        cub::DeviceSegmentedSort::SortPairs(
+        cub::DeviceSegmentedRadixSort::SortPairs(
             d_temp_storage, temp_storage_bytes,
             d_keys_in, d_keys_out, d_values_in, d_values_out,
             num_items, num_segments, d_offsets, d_offsets + 1);
@@ -117,7 +117,7 @@ namespace ppb::cuda::nbody {
         CHECK_CUDA_ERROR(cudaMalloc(&d_temp_storage, temp_storage_bytes));
 
         // Run sorting operation
-        cub::DeviceSegmentedSort::SortPairs(
+        cub::DeviceSegmentedRadixSort::SortPairs(
             d_temp_storage, temp_storage_bytes,
             d_keys_in, d_keys_out, d_values_in, d_values_out,
             num_items, num_segments, d_offsets, d_offsets + 1);
