@@ -44,6 +44,15 @@ namespace ppb {
         std::vector<FloatType> velocities;
         std::vector<FloatType> forces;
         std::vector<FloatType> oldForces;
+
+        /**
+         * Materialized counting range [0, particle count) used to drive the per-particle kernels.
+         * A lazy std::views::iota would express the same thing, but its iterators are not portable
+         * across the stdpar backends (oneDPL cannot map them to device memory and their
+         * difference_type is __int128, which SPIR-V targets do not support), so the indices are held
+         * in ordinary unified-memory storage like every other array here.
+         */
+        std::vector<size_t> indices;
     };
 
     /**

@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <execution>
-#include <ranges>
+#include <numeric>
 
 namespace ppb {
 
@@ -14,7 +14,9 @@ namespace ppb {
         , velocities(ref.size() * 3, 0.0)
         , forces(ref.size() * 3, 0.0)
         , oldForces(ref.size() * 3, 0.0)
+        , indices(ref.size())
     {
+        std::iota(indices.begin(), indices.end(), size_t{0});
         for (size_t i = 0; i < ref.size() * 3; ++i) {
             const size_t particleIndex = i / 3;
             const size_t componentIndex = i % 3;
@@ -72,10 +74,10 @@ namespace ppb {
         constexpr FloatType m = 1.0;
         const FloatType tt2m = (dt * dt / (2 * m));
 
-        const auto indices = std::views::iota(size_t{0}, size);
+        const size_t *indices = _particles->indices.data();
 
         const auto start = std::chrono::high_resolution_clock::now();
-        std::for_each(std::execution::par_unseq, indices.begin(), indices.end(), [=](const size_t i) {
+        std::for_each(std::execution::par_unseq, indices, indices + size, [=](const size_t i) {
             for (size_t j = 0; j < 3; ++j) {
                 const size_t index = i * 3 + j;
                 const auto v = velocities[index];
@@ -100,10 +102,10 @@ namespace ppb {
         constexpr FloatType m = 1.0;
         const FloatType t2m = (dt / (2 * m));
 
-        const auto indices = std::views::iota(size_t{0}, size);
+        const size_t *indices = _particles->indices.data();
 
         const auto start = std::chrono::high_resolution_clock::now();
-        std::for_each(std::execution::par_unseq, indices.begin(), indices.end(), [=](const size_t i) {
+        std::for_each(std::execution::par_unseq, indices, indices + size, [=](const size_t i) {
             for (size_t j = 0; j < 3; ++j) {
                 const size_t index = i * 3 + j;
                 velocities[index] += ((forces[index] + oldForces[index]) * t2m);
@@ -119,10 +121,10 @@ namespace ppb {
         FloatType *forces = _particles->forces.data();
         const FloatType *positions = _particles->positions.data();
 
-        const auto indices = std::views::iota(size_t{0}, size);
+        const size_t *indices = _particles->indices.data();
 
         const auto start = std::chrono::high_resolution_clock::now();
-        std::for_each(std::execution::par_unseq, indices.begin(), indices.end(), [=](const size_t i) {
+        std::for_each(std::execution::par_unseq, indices, indices + size, [=](const size_t i) {
             constexpr FloatType sigma = (1.0 + 1.0) * 0.5;
             constexpr FloatType sigmaSquared = sigma * sigma;
             const FloatType epsilon24 = std::sqrt(FloatType{1.0} * FloatType{1.0}) * 24;

@@ -5,7 +5,7 @@
 # Supported vendor toolchains (selected automatically via CMAKE_CXX_COMPILER_ID):
 #   * NVIDIA HPC SDK (CMAKE_CXX_COMPILER_ID == NVHPC)      -> -stdpar=gpu
 #   * ROCm amdclang++ >= 6.1 (CMAKE_CXX_COMPILER_ID == Clang) -> --hipstdpar
-#   * Intel oneAPI icpx (CMAKE_CXX_COMPILER_ID == IntelLLVM)  -> -fsycl-pstl-offload=gpu
+#   * Intel oneAPI icpx >= 2024.0 (CMAKE_CXX_COMPILER_ID == IntelLLVM) -> -fsycl-pstl-offload=gpu
 # Any other compiler gets a host fallback: no offload flags, but TBB is linked
 # so that libstdc++'s parallel STL backend still parallelizes on the CPU.
 #
@@ -38,6 +38,11 @@ option(PPB_Stdpar_Hip_InterposeAlloc
 option(PPB_Stdpar_Acpp_UnconditionalOffload
         "Always offload stdpar algorithms with AdaptiveCpp instead of relying on its heuristics" ON)
 
+set(PPB_Stdpar_Intel_OffloadTarget "gpu" CACHE STRING
+        "Device -fsycl-pstl-offload targets (Intel only). Set to 'cpu' to check whether a wrong result \
+comes from the kernels or from the GPU driver stack.")
+set_property(CACHE PPB_Stdpar_Intel_OffloadTarget PROPERTY STRINGS "gpu" "cpu")
+
 add_library(ppb_stdpar_offload INTERFACE)
 
 if (PPB_Stdpar_UseAcpp)
@@ -68,9 +73,31 @@ elseif (CMAKE_CXX_COMPILER_ID STREQUAL "NVHPC")
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "IntelLLVM")
     # Intel oneAPI: PSTL offload maps the standard algorithms onto oneDPL/SYCL.
     # SPIR-V is JIT'd by the runtime, so no architecture flag applies.
-    set(_ppb_stdpar_flags -fsycl -fsycl-pstl-offload=gpu)
+    #
+    # -fsycl-pstl-offload only exists from oneAPI 2024.0 on; older icpx (e.g. the 2023.x
+    # release that matches a 2023 Level Zero/OpenCL driver stack) rejects it outright with
+    # "unknown argument". There is no stdpar offload path for those compilers, so fail early
+    # with an actionable message instead of letting the build die in the first source file.
+    #
+    # NOTE: this is deliberately a version comparison and not a check_cxx_compiler_flag() probe.
+    # The flag makes the driver force-include pstl_offload_impl.h, which drags in <sycl/sycl.hpp>
+    # and the oneDPL headers; the bare try_compile of the probe has neither the project's include
+    # paths nor its C++ standard, so it reports a false negative on compilers that do support the
+    # flag. IntelLLVM reports the oneAPI release as its version, so the comparison is exact.
+    if (CMAKE_CXX_COMPILER_VERSION VERSION_LESS 2024.0)
+        message(FATAL_ERROR
+                "icpx ${CMAKE_CXX_COMPILER_VERSION} does not support "
+                "-fsycl-pstl-offload=${PPB_Stdpar_Intel_OffloadTarget} "
+                "(added in oneAPI 2024.0), so stdpar cannot be offloaded with this toolchain. Either\n"
+                "  * use a oneAPI >= 2024.0 compiler, or\n"
+                "  * build the stdpar targets through AdaptiveCpp instead "
+                "(-DCMAKE_CXX_COMPILER=acpp -DPPB_Stdpar_UseAcpp=ON), which reaches Intel GPUs via "
+                "its own SPIR-V/Level Zero path and does not depend on the oneAPI PSTL offload flag, or\n"
+                "  * configure with -DPPB_ENABLE_Stdpar=OFF to skip the stdpar targets.")
+    endif ()
+    set(_ppb_stdpar_flags -fsycl -fsycl-pstl-offload=${PPB_Stdpar_Intel_OffloadTarget})
     set(_ppb_stdpar_link_flags ${_ppb_stdpar_flags})
-    set(_ppb_stdpar_backend "Intel oneAPI (-fsycl-pstl-offload=gpu)")
+    set(_ppb_stdpar_backend "Intel oneAPI (-fsycl-pstl-offload=${PPB_Stdpar_Intel_OffloadTarget})")
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     # ROCm amdclang++ (>= ROCm 6.1) or a matching upstream Clang: --hipstdpar
     # offloads par_unseq algorithms via rocThrust. An offload arch is mandatory,

@@ -3,7 +3,6 @@
 #include <functional>
 #include <memory>
 #include <numeric>
-#include <ranges>
 #include <vector>
 
 #include "polyhedralGravity/PolyhedralGravityDefinitions.h"
@@ -40,8 +39,13 @@ public:
         GravityModelResult *results = _results.data();
         const Array3 point = Point;
 
-        const auto indices = std::views::iota(size_t{0}, faceCount);
-        std::for_each(std::execution::par_unseq, indices.begin(), indices.end(), [=](const size_t i) {
+        // The parallel loop runs over the per-face result buffer and recovers the face index from the
+        // pointer distance. A counting range (std::views::iota) would be the more obvious choice, but
+        // its iterators are not usable with every stdpar backend: oneDPL rejects them (they are neither
+        // USM pointers nor writable, and iota_view<size_t>::difference_type is __int128, which SPIR-V
+        // targets cannot represent), so keep to plain pointers, which all backends map to device memory.
+        std::for_each(std::execution::par_unseq, results, results + faceCount, [=](GravityModelResult &faceResult) {
+            const size_t i = static_cast<size_t>(&faceResult - results);
             Array3Triplet face = {
                     vertices[faces[i][0]] - point,
                     vertices[faces[i][1]] - point,
@@ -378,7 +382,7 @@ public:
             //endregion
 
             //region 7. Step: Multiply with prefix
-            results[i] = {
+            faceResult = {
                     // Equation (11): sigma_p * h_p * sum
                     planeNormalOrientation * planeDistance * planeSumPotentialAcceleration,
 
@@ -413,8 +417,10 @@ private:
         Array3Triplet *segmentVectors = _segmentVectors.data();
         Array3Triplet *segmentNormals = _segmentNormals.data();
 
-        const auto indices = std::views::iota(size_t{0}, faceCount);
-        std::for_each(std::execution::par_unseq, indices.begin(), indices.end(), [=](const size_t i) {
+        // See evaluate(): iterate over a real buffer instead of a std::views::iota counting range,
+        // which not every stdpar backend can turn into a device iteration space.
+        std::for_each(std::execution::par_unseq, normals, normals + faceCount, [=](Array3 &faceNormal) {
+            const size_t i = static_cast<size_t>(&faceNormal - normals);
             Array3Triplet Face = {
                     vertices[faces[i][0]],
                     vertices[faces[i][1]],
@@ -423,8 +429,8 @@ private:
             Array3Triplet SV{Face[1] - Face[0], Face[2] - Face[1], Face[0] - Face[2]};
             segmentVectors[i] = SV;
 
-            Array3 Normal = normal(SV[0], SV[1]);
-            normals[i] = Normal;
+            const Array3 Normal = normal(SV[0], SV[1]);
+            faceNormal = Normal;
             segmentNormals[i] = {
                     normal(SV[0], Normal),
                     normal(SV[1], Normal),
