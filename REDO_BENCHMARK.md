@@ -10,13 +10,14 @@ everything else can keep its existing `results/**/*.json`.
 | Problem | Executables to re-run | Reason |
 | --- | --- | --- |
 | MatrixMultiplication | `matMul_acpp`, `matMul_alpaka`, `matMul_vulkan`, `matMul_slang_vulkan`, `matMul_slang_cuda` | tile size 32×32 → 16×16; AdaptiveCpp/Alpaka row index moved onto the fastest-varying dimension |
-| NBody (direct sum) | `nbody_cuda`, `nbody_hip`, `nbody_ocl`, `nbody_boost`, `nbody_acpp`, `nbody_alpaka` | CUDA/HIP force-timing scale bug (`* 16` → `* 1e6`); OpenCL read profiling counters without waiting on the event; local size 32/16 → 256; OpenCL and Alpaka force kernels now accumulate in registers |
+| NBody (direct sum) | `nbody_cuda`, `nbody_hip`, `nbody_ocl`, `nbody_boost`, `nbody_acpp`, `nbody_alpaka`, `nbody_kokkos`, `nbody_raja`, `nbody_acc` | CUDA/HIP force-timing scale bug (`* 16` → `* 1e6`); OpenCL read profiling counters without waiting on the event; local size 32/16 → 256; OpenCL and Alpaka force kernels now accumulate in registers; Kokkos/RAJA/OpenACC position+velocity kernels now parallelise over `size` instead of `size*3` |
 | PolyhedralGravity | `polyhedral_cuda`, `polyhedral_hip`, `polyhedral_ocl`, `polyhedral_boost`, `polyhedral_vulkan`, `polyhedral_slang_vulkan`, `polyhedral_slang_cuda` | eval workgroup 64/32/16 → 256 (plus Vulkan/Slang reduction restructure and a Vulkan reduction indexing fix); CUDA/HIP dead per-call host allocations removed |
 | VectorAddition | *(nothing)* | only an added `<iostream>` include in `Impl_SlangVulkan.cpp`; no behavioural change |
 
 `nbody_vulkan_*` / `nbody_slang_*` (naive, cells, verlet) were **not** touched and
 do not need re-running. `matMul_kokkos` keeps its explicit `{16, 16}` MDRange tile
-and is unchanged.
+and is unchanged. `nbody_acc` is built with the **`cuda-nvhpc`** preset, not
+`cuda-llvm`.
 
 ### Effect measured locally (RTX 5080, `cuda-llvm`)
 
@@ -35,7 +36,7 @@ Spot-check against the stored `results/nvidia-rtx5080/*.json`. `matMul_ocl` and
 | `nbody_boost` @100000 | wall | 75.9 s | 14.0 s | **5.43x faster** |
 | `nbody_ocl` @100000 | wall | 75.9 s | 14.1 s | **5.37x faster** |
 | `nbody_acpp` @100000 | wall | 24.67 s | 18.89 s | 1.31x faster |
-| `nbody_kokkos` @100000 *(control)* | wall | 25.30 s | 25.69 s | 0.98x |
+| `nbody_kokkos` @100000 *(was control, now changed)* | wall | 25.30 s | see below | position/velocity range change |
 | `nbody_cuda` @100000 | **force** | 0.00038 s | 24.19 s | timing bug fixed (was 62500x too small) |
 | `nbody_hip` @100000 | **force** | 0.00051 s | 32.52 s | timing bug fixed |
 | `nbody_ocl` @100000 | **force** | 1.8e13 s (garbage) | 14.08 s | timing bug fixed |
@@ -102,7 +103,7 @@ ppbcc benchmark -b $BUILD -H "$HW" -o "Redo_MatMul" \
   -r ".*matMul_(acpp|alpaka|vulkan|slang_vulkan|slang_cuda)$"
 
 ppbcc benchmark -b $BUILD -H "$HW" -o "Redo_NBody" \
-  -r ".*nbody_(cuda|hip|ocl|boost|acpp|alpaka)$"
+  -r ".*nbody_(cuda|hip|ocl|boost|acpp|alpaka|kokkos|raja|acc)$"
 
 ppbcc benchmark -b $BUILD -H "$HW" -o "Redo_Polyhedral" \
   -r ".*polyhedral_(cuda|hip|ocl|boost|vulkan|slang_vulkan|slang_cuda)$"
@@ -113,7 +114,7 @@ Or everything in one go:
 ```bash
 ppbcc benchmark -b build-cuda-llvm -H "NVIDIA RTX5080" -o "Redo_All" \
   -r ".*matMul_(acpp|alpaka|vulkan|slang_vulkan|slang_cuda)$" \
-     ".*nbody_(cuda|hip|ocl|boost|acpp|alpaka)$" \
+     ".*nbody_(cuda|hip|ocl|boost|acpp|alpaka|kokkos|raja|acc)$" \
      ".*polyhedral_(cuda|hip|ocl|boost|vulkan|slang_vulkan|slang_cuda)$"
 ```
 
@@ -125,7 +126,7 @@ force a re-measurement.
 ```bash
 ppbcc benchmark -b build-rocm-amdclang-cdna -H "AMD Instinct MI210" -o "Redo_All" -f \
   -r ".*matMul_(acpp|alpaka)$" \
-     ".*nbody_(hip|ocl|boost|acpp|alpaka)$" \
+     ".*nbody_(hip|ocl|boost|acpp|alpaka|kokkos|raja)$" \
      ".*polyhedral_(hip|ocl|boost)$"
 ```
 
@@ -134,7 +135,7 @@ ppbcc benchmark -b build-rocm-amdclang-cdna -H "AMD Instinct MI210" -o "Redo_All
 ```bash
 ppbcc benchmark -b build-intel -H "INTEL Data Center GPU Max 1550" -o "Redo_All" -f \
   -r ".*matMul_(acpp|alpaka)$" \
-     ".*nbody_(ocl|boost|acpp|alpaka)$" \
+     ".*nbody_(ocl|boost|acpp|alpaka|kokkos)$" \
      ".*polyhedral_(ocl|boost)$"
 ```
 
@@ -152,6 +153,7 @@ DEST=results/nvidia-rtx5080     # results/nvidia-rtx3080 | results/nvidia-rtx406
 for f in matMul_acpp matMul_alpaka matMul_vulkan \
          matMul_slang_vulkan matMul_slang_cuda \
          nbody_cuda nbody_hip nbody_ocl nbody_boost nbody_acpp nbody_alpaka \
+         nbody_kokkos nbody_raja nbody_acc \
          polyhedral_cuda polyhedral_hip polyhedral_ocl polyhedral_boost \
          polyhedral_vulkan polyhedral_slang_vulkan polyhedral_slang_cuda; do
     [ -f "$f.json" ] && cp -v "$f.json" "$DEST/$f.json"

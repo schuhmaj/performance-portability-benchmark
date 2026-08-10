@@ -111,7 +111,7 @@ namespace ppb {
 
     template<typename FloatType>
     void ImplRaja<FloatType>::updatePositionsAndResetForce() {
-        const size_t n = _particles->size() * 3;
+        const size_t n = _particles->size();
         const auto dt = static_cast<FloatType>(_config.deltaT);
         const auto globalForce0 = static_cast<FloatType>(_config.globalForce[0]);
         const auto globalForce1 = static_cast<FloatType>(_config.globalForce[1]);
@@ -123,19 +123,23 @@ namespace ppb {
 
         Resource res = Resource::get_default();
         const auto start = std::chrono::steady_clock::now();
-        RAJA::forall<ExecPolicy>(res, RAJA::TypedRangeSegment<size_t>(0, n), [=] RAJA_HOST_DEVICE(const size_t idx) {
-            const size_t j = idx % 3;
+        // Parallelise over particles only; the three components are handled by an inner
+        // loop, matching every other paradigm (and this implementation's force kernel).
+        RAJA::forall<ExecPolicy>(res, RAJA::TypedRangeSegment<size_t>(0, n), [=] RAJA_HOST_DEVICE(const size_t i) {
             constexpr FloatType m = 1.0;
-            auto v = velocity[idx];
-            auto f = force[idx];
+            for (size_t j = 0; j < 3; ++j) {
+                const size_t idx = i * 3 + j;
+                auto v = velocity[idx];
+                auto f = force[idx];
 
-            oldForce[idx] = f;
-            force[idx] = j == 0 ? globalForce0 : (j == 1 ? globalForce1 : globalForce2);
+                oldForce[idx] = f;
+                force[idx] = j == 0 ? globalForce0 : (j == 1 ? globalForce1 : globalForce2);
 
-            v *= dt;
-            f *= (dt * dt / (2 * m));
-            const auto displacement = v + f;
-            position[idx] = position[idx] + displacement;
+                v *= dt;
+                f *= (dt * dt / (2 * m));
+                const auto displacement = v + f;
+                position[idx] = position[idx] + displacement;
+            }
         });
         res.wait();
         _timings.positionUpdateForceResetTime += elapsedNanoseconds(start);
@@ -143,7 +147,7 @@ namespace ppb {
 
     template<typename FloatType>
     void ImplRaja<FloatType>::updateVelocities() {
-        const size_t n = _particles->size() * 3;
+        const size_t n = _particles->size();
         const auto dt = static_cast<FloatType>(_config.deltaT);
         FloatType *force = _particles->forces;
         FloatType *oldForce = _particles->oldForces;
@@ -151,10 +155,13 @@ namespace ppb {
 
         Resource res = Resource::get_default();
         const auto start = std::chrono::steady_clock::now();
-        RAJA::forall<ExecPolicy>(res, RAJA::TypedRangeSegment<size_t>(0, n), [=] RAJA_HOST_DEVICE(const size_t idx) {
+        RAJA::forall<ExecPolicy>(res, RAJA::TypedRangeSegment<size_t>(0, n), [=] RAJA_HOST_DEVICE(const size_t i) {
             constexpr FloatType m = 1.0;
-            const auto changeInVel = (force[idx] + oldForce[idx]) * (dt / (2 * m));
-            velocity[idx] = velocity[idx] + changeInVel;
+            for (size_t j = 0; j < 3; ++j) {
+                const size_t idx = i * 3 + j;
+                const auto changeInVel = (force[idx] + oldForce[idx]) * (dt / (2 * m));
+                velocity[idx] = velocity[idx] + changeInVel;
+            }
         });
         res.wait();
         _timings.velocityUpdateTime += elapsedNanoseconds(start);

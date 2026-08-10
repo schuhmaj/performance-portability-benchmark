@@ -77,21 +77,25 @@ namespace ppb {
         auto &velocity = _particles->velocities;
         auto &position = _particles->positions;
 
-        Kokkos::MDRangePolicy<Kokkos::Rank<2>> policy({0, 0}, {size, dim});
+        // Parallelise over particles only; the three components are handled by an inner
+        // loop, matching every other paradigm (and this implementation's force kernel).
+        Kokkos::RangePolicy<> policy(0, size);
         const Kokkos::Timer timer;
-        Kokkos::parallel_for("update_positions", policy, KOKKOS_LAMBDA(const int i, const int j) {
+        Kokkos::parallel_for("update_positions", policy, KOKKOS_LAMBDA(const int i) {
             using namespace ppb::util;
             const auto m = 1.0;
-            auto v = velocity(i, j);
-            auto f = force(i, j);
+            for (int j = 0; j < static_cast<int>(dim); ++j) {
+                auto v = velocity(i, j);
+                auto f = force(i, j);
 
-            oldForce(i, j) = f;
-            force(i, j) = globalForce[j];
+                oldForce(i, j) = f;
+                force(i, j) = globalForce[j];
 
-            v *= dt;
-            f *= (dt * dt / (2 * m));
-            const auto displacement = v + f;
-            position(i, j) = position(i, j) + displacement;
+                v *= dt;
+                f *= (dt * dt / (2 * m));
+                const auto displacement = v + f;
+                position(i, j) = position(i, j) + displacement;
+            }
         });
         Kokkos::fence();
         _timings.positionUpdateForceResetTime += (timer.seconds() * 1e9);
@@ -106,13 +110,15 @@ namespace ppb {
         auto &oldForce = _particles->oldForces;
         auto &velocity = _particles->velocities;
 
-        Kokkos::MDRangePolicy<Kokkos::Rank<2>> policy({0, 0}, {size, dim});
+        Kokkos::RangePolicy<> policy(0, size);
         const Kokkos::Timer timer;
-        Kokkos::parallel_for("update_velocities", policy, KOKKOS_LAMBDA(const int i, const int j) {
+        Kokkos::parallel_for("update_velocities", policy, KOKKOS_LAMBDA(const int i) {
             using namespace ppb::util;
             constexpr auto m = 1.0;
-            const auto changeInVel = (force(i, j) + oldForce(i, j)) * (dt / (2 * m));
-            velocity(i, j) = velocity(i, j) + changeInVel;
+            for (int j = 0; j < static_cast<int>(dim); ++j) {
+                const auto changeInVel = (force(i, j) + oldForce(i, j)) * (dt / (2 * m));
+                velocity(i, j) = velocity(i, j) + changeInVel;
+            }
         });
         Kokkos::fence();
         _timings.velocityUpdateTime += (timer.seconds() * 1e9);

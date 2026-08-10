@@ -110,7 +110,7 @@ namespace ppb {
         const FloatType tt2m = (dt * dt / (2 * m));
 
         const auto start = std::chrono::high_resolution_clock::now();
-        #pragma acc parallel loop collapse(2) deviceptr(positions, velocities, forces, oldForces)
+        #pragma acc parallel loop deviceptr(positions, velocities, forces, oldForces)
         for (size_t i = 0; i < size; ++i) {
             for (size_t j = 0; j < 3; ++j) {
                 const size_t index = i * 3 + j;
@@ -137,7 +137,7 @@ namespace ppb {
         const FloatType t2m = (dt / (2.0 * m));
 
         const auto start = std::chrono::high_resolution_clock::now();
-        #pragma acc parallel loop collapse(2) deviceptr(velocities, forces, oldForces)
+        #pragma acc parallel loop deviceptr(velocities, forces, oldForces)
         for (size_t i = 0; i < size; ++i) {
             for (size_t j = 0; j < 3; ++j) {
                 const size_t index = i * 3 + j;
