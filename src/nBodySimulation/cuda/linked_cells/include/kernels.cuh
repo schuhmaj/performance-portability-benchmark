@@ -54,11 +54,11 @@ namespace ppb::cuda::nbody {
     }
 
     __global__ void printStartsCells(int* starts, int* cells, float3* positions) {
-        int num_cells = X_DIM * Y_DIM * Z_DIM;
+/*         int num_cells = X_DIM * Y_DIM * Z_DIM;
         printf("starts:\n");
         for (int i = 0; i < num_cells; i++) {
             printf("%d, ", starts[i]);
-        }
+        } */
         printf("\ncells:\n");
         for (int i = 0; i < NUM_PARTICLES; i++) {
             printf("%d, ", cells[i]);
@@ -521,6 +521,113 @@ namespace ppb::cuda::nbody {
                 fi = make_float3_add(fi, f); 
             }
             __syncthreads();
+        }
+        forces[cells[i]] = make_float3_add(forces[cells[i]], fi);
+    }
+
+    __global__ void compute_forces_optimized_alt(
+        const float3* __restrict__ cells_positions,
+        float3* __restrict__ forces,
+        const int* __restrict__ starts,
+        const int* __restrict__ cells
+    ) {
+        const unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if (i >= NUM_PARTICLES) {
+            return;
+        }
+
+        extern __shared__ float3 shared_neighbors[];
+
+        extern __shared__ int cell_indices[];
+
+        //Information for assigned i-particle
+        float3 pi = cells_positions[i];
+        float3 fi = make_float3(0.f, 0.f, 0.f);
+        int idx = get_cell_idx(i, cells_positions);
+
+        //Information for j-particles
+        int current_offset = 0;
+        int current_neighbor_cell = 0;
+        int current_start = 0;
+        int current_end = 0;
+        int current_size = 0;
+
+        //Determine number of threads in this threadblock that have the same cell idx
+        //AND determine the offset that the thread has to the first thread in this threadblock that has the same cell idx
+        int c = 0;
+        int o = 0;
+        cell_indices[threadIdx.x] = idx;
+        __syncthreads();
+        for (int j = threadIdx.x - 1; j > -1; j--) {  //scan backwards
+            if (cell_indices[j] != idx) break;
+            else o++;
+        }
+        c = o;
+        for (int j = threadIdx.x; j < blockDim.x; j++) {  //scan forwards
+            if (cell_indices[j] != idx) break;
+            else c++;
+        }
+        __syncthreads(); //maybe unnecessary?       
+
+/*         printf("Thread %u: c = %d, o = %d\n", i, c, o); */
+
+        //Iterate over all 27 neighbor cells
+        for (; current_offset < 27; current_offset++) {
+            //Determine the next cell that will be loaded (in chunks) into shared memory
+            if (!is_in_bounds(idx, OFFSETS[current_offset])) continue;
+            current_neighbor_cell = idx + OFFSETS[current_offset];
+            current_start = starts[current_neighbor_cell];
+            current_end = starts[current_neighbor_cell + 1];
+            current_size = current_end - current_start;
+            if (current_size == 0) continue;
+           
+            //Iteratively load chunks of cell into shared memory, then compute their interactions
+            int co = o;
+            while (true) {
+                //Load next chunk of cell into shared memory
+                float3 loaded_position = make_float3(0.f, 0.f, 0.f);
+                if (co < current_size) {
+                    int j = current_start + co;
+                    loaded_position = cells_positions[j];
+                } else {
+                    loaded_position = make_float3(INFINITY, INFINITY, INFINITY); 
+                }
+                shared_neighbors[threadIdx.x].x = loaded_position.x;
+                shared_neighbors[threadIdx.x].y = loaded_position.y;
+                shared_neighbors[threadIdx.x].z = loaded_position.z;
+                co += c;
+                __syncthreads();
+
+                //Compute interactions
+                for (int j = threadIdx.x - o; j < threadIdx.x - o + c; j++) {
+                    float3 pj = {shared_neighbors[j].x, shared_neighbors[j].y, shared_neighbors[j].z};
+                
+                    if (pi.x == pj.x && pi.y == pj.y && pi.z == pj.z) continue; //technically a bit meh cause two different particles could be on exactly the same position but whatever.
+                    if (pj.x == INFINITY && pj.y == INFINITY && pj.z == INFINITY) continue; //not the best solution, but since this is not production code but just a proof of concept it's ok imo.
+
+                    const float3 dr = make_float3_sub(pi, pj);
+                    const float dr2 = dot3(dr, dr);
+                    if (std::sqrt(dr2) >= CUTOFF_RADIUS) continue;
+
+                    const float sigma = 1.0f;
+                    const float sigmaSquared = sigma * sigma;
+                    const float epsilon24 = 24.0f; // 1.0 * 24.0
+
+                    const float invdr2 = 1.0f / dr2;
+                    float lj6 = sigmaSquared * invdr2;
+                    lj6 = lj6 * lj6 * lj6;
+                    const float lj12 = lj6 * lj6;
+                    const float lj12m6 = lj12 - lj6;
+                    const float fac = epsilon24 * (lj12 + lj12m6) * invdr2;
+                
+                    const float3 f = make_float3_scale(dr, fac);
+                    fi = make_float3_add(fi, f); 
+                }
+                __syncthreads();
+
+/*                 printf("Thread %u: co - o: %d, current_size: %d, c: %d, o: %d\n", i, co-o, current_size, c, o); */
+                if (co - o >= current_size) break; //check if we're done with this cell
+            }
         }
         forces[cells[i]] = make_float3_add(forces[cells[i]], fi);
     }

@@ -147,8 +147,9 @@ namespace ppb::cuda::nbody {
             compute_forces_colored<<<_gridSizeForces, _blockSizeForces>>>(color, position, force, cells, starts); 
 #elif PPB_ENABLE_CUDA_LINKED_CELL_OPTIMIZATION
         //CHECK_CUDA_ERROR(cudaFuncSetAttribute(compute_forces_optimized, cudaFuncAttributeMaxDynamicSharedMemorySize, 96 * 1024));
-        size_t shmem_size = 24 * 1024;
-        compute_forces_optimized<<<_gridSizeForces, _blockSizeForces, shmem_size>>>(cells_positions, force, starts, cells, shmem_size / sizeof(float3));
+        //printStartsCells<<<1,1>>>(starts, cells, cells_positions);
+/*         compute_forces_optimized_alt<<<_gridSizeForces, _blockSizeForces, _blockSizeForces * sizeof(float3)>>>(cells_positions, force, starts, cells); */
+        compute_forces_optimized<<<_gridSizeForces, _blockSizeForces, 24 * 1024>>>(cells_positions, force, starts, cells, (24 * 1024) / sizeof(float3));
 #else
         compute_forces_unoptimized<<<_gridSizeForces, _blockSizeForces>>>(position, force, cells, starts);
 #endif
@@ -186,9 +187,9 @@ namespace ppb::cuda::nbody {
 
         for (int i = 0; i < _config.numberTimeSteps; ++i) {
 /*             std::cout<<"-------------------------ITERATION "<<i<<"--------------------------"<<std::endl; */
-            updatePositionsAndResetForce();
+/*             updatePositionsAndResetForce();
             computeForces();
-            updateVelocities();
+            updateVelocities(); */
 /*             int j = 0;
             for (auto& p : _particles->toParticles()) {
                 if (j == 42) {
@@ -196,6 +197,7 @@ namespace ppb::cuda::nbody {
                 }
                 j++;
             } */
+            test<<<util::ceilDiv<size_t>(particles.size(), 1024), 1024>>>(cells_positions);
         }
         return std::make_pair(_particles->toParticles(), _timings);
     }
