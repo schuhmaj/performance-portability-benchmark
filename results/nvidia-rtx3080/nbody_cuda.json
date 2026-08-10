@@ -1,6 +1,6 @@
 {
   "context": {
-    "date": "2026-06-24T16:30:29+00:00",
+    "date": "2026-08-10T17:20:53+00:00",
     "host_name": "x-wing0",
     "executable": "/nfs/c3po/home/ge25zov/Programming/performance-portability-benchmark/build-cuda-llvm/src/nBodySimulation/cuda/nbody_cuda",
     "num_cpus": 48,
@@ -33,7 +33,7 @@
         "num_sharing": 6
       }
     ],
-    "load_avg": [1,1,1],
+    "load_avg": [2.7666,1.75781,2.53906],
     "library_version": "v1.9.4",
     "library_build_type": "release",
     "json_schema_version": 1,
@@ -51,13 +51,13 @@
       "repetition_index": 0,
       "threads": 1,
       "iterations": 18,
-      "real_time": 3.9530538837425411e+07,
-      "cpu_time": 3.9529191055555552e+07,
+      "real_time": 4.0055777411907911e+07,
+      "cpu_time": 3.9785330166666657e+07,
       "time_unit": "ns",
-      "force_update": 1.0037091789229049e+02,
+      "force_update": 6.3073530318474192e+06,
       "neighbor_search": 0.0000000000000000e+00,
-      "position_update_reset": 5.1403181316951914e+06,
-      "velocity_update": 5.0902381296683513e+06
+      "position_update_reset": 5.2147910233017886e+06,
+      "velocity_update": 5.1626239114492722e+06
     },
     {
       "name": "NBody/100",
@@ -69,13 +69,13 @@
       "repetition_index": 0,
       "threads": 1,
       "iterations": 15,
-      "real_time": 4.7834849730134010e+07,
-      "cpu_time": 4.7832728333333328e+07,
+      "real_time": 4.8093797018130623e+07,
+      "cpu_time": 4.8087768600000009e+07,
       "time_unit": "ns",
-      "force_update": 2.3375936958193779e+02,
+      "force_update": 1.4556552617065609e+07,
       "neighbor_search": 0.0000000000000000e+00,
-      "position_update_reset": 5.1383721756438417e+06,
-      "velocity_update": 5.0860863063484430e+06
+      "position_update_reset": 5.1956884469216065e+06,
+      "velocity_update": 5.1628287107373280e+06
     },
     {
       "name": "NBody/1000",
@@ -87,13 +87,13 @@
       "repetition_index": 0,
       "threads": 1,
       "iterations": 4,
-      "real_time": 1.9241817371221259e+08,
-      "cpu_time": 1.9241032925000000e+08,
+      "real_time": 1.9136426784098148e+08,
+      "cpu_time": 1.9134801724999994e+08,
       "time_unit": "ns",
-      "force_update": 2.5376820399165154e+03,
+      "force_update": 1.5745782876014709e+08,
       "neighbor_search": 0.0000000000000000e+00,
-      "position_update_reset": 5.6991920402506366e+06,
-      "velocity_update": 5.0956159081542864e+06
+      "position_update_reset": 5.7310800445266068e+06,
+      "velocity_update": 5.1320399115793407e+06
     },
     {
       "name": "NBody/10000",
@@ -105,13 +105,13 @@
       "repetition_index": 0,
       "threads": 1,
       "iterations": 1,
-      "real_time": 1.4630951168946922e+09,
-      "cpu_time": 1.4629650310000000e+09,
+      "real_time": 1.4534414056688547e+09,
+      "cpu_time": 1.4533087620000002e+09,
       "time_unit": "ns",
-      "force_update": 2.2862778747558594e+04,
+      "force_update": 1.4190155193805695e+09,
       "neighbor_search": 0.0000000000000000e+00,
-      "position_update_reset": 5.3890559566207230e+06,
-      "velocity_update": 5.1571519100107253e+06
+      "position_update_reset": 5.4619519663974643e+06,
+      "velocity_update": 5.1943039190955460e+06
     },
     {
       "name": "NBody/100000",
@@ -123,13 +123,13 @@
       "repetition_index": 0,
       "threads": 1,
       "iterations": 1,
-      "real_time": 2.8777448741951958e+10,
-      "cpu_time": 2.8775643926000004e+10,
+      "real_time": 2.8703707605600357e+10,
+      "cpu_time": 2.8701124717000004e+10,
       "time_unit": "ns",
-      "force_update": 4.5964249551391602e+05,
+      "force_update": 2.8651629676818848e+10,
       "neighbor_search": 0.0000000000000000e+00,
-      "position_update_reset": 1.0691391906701028e+07,
-      "velocity_update": 7.3766080634668469e+06
+      "position_update_reset": 1.0936831953004003e+07,
+      "velocity_update": 8.1562240491621196e+06
     },
     {
       "name": "NBody_BigO",
@@ -141,8 +141,8 @@
       "threads": 1,
       "aggregate_name": "BigO",
       "aggregate_unit": "time",
-      "cpu_coefficient": 1.7284588019328588e+04,
-      "real_coefficient": 1.7285673932121197e+04,
+      "cpu_coefficient": 1.7239544030136065e+04,
+      "real_coefficient": 1.7241095550358350e+04,
       "big_o": "NlgN",
       "time_unit": "ns"
     },
@@ -156,7 +156,7 @@
       "threads": 1,
       "aggregate_name": "RMS",
       "aggregate_unit": "percentage",
-      "rms": 6.1425658845725206e-02
+      "rms": 6.1867367840255337e-02
     }
   ]
 }

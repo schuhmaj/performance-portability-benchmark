@@ -1,6 +1,6 @@
 {
   "context": {
-    "date": "2026-06-24T16:18:18+00:00",
+    "date": "2026-08-10T17:14:11+00:00",
     "host_name": "x-wing0",
     "executable": "/nfs/c3po/home/ge25zov/Programming/performance-portability-benchmark/build-cuda-llvm/src/matrixMultiplication/slang/matMul_slang_vulkan",
     "num_cpus": 48,
@@ -33,7 +33,7 @@
         "num_sharing": 6
       }
     ],
-    "load_avg": [0.928711,0.977539,0.990234],
+    "load_avg": [1.0166,1.55518,3.04736],
     "library_version": "v1.9.4",
     "library_build_type": "release",
     "json_schema_version": 1,
@@ -50,11 +50,11 @@
       "repetitions": 1,
       "repetition_index": 0,
       "threads": 1,
-      "iterations": 180,
-      "real_time": 3.9492531343259746e+06,
-      "cpu_time": 3.8712393666666672e+06,
+      "iterations": 186,
+      "real_time": 3.9610383301092093e+06,
+      "cpu_time": 3.8100154301075269e+06,
       "time_unit": "ns",
-      "kernel_time": 6.5988908333333337e+05
+      "kernel_time": 6.6499300000000000e+05
     },
     {
       "name": "MatrixMultiplication/64",
@@ -65,11 +65,11 @@
       "repetitions": 1,
       "repetition_index": 0,
       "threads": 1,
-      "iterations": 180,
-      "real_time": 3.9514294786689184e+06,
-      "cpu_time": 3.8615219777777772e+06,
+      "iterations": 182,
+      "real_time": 4.2951401824561451e+06,
+      "cpu_time": 3.9334957197802197e+06,
       "time_unit": "ns",
-      "kernel_time": 6.5453454444444447e+05
+      "kernel_time": 6.8423918131868134e+05
     },
     {
       "name": "MatrixMultiplication/128",
@@ -80,11 +80,11 @@
       "repetitions": 1,
       "repetition_index": 0,
       "threads": 1,
-      "iterations": 171,
-      "real_time": 4.2272824440042526e+06,
-      "cpu_time": 4.1107570818713438e+06,
+      "iterations": 168,
+      "real_time": 4.2789909168190900e+06,
+      "cpu_time": 4.0902281011904767e+06,
       "time_unit": "ns",
-      "kernel_time": 6.6601790643274854e+05
+      "kernel_time": 6.7629598809523811e+05
     },
     {
       "name": "MatrixMultiplication/256",
@@ -95,11 +95,11 @@
       "repetitions": 1,
       "repetition_index": 0,
       "threads": 1,
-      "iterations": 120,
-      "real_time": 6.2360915588214993e+06,
-      "cpu_time": 5.8453806166666625e+06,
+      "iterations": 134,
+      "real_time": 5.7439969838666385e+06,
+      "cpu_time": 5.3070254552238798e+06,
       "time_unit": "ns",
-      "kernel_time": 7.3218880833333335e+05
+      "kernel_time": 7.3874446268656722e+05
     },
     {
       "name": "MatrixMultiplication/512",
@@ -110,11 +110,11 @@
       "repetitions": 1,
       "repetition_index": 0,
       "threads": 1,
-      "iterations": 58,
-      "real_time": 1.3230760449318793e+07,
-      "cpu_time": 1.1792172413793100e+07,
+      "iterations": 72,
+      "real_time": 1.1251160344626341e+07,
+      "cpu_time": 9.7479819305555578e+06,
       "time_unit": "ns",
-      "kernel_time": 9.0753539655172417e+05
+      "kernel_time": 9.1972905555555550e+05
     },
     {
       "name": "MatrixMultiplication/1024",
@@ -125,11 +125,11 @@
       "repetitions": 1,
       "repetition_index": 0,
       "threads": 1,
-      "iterations": 17,
-      "real_time": 4.7703981769325979e+07,
-      "cpu_time": 4.1606220058823571e+07,
+      "iterations": 21,
+      "real_time": 3.9223711183738142e+07,
+      "cpu_time": 3.2987401619047675e+07,
       "time_unit": "ns",
-      "kernel_time": 2.3070747058823528e+06
+      "kernel_time": 2.2380165238095238e+06
     },
     {
       "name": "MatrixMultiplication/2048",
@@ -141,10 +141,10 @@
       "repetition_index": 0,
       "threads": 1,
       "iterations": 4,
-      "real_time": 2.0139352075057104e+08,
-      "cpu_time": 1.6432202824999997e+08,
+      "real_time": 1.6026535839773715e+08,
+      "cpu_time": 1.3052065174999994e+08,
       "time_unit": "ns",
-      "kernel_time": 1.9706288250000000e+07
+      "kernel_time": 1.2224366750000000e+07
     },
     {
       "name": "MatrixMultiplication/4096",
@@ -156,10 +156,10 @@
       "repetition_index": 0,
       "threads": 1,
       "iterations": 1,
-      "real_time": 8.9180006715469062e+08,
-      "cpu_time": 6.7105547799999952e+08,
+      "real_time": 8.3276787679642439e+08,
+      "cpu_time": 6.6980926299999940e+08,
       "time_unit": "ns",
-      "kernel_time": 1.5071426800000000e+08
+      "kernel_time": 9.2161209000000000e+07
     },
     {
       "name": "MatrixMultiplication/8192",
@@ -171,10 +171,10 @@
       "repetition_index": 0,
       "threads": 1,
       "iterations": 1,
-      "real_time": 4.0423165590036659e+09,
-      "cpu_time": 2.5740844569999981e+09,
+      "real_time": 3.6377662867307663e+09,
+      "cpu_time": 2.6214690110000019e+09,
       "time_unit": "ns",
-      "kernel_time": 1.1885756020000000e+09
+      "kernel_time": 7.3525539800000000e+08
     },
     {
       "name": "MatrixMultiplication/16384",
@@ -186,10 +186,10 @@
       "repetition_index": 0,
       "threads": 1,
       "iterations": 1,
-      "real_time": 2.1055612461874260e+10,
-      "cpu_time": 1.0506186381999996e+10,
+      "real_time": 1.7464832762256264e+10,
+      "cpu_time": 1.0446855940000006e+10,
       "time_unit": "ns",
-      "kernel_time": 9.4402140810000000e+09
+      "kernel_time": 5.9019797500000000e+09
     },
     {
       "name": "MatrixMultiplication_BigO",
@@ -201,8 +201,8 @@
       "threads": 1,
       "aggregate_name": "BigO",
       "aggregate_unit": "time",
-      "cpu_coefficient": 3.9095961676569637e+01,
-      "real_coefficient": 7.7271637273263835e+01,
+      "cpu_coefficient": 3.8927883095905685e+01,
+      "real_coefficient": 6.4362512511635089e+01,
       "big_o": "N^2",
       "time_unit": "ns"
     },
@@ -216,7 +216,7 @@
       "threads": 1,
       "aggregate_name": "RMS",
       "aggregate_unit": "percentage",
-      "rms": 1.2121420526061067e-02
+      "rms": 8.9422584681420492e-03
     }
   ]
 }
