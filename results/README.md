@@ -1,5 +1,17 @@
 # Reproducibility
 
+## Generate Results
+
+```bash
+cd <build>
+ppbcc benchmark -p src -H "INTEL Data Center GPU Max 1550" \
+  -r "vec_.*" "matMul_.*" "nbody_.*" "polyhedral_.*" -x ".*_cpp" --dry-run
+  
+# Or alternatively
+python ../scripts/benchmark.py -p src -H "INTEL Data Center GPU Max 1550" \
+  -r "vec_.*" "matMul_.*" "nbody_.*" "polyhedral_.*" -x ".*_cpp" --dry-run
+```
+
 ## Convert Results and Generate CSV files
 
 Collect the `*.json` files with the benchmark script and generate a `*.csv` by:
