@@ -1,6 +1,6 @@
 {
   "context": {
-    "date": "2026-06-24T18:22:12+02:00",
+    "date": "2026-08-10T17:21:23+02:00",
     "host_name": "Zeus1999-Ubuntu",
     "executable": "/home/schuhmaj/Programming/performance-portability-benchmark/build-cuda-llvm/src/nBodySimulation/kokkos/nbody_kokkos",
     "num_cpus": 28,
@@ -33,7 +33,7 @@
         "num_sharing": 28
       }
     ],
-    "load_avg": [1.01074,1.05664,1.13379],
+    "load_avg": [1,0.937988,0.864258],
     "library_version": "v1.9.4",
     "library_build_type": "release",
     "json_schema_version": 1,
@@ -50,14 +50,14 @@
       "repetitions": 1,
       "repetition_index": 0,
       "threads": 1,
-      "iterations": 39,
-      "real_time": 1.7671343153837465e+07,
-      "cpu_time": 1.7667710384615380e+07,
+      "iterations": 38,
+      "real_time": 1.8353798552628800e+07,
+      "cpu_time": 1.8349267657894738e+07,
       "time_unit": "ns",
-      "force_update": 6.6433758974358970e+06,
+      "force_update": 6.4766591842105268e+06,
       "neighbor_search": 0.0000000000000000e+00,
-      "position_update_reset": 5.4718096666666670e+06,
-      "velocity_update": 5.3511765897435900e+06
+      "position_update_reset": 5.9272094736842103e+06,
+      "velocity_update": 5.7471909210526319e+06
     },
     {
       "name": "NBody-Naive/100",
@@ -68,14 +68,14 @@
       "repetitions": 1,
       "repetition_index": 0,
       "threads": 1,
-      "iterations": 28,
-      "real_time": 2.5369358785707977e+07,
-      "cpu_time": 2.5364046392857142e+07,
+      "iterations": 27,
+      "real_time": 2.6336638999998316e+07,
+      "cpu_time": 2.6330091851851843e+07,
       "time_unit": "ns",
-      "force_update": 1.4322162428571429e+07,
+      "force_update": 1.4241478333333334e+07,
       "neighbor_search": 0.0000000000000000e+00,
-      "position_update_reset": 5.4296898928571427e+06,
-      "velocity_update": 5.4044815000000000e+06
+      "position_update_reset": 5.9738608148148144e+06,
+      "velocity_update": 5.9160569629629627e+06
     },
     {
       "name": "NBody-Naive/1000",
@@ -87,13 +87,13 @@
       "repetition_index": 0,
       "threads": 1,
       "iterations": 6,
-      "real_time": 1.1634331350001049e+08,
-      "cpu_time": 1.1631826699999996e+08,
+      "real_time": 1.1816451283326994e+08,
+      "cpu_time": 1.1815917766666661e+08,
       "time_unit": "ns",
-      "force_update": 1.0522533100000000e+08,
+      "force_update": 1.0511261450000000e+08,
       "neighbor_search": 0.0000000000000000e+00,
-      "position_update_reset": 5.4413131666666670e+06,
-      "velocity_update": 5.4373918333333330e+06
+      "position_update_reset": 6.0689555000000000e+06,
+      "velocity_update": 6.7549948333333330e+06
     },
     {
       "name": "NBody-Naive/10000",
@@ -105,13 +105,13 @@
       "repetition_index": 0,
       "threads": 1,
       "iterations": 1,
-      "real_time": 1.0379575500001011e+09,
-      "cpu_time": 1.0378132449999998e+09,
+      "real_time": 1.0382748110005195e+09,
+      "cpu_time": 1.0381081640000000e+09,
       "time_unit": "ns",
-      "force_update": 1.0250543250000000e+09,
+      "force_update": 1.0245132490000000e+09,
       "neighbor_search": 0.0000000000000000e+00,
-      "position_update_reset": 5.6743150000000000e+06,
-      "velocity_update": 6.6607450000000000e+06
+      "position_update_reset": 6.0312950000000000e+06,
+      "velocity_update": 7.1829450000000000e+06
     },
     {
       "name": "NBody-Naive/100000",
@@ -123,13 +123,13 @@
       "repetition_index": 0,
       "threads": 1,
       "iterations": 1,
-      "real_time": 2.3288171944000168e+10,
-      "cpu_time": 2.3285083435000000e+10,
+      "real_time": 2.3290140973998859e+10,
+      "cpu_time": 2.3286913621000004e+10,
       "time_unit": "ns",
-      "force_update": 2.3263789791000000e+10,
+      "force_update": 2.3268099183000000e+10,
       "neighbor_search": 0.0000000000000000e+00,
-      "position_update_reset": 9.3354490000000000e+06,
-      "velocity_update": 1.0645813000000000e+07
+      "position_update_reset": 8.3841130000000000e+06,
+      "velocity_update": 9.2904110000000000e+06
     },
     {
       "name": "NBody-Naive_BigO",
@@ -141,8 +141,8 @@
       "threads": 1,
       "aggregate_name": "BigO",
       "aggregate_unit": "time",
-      "cpu_coefficient": 2.3293143677494945e+00,
-      "real_coefficient": 2.3296233323059656e+00,
+      "cpu_coefficient": 2.3294976814416852e+00,
+      "real_coefficient": 2.3298205511523822e+00,
       "big_o": "N^2",
       "time_unit": "ns"
     },
@@ -156,7 +156,7 @@
       "threads": 1,
       "aggregate_name": "RMS",
       "aggregate_unit": "percentage",
-      "rms": 7.4304084559620481e-02
+      "rms": 7.4339945258557777e-02
     },
     {
       "name": "NBody-Reduction/10",
@@ -167,14 +167,14 @@
       "repetitions": 1,
       "repetition_index": 0,
       "threads": 1,
-      "iterations": 39,
-      "real_time": 1.8028542230765127e+07,
-      "cpu_time": 1.8025047282051239e+07,
+      "iterations": 38,
+      "real_time": 1.8335262421044860e+07,
+      "cpu_time": 1.8331796657894801e+07,
       "time_unit": "ns",
-      "force_update": 6.8487317435897440e+06,
+      "force_update": 6.5870587105263155e+06,
       "neighbor_search": 0.0000000000000000e+00,
-      "position_update_reset": 5.5342844102564100e+06,
-      "velocity_update": 5.4209348205128210e+06
+      "position_update_reset": 5.8502536842105268e+06,
+      "velocity_update": 5.6907324473684207e+06
     },
     {
       "name": "NBody-Reduction/100",
@@ -185,14 +185,14 @@
       "repetitions": 1,
       "repetition_index": 0,
       "threads": 1,
-      "iterations": 39,
-      "real_time": 1.8128267256403118e+07,
-      "cpu_time": 1.8124410615384586e+07,
+      "iterations": 37,
+      "real_time": 1.8853718837842304e+07,
+      "cpu_time": 1.8849454567567661e+07,
       "time_unit": "ns",
-      "force_update": 7.1383994615384620e+06,
+      "force_update": 6.9758477027027030e+06,
       "neighbor_search": 0.0000000000000000e+00,
-      "position_update_reset": 5.4293183846153850e+06,
-      "velocity_update": 5.3373203333333330e+06
+      "position_update_reset": 5.9138192972972970e+06,
+      "velocity_update": 5.7516402432432435e+06
     },
     {
       "name": "NBody-Reduction/1000",
@@ -204,13 +204,13 @@
       "repetition_index": 0,
       "threads": 1,
       "iterations": 32,
-      "real_time": 2.1659302906257950e+07,
-      "cpu_time": 2.1654649874999989e+07,
+      "real_time": 2.2266263468736723e+07,
+      "cpu_time": 2.2261354374999985e+07,
       "time_unit": "ns",
-      "force_update": 1.0549344281250000e+07,
+      "force_update": 1.0335036468750000e+07,
       "neighbor_search": 0.0000000000000000e+00,
-      "position_update_reset": 5.4572680625000000e+06,
-      "velocity_update": 5.4103758125000000e+06
+      "position_update_reset": 5.9214380312500000e+06,
+      "velocity_update": 5.7831409375000000e+06
     },
     {
       "name": "NBody-Reduction/10000",
@@ -222,13 +222,13 @@
       "repetition_index": 0,
       "threads": 1,
       "iterations": 3,
-      "real_time": 2.7046665699996692e+08,
-      "cpu_time": 2.7041549133333355e+08,
+      "real_time": 2.7290139200037324e+08,
+      "cpu_time": 2.7284238633333284e+08,
       "time_unit": "ns",
-      "force_update": 2.5834099600000000e+08,
+      "force_update": 2.6039177633333334e+08,
       "neighbor_search": 0.0000000000000000e+00,
-      "position_update_reset": 5.7916516666666670e+06,
-      "velocity_update": 5.9473733333333330e+06
+      "position_update_reset": 6.0948376666666670e+06,
+      "velocity_update": 6.0701783333333330e+06
     },
     {
       "name": "NBody-Reduction/100000",
@@ -240,13 +240,13 @@
       "repetition_index": 0,
       "threads": 1,
       "iterations": 1,
-      "real_time": 2.5304155757999977e+10,
-      "cpu_time": 2.5300974919999996e+10,
+      "real_time": 2.5421893421000278e+10,
+      "cpu_time": 2.5418019023000004e+10,
       "time_unit": "ns",
-      "force_update": 2.5280368786000000e+10,
+      "force_update": 2.5399756205000000e+10,
       "neighbor_search": 0.0000000000000000e+00,
-      "position_update_reset": 9.2594500000000000e+06,
-      "velocity_update": 1.0430396000000000e+07
+      "position_update_reset": 8.5039210000000000e+06,
+      "velocity_update": 9.3035330000000000e+06
     },
     {
       "name": "NBody-Reduction_BigO",
@@ -258,8 +258,8 @@
       "threads": 1,
       "aggregate_name": "BigO",
       "aggregate_unit": "time",
-      "cpu_coefficient": 2.5301150890557116e+00,
-      "real_coefficient": 2.5304331922547947e+00,
+      "cpu_coefficient": 2.5418207617062345e+00,
+      "real_coefficient": 2.5422082218115643e+00,
       "big_o": "N^2",
       "time_unit": "ns"
     },
@@ -273,7 +273,7 @@
       "threads": 1,
       "aggregate_name": "RMS",
       "aggregate_unit": "percentage",
-      "rms": 3.1712161312365257e-03
+      "rms": 3.2808741032129950e-03
     }
   ]
 }
