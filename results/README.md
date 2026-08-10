@@ -24,6 +24,15 @@ Collect the `*.json` files with the benchmark script and generate a `*.csv` by:
 ../scripts/benchmark.py -p ./amd-mi210 -r ".*.json" --skip-benchmark -H "AMD Instinct MI210" -o "Results_AMD_Instinct_MI210"
 ../scripts/benchmark.py -p ./intel-data_center_gpu_max_1550 -r ".*.json" --skip-benchmark -H "INTEL Data Center GPU Max 1550" -o "Results_INTEL_Data_Center_GPU_Max_1550"
 ```
+OR
+```bash
+ppbcc benchmark -p ./nvidia-rtx3080 -r ".*\.json" --skip-benchmark -H "NVIDIA RTX3080" -o "Results_NVIDIA_RTX3080"
+ppbcc benchmark  -p ./nvidia-rtx4060 -r ".*\.json" --skip-benchmark -H "NVIDIA RTX4060" -o "Results_NVIDIA_RTX4060"
+ppbcc benchmark  -p ./nvidia-rtx5080 -r ".*.json" --skip-benchmark -H "NVIDIA RTX5080" -o "Results_NVIDIA_RTX5080"
+ppbcc benchmark  -p ./nvidia-gh200 -r ".*.json" --skip-benchmark -H "NVIDIA GH200" -o "Results_NVIDIA_GH200"
+ppbcc benchmark  -p ./amd-mi210 -r ".*.json" --skip-benchmark -H "AMD Instinct MI210" -o "Results_AMD_Instinct_MI210"
+ppbcc benchmark  -p ./intel-data_center_gpu_max_1550 -r ".*.json" --skip-benchmark -H "INTEL Data Center GPU Max 1550" -o "Results_INTEL_Data_Center_GPU_Max_1550"
+```
 
 ## Generate Plots
 
