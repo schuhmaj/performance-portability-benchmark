@@ -186,12 +186,13 @@
       "name": "intel-beast",
       "inherits": "intel",
       "displayName": "Linux SYCL with IntelLLVM (pinned GCC libstdc++)",
-      "description": "Like 'intel', but auto-pins icx/icpx to the GCC currently in PATH (e.g. a loaded gcc module) for libstdc++ and bakes its lib dir into the RPATH. The toolchain file derives the paths by invoking gcc/g++, so no manual environment setup is needed. Also enables OpenCL and points it at the oneAPI compiler's headers/loader (the 2023.x oneAPI layout doesn't ship a top-level include/CL, so FindOpenCL needs explicit hints). Switches OFF: Stdpar (oneAPI 2023.x has no -fsycl-pstl-offload; use the acpp route for stdpar on Intel GPUs).",
+      "description": "Like 'intel', but auto-pins icx/icpx to the GCC currently in PATH (e.g. a loaded gcc module) for libstdc++ and bakes its lib dir into the RPATH. The toolchain file derives the paths by invoking gcc/g++, so no manual environment setup is needed. Also enables OpenCL and points it at the oneAPI compiler's headers/loader (the 2023.x oneAPI layout doesn't ship a top-level include/CL, so FindOpenCL needs explicit hints). Switches OFF: Stdpar (oneAPI 2023.x has no -fsycl-pstl-offload; use the acpp route for stdpar on Intel GPUs) and RAJA (its SYCL backend needs sycl::local_accessor::get_multi_ptr, added after oneAPI 2023.1).",
       "binaryDir": "${sourceDir}/build-intel-beast",
       "toolchainFile": "${sourceDir}/cmake/intel-gcc-toolchain.cmake",
       "cacheVariables": {
         "PPB_ENABLE_Alpaka": "OFF",
         "PPB_ENABLE_Stdpar": "OFF",
+        "PPB_ENABLE_Raja": "OFF",
         "OpenCL_INCLUDE_DIR": "$env{CMPLR_ROOT}/linux/lib/oclfpga/host/include",
         "OpenCL_LIBRARY": "$env{CMPLR_ROOT}/linux/lib/libOpenCL.so",
         "oneDPL_DIR": "$env{DPL_ROOT}/lib/cmake/oneDPL"

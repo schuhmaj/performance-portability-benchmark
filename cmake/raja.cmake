@@ -30,6 +30,17 @@ elseif ("HIP" IN_LIST languages)
     set(RAJA_ENABLE_HIP ON CACHE BOOL "Enable RAJA HIP backend" FORCE)
     set(ENABLE_HIP ON CACHE BOOL "Enable HIP (BLT)" FORCE)
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "IntelLLVM")
+    # RAJA/policy/sycl/launch.hpp calls sycl::local_accessor::get_multi_ptr(), which DPC++ only
+    # grew after oneAPI 2023.1 (icpx 2023.1 fails with "no member named 'get_multi_ptr' in
+    # 'sycl::local_accessor<char, 1>'" on every source that includes RAJA.hpp). RAJA upstream
+    # builds and tests its SYCL backend with oneAPI 2024.x, so require at least that.
+    if (CMAKE_CXX_COMPILER_VERSION VERSION_LESS 2024.0)
+        message(FATAL_ERROR
+                "icpx ${CMAKE_CXX_COMPILER_VERSION} is too old for RAJA's SYCL backend: "
+                "RAJA/policy/sycl/launch.hpp requires sycl::local_accessor::get_multi_ptr(), "
+                "which DPC++ added after oneAPI 2023.1. Either use a oneAPI >= 2024.0 compiler "
+                "or configure with -DPPB_ENABLE_Raja=OFF.")
+    endif ()
     set(RAJA_ENABLE_SYCL ON CACHE BOOL "Enable RAJA SYCL backend" FORCE)
 elseif (APPLE)
     set(RAJA_ENABLE_OPENMP ON CACHE BOOL "Enable RAJA OpenMP backend" FORCE)
@@ -60,7 +71,22 @@ else ()
             URL https://github.com/LLNL/RAJA/releases/download/v${RAJA_VERSION}/RAJA-v${RAJA_VERSION}.tar.gz
             PATCH_COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_LIST_DIR}/scripts/patch_raja_cuda13.cmake
     )
+    # RAJA never adds -fsycl itself: its own host-configs, CI jobs and Dockerfile all pass the
+    # flag through CMAKE_CXX_FLAGS. Without it, RAJA's own SYCL sources (src/MemUtils_SYCL.cpp)
+    # are compiled without <sycl/sycl.hpp> and fail with "unknown type name 'sycl_dim_t'" and
+    # "no member named 'sycl' in the global namespace". Apply it the same way; the assignment is
+    # inherited by RAJA's subdirectory (including its bundled camp/desul) and undone afterwards
+    # so that the rest of this project keeps its own flags.
+    if (RAJA_ENABLE_SYCL)
+        set(_ppb_raja_saved_cxx_flags "${CMAKE_CXX_FLAGS}")
+        string(APPEND CMAKE_CXX_FLAGS " -fsycl")
+    endif ()
+
     FetchContent_MakeAvailable(RAJA)
+
+    if (RAJA_ENABLE_SYCL)
+        set(CMAKE_CXX_FLAGS "${_ppb_raja_saved_cxx_flags}")
+    endif ()
 
     # BLT (RAJA's build system) caches CMAKE_RUNTIME_OUTPUT_DIRECTORY/ LIBRARY_OUTPUT_PATH
     # pointing into RAJA's binary dir, which would relocate the outputs of every target of
@@ -89,7 +115,10 @@ function(ppb_raja_target_options target)
         target_compile_options(${target} PRIVATE
                 $<$<COMPILE_LANGUAGE:CUDA>:--extended-lambda --expt-relaxed-constexpr>)
     elseif (RAJA_ENABLE_SYCL)
-        target_compile_options(${target} PRIVATE -fsycl)
-        target_link_options(${target} PRIVATE -fsycl)
+        # PUBLIC, not PRIVATE: the benchmark executables and the gtest binaries link the
+        # *_raja_lib static libraries and must be linked with -fsycl themselves, otherwise the
+        # device images are never linked in and libsycl is not pulled onto the link line.
+        target_compile_options(${target} PUBLIC -fsycl)
+        target_link_options(${target} PUBLIC -fsycl)
     endif ()
 endfunction()

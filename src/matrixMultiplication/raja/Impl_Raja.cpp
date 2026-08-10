@@ -28,10 +28,16 @@ namespace ppb {
                                 RAJA::statement::Lambda<0>>>>>>>;
 #elif defined(RAJA_ENABLE_SYCL)
         using Resource = RAJA::resources::Sycl;
+        // RAJA::sycl_global_<0|1|2><WORK_GROUP_SIZE> are the index mappings understood by
+        // statement::For inside a SyclKernel. (RAJA::sycl_global_item_<N> exists as well, but
+        // belongs to the RAJA::launch API and has no kernel-statement executor.) The dimensions
+        // follow sycl::range<3>, so dimension 2 varies fastest: mapping the contiguous
+        // column-major row index (argument 0) onto it keeps the accesses coalesced. Both
+        // dimensions carry BLOCK_SIZE, giving the same BLOCK_SIZE^2 work group as CUDA/HIP.
         using KernelPolicy = RAJA::KernelPolicy<
             RAJA::statement::SyclKernel<
-                RAJA::statement::For<1, RAJA::sycl_global_item_1,
-                    RAJA::statement::For<0, RAJA::sycl_global_item_2,
+                RAJA::statement::For<1, RAJA::sycl_global_1<BLOCK_SIZE>,
+                    RAJA::statement::For<0, RAJA::sycl_global_2<BLOCK_SIZE>,
                         RAJA::statement::Lambda<0>>>>>;
 #elif defined(RAJA_ENABLE_OPENMP)
         using Resource = RAJA::resources::Host;
