@@ -1,10 +1,10 @@
 {
   "context": {
-    "date": "2026-06-05T14:50:25+02:00",
-    "host_name": "gh1",
+    "date": "2026-08-10T17:40:20+02:00",
+    "host_name": "gh2",
     "executable": "/home/ge25zov2/Programming/performance-portability-benchmark/build-cuda-llvm/src/matrixMultiplication/acpp/matMul_acpp",
     "num_cpus": 72,
-    "mhz_per_cpu": 2952,
+    "mhz_per_cpu": 3006,
     "cpu_scaling_enabled": false,
     "aslr_enabled": false,
     "caches": [
@@ -33,7 +33,7 @@
         "num_sharing": 72
       }
     ],
-    "load_avg": [0.110352,0.444336,0.804199],
+    "load_avg": [1.16699,0.709473,0.266602],
     "library_version": "v1.9.4",
     "library_build_type": "release",
     "json_schema_version": 1,
@@ -50,11 +50,11 @@
       "repetitions": 1,
       "repetition_index": 0,
       "threads": 1,
-      "iterations": 11239,
-      "real_time": 6.5309577807966380e+04,
-      "cpu_time": 6.5073405107215942e+04,
+      "iterations": 10602,
+      "real_time": 7.3747390492163409e+04,
+      "cpu_time": 7.2584614223731376e+04,
       "time_unit": "ns",
-      "kernel_time": 3.0297690541863154e+04
+      "kernel_time": 2.9243140539520846e+04
     },
     {
       "name": "MatrixMultiplication-Naive/64",
@@ -65,11 +65,11 @@
       "repetitions": 1,
       "repetition_index": 0,
       "threads": 1,
-      "iterations": 5791,
-      "real_time": 1.1738588999470518e+05,
-      "cpu_time": 1.1687680331548957e+05,
+      "iterations": 4765,
+      "real_time": 1.4228453158018846e+05,
+      "cpu_time": 1.4002656705141658e+05,
       "time_unit": "ns",
-      "kernel_time": 6.5616770851321009e+04
+      "kernel_time": 6.2277419517313749e+04
     },
     {
       "name": "MatrixMultiplication-Naive/128",
@@ -80,11 +80,11 @@
       "repetitions": 1,
       "repetition_index": 0,
       "threads": 1,
-      "iterations": 3839,
-      "real_time": 1.8783832404604336e+05,
-      "cpu_time": 1.8712282990362070e+05,
+      "iterations": 2609,
+      "real_time": 2.8139499923958234e+05,
+      "cpu_time": 2.7597993407435797e+05,
       "time_unit": "ns",
-      "kernel_time": 1.1298031362333942e+05
+      "kernel_time": 1.1135765733997700e+05
     },
     {
       "name": "MatrixMultiplication-Naive/256",
@@ -95,11 +95,11 @@
       "repetitions": 1,
       "repetition_index": 0,
       "threads": 1,
-      "iterations": 1875,
-      "real_time": 3.7720900587737560e+05,
-      "cpu_time": 3.7587141973333334e+05,
+      "iterations": 955,
+      "real_time": 7.5357106175390689e+05,
+      "cpu_time": 7.4190100104711927e+05,
       "time_unit": "ns",
-      "kernel_time": 2.2485229226666666e+05
+      "kernel_time": 2.2752291518324608e+05
     },
     {
       "name": "MatrixMultiplication-Naive/512",
@@ -110,11 +110,11 @@
       "repetitions": 1,
       "repetition_index": 0,
       "threads": 1,
-      "iterations": 628,
-      "real_time": 1.1138882021609528e+06,
-      "cpu_time": 1.1093237707006373e+06,
+      "iterations": 261,
+      "real_time": 2.5335458888747226e+06,
+      "cpu_time": 2.4816370268199272e+06,
       "time_unit": "ns",
-      "kernel_time": 7.6891011464968149e+05
+      "kernel_time": 7.7111172413793101e+05
     },
     {
       "name": "MatrixMultiplication-Naive/1024",
@@ -125,11 +125,11 @@
       "repetitions": 1,
       "repetition_index": 0,
       "threads": 1,
-      "iterations": 125,
-      "real_time": 5.5294007044285536e+06,
-      "cpu_time": 5.5088622079999959e+06,
+      "iterations": 76,
+      "real_time": 8.8522679472685251e+06,
+      "cpu_time": 8.8305839999999832e+06,
       "time_unit": "ns",
-      "kernel_time": 4.6473681919999998e+06
+      "kernel_time": 4.6449545263157897e+06
     },
     {
       "name": "MatrixMultiplication-Naive/2048",
@@ -140,11 +140,11 @@
       "repetitions": 1,
       "repetition_index": 0,
       "threads": 1,
-      "iterations": 18,
-      "real_time": 3.9363700780086219e+07,
-      "cpu_time": 3.9212385777777843e+07,
+      "iterations": 17,
+      "real_time": 4.2383261470069341e+07,
+      "cpu_time": 4.1982908235294156e+07,
       "time_unit": "ns",
-      "kernel_time": 3.5529278222222224e+07
+      "kernel_time": 3.5531280941176474e+07
     },
     {
       "name": "MatrixMultiplication-Naive/4096",
@@ -156,10 +156,10 @@
       "repetition_index": 0,
       "threads": 1,
       "iterations": 2,
-      "real_time": 2.9353165347129107e+08,
-      "cpu_time": 2.9223678400000000e+08,
+      "real_time": 2.9770773751079106e+08,
+      "cpu_time": 2.9639564800000072e+08,
       "time_unit": "ns",
-      "kernel_time": 2.7760020800000000e+08
+      "kernel_time": 2.7758731200000000e+08
     },
     {
       "name": "MatrixMultiplication-Naive/8192",
@@ -171,10 +171,10 @@
       "repetition_index": 0,
       "threads": 1,
       "iterations": 1,
-      "real_time": 2.2632467889925466e+09,
-      "cpu_time": 2.2603706880000000e+09,
+      "real_time": 2.2618469779845328e+09,
+      "cpu_time": 2.2597273280000005e+09,
       "time_unit": "ns",
-      "kernel_time": 2.1964597760000000e+09
+      "kernel_time": 2.1953425920000000e+09
     },
     {
       "name": "MatrixMultiplication-Naive/16384",
@@ -186,10 +186,10 @@
       "repetition_index": 0,
       "threads": 1,
       "iterations": 1,
-      "real_time": 1.7780707469093613e+10,
-      "cpu_time": 1.7768100031999996e+10,
+      "real_time": 1.7778841996041592e+10,
+      "cpu_time": 1.7775221504000000e+10,
       "time_unit": "ns",
-      "kernel_time": 1.7523892224000000e+10
+      "kernel_time": 1.7517086720000000e+10
     },
     {
       "name": "MatrixMultiplication-Naive_BigO",
@@ -201,8 +201,8 @@
       "threads": 1,
       "aggregate_name": "BigO",
       "aggregate_unit": "time",
-      "cpu_coefficient": 4.0411524924267627e-03,
-      "real_coefficient": 4.0440593633066201e-03,
+      "cpu_coefficient": 4.0427443741890383e-03,
+      "real_coefficient": 4.0436187841694409e-03,
       "big_o": "N^3",
       "time_unit": "ns"
     },
@@ -216,7 +216,7 @@
       "threads": 1,
       "aggregate_name": "RMS",
       "aggregate_unit": "percentage",
-      "rms": 6.5108804461037808e-03
+      "rms": 6.6378982283044671e-03
     }
   ]
 }
