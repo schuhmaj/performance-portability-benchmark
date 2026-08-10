@@ -81,9 +81,9 @@ into every CXX target and the Kokkos `nvcc_wrapper` (g++ host compiler) rejects 
 Other platforms use the corresponding preset from `CMakePresets.json`:
 
 ```bash
-cmake --preset cuda-nvhpc          && cmake --build build-cuda-nvhpc          -j $(nproc)  # OpenACC/Stdpar host
-cmake --preset rocm-amdclang-cdna  && cmake --build build-rocm-amdclang-cdna  -j $(nproc)  # AMD MI210
-cmake --preset intel               && cmake --build build-intel               -j $(nproc)  # Intel Max 1550
+cmake --preset cuda-nvhpc          && cmake --build build-cuda-nvhpc          # OpenACC/Stdpar host
+cmake --preset rocm-amdclang-cdna  && cmake --build build-rocm-amdclang-cdna  # AMD MI210
+cmake --preset intel               && cmake --build build-intel               # Intel Max 1550
 ```
 
 ## 4. Re-run the benchmarks

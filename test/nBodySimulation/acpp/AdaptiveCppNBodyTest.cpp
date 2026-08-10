@@ -4,7 +4,7 @@
 #include "NBodyTest.h"
 #include "nBodySimulation/acpp/Impl_AdaptiveCpp.h"
 
-TEST_P(NBodyTest, ImplBoost_Implementation) {
+TEST_P(NBodyTest, ImplAdaptiveCpp_Implementation) {
     const int size = GetParam();
     this->runTest<ppb::ImplAdaptiveCpp<float>>(size);
 }
