@@ -1,5 +1,7 @@
 #include "polyhedralGravity/PolyhedralGravityDefinitions.h"
 
+#include <algorithm>
+
 #include <CL/cl.h>
 #include <CL/cl_ext.h>
 #undef cl_khr_command_buffer
@@ -35,6 +37,23 @@ const char *COMPILE_ARGS = "-cl-std=CL2.0 -D FloatType=double -D FloatType3=doub
 GlobalResources::GlobalResources(int &argc, char *argv[]) {
 }
 GlobalResources::~GlobalResources() = default;
+
+/**
+ * Largest work-group size <= desired that this kernel can actually be launched with on
+ * this device. CL_DEVICE_MAX_WORK_GROUP_SIZE is only an upper bound for trivial kernels;
+ * a register-hungry kernel like the gravity evaluation reports a much smaller
+ * CL_KERNEL_WORK_GROUP_SIZE, and exceeding it makes clEnqueueNDRangeKernel fail with
+ * CL_INVALID_WORK_GROUP_SIZE. Rounded down to a power of two to stay a clean multiple of
+ * the sub-group width.
+ */
+int clampWorkGroupSize(int desired, size_t kernelMax) {
+    const int limit = static_cast<int>(kernelMax);
+    if (limit <= 0) { return 1; }
+    const int size = desired < limit ? desired : limit;
+    int powerOfTwo = 1;
+    while (powerOfTwo * 2 <= size) { powerOfTwo *= 2; }
+    return powerOfTwo;
+}
 
 void compile_and_check(cl::Device &device, cl::Program &program) {
     program.build({device}, COMPILE_ARGS);
@@ -79,6 +98,12 @@ public:
         kernel_eval = cl::Kernel(program_eval, "vecadd");
         kernel_sum = cl::Kernel(program_sum, "sum");
 
+        // The nominal 256 is only used where the kernel actually fits; on devices where the
+        // evaluation kernel is too register-hungry we launch the largest legal size instead
+        // of failing with CL_INVALID_WORK_GROUP_SIZE.
+        local_n = clampWorkGroupSize(local_n, kernel_eval.getWorkGroupInfo<CL_KERNEL_WORK_GROUP_SIZE>(device));
+        local_n2 = clampWorkGroupSize(local_n2, kernel_sum.getWorkGroupInfo<CL_KERNEL_WORK_GROUP_SIZE>(device));
+
         std::vector<cl_int3> faces(_faces.size());
         for (int i = 0; i < faces.size(); i++) {
             faces[i].x = _faces[i][0];
@@ -113,7 +138,10 @@ public:
         }
 
         buffer_results = cl::Buffer(context, CL_MEM_READ_WRITE, nWorkGroups * sizeof(VectorTypeCl16));
-        reduction_buffer = cl::Buffer(context, CL_MEM_READ_WRITE, nWorkGroups2 * sizeof(VectorTypeCl16));
+        // nWorkGroups2 is 0 when the second reduction stage is not needed (small meshes).
+        // A zero-sized buffer is invalid per the OpenCL spec, so allocate at least one
+        // element, matching the Boost implementation.
+        reduction_buffer = cl::Buffer(context, CL_MEM_READ_WRITE, std::max(nWorkGroups2, 1) * sizeof(VectorTypeCl16));
 
         kernel_init.setArg(0, buffer_vertices);
         kernel_init.setArg(1, buffer_faces);

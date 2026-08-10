@@ -110,11 +110,15 @@ kernel void vecadd(
    ){
     FloatType3 point = {p1, p2, p3};
 
-    const int face_index = get_global_id(0);
-
-    if (face_index >= num_faces) {
-        return;
-    }
+    // Out-of-range work-items must NOT return early: work_group_reduce_add() below is an
+    // OpenCL 2.0 work-group collective that every work-item of the work-group has to
+    // encounter, otherwise the behaviour is undefined. Implementations that reduce across
+    // sub-groups with a barrier then deadlock on the work-items that already left.
+    // Instead the out-of-range items redundantly evaluate face 0 and contribute zero to
+    // the reduction, which is the same guard opencl_sum.cl already uses.
+    const int global_index = get_global_id(0);
+    const bool inRange = global_index < num_faces;
+    const int face_index = inRange ? global_index : 0;
 
     FloatType3 face[3] = {
         vertices[faces[face_index][0]] - point,
@@ -296,11 +300,13 @@ kernel void vecadd(
     FloatType3 reorderedSubSum = {subSum[1], subSum[2], subSum[2]};
     FloatType3 second = reorderedNp * reorderedSubSum;
 
-    FloatType16 result_value;
-    result_value.w = planeNormalOrientation * planeDistance * planeSumPotentialAcceleration;
-    result_value.xyz = normals[face_index] * planeSumPotentialAcceleration;
-    result_value.s456 = first;
-    result_value.s789 = second;
+    FloatType16 result_value = (FloatType16)(0.0);
+    if (inRange) {
+        result_value.w = planeNormalOrientation * planeDistance * planeSumPotentialAcceleration;
+        result_value.xyz = normals[face_index] * planeSumPotentialAcceleration;
+        result_value.s456 = first;
+        result_value.s789 = second;
+    }
 
     for (uint i = 0; i<10; ++i) result_value[i] = work_group_reduce_add(result_value[i]);
     if (get_local_id(0) == 0) { results[get_group_id(0)] = result_value; }

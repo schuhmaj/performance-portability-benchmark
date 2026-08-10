@@ -31,6 +31,23 @@ using IntVecType = bc::int4_;
 GlobalResources::GlobalResources(int &argc, char *argv[]) {}
 GlobalResources::~GlobalResources() = default;
 
+/**
+ * Largest work-group size <= desired that this kernel can actually be launched with on
+ * this device. CL_DEVICE_MAX_WORK_GROUP_SIZE is only an upper bound for trivial kernels;
+ * a register-hungry kernel like the gravity evaluation reports a much smaller
+ * CL_KERNEL_WORK_GROUP_SIZE, and exceeding it makes the enqueue fail with
+ * CL_INVALID_WORK_GROUP_SIZE. Rounded down to a power of two to stay a clean multiple of
+ * the sub-group width.
+ */
+int clampWorkGroupSize(int desired, size_t kernelMax) {
+    const int limit = static_cast<int>(kernelMax);
+    if (limit <= 0) { return 1; }
+    const int size = desired < limit ? desired : limit;
+    int powerOfTwo = 1;
+    while (powerOfTwo * 2 <= size) { powerOfTwo *= 2; }
+    return powerOfTwo;
+}
+
 class GravityEvaluable : public GravityEvaluableBase {
 public:
     GravityEvaluable(
@@ -51,6 +68,14 @@ public:
         kernel_init = bc::kernel(program_init, "vecadd");
         kernel_eval = bc::kernel(program_eval, "vecadd");
         kernel_sum = bc::kernel(program_sum, "sum");
+
+        // The nominal 256 is only used where the kernel actually fits; on devices where the
+        // evaluation kernel is too register-hungry we launch the largest legal size instead
+        // of failing with CL_INVALID_WORK_GROUP_SIZE.
+        local_n = clampWorkGroupSize(
+                local_n, kernel_eval.get_work_group_info<size_t>(device, CL_KERNEL_WORK_GROUP_SIZE));
+        local_n2 = clampWorkGroupSize(
+                local_n2, kernel_sum.get_work_group_info<size_t>(device, CL_KERNEL_WORK_GROUP_SIZE));
 
         // Pack the host-side geometry into the layout-compatible vector types.
         std::vector<IntVecType> faces(_faces.size());

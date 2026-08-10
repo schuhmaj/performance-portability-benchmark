@@ -1,6 +1,6 @@
 {
   "context": {
-    "date": "2026-06-24T13:33:11+02:00",
+    "date": "2026-08-10T21:32:14+02:00",
     "host_name": "sap3",
     "executable": "/home/ge25zov2/Programming/performance-portability-benchmark/build-intel/src/vectorAdditon/boost/vec_boost",
     "num_cpus": 192,
@@ -33,7 +33,7 @@
         "num_sharing": 96
       }
     ],
-    "load_avg": [1.04,1.07,3.25],
+    "load_avg": [1.09,1.18,1.11],
     "library_version": "v1.9.4",
     "library_build_type": "release",
     "json_schema_version": 1,
@@ -50,11 +50,11 @@
       "repetitions": 1,
       "repetition_index": 0,
       "threads": 1,
-      "iterations": 809,
-      "real_time": 9.2074069584753225e+05,
-      "cpu_time": 6.5987048578491970e+05,
+      "iterations": 294,
+      "real_time": 2.1975054455868392e+06,
+      "cpu_time": 1.7443276700680277e+06,
       "time_unit": "ns",
-      "kernel_time": 3.2542549072929542e+05
+      "kernel_time": 1.1980965748299321e+06
     },
     {
       "name": "VecAdd/10000",
@@ -65,11 +65,11 @@
       "repetitions": 1,
       "repetition_index": 0,
       "threads": 1,
-      "iterations": 576,
-      "real_time": 1.5578706629134507e+06,
-      "cpu_time": 1.1545059062499995e+06,
+      "iterations": 516,
+      "real_time": 2.4597436414726749e+06,
+      "cpu_time": 9.7879903875968931e+05,
       "time_unit": "ns",
-      "kernel_time": 6.6646339930555550e+05
+      "kernel_time": 4.9314606007751939e+05
     },
     {
       "name": "VecAdd/100000",
@@ -80,11 +80,11 @@
       "repetitions": 1,
       "repetition_index": 0,
       "threads": 1,
-      "iterations": 358,
-      "real_time": 2.0468215621987034e+06,
-      "cpu_time": 1.5925308296089375e+06,
+      "iterations": 444,
+      "real_time": 4.0291937860331987e+06,
+      "cpu_time": 1.7378825540540537e+06,
       "time_unit": "ns",
-      "kernel_time": 1.0099579776536312e+06
+      "kernel_time": 9.3755136936936935e+05
     },
     {
       "name": "VecAdd/1000000",
@@ -95,11 +95,11 @@
       "repetitions": 1,
       "repetition_index": 0,
       "threads": 1,
-      "iterations": 114,
-      "real_time": 5.9376187834954057e+06,
-      "cpu_time": 5.4372999210526282e+06,
+      "iterations": 137,
+      "real_time": 6.6104615036543477e+06,
+      "cpu_time": 4.2245544452554723e+06,
       "time_unit": "ns",
-      "kernel_time": 2.8555817105263160e+06
+      "kernel_time": 2.4139792700729929e+06
     },
     {
       "name": "VecAdd/10000000",
@@ -110,11 +110,11 @@
       "repetitions": 1,
       "repetition_index": 0,
       "threads": 1,
-      "iterations": 18,
-      "real_time": 2.9676264229541022e+07,
-      "cpu_time": 2.9106759833333366e+07,
+      "iterations": 10,
+      "real_time": 5.2810429200326324e+07,
+      "cpu_time": 5.0360198700000152e+07,
       "time_unit": "ns",
-      "kernel_time": 9.8404443333333340e+06
+      "kernel_time": 2.9692074800000001e+07
     },
     {
       "name": "VecAdd/100000000",
@@ -126,10 +126,10 @@
       "repetition_index": 0,
       "threads": 1,
       "iterations": 2,
-      "real_time": 3.5522688040509820e+08,
-      "cpu_time": 3.5375455149999982e+08,
+      "real_time": 3.5771698800090235e+08,
+      "cpu_time": 3.5396884449999976e+08,
       "time_unit": "ns",
-      "kernel_time": 8.7623064000000000e+07
+      "kernel_time": 9.2179885000000000e+07
     },
     {
       "name": "VecAdd_BigO",
@@ -141,9 +141,9 @@
       "threads": 1,
       "aggregate_name": "BigO",
       "aggregate_unit": "time",
-      "cpu_coefficient": 1.3306121365304538e-01,
-      "real_coefficient": 1.3363111481722273e-01,
-      "big_o": "NlgN",
+      "cpu_coefficient": 3.5545847348934050e+00,
+      "real_coefficient": 3.5943774835274387e+00,
+      "big_o": "N",
       "time_unit": "ns"
     },
     {
@@ -156,7 +156,7 @@
       "threads": 1,
       "aggregate_name": "RMS",
       "aggregate_unit": "percentage",
-      "rms": 2.4016175223823499e-02
+      "rms": 8.9545408730986445e-02
     }
   ]
 }

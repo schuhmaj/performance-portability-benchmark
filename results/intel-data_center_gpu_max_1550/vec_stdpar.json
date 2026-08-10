@@ -1,8 +1,8 @@
 {
   "context": {
-    "date": "2026-08-10T21:31:42+02:00",
+    "date": "2026-08-10T21:33:08+02:00",
     "host_name": "sap3",
-    "executable": "/home/ge25zov2/Programming/performance-portability-benchmark/build-intel/src/vectorAdditon/acpp/vec_acpp",
+    "executable": "/home/ge25zov2/Programming/performance-portability-benchmark/build-intel/src/vectorAdditon/stdpar/vec_stdpar",
     "num_cpus": 192,
     "mhz_per_cpu": 2101,
     "cpu_scaling_enabled": true,
@@ -33,12 +33,12 @@
         "num_sharing": 96
       }
     ],
-    "load_avg": [1.15,1.2,1.12],
+    "load_avg": [1.23,1.21,1.12],
     "library_version": "v1.9.4",
     "library_build_type": "release",
     "json_schema_version": 1,
     "float_type": "32",
-    "paradigm": "AdaptiveCpp"
+    "paradigm": "Stdpar"
   },
   "benchmarks": [
     {
@@ -50,11 +50,11 @@
       "repetitions": 1,
       "repetition_index": 0,
       "threads": 1,
-      "iterations": 739,
-      "real_time": 1.5763687523695796e+06,
-      "cpu_time": 7.9615769959404599e+05,
+      "iterations": 1,
+      "real_time": 5.4709580400231063e+08,
+      "cpu_time": 5.4387706799999988e+08,
       "time_unit": "ns",
-      "kernel_time": 4.0071447902571040e+03
+      "kernel_time": 5.4643896100000000e+08
     },
     {
       "name": "VecAdd/10000",
@@ -65,11 +65,11 @@
       "repetitions": 1,
       "repetition_index": 0,
       "threads": 1,
-      "iterations": 811,
-      "real_time": 1.6942816399541395e+06,
-      "cpu_time": 8.7687024044389615e+05,
+      "iterations": 250,
+      "real_time": 5.2031205239763949e+06,
+      "cpu_time": 2.6993012399999993e+06,
       "time_unit": "ns",
-      "kernel_time": 5.3650308261405671e+03
+      "kernel_time": 4.1473262840000000e+06
     },
     {
       "name": "VecAdd/100000",
@@ -80,11 +80,11 @@
       "repetitions": 1,
       "repetition_index": 0,
       "threads": 1,
-      "iterations": 378,
-      "real_time": 2.9868660635007210e+06,
-      "cpu_time": 1.8402493677248671e+06,
+      "iterations": 169,
+      "real_time": 6.3615639526731083e+06,
+      "cpu_time": 3.6993469644970424e+06,
       "time_unit": "ns",
-      "kernel_time": 4.9714285714285716e+03
+      "kernel_time": 4.0335922781065088e+06
     },
     {
       "name": "VecAdd/1000000",
@@ -95,11 +95,11 @@
       "repetitions": 1,
       "repetition_index": 0,
       "threads": 1,
-      "iterations": 123,
-      "real_time": 5.7654985284306891e+06,
-      "cpu_time": 5.2174982357723555e+06,
+      "iterations": 72,
+      "real_time": 1.1291955736143993e+07,
+      "cpu_time": 8.4226162500000019e+06,
       "time_unit": "ns",
-      "kernel_time": 7.5278048780487807e+03
+      "kernel_time": 4.4765323194444440e+06
     },
     {
       "name": "VecAdd/10000000",
@@ -110,11 +110,11 @@
       "repetitions": 1,
       "repetition_index": 0,
       "threads": 1,
-      "iterations": 7,
-      "real_time": 7.9898082571162373e+07,
-      "cpu_time": 7.7358976714285716e+07,
+      "iterations": 12,
+      "real_time": 5.9918925499611460e+07,
+      "cpu_time": 5.6289993916666634e+07,
       "time_unit": "ns",
-      "kernel_time": 4.9942857142857145e+04
+      "kernel_time": 9.4787815000000000e+06
     },
     {
       "name": "VecAdd/100000000",
@@ -125,11 +125,11 @@
       "repetitions": 1,
       "repetition_index": 0,
       "threads": 1,
-      "iterations": 1,
-      "real_time": 8.5667284700321031e+08,
-      "cpu_time": 8.4274836400000024e+08,
+      "iterations": 2,
+      "real_time": 4.8821315299937850e+08,
+      "cpu_time": 4.8030211949999970e+08,
       "time_unit": "ns",
-      "kernel_time": 6.4192000000000000e+05
+      "kernel_time": 5.9334791000000000e+07
     },
     {
       "name": "VecAdd_BigO",
@@ -141,9 +141,9 @@
       "threads": 1,
       "aggregate_name": "BigO",
       "aggregate_unit": "time",
-      "cpu_coefficient": 3.1723113199396558e-01,
-      "real_coefficient": 3.2251541683156898e-01,
-      "big_o": "NlgN",
+      "cpu_coefficient": 4.8116450557139654e+00,
+      "real_coefficient": 4.8938701476182809e+00,
+      "big_o": "N",
       "time_unit": "ns"
     },
     {
@@ -156,7 +156,7 @@
       "threads": 1,
       "aggregate_name": "RMS",
       "aggregate_unit": "percentage",
-      "rms": 1.0958155417469107e-02
+      "rms": 1.2165084887276536e+00
     }
   ]
 }

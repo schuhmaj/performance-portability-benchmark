@@ -1,6 +1,6 @@
 {
   "context": {
-    "date": "2026-06-24T13:29:46+02:00",
+    "date": "2026-08-10T20:28:21+02:00",
     "host_name": "sap3",
     "executable": "/home/ge25zov2/Programming/performance-portability-benchmark/build-intel/src/polyhedralGravity/acpp/polyhedral_acpp",
     "num_cpus": 192,
@@ -33,7 +33,7 @@
         "num_sharing": 96
       }
     ],
-    "load_avg": [1,1.05,3.79],
+    "load_avg": [1,1.03,1],
     "library_version": "v1.9.4",
     "library_build_type": "release",
     "json_schema_version": 1,
@@ -51,8 +51,8 @@
       "repetition_index": 0,
       "threads": 1,
       "iterations": 1,
-      "real_time": 1.5628564637154341e+09,
-      "cpu_time": 1.5588957040000002e+09,
+      "real_time": 1.5748493240025709e+09,
+      "cpu_time": 1.5712192390000000e+09,
       "time_unit": "ns",
       "NumFaces": 1.4744000000000000e+04
     },
@@ -65,9 +65,9 @@
       "repetitions": 1,
       "repetition_index": 0,
       "threads": 1,
-      "iterations": 1058,
-      "real_time": 8.3841520822862256e+05,
-      "cpu_time": 5.3612397164461226e+05,
+      "iterations": 1000,
+      "real_time": 1.0172816460035392e+06,
+      "cpu_time": 5.5408292499999993e+05,
       "time_unit": "ns",
       "NumFaces": 2.5593200000000000e+05
     },
@@ -80,9 +80,9 @@
       "repetitions": 1,
       "repetition_index": 0,
       "threads": 1,
-      "iterations": 1000,
-      "real_time": 7.5845086900517344e+05,
-      "cpu_time": 5.1438233799999987e+05,
+      "iterations": 1008,
+      "real_time": 1.6812929761871356e+06,
+      "cpu_time": 6.3952854265873041e+05,
       "time_unit": "ns",
       "NumFaces": 1.9660800000000000e+05
     },
@@ -95,9 +95,9 @@
       "repetitions": 1,
       "repetition_index": 0,
       "threads": 1,
-      "iterations": 1371,
-      "real_time": 8.7096003569624526e+05,
-      "cpu_time": 5.3117375929978071e+05,
+      "iterations": 997,
+      "real_time": 1.5935240611863681e+06,
+      "cpu_time": 6.2951068706118362e+05,
       "time_unit": "ns",
       "NumFaces": 2.7800000000000000e+03
     },
@@ -110,9 +110,9 @@
       "repetitions": 1,
       "repetition_index": 0,
       "threads": 1,
-      "iterations": 1885,
-      "real_time": 6.1676463616186811e+05,
-      "cpu_time": 4.2329050610079622e+05,
+      "iterations": 1278,
+      "real_time": 1.4397253575900125e+06,
+      "cpu_time": 4.9622563302034530e+05,
       "time_unit": "ns",
       "NumFaces": 3.1457280000000000e+06
     },
@@ -125,9 +125,9 @@
       "repetitions": 1,
       "repetition_index": 0,
       "threads": 1,
-      "iterations": 2084,
-      "real_time": 5.1875009211298660e+05,
-      "cpu_time": 3.4469722504798358e+05,
+      "iterations": 1046,
+      "real_time": 1.7046082151095904e+06,
+      "cpu_time": 6.6131565678776219e+05,
       "time_unit": "ns",
       "NumFaces": 1.2796000000000000e+04
     },
@@ -140,9 +140,9 @@
       "repetitions": 1,
       "repetition_index": 0,
       "threads": 1,
-      "iterations": 2033,
-      "real_time": 5.2949959600955411e+05,
-      "cpu_time": 3.5610663846532250e+05,
+      "iterations": 1028,
+      "real_time": 1.6954425252933945e+06,
+      "cpu_time": 6.5838671692607272e+05,
       "time_unit": "ns",
       "NumFaces": 3.2040000000000000e+04
     }
