@@ -267,12 +267,14 @@ public:
             const double density)
         : GravityEvaluableBase(Vertices, Faces, density), instance(10, 5) {
 
-        dispatchX = Faces.size();
+        constexpr uint32_t workgroupSize = 256;
+        const uint32_t numWorkgroups = (Faces.size() + workgroupSize - 1) / workgroupSize;
+        dispatchX = numWorkgroups;
         dispatchY = 1;
 
         if (dispatchX > 65534) {
             dispatchX = 65534;
-            dispatchY = ceil(Faces.size() / 65534.0);
+            dispatchY = ceil(numWorkgroups / 65534.0);
         };
 
         instance.addBuffer<FloatType>(Vertices.size() * 4);// vertices

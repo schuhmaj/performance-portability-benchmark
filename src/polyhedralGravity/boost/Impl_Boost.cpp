@@ -175,13 +175,8 @@ private:
     int nWorkGroups;
     int nWorkGroups2;
 
-#if FLOAT_BITS == 32
-    int local_n = 16;
-    int local_n2 = 16;
-#else
-    int local_n = 32;
-    int local_n2 = 32;
-#endif
+    int local_n = 256;
+    int local_n2 = 256;
 
     bc::program program_init;
     bc::program program_eval;

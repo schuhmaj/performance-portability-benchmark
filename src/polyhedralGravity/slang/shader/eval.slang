@@ -169,7 +169,7 @@ void do_init(uint index) {
 }
 
 [shader("compute")]
-[numthreads(32, 1, 1)]
+[numthreads(256, 1, 1)]
 void computeMain(uint3 threadIdx : SV_DispatchThreadID, uint3 groupThreadIdx : SV_GroupThreadID, uint3 groupIdx : SV_GroupID) {
     uint face_index = threadIdx.x;
 
@@ -372,11 +372,13 @@ void computeMain(uint3 threadIdx : SV_DispatchThreadID, uint3 groupThreadIdx : S
 #ifdef TARGET_CUDA
     results[face_index] = res;
 #else
+    // WaveActiveSum reduces per wave (not per group); with a 256-thread group the
+    // first active lane of EVERY wave has to contribute its wave's partial sum.
     FloatType4 groupSum0 = WaveActiveSum(res.res);
     FloatType4 groupSum1 = WaveActiveSum(res.first);
     FloatType4 groupSum2 = WaveActiveSum(res.second);
 
-    if (groupThreadIdx.x == 0) {
+    if (WaveIsFirstLane()) {
         atomicAdd(results[0].res.x, groupSum0.x);
         atomicAdd(results[0].res.y, groupSum0.y);
         atomicAdd(results[0].res.z, groupSum0.z);

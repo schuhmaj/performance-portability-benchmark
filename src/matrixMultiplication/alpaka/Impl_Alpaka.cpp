@@ -37,9 +37,12 @@ ppb::ImplAlpaka<FloatType>::operator()(const std::vector<FloatType> &a, const st
                                                   const Idx M,
                                                   const Idx N,
                                                   const Idx K) {
+        // alpaka's last Vec component maps onto the fastest-varying (CUDA x) dimension,
+        // so the row is taken from index 1 to keep the accesses to A and C coalesced,
+        // matching the CUDA/OpenCL kernels.
         const auto globalThreadIdx = alpaka::getIdx<alpaka::Grid, alpaka::Threads>(acc);
-        const Idx row = globalThreadIdx[0];
-        const Idx col = globalThreadIdx[1];
+        const Idx col = globalThreadIdx[0];
+        const Idx row = globalThreadIdx[1];
 
         if (row < M && col < N) {
             FloatType acc_val = 0.0;
@@ -49,7 +52,7 @@ ppb::ImplAlpaka<FloatType>::operator()(const std::vector<FloatType> &a, const st
             C[row + col * M] = acc_val;
         }
     };
-    const alpaka::Vec<Dim, Idx> problemExtent(config.m, config.n);
+    const alpaka::Vec<Dim, Idx> problemExtent(config.n, config.m);
     const auto workDiv = alpaka::getValidWorkDiv(
         alpaka::KernelCfg<Acc>{problemExtent, alpaka::Vec<Dim, Idx>::ones()},
         device,

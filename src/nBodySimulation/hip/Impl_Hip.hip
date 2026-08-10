@@ -233,7 +233,7 @@ namespace ppb {
 
         CHECK_HIP(hipEventSynchronize(stop));
         CHECK_HIP(hipEventElapsedTime(&elapsedTime, start, stop));
-        _timings.forceUpdateTime += (elapsedTime * 16);
+        _timings.forceUpdateTime += (elapsedTime * 1e6);
     }
 
     template<typename FloatType>

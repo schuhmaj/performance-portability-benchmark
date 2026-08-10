@@ -387,7 +387,7 @@ public:
 
         _initialized = true;
 
-        uint32_t num_groups = (c.num_faces + 32 - 1) / 32;
+        uint32_t num_groups = (c.num_faces + 256 - 1) / 256;
 
         wrapper_.startCommandBuffer(*_pipeline_eval);
         wrapper_.addCommandPushConstants(c);

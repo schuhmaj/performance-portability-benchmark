@@ -72,7 +72,7 @@ namespace ppb {
 
 
         auto event = _queue.submit([&](sycl::handler &h) {
-        const sycl::range<1> local{32};
+        const sycl::range<1> local{ParticleSimulationConfig<FloatType>::TILE_SIZE};
         const sycl::range<1> global{util::roundUp(size, local[0])};
             h.parallel_for(sycl::nd_range<1>{global, local}, [=](const sycl::nd_item<1> &it) {
                 const size_t i = it.get_global_id(0);
@@ -110,7 +110,7 @@ namespace ppb {
         auto &velocity = _particles->velocities;
 
         auto event = _queue.submit([&](sycl::handler &h) {
-            const sycl::range<1> local{32};
+            const sycl::range<1> local{ParticleSimulationConfig<FloatType>::TILE_SIZE};
             const sycl::range<1> global{util::roundUp(size, local[0])};
             h.parallel_for(sycl::nd_range<1>{global, local}, [=](const sycl::nd_item<1> &it) {
                 const size_t i = it.get_global_id(0);
@@ -140,7 +140,7 @@ namespace ppb {
 
 
         auto event = _queue.submit([&](sycl::handler &h) {
-            const sycl::range<1> local{32};
+            const sycl::range<1> local{ParticleSimulationConfig<FloatType>::TILE_SIZE};
             const sycl::range<1> global{util::roundUp(size, local[0])};
             h.parallel_for(sycl::nd_range<1>{global, local}, [=](const sycl::nd_item<1>& it) {
                 const size_t i = it.get_global_id(0);

@@ -26,7 +26,7 @@ namespace ppb {
 
         std::vector<unsigned int> pushConstants({static_cast<unsigned int>(config.m),static_cast<unsigned int>(config.n), static_cast<unsigned int>(config.k)});
 
-        constexpr unsigned int TILE_SIZE = 32;
+        constexpr unsigned int TILE_SIZE = 16;
         const unsigned int groups_x = util::ceilDiv<unsigned int>(config.m, TILE_SIZE);
         const unsigned int groups_y = util::ceilDiv<unsigned int>(config.n, TILE_SIZE);
         kp::Workgroup workgroup{{groups_x, groups_y, 1}};

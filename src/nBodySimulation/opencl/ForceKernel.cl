@@ -61,15 +61,19 @@ __kernel void compute_forces(
         return;
     }
 
+    const FloatType sigma = 1.0;
+    const FloatType sigmaSquared = sigma * sigma;
+    const FloatType epsilon24 = 1.0 * 24.0;
+
+    const FloatType4 pi = positions[i];
+    FloatType4 acc = (FloatType4)(0.0);
+
     for (int j = 0; j < numParticles; j++) {
         if (i == j) {
             continue;
         }
-        const FloatType sigma = 1.0;
-        const FloatType sigmaSquared = sigma * sigma;
-        const FloatType epsilon24 = 1.0 * 24.0;
 
-        const FloatType4 dr = positions[i] - positions[j];
+        const FloatType4 dr = pi - positions[j];
         const FloatType dr2 = dot(dr, dr);
 
         const FloatType invdr2 = 1.0 / dr2;
@@ -78,7 +82,7 @@ __kernel void compute_forces(
         const FloatType lj12 = lj6 * lj6;
         const FloatType lj12m6 = lj12 - lj6;
         const FloatType fac = epsilon24 * (lj12 + lj12m6) * invdr2;
-        const FloatType4 force = dr * fac;
-        forces[i] += force;
+        acc += dr * fac;
     }
+    forces[i] += acc;
 }

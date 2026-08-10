@@ -1,4 +1,5 @@
 #include <chrono>
+#include <iostream>
 #include <utility>
 #include "common/vulkan/VulkanUtility.h"
 #include "VectorAdditionShader.h"

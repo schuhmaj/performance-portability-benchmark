@@ -484,12 +484,9 @@ public:
         if (!_initialized) init();
 
         int num_faces = _faces.size();
-        int blockSize = 64;
+        int blockSize = 256;
         int numBlocks = (num_faces + blockSize - 1) / blockSize;
         numBlocks = numBlocks > 0 ? numBlocks : 1;
-
-        std::vector<FloatType> resultPotential(num_faces);
-        std::vector<VectorType> resultAcceleration(num_faces);
 
         run_eval<<<numBlocks, blockSize>>>(
                 d_vertices.get(), d_faces.get(), d_normals.get(), d_segmentVectors.get(), d_segmentNormals.get(), d_results.get(), num_faces, Point[0], Point[1], Point[2]);

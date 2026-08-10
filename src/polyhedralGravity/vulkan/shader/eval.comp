@@ -8,10 +8,11 @@
 #define FloatTypeM dmat3
 #endif
 
-layout (local_size_x = 32) in;
-shared FloatType partialSumPotential[32];
-shared FloatType3 partialSumAcceleration[32];
-shared FloatType partialSumGradiometricTensor[6 * 32];
+#define GROUP_SIZE 256
+layout (local_size_x = GROUP_SIZE) in;
+shared FloatType partialSumPotential[GROUP_SIZE];
+shared FloatType3 partialSumAcceleration[GROUP_SIZE];
+shared FloatType partialSumGradiometricTensor[6 * GROUP_SIZE];
 
 layout(binding = 0) readonly buffer bufVertices { FloatType3 vertices[]; };
 layout(binding = 1) readonly buffer bufFaces { uvec3 faces[]; };
@@ -133,14 +134,12 @@ Singularity compute_singularities(
 }
 
 void main() {
-    uint face_index = gl_GlobalInvocationID.x;
+    // Out-of-range threads must not return early: every thread has to reach the
+    // barriers of the shared-memory reduction below. They redundantly compute
+    // face 0 and contribute zero to the partial sums instead.
+    const bool inRange = gl_GlobalInvocationID.x < push_const.num_faces;
+    uint face_index = inRange ? gl_GlobalInvocationID.x : 0u;
     uint localId = gl_LocalInvocationID.x;
-
-    if (face_index >= push_const.num_faces) {
-//        partialSumPotential[localId] = 0.0;
-//        partialSumAcceleration[localId] = FloatType3(0.0, 0.0, 0.0);
-        return;
-    }
 
     FloatType3 face[3] = {
         vertices[faces[face_index][0]] - push_const.point,
@@ -425,16 +424,16 @@ void main() {
     FloatType3 r_acceleration = normals[face_index] * planeSumPotentialAcceleration;
 
     uint groupSize = gl_WorkGroupSize.x;
-    partialSumPotential[localId] = r_potential;
-    partialSumAcceleration[localId] = r_acceleration;
+    partialSumPotential[localId] = inRange ? r_potential : 0.0;
+    partialSumAcceleration[localId] = inRange ? r_acceleration : FloatType3(0.0, 0.0, 0.0);
 
-    partialSumGradiometricTensor[localId * 6 + 0] = first[0];
-    partialSumGradiometricTensor[localId * 6 + 1] = first[1];
-    partialSumGradiometricTensor[localId * 6 + 2] = first[2];
+    partialSumGradiometricTensor[localId * 6 + 0] = inRange ? first[0] : 0.0;
+    partialSumGradiometricTensor[localId * 6 + 1] = inRange ? first[1] : 0.0;
+    partialSumGradiometricTensor[localId * 6 + 2] = inRange ? first[2] : 0.0;
 
-    partialSumGradiometricTensor[localId * 6 + 3] = second[0];
-    partialSumGradiometricTensor[localId * 6 + 4] = second[1];
-    partialSumGradiometricTensor[localId * 6 + 5] = second[2];
+    partialSumGradiometricTensor[localId * 6 + 3] = inRange ? second[0] : 0.0;
+    partialSumGradiometricTensor[localId * 6 + 4] = inRange ? second[1] : 0.0;
+    partialSumGradiometricTensor[localId * 6 + 5] = inRange ? second[2] : 0.0;
 
     barrier();
 
@@ -443,7 +442,7 @@ void main() {
             partialSumPotential[localId] += partialSumPotential[localId + stride];
             partialSumAcceleration[localId] += partialSumAcceleration[localId + stride];
             for (int i = 0; i < 6; ++i)
-                partialSumGradiometricTensor[localId * 6 + i] += partialSumGradiometricTensor[(localId + stride) * 6 + 1];
+                partialSumGradiometricTensor[localId * 6 + i] += partialSumGradiometricTensor[(localId + stride) * 6 + i];
         }
         barrier();
     }

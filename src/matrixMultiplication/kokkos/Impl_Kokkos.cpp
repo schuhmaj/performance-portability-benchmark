@@ -28,6 +28,7 @@ namespace ppb {
         Kokkos::deep_copy(exec, devA, hostA);
         Kokkos::deep_copy(exec, devB, hostB);
 
+        // Explicit 16x16 tile, matching the other paradigms that expose a tile size.
         Kokkos::MDRangePolicy<Kokkos::Rank<2>, ExecutionSpace> policy(exec, {0, 0}, {m, n}, {16, 16});
 
         exec.fence();

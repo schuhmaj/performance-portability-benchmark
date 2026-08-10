@@ -11,7 +11,7 @@ const uint32_t kompute_eval_len = sizeof(EVAL_SPIRV);
 
 // uint32_t kompute_eval[] = #include "shader/eval.hpp";
 
-const uint32_t workgroupSize = 32;
+const uint32_t workgroupSize = 256;
 
 GlobalResources::GlobalResources(int &argc, char *argv[]) {
 }

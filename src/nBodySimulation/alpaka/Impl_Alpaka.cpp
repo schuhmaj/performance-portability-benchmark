@@ -178,6 +178,7 @@ void ppb::ImplAlpaka<FloatType>::computeForces() {
         constexpr float_type sigmaSquared = sigma * sigma;
         const float_type epsilon24 = alpaka::math::sqrt(acc, epsilonSrc * epsilonSrc) * 24.0f;
 
+        float_type accumulator[3] = {0.0f, 0.0f, 0.0f};
         for (Idx j = 0; j < numParticles; ++j) {
             if (i == j) {
                 continue;
@@ -199,9 +200,12 @@ void ppb::ImplAlpaka<FloatType>::computeForces() {
             const float_type fac = epsilon24 * (lj12 + lj12m6) * invdr2;
 
             for (int d = 0; d < 3; ++d) {
-                const unsigned int indexI = i * 3 + d;
-                force[indexI] += (dr[d] * fac);
+                accumulator[d] += (dr[d] * fac);
             }
+        }
+
+        for (int d = 0; d < 3; ++d) {
+            force[i * 3 + d] += accumulator[d];
         }
     };
 

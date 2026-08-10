@@ -7,7 +7,7 @@
 #define FloatTypeM23 dmat2x3
 #endif
 
-layout (local_size_x = 32) in;
+layout (local_size_x = 256) in;
 
 layout(binding = 0) readonly buffer bufVertices { FloatType3 vertices[]; };
 layout(binding = 1) readonly buffer bufFaces { uvec3 faces[]; };

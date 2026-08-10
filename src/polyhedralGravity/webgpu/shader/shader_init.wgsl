@@ -14,9 +14,10 @@ fn normal(first: vec3f, second: vec3f) -> vec3f {
 }
 
 @compute
-@workgroup_size(1, 1, 1)
+@workgroup_size(256, 1, 1)
 fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
-    var index: u32 = global_id.x + global_id.y * 65534u;
+    // x-dimension is capped at 65534 workgroups (each 256 threads) by the host
+    var index: u32 = global_id.x + global_id.y * 65534u * 256u;
 
     if (index >= u32(settings[0].w)) { return; };
 

@@ -19,7 +19,7 @@ ConstantBuffer<PushConsts> pc;
 [[vk::binding(2, 0)]] RWStructuredBuffer<FloatType> C;
 
 [shader("compute")]
-[numthreads(32, 32, 1)]
+[numthreads(16, 16, 1)]
 void matmul_kernel(uint3 global_id : SV_DispatchThreadID) {
     uint row = global_id.x;
     uint col = global_id.y;

@@ -56,7 +56,7 @@ __host__ void wrapper_eval(
 
     cudaMemcpy(settings, &params_cpu, sizeof(params_cpu), cudaMemcpyHostToDevice);
 
-    dim3 blockSize(32, 1, 1);
+    dim3 blockSize(256, 1, 1);
     dim3 gridSize((num_faces + blockSize.x - 1) / blockSize.x,
                   1,
                   1);

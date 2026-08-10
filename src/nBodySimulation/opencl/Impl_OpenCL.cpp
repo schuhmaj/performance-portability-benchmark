@@ -141,7 +141,7 @@ namespace ppb {
 
     template <typename FloatType>
     void ImplOpenCL<FloatType>::updatePositionsAndResetForce() {
-        const size_t localSize = 32;
+        const size_t localSize = ParticleSimulationConfig<FloatType>::TILE_SIZE;
         const size_t globalSize = util::roundUp<size_t>(_numParticles, localSize);
 
         cl_event event;
@@ -149,7 +149,8 @@ namespace ppb {
         int err = clEnqueueNDRangeKernel(queue, kernelPositionUpdate, 1, nullptr, &globalSize, &localSize, 0, nullptr, &event);
         if (err != CL_SUCCESS) throw std::runtime_error("Position Update Kernel failed");
 
-        //clFinish(queue);
+        // The profiling counters are only valid once the kernel has completed.
+        clWaitForEvents(1, &event);
         clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_START, sizeof(start), &start, nullptr);
         clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_END, sizeof(end), &end, nullptr);
         const double elapsed_nanoseconds = end - start;
@@ -159,7 +160,7 @@ namespace ppb {
 
     template <typename FloatType>
     void ImplOpenCL<FloatType>::updateVelocities() {
-        const size_t localSize = 32;
+        const size_t localSize = ParticleSimulationConfig<FloatType>::TILE_SIZE;
         const size_t globalSize = util::roundUp<size_t>(_numParticles, localSize);
 
         cl_event event;
@@ -167,7 +168,8 @@ namespace ppb {
         int err = clEnqueueNDRangeKernel(queue, kerneVelocityUpdate, 1, nullptr, &globalSize, &localSize, 0, nullptr, &event);
         if (err != CL_SUCCESS) throw std::runtime_error("Velocity Kernel failed");
 
-        //clFinish(queue);
+        // The profiling counters are only valid once the kernel has completed.
+        clWaitForEvents(1, &event);
         clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_START, sizeof(start), &start, nullptr);
         clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_END, sizeof(end), &end, nullptr);
         const double elapsed_nanoseconds = end - start;
@@ -177,18 +179,16 @@ namespace ppb {
 
     template <typename FloatType>
     void ImplOpenCL<FloatType>::computeForces() {
-        const size_t localSize[2] = {16, 16};
-        const size_t globalSize[2] = {
-            util::roundUp<size_t>(_numParticles, localSize[0]),
-            util::roundUp<size_t>(_numParticles, localSize[1])
-        };
+        const size_t localSize = ParticleSimulationConfig<FloatType>::TILE_SIZE;
+        const size_t globalSize = util::roundUp<size_t>(_numParticles, localSize);
 
         cl_event event;
         cl_ulong start, end;
-        int err = clEnqueueNDRangeKernel(queue, kernelForceUpdate, 1, nullptr, globalSize, localSize, 0, nullptr, &event);
+        int err = clEnqueueNDRangeKernel(queue, kernelForceUpdate, 1, nullptr, &globalSize, &localSize, 0, nullptr, &event);
         if (err != CL_SUCCESS) throw std::runtime_error("Force Kernel failed");
 
-        //clFinish(queue);
+        // The profiling counters are only valid once the kernel has completed.
+        clWaitForEvents(1, &event);
         clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_START, sizeof(start), &start, nullptr);
         clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_END, sizeof(end), &end, nullptr);
         const double elapsed_nanoseconds = end - start;

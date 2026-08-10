@@ -102,7 +102,7 @@ namespace ppb {
 
     template <typename FloatType>
     void ImplBoost<FloatType>::updatePositionsAndResetForce() {
-        const size_t localSize = 32;
+        const size_t localSize = ParticleSimulationConfig<FloatType>::TILE_SIZE;
         const size_t globalSize = util::roundUp<size_t>(_numParticles, localSize);
 
         const auto event = queue.enqueue_nd_range_kernel(
@@ -114,7 +114,7 @@ namespace ppb {
 
     template <typename FloatType>
     void ImplBoost<FloatType>::updateVelocities() {
-        const size_t localSize = 32;
+        const size_t localSize = ParticleSimulationConfig<FloatType>::TILE_SIZE;
         const size_t globalSize = util::roundUp<size_t>(_numParticles, localSize);
 
         const auto event = queue.enqueue_nd_range_kernel(
@@ -126,13 +126,10 @@ namespace ppb {
 
     template <typename FloatType>
     void ImplBoost<FloatType>::computeForces() {
-        const size_t localSize[2] = {16, 16};
-        const size_t globalSize[2] = {
-            util::roundUp<size_t>(_numParticles, localSize[0]),
-            util::roundUp<size_t>(_numParticles, localSize[1])
-        };
+        const size_t localSize = ParticleSimulationConfig<FloatType>::TILE_SIZE;
+        const size_t globalSize = util::roundUp<size_t>(_numParticles, localSize);
 
-        const auto event = queue.enqueue_nd_range_kernel(kernelForceUpdate, 1, nullptr, globalSize, localSize);
+        const auto event = queue.enqueue_nd_range_kernel(kernelForceUpdate, 1, nullptr, &globalSize, &localSize);
         event.wait();
         _timings.forceUpdateTime += event.template duration<std::chrono::nanoseconds>().count();
     }

@@ -62,7 +62,7 @@ fn compute_singularities(face_index: u32, segmentNormalOrientations: vec3i, proj
         let gdot = dot(g1 * -1.0, g2);
         var theta = PI_2;
 
-        if (gdot != 0.0) { acos(gdot / (length(g1) * length(g2))); }
+        if (gdot != 0.0) { theta = acos(gdot / (length(g1) * length(g2))); }
         return theta;
     }
 
@@ -70,9 +70,10 @@ fn compute_singularities(face_index: u32, segmentNormalOrientations: vec3i, proj
 }
 
 @compute
-@workgroup_size(1, 1, 1)
+@workgroup_size(256, 1, 1)
 fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
-    var face_index: u32 = global_id.x + global_id.y * 65534u;
+    // x-dimension is capped at 65534 workgroups (each 256 threads) by the host
+    var face_index: u32 = global_id.x + global_id.y * 65534u * 256u;
 
     if (face_index >= u32(settings[0].w)) { return; };
 
