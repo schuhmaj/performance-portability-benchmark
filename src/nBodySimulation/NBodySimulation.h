@@ -123,12 +123,12 @@ namespace ppb {
          * cell_size >= cutoff_radius                   for Linked Cells 
          * cell_size >= cutoff_radius + verlet_skin     for Verlet Lists with LC optimization
          */
-        FloatType cell_size{7.0f};
+        FloatType cell_size{100.0f};
         
         /**
          * Cutoff radius used in the linked cell and verlet lists implementation
          */
-        FloatType cutoff_radius{7.0f};
+        FloatType cutoff_radius{100.0f};
 
         /**
         * Size of the Verlet skin.
@@ -139,7 +139,7 @@ namespace ppb {
         * Frequency of updates of verlet lists. 
         * Updates the verlet lists every 'frequency' iterations.
         */
-        size_t frequency{2};
+        size_t frequency{1};
 
         /**
          * Creates a simulation configuration.

@@ -141,9 +141,9 @@ namespace ppb::cuda::nbody {
             const VectorType3 f = make_float3_scale(dr, fac);
             fi = make_float3_add(fi, f);
         }
-        forces[i].x = fi.x;
-        forces[i].y = fi.y;
-        forces[i].z = fi.z;
+        forces[i].x += fi.x;
+        forces[i].y += fi.y;
+        forces[i].z += fi.z;
     }
 
 

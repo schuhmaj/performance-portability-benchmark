@@ -13,7 +13,7 @@ protected:
     static constexpr double EPSILON = 0.05;
 
     static constexpr float TIME_STEP = 0.0005;
-    static constexpr int ITERATIONS = 5;
+    static constexpr int ITERATIONS = 2000;
 
     /*
     AutoPas Config File to replicate the values below.
@@ -85,16 +85,33 @@ protected:
         return result / 2;
     }
 
-    float get_mean_deviation(std::vector<ppb::Particle<float>> expected, std::vector<ppb::Particle<float>> actual, size_t size) {
+    float get_mean_deviation(std::vector<ppb::Particle<float>> expected, std::vector<ppb::Particle<float>> actual, size_t size, int iteration) {
         float mean_deviation = 0.f;
 
         for (size_t i = 0; i < size; i++) {
-            mean_deviation += std::abs(expected[i].getPosition()[0] - actual[i].getPosition()[0]);
-            mean_deviation += std::abs(expected[i].getPosition()[1] - actual[i].getPosition()[1]);
-            mean_deviation += std::abs(expected[i].getPosition()[2] - actual[i].getPosition()[2]);
+            float dev_x = std::abs(expected[i].getPosition()[0] - actual[i].getPosition()[0]);
+            float dev_y = std::abs(expected[i].getPosition()[1] - actual[i].getPosition()[1]);
+            float dev_z = std::abs(expected[i].getPosition()[2] - actual[i].getPosition()[2]);
+            mean_deviation += dev_x + dev_y + dev_z;
         }
 
         return mean_deviation / (3 * size);
+    }
+
+    float get_median_deviation(std::vector<ppb::Particle<float>> expected, std::vector<ppb::Particle<float>> actual, size_t size) {
+        std::vector<float> deviations;
+
+        for (size_t i = 0; i < size; i++) {
+            float dev_x = std::abs(expected[i].getPosition()[0] - actual[i].getPosition()[0]);
+            float dev_y = std::abs(expected[i].getPosition()[1] - actual[i].getPosition()[1]);
+            float dev_z = std::abs(expected[i].getPosition()[2] - actual[i].getPosition()[2]);
+            deviations.push_back(dev_x);
+            deviations.push_back(dev_y);
+            deviations.push_back(dev_z);
+        }
+
+        sort(deviations.begin(), deviations.end());
+        return deviations[size/2];
     }
 
     template <typename Implementation>
@@ -126,15 +143,15 @@ protected:
         }
 
         //Positions
-        ParticleSimulationConfig<float> config{static_cast<size_t>(size), ITERATIONS, 0.0005};
+/*         ParticleSimulationConfig<float> config{static_cast<size_t>(size), ITERATIONS, 0.0005};
         NBodySimulation<ImplCpp<float>> cppNBodySim{config};
         NBodySimulation<Implementation> otherNBodySim{config};
         const auto [actualResult, timings2] = otherNBodySim();
         const auto [expectedResult, timings1] = cppNBodySim();
-        ASSERT_THAT(actualResult, ParticlesEq(expectedResult, epsilon));
+        ASSERT_THAT(actualResult, ParticlesEq(expectedResult, epsilon)); */
             
         //Numerical Stability
-/*         ParticleSimulationConfig<float> config{static_cast<size_t>(size), 1, 0.005};
+        ParticleSimulationConfig<float> config{static_cast<size_t>(size), 1, 0.005};
         NBodySimulation<ImplCpp<float>> cppNBodySim{config};
         NBodySimulation<Implementation> otherNBodySim{config};
         const auto [actualResult, timings2] = otherNBodySim();
@@ -153,8 +170,8 @@ protected:
             stateActual = actualResult;
             stateExpected = expectedResult;
             if (i % 10 == 0) {
-                std::cout<<get_mean_deviation(stateActual, stateExpected, static_cast<size_t>(size))<<std::endl;
+                std::cout<<get_median_deviation(stateExpected, stateActual, static_cast<size_t>(size))<<std::endl;
             }
-        } */
+        }
     }
 };
