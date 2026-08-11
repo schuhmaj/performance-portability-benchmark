@@ -10,24 +10,27 @@ from __future__ import annotations
 
 import argparse
 import csv
-import shlex
-import subprocess
-import tempfile
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 
+import pandas as pd
+from loguru import logger
+from ppbcc.code_complexity import AUTO_DIALECT_NAME, evaluate, save_csv
+
 
 ROOT = Path(__file__).resolve().parents[1]
-SRC = ROOT / "src"
-RESULTS = ROOT / "results" / "code-complexity"
-FILE_RESULTS = RESULTS / "code-complexity-files.csv"
-AGGREGATE_RESULTS = RESULTS / "code-complexity.csv"
+DEFAULT_SOURCE = ROOT / "src"
+DEFAULT_OUTPUT = ROOT / "results" / "code-complexity"
+FILE_RESULTS_NAME = "code-complexity-files.csv"
+AGGREGATE_RESULTS_NAME = "code-complexity.csv"
 
+#: Every manifest path is relative to the source folder passed via ``--source``.
 PROBLEM_SOURCE_ROOTS = {
-    "VecAdd": "src/vectorAdditon/",
-    "MatrixMultiplication": "src/matrixMultiplication/",
-    "NBody": "src/nBodySimulation/",
-    "PolyhedralGravity": "src/polyhedralGravity/",
+    "VecAdd": "vectorAdditon/",
+    "MatrixMultiplication": "matrixMultiplication/",
+    "NBody": "nBodySimulation/",
+    "PolyhedralGravity": "polyhedralGravity/",
 }
 
 SOURCE_SUFFIXES = {
@@ -54,16 +57,18 @@ class Implementation:
     sources: tuple[str, ...]
 
 
-def files_below(relative: str, *, exclude_main: bool = True) -> tuple[str, ...]:
-    """Return source files below a directory, relative to the repository root."""
-    directory = ROOT / relative
+def files_below(source: Path, relative: str, *, exclude_main: bool = True) -> tuple[str, ...]:
+    """Return source files below a directory, relative to the source folder."""
+    directory = source / relative
+    if not directory.is_dir():
+        raise FileNotFoundError(f"Manifest directory does not exist: {directory}")
     files = []
     for path in sorted(directory.rglob("*")):
         if not path.is_file() or path.suffix.lower() not in SOURCE_SUFFIXES:
             continue
         if exclude_main and path.stem == "main":
             continue
-        files.append(path.relative_to(ROOT).as_posix())
+        files.append(path.relative_to(source).as_posix())
     return tuple(files)
 
 
@@ -76,7 +81,7 @@ def impl(
     return Implementation(problem, framework, dialect, tuple(sources))
 
 
-def implementation_manifest() -> tuple[Implementation, ...]:
+def implementation_manifest(source: Path) -> tuple[Implementation, ...]:
     """Describe every logical implementation and its implementation-owned files."""
     entries: list[Implementation] = []
 
@@ -98,24 +103,24 @@ def implementation_manifest() -> tuple[Implementation, ...]:
         ("Vulkan", "vulkan,glsl", "vulkan"),
     )
     for framework, dialect, directory in vector_single:
-        entries.append(impl("VecAdd", framework, dialect, *files_below(f"src/vectorAdditon/{directory}")))
-    vector_cuda_header = "src/vectorAdditon/cuda/Implementations.cuh"
+        entries.append(impl("VecAdd", framework, dialect, *files_below(source, f"vectorAdditon/{directory}")))
+    vector_cuda_header = "vectorAdditon/cuda/Implementations.cuh"
     entries.extend(
         (
-            impl("VecAdd", "Cuda", "cuda", vector_cuda_header, "src/vectorAdditon/cuda/Impl_Cuda.cu"),
-            impl("VecAdd", "Cublas", "cuda", vector_cuda_header, "src/vectorAdditon/cuda/Impl_Cublas.cu"),
-            impl("VecAdd", "Cuda[Chunked]", "cuda", vector_cuda_header, "src/vectorAdditon/cuda/Impl_ChunkedCuda.cu"),
-            impl("VecAdd", "Thrust", "cuda,thrust", vector_cuda_header, "src/vectorAdditon/cuda/Impl_Thrust.cu"),
-            impl("VecAdd", "Stdpar[NVHPC]", "stdpar", "src/vectorAdditon/cuda/Impl_NvhpcStd.cpp"),
+            impl("VecAdd", "Cuda", "cuda", vector_cuda_header, "vectorAdditon/cuda/Impl_Cuda.cu"),
+            impl("VecAdd", "Cublas", "cuda", vector_cuda_header, "vectorAdditon/cuda/Impl_Cublas.cu"),
+            impl("VecAdd", "Cuda[Chunked]", "cuda", vector_cuda_header, "vectorAdditon/cuda/Impl_ChunkedCuda.cu"),
+            impl("VecAdd", "Thrust", "cuda,thrust", vector_cuda_header, "vectorAdditon/cuda/Impl_Thrust.cu"),
+            impl("VecAdd", "Stdpar[NVHPC]", "stdpar", "vectorAdditon/cuda/Impl_NvhpcStd.cpp"),
             impl(
                 "VecAdd", "Slang-Cuda", "slang,cuda",
-                "src/vectorAdditon/slang/Impl_SlangCuda.cu",
-                "src/vectorAdditon/slang/VectorAdditionShader.slang",
+                "vectorAdditon/slang/Impl_SlangCuda.cu",
+                "vectorAdditon/slang/VectorAdditionShader.slang",
             ),
             impl(
                 "VecAdd", "Slang-Vulkan", "slang,vulkan",
-                "src/vectorAdditon/slang/Impl_SlangVulkan.cpp",
-                "src/vectorAdditon/slang/VectorAdditionShader.slang",
+                "vectorAdditon/slang/Impl_SlangVulkan.cpp",
+                "vectorAdditon/slang/VectorAdditionShader.slang",
             ),
         )
     )
@@ -134,44 +139,44 @@ def implementation_manifest() -> tuple[Implementation, ...]:
         ("Stdpar", "stdpar", "stdpar"),
     )
     for framework, dialect, directory in matrix_single:
-        sources = list(files_below(f"src/matrixMultiplication/{directory}"))
+        sources = list(files_below(source, f"matrixMultiplication/{directory}"))
         if framework == "Boost":
-            sources.append("src/matrixMultiplication/opencl/MatrixMultiplication.cl")
+            sources.append("matrixMultiplication/opencl/MatrixMultiplication.cl")
         entries.append(impl("MatrixMultiplication", framework, dialect, *sources))
     entries.extend(
         (
-            impl("MatrixMultiplication", "AdaptiveCpp[Naive]", "sycl", "src/matrixMultiplication/acpp/Impl_AdaptiveCpp.cpp", "src/matrixMultiplication/acpp/Impl_AdaptiveCpp.h"),
-            impl("MatrixMultiplication", "AdaptiveCpp[SharedMemory]", "sycl", "src/matrixMultiplication/acpp/Impl_AdaptiveCppShr.cpp", "src/matrixMultiplication/acpp/Impl_AdaptiveCppShr.h"),
-            impl("MatrixMultiplication", "Cublas", "cuda", "src/matrixMultiplication/cuda/Impl_Cublas.cu", "src/matrixMultiplication/cuda/Impl_Cublas.cuh"),
-            impl("MatrixMultiplication", "Cuda[Naive]", "cuda", "src/matrixMultiplication/cuda/Impl_CudaNaive.cu", "src/matrixMultiplication/cuda/Impl_CudaNaive.cuh"),
-            impl("MatrixMultiplication", "Cuda[SharedMemory]", "cuda", "src/matrixMultiplication/cuda/Impl_Cuda.cu", "src/matrixMultiplication/cuda/Impl_Cuda.cuh"),
-            impl("MatrixMultiplication", "Cuda[Buffer]", "cuda", "src/matrixMultiplication/cuda/Impl_CudaBuffer.cu", "src/matrixMultiplication/cuda/Impl_CudaBuffer.cuh"),
-            impl("MatrixMultiplication", "Cuda[Tensor]", "cuda", "src/matrixMultiplication/cuda/Impl_CudaTensor.cu", "src/matrixMultiplication/cuda/Impl_CudaTensor.cuh"),
-            impl("MatrixMultiplication", "OpenMP", "openmp", "src/matrixMultiplication/openmp/Impl_OpenMPDevice.cpp", "src/matrixMultiplication/openmp/Impl_OpenMPDevice.h"),
-            impl("MatrixMultiplication", "OpenMP[Host]", "openmp", "src/matrixMultiplication/openmp/Impl_OpenMP.cpp", "src/matrixMultiplication/openmp/Impl_OpenMP.h"),
+            impl("MatrixMultiplication", "AdaptiveCpp[Naive]", "sycl", "matrixMultiplication/acpp/Impl_AdaptiveCpp.cpp", "matrixMultiplication/acpp/Impl_AdaptiveCpp.h"),
+            impl("MatrixMultiplication", "AdaptiveCpp[SharedMemory]", "sycl", "matrixMultiplication/acpp/Impl_AdaptiveCppShr.cpp", "matrixMultiplication/acpp/Impl_AdaptiveCppShr.h"),
+            impl("MatrixMultiplication", "Cublas", "cuda", "matrixMultiplication/cuda/Impl_Cublas.cu", "matrixMultiplication/cuda/Impl_Cublas.cuh"),
+            impl("MatrixMultiplication", "Cuda[Naive]", "cuda", "matrixMultiplication/cuda/Impl_CudaNaive.cu", "matrixMultiplication/cuda/Impl_CudaNaive.cuh"),
+            impl("MatrixMultiplication", "Cuda[SharedMemory]", "cuda", "matrixMultiplication/cuda/Impl_Cuda.cu", "matrixMultiplication/cuda/Impl_Cuda.cuh"),
+            impl("MatrixMultiplication", "Cuda[Buffer]", "cuda", "matrixMultiplication/cuda/Impl_CudaBuffer.cu", "matrixMultiplication/cuda/Impl_CudaBuffer.cuh"),
+            impl("MatrixMultiplication", "Cuda[Tensor]", "cuda", "matrixMultiplication/cuda/Impl_CudaTensor.cu", "matrixMultiplication/cuda/Impl_CudaTensor.cuh"),
+            impl("MatrixMultiplication", "OpenMP", "openmp", "matrixMultiplication/openmp/Impl_OpenMPDevice.cpp", "matrixMultiplication/openmp/Impl_OpenMPDevice.h"),
+            impl("MatrixMultiplication", "OpenMP[Host]", "openmp", "matrixMultiplication/openmp/Impl_OpenMP.cpp", "matrixMultiplication/openmp/Impl_OpenMP.h"),
             impl(
                 "MatrixMultiplication", "Vulkan", "vulkan,glsl",
-                "src/matrixMultiplication/vulkan/Impl_Vulkan.cpp",
-                "src/matrixMultiplication/vulkan/Impl_Vulkan.h",
-                "src/matrixMultiplication/vulkan/MatrixMultiplicationShader.comp",
+                "matrixMultiplication/vulkan/Impl_Vulkan.cpp",
+                "matrixMultiplication/vulkan/Impl_Vulkan.h",
+                "matrixMultiplication/vulkan/MatrixMultiplicationShader.comp",
             ),
             impl(
                 "MatrixMultiplication", "Vulkan[SharedMemory]", "vulkan,glsl",
-                "src/matrixMultiplication/vulkan/Impl_Vulkan.cpp",
-                "src/matrixMultiplication/vulkan/Impl_Vulkan.h",
-                "src/matrixMultiplication/vulkan/MatrixMultiplicationShaderShr.comp",
+                "matrixMultiplication/vulkan/Impl_Vulkan.cpp",
+                "matrixMultiplication/vulkan/Impl_Vulkan.h",
+                "matrixMultiplication/vulkan/MatrixMultiplicationShaderShr.comp",
             ),
             impl(
                 "MatrixMultiplication", "Slang-Cuda", "slang,cuda",
-                "src/matrixMultiplication/slang/Impl_SlangCuda.cu",
-                "src/matrixMultiplication/slang/Impl_SlangCuda.cuh",
-                "src/matrixMultiplication/slang/MatrixMultiplicationShader.slang",
+                "matrixMultiplication/slang/Impl_SlangCuda.cu",
+                "matrixMultiplication/slang/Impl_SlangCuda.cuh",
+                "matrixMultiplication/slang/MatrixMultiplicationShader.slang",
             ),
             impl(
                 "MatrixMultiplication", "Slang-Vulkan", "slang,vulkan",
-                "src/matrixMultiplication/slang/Impl_SlangVulkan.cpp",
-                "src/matrixMultiplication/slang/Impl_SlangVulkan.h",
-                "src/matrixMultiplication/slang/MatrixMultiplicationShader.slang",
+                "matrixMultiplication/slang/Impl_SlangVulkan.cpp",
+                "matrixMultiplication/slang/Impl_SlangVulkan.h",
+                "matrixMultiplication/slang/MatrixMultiplicationShader.slang",
             ),
         )
     )
@@ -192,20 +197,20 @@ def implementation_manifest() -> tuple[Implementation, ...]:
         ("Stdpar", "stdpar", "stdpar"),
     )
     for framework, dialect, directory in nbody_single:
-        sources = list(files_below(f"src/nBodySimulation/{directory}"))
+        sources = list(files_below(source, f"nBodySimulation/{directory}"))
         if framework == "Boost":
-            sources.append("src/nBodySimulation/opencl/ForceKernel.cl")
+            sources.append("nBodySimulation/opencl/ForceKernel.cl")
         entries.append(impl("NBody", framework, dialect, *sources))
     kokkos_base = (
-        "src/nBodySimulation/kokkos/Impl_Kokkos.cpp",
-        "src/nBodySimulation/kokkos/Impl_Kokkos.h",
+        "nBodySimulation/kokkos/Impl_Kokkos.cpp",
+        "nBodySimulation/kokkos/Impl_Kokkos.h",
     )
     entries.append(impl("NBody", "Kokkos", "kokkos", *kokkos_base))
     entries.append(
         impl(
             "NBody", "Kokkos[Reduction]", "kokkos", *kokkos_base,
-            "src/nBodySimulation/kokkos/Impl_KokkosReduction.cpp",
-            "src/nBodySimulation/kokkos/Impl_KokkosReduction.h",
+            "nBodySimulation/kokkos/Impl_KokkosReduction.cpp",
+            "nBodySimulation/kokkos/Impl_KokkosReduction.h",
         )
     )
     for variant_dir, description in (
@@ -213,10 +218,10 @@ def implementation_manifest() -> tuple[Implementation, ...]:
         ("cell_lists", "LinkedCells"),
         ("verlet_lists", "VerletLists"),
     ):
-        vulkan_host = files_below(f"src/nBodySimulation/vulkan/{variant_dir}")
+        vulkan_host = files_below(source, f"nBodySimulation/vulkan/{variant_dir}")
         vulkan_shaders = tuple(path for path in vulkan_host if path.endswith(".comp"))
         vulkan_cpp = tuple(path for path in vulkan_host if not path.endswith(".comp"))
-        slang_cuda = files_below(f"src/nBodySimulation/slang/{variant_dir}")
+        slang_cuda = files_below(source, f"nBodySimulation/slang/{variant_dir}")
         slang_shaders = tuple(path for path in slang_cuda if path.endswith(".slang"))
         slang_cuda_host = tuple(path for path in slang_cuda if not path.endswith(".slang"))
         entries.extend(
@@ -231,7 +236,6 @@ def implementation_manifest() -> tuple[Implementation, ...]:
     # which is discovered through local includes. Boost reuses OpenCL kernels.
     poly_single = (
         ("CPP", "cpp", "cpp"),
-        ("CPP[128-bit]", "cpp", "cpp_128"),
         ("AdaptiveCpp", "sycl", "acpp"),
         ("Alpaka", "alpaka", "alpaka"),
         ("Boost", "boost_compute,opencl", "boost"),
@@ -247,59 +251,64 @@ def implementation_manifest() -> tuple[Implementation, ...]:
         ("WebGPU", "webgpu,wgsl", "webgpu"),
     )
     for framework, dialect, directory in poly_single:
-        sources = list(files_below(f"src/polyhedralGravity/{directory}"))
+        sources = list(files_below(source, f"polyhedralGravity/{directory}"))
         if framework == "Boost":
-            sources.extend(files_below("src/polyhedralGravity/opencl/kernel"))
+            sources.extend(files_below(source, "polyhedralGravity/opencl/kernel"))
         entries.append(impl("PolyhedralGravity", framework, dialect, *sources))
     entries.extend(
         (
             impl(
                 "PolyhedralGravity", "Slang-Cuda", "slang,cuda,thrust",
-                "src/polyhedralGravity/slang/Impl_Slang_Cuda.cu",
-                "src/polyhedralGravity/slang/wrapper_eval.cu",
-                "src/polyhedralGravity/slang/shader/eval.slang",
+                "polyhedralGravity/slang/Impl_Slang_Cuda.cu",
+                "polyhedralGravity/slang/wrapper_eval.cu",
+                "polyhedralGravity/slang/shader/eval.slang",
             ),
             impl(
                 "PolyhedralGravity", "Slang-Vulkan", "slang,vulkan",
-                "src/polyhedralGravity/slang/Impl_Slang_Vulkan.cpp",
-                "src/polyhedralGravity/slang/shader/eval.slang",
+                "polyhedralGravity/slang/Impl_Slang_Vulkan.cpp",
+                "polyhedralGravity/slang/shader/eval.slang",
             ),
         )
     )
     return tuple(entries)
 
 
-def source_index() -> tuple[dict[str, Path], dict[str, list[Path]]]:
+def all_source_files(source: Path) -> tuple[Path, ...]:
+    """Return every analysable source file below the source folder."""
+    return tuple(
+        path for path in sorted(source.rglob("*"))
+        if path.is_file() and path.suffix.lower() in SOURCE_SUFFIXES
+    )
+
+
+def source_index(source: Path) -> tuple[dict[str, Path], dict[str, list[Path]]]:
     """Build exact-relative and basename indexes for local include resolution."""
     exact: dict[str, Path] = {}
     basename: dict[str, list[Path]] = {}
-    for path in sorted(SRC.rglob("*")):
-        if not path.is_file() or path.suffix.lower() not in SOURCE_SUFFIXES:
-            continue
-        relative_src = path.relative_to(SRC).as_posix()
-        exact[relative_src] = path
+    for path in all_source_files(source):
+        exact[path.relative_to(source).as_posix()] = path
         basename.setdefault(path.name, []).append(path)
     return exact, basename
 
 
-def local_dependencies(seed_sources: tuple[str, ...]) -> tuple[Path, ...]:
+def local_dependencies(source: Path, seed_sources: tuple[str, ...]) -> tuple[Path, ...]:
     """Resolve repository-local quoted includes and common implementation units."""
-    exact, basename = source_index()
-    pending = [(ROOT / relative).resolve() for relative in seed_sources]
+    exact, basename = source_index(source)
+    pending = [(source / relative).resolve() for relative in seed_sources]
     selected: set[Path] = set()
     while pending:
         path = pending.pop()
         if path in selected:
             continue
         if not path.is_file():
-            raise FileNotFoundError(f"Manifest source does not exist: {path.relative_to(ROOT)}")
+            raise FileNotFoundError(f"Manifest source does not exist: {path}")
         selected.add(path)
         for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
             stripped = line.strip()
             if not stripped.startswith("#include \""):
                 continue
             include = stripped.removeprefix("#include \"").split('"', 1)[0]
-            candidates = [path.parent / include, SRC / include]
+            candidates = [path.parent / include, source / include]
             dependency = next((candidate.resolve() for candidate in candidates if candidate.is_file()), None)
             if dependency is None:
                 dependency = exact.get(include)
@@ -309,7 +318,7 @@ def local_dependencies(seed_sources: tuple[str, ...]) -> tuple[Path, ...]:
                 pending.append(dependency.resolve())
 
         # Linked common utilities have a .cpp implementation beside the header.
-        if path.suffix.lower() in {".h", ".hpp", ".cuh"} and SRC / "common" in path.parents:
+        if path.suffix.lower() in {".h", ".hpp", ".cuh"} and source / "common" in path.parents:
             companion = path.with_suffix(".cpp")
             if companion.is_file():
                 pending.append(companion.resolve())
@@ -317,13 +326,19 @@ def local_dependencies(seed_sources: tuple[str, ...]) -> tuple[Path, ...]:
 
 
 def validate_dependencies(
+    source: Path,
     implementation: Implementation,
     sources: tuple[Path, ...],
 ) -> None:
-    """Reject accidental dependencies on a different benchmark problem."""
+    """Reject empty manifest entries and dependencies on a different problem."""
+    if not sources:
+        raise RuntimeError(
+            f"{implementation.problem}/{implementation.framework} resolves to no "
+            f"source file below {source}; the manifest entry is stale"
+        )
     expected_root = PROBLEM_SOURCE_ROOTS[implementation.problem]
     problem_roots = tuple(PROBLEM_SOURCE_ROOTS.values())
-    relative_sources = tuple(path.relative_to(ROOT).as_posix() for path in sources)
+    relative_sources = tuple(path.relative_to(source).as_posix() for path in sources)
     foreign_sources = [
         path
         for path in relative_sources
@@ -337,69 +352,87 @@ def validate_dependencies(
         )
 
 
-def command_for(
+def reported_path(source: Path, path: Path) -> str:
+    """Render a path the way it should appear in the report, e.g. ``src/a/b.cpp``."""
+    parent = source.parent
+    return path.relative_to(parent).as_posix() if path.is_relative_to(parent) else path.as_posix()
+
+
+def describe(
+    source: Path,
     sources: tuple[Path, ...],
-    output: Path,
     *,
     dialect: str | None = None,
     aggregate: bool = False,
-) -> list[str]:
-    command = ["ppbcc", "code-complexity"]
-    command.extend(path.relative_to(ROOT).as_posix() for path in sources)
+) -> str:
+    """Render the analysis about to run the way the CLI would spell it."""
+    parts = ["code-complexity", *(reported_path(source, path) for path in sources)]
     if dialect is not None:
-        command.extend(("--dialect", dialect))
+        parts.extend(("--dialect", dialect))
     if aggregate:
-        command.append("--aggregate")
-        command.extend(("--metrics", *AGGREGATE_METRICS))
-    command.extend(("--output", output.relative_to(ROOT).as_posix() if output.is_relative_to(ROOT) else str(output)))
-    return command
+        parts.append("--aggregate")
+        parts.extend(("--metrics", *AGGREGATE_METRICS))
+    return " ".join(parts)
 
 
-def run(command: list[str], *, dry_run: bool) -> None:
-    print(shlex.join(command), flush=True)
+def analyze(
+    source: Path,
+    sources: tuple[Path, ...],
+    *,
+    dialect: str | None = None,
+    aggregate: bool = False,
+    dry_run: bool,
+) -> pd.DataFrame | None:
+    logger.info("{}", describe(source, sources, dialect=dialect, aggregate=aggregate))
     if dry_run:
-        return
-    subprocess.run(command, cwd=ROOT, check=True, stdout=subprocess.DEVNULL)
-
-
-def generate(dry_run: bool) -> None:
-    RESULTS.mkdir(parents=True, exist_ok=True)
-    all_sources = tuple(
-        path for path in sorted(SRC.rglob("*"))
-        if path.is_file() and path.suffix.lower() in SOURCE_SUFFIXES
+        return None
+    return evaluate(
+        sources=list(sources),
+        language_dialect=AUTO_DIALECT_NAME if dialect is None else dialect,
+        metrics=list(AGGREGATE_METRICS) if aggregate else None,
+        aggregate=aggregate,
     )
-    run(command_for((SRC,), FILE_RESULTS), dry_run=dry_run)
+
+
+def generate(source: Path, output: Path, *, dry_run: bool) -> None:
+    """Write both reports for ``source`` into the ``output`` directory."""
+    file_results = output / FILE_RESULTS_NAME
+    aggregate_results = output / AGGREGATE_RESULTS_NAME
+    manifest = implementation_manifest(source)
+    all_sources = all_source_files(source)
+    if not dry_run:
+        output.mkdir(parents=True, exist_ok=True)
+
+    file_frame = analyze(source, (source,), dry_run=dry_run)
+    if file_frame is not None:
+        # ``evaluate`` records the paths it was handed; report them relative to
+        # the parent of the source folder so the CSV stays machine independent.
+        file_frame["file"] = [reported_path(source, Path(name)) for name in file_frame["file"]]
+        save_csv(file_frame, file_results)
 
     aggregate_rows: list[dict[str, str]] = []
-    with tempfile.TemporaryDirectory(prefix="code-complexity-") as temporary:
-        temporary_dir = Path(temporary)
-        for index, implementation in enumerate(implementation_manifest()):
-            sources = local_dependencies(implementation.sources)
-            validate_dependencies(implementation, sources)
-            output = temporary_dir / f"aggregate-{index:03d}.csv"
-            run(
-                command_for(sources, output, dialect=implementation.dialect, aggregate=True),
-                dry_run=dry_run,
-            )
-            if dry_run:
-                continue
-            with output.open(newline="", encoding="utf-8") as handle:
-                total = next(row for row in csv.DictReader(handle) if row["file"] == "TOTAL")
-            aggregate_rows.append(
-                {
-                    "Name": implementation.problem,
-                    "Framework": implementation.framework,
-                    "SLOC": total["sloc"],
-                    "n1": total["distinct_operators"],
-                    "n2": total["distinct_operands"],
-                    "N1": total["total_operators"],
-                    "N2": total["total_operands"],
-                }
-            )
+    for implementation in manifest:
+        sources = local_dependencies(source, implementation.sources)
+        validate_dependencies(source, implementation, sources)
+        frame = analyze(source, sources, dialect=implementation.dialect, aggregate=True, dry_run=dry_run)
+        if frame is None:
+            continue
+        total = frame.loc[frame["file"] == "TOTAL"].iloc[0]
+        aggregate_rows.append(
+            {
+                "Name": implementation.problem,
+                "Framework": implementation.framework,
+                "SLOC": total["sloc"],
+                "n1": total["distinct_operators"],
+                "n2": total["distinct_operands"],
+                "N1": total["total_operators"],
+                "N2": total["total_operands"],
+            }
+        )
 
     if dry_run:
         return
-    with AGGREGATE_RESULTS.open("w", newline="", encoding="utf-8") as handle:
+    with aggregate_results.open("w", newline="", encoding="utf-8") as handle:
         writer = csv.DictWriter(
             handle,
             fieldnames=("Name", "Framework", "SLOC", "n1", "n2", "N1", "N2"),
@@ -408,30 +441,79 @@ def generate(dry_run: bool) -> None:
         writer.writeheader()
         writer.writerows(aggregate_rows)
 
-    with FILE_RESULTS.open(newline="", encoding="utf-8") as handle:
-        file_rows = list(csv.DictReader(handle))
-    if len(file_rows) != len(all_sources):
+    if len(file_frame) != len(all_sources):
         raise RuntimeError(
-            f"File-level report has {len(file_rows)} rows; expected {len(all_sources)} source files"
+            f"File-level report has {len(file_frame)} rows; expected {len(all_sources)} source files"
         )
-    expected_pairs = {(entry.problem, entry.framework) for entry in implementation_manifest()}
+    expected_pairs = {(entry.problem, entry.framework) for entry in manifest}
     actual_pairs = {(row["Name"], row["Framework"]) for row in aggregate_rows}
     if len(expected_pairs) != len(aggregate_rows) or actual_pairs != expected_pairs:
         raise RuntimeError("Aggregate report is missing or duplicates an implementation row")
 
-    print(f"Wrote {len(file_rows)} file rows to {FILE_RESULTS.relative_to(ROOT)}")
-    print(f"Wrote {len(aggregate_rows)} implementation rows to {AGGREGATE_RESULTS.relative_to(ROOT)}")
+    logger.success("Wrote {} file rows to {}", len(file_frame), file_results)
+    logger.success("Wrote {} implementation rows to {}", len(aggregate_rows), aggregate_results)
+
+
+def configure_logging(verbosity: int) -> None:
+    """Configure loguru; ppbcc's own per-file chatter needs at least one ``-v``."""
+    logger.remove()
+    logger.add(
+        sys.stderr,
+        level={0: "INFO", 1: "DEBUG"}.get(verbosity, "TRACE"),
+        format=(
+            "<green>{time:HH:mm:ss.SSS}</green> | <level>{level: <8}</level> | "
+            "<level>{message}</level>"
+        ),
+    )
+    if verbosity == 0:
+        logger.disable("ppbcc")
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
+        "-s",
+        "--source",
+        type=Path,
+        default=DEFAULT_SOURCE,
+        metavar="DIR",
+        help=f"source folder holding the implementations (default: {DEFAULT_SOURCE})",
+    )
+    parser.add_argument(
+        "-o",
+        "--output",
+        type=Path,
+        default=DEFAULT_OUTPUT,
+        metavar="DIR",
+        help=(
+            f"directory for {AGGREGATE_RESULTS_NAME} and {FILE_RESULTS_NAME} "
+            f"(default: {DEFAULT_OUTPUT})"
+        ),
+    )
+    parser.add_argument(
         "--dry-run",
         action="store_true",
-        help="print every ppbcc code-complexity command without executing it",
+        help="log every code-complexity analysis without running it",
+    )
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        action="count",
+        default=0,
+        help="increase verbosity (-v: ppbcc debug output, -vv: trace)",
     )
     arguments = parser.parse_args()
-    generate(arguments.dry_run)
+    configure_logging(arguments.verbose)
+
+    source = arguments.source.resolve()
+    if not source.is_dir():
+        logger.error("Source folder does not exist: {}", source)
+        return 1
+    try:
+        generate(source, arguments.output.resolve(), dry_run=arguments.dry_run)
+    except (FileNotFoundError, KeyError, RuntimeError) as error:
+        logger.error("{}", error)
+        return 1
     return 0
 
 
