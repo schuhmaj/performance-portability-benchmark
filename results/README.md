@@ -1,121 +1,121 @@
 # Reproducibility
 
-## Generate Results
+Every step here uses [`ppbcc`](https://github.com/schuhmaj/performance-portability-code-complexity)
+(`pip install .` in that repository). Run `ppbcc <command> --help` for the full option list, or see
+its [documentation](https://schuhmaj.github.io/performance-portability-code-complexity/) — this file
+only records the exact invocations that produced the archived data.
+
+## Contents
+
+| Path | Produced by |
+|---|---|
+| `<platform>/*.json` | Step 1 — raw Google Benchmark reports, one per executable |
+| `Results_<platform>.csv` | Step 2 — one consolidated CSV per platform |
+| `code-complexity/*.csv` | Step 3 — SLOC and Halstead metrics per file and per implementation |
+
+Step 4 renders the plots into the working directory; they are not committed here.
+
+## 1. Run the benchmarks
+
+From the build directory of the platform under test:
 
 ```bash
-cd <build>
 ppbcc benchmark -p src -H "INTEL Data Center GPU Max 1550" \
   -r "vec_.*" "matMul_.*" "nbody_.*" "polyhedral_.*" -x ".*_cpp" --dry-run
-  
-# Or alternatively
-python ../scripts/benchmark.py -p src -H "INTEL Data Center GPU Max 1550" \
-  -r "vec_.*" "matMul_.*" "nbody_.*" "polyhedral_.*" -x ".*_cpp" --dry-run
 ```
 
-## Convert Results and Generate CSV files
+`--dry-run` only lists the matched executables; drop it to run them. Adapt `-H` to the platform and
+add `-o "Results_<platform>"` to name the consolidated CSV directly.
 
-Collect the `*.json` files with the benchmark script and generate a `*.csv` by:
+## 2. Consolidate archived reports into CSVs
+
+`--skip-benchmark` runs nothing and only collects existing `*.json` reports, which is how the
+archived CSVs in this folder are regenerated:
 
 ```bash
-../scripts/benchmark.py -p ./nvidia-rtx3080 -r ".*\.json" --skip-benchmark -H "NVIDIA RTX3080" -o "Results_NVIDIA_RTX3080"
-../scripts/benchmark.py -p ./nvidia-rtx4060 -r ".*\.json" --skip-benchmark -H "NVIDIA RTX4060" -o "Results_NVIDIA_RTX4060"
-../scripts/benchmark.py -p ./nvidia-rtx5080 -r ".*.json" --skip-benchmark -H "NVIDIA RTX5080" -o "Results_NVIDIA_RTX5080"
-../scripts/benchmark.py -p ./nvidia-gh200 -r ".*.json" --skip-benchmark -H "NVIDIA GH200" -o "Results_NVIDIA_GH200"
-../scripts/benchmark.py -p ./amd-mi210 -r ".*.json" --skip-benchmark -H "AMD Instinct MI210" -o "Results_AMD_Instinct_MI210"
-../scripts/benchmark.py -p ./intel-data_center_gpu_max_1550 -r ".*.json" --skip-benchmark -H "INTEL Data Center GPU Max 1550" -o "Results_INTEL_Data_Center_GPU_Max_1550"
-```
-OR
-```bash
-ppbcc benchmark -p ./nvidia-rtx3080 -r ".*\.json" --skip-benchmark -H "NVIDIA RTX3080" -o "Results_NVIDIA_RTX3080"
-ppbcc benchmark  -p ./nvidia-rtx4060 -r ".*\.json" --skip-benchmark -H "NVIDIA RTX4060" -o "Results_NVIDIA_RTX4060"
-ppbcc benchmark  -p ./nvidia-rtx5080 -r ".*.json" --skip-benchmark -H "NVIDIA RTX5080" -o "Results_NVIDIA_RTX5080"
-ppbcc benchmark  -p ./nvidia-gh200 -r ".*.json" --skip-benchmark -H "NVIDIA GH200" -o "Results_NVIDIA_GH200"
-ppbcc benchmark  -p ./amd-mi210 -r ".*.json" --skip-benchmark -H "AMD Instinct MI210" -o "Results_AMD_Instinct_MI210"
-ppbcc benchmark  -p ./intel-data_center_gpu_max_1550 -r ".*.json" --skip-benchmark -H "INTEL Data Center GPU Max 1550" -o "Results_INTEL_Data_Center_GPU_Max_1550"
+ppbcc benchmark -p ./nvidia-rtx3080 -r ".*\.json" --skip-benchmark \
+  -H "NVIDIA RTX3080" -o "Results_NVIDIA_RTX3080"
 ```
 
-## Generate Plots
+Repeat for the remaining platforms:
 
-To generate the plots, use the following commands:
-```bash
-# For NBody Plots
-ppbcc p3analysis NBody ./Results_* --complexity ./code-complexity/code-complexity.csv -c combined \
-  --complexity-metric halstead-difficulty --additive --log-size \
-  --non-zero-pp -s avg -x "VerletLists|LinkedCells|Reduction" --remove-description -l --export-to-csv --legend--vertical
-# For Polyhedral Plots
-ppbcc p3analysis Polyhedral ./Results_* --complexity ./code-complexity/code-complexity.csv -c combined \
-  --complexity-metric halstead-difficulty --additive --log-size \
-  --non-zero-pp --remove-description -s avg -l --export-to-csv
-# For MatrixMultiplication Plots (no --log-complexity: --additive yields
-# non-positive complexity values for this problem)
-ppbcc p3analysis MatrixMultiplication ./Results_* --complexity ./code-complexity/code-complexity.csv -c combined \
-  --complexity-metric halstead-difficulty --additive --log-size \
-  --non-zero-pp --remove-description -s avg -x "Cublas" -l --export-to-csv
-# For vector Addition Plots
-ppbcc p3analysis VecAdd ./Results_* --complexity ./code-complexity/code-complexity.csv -c combined \
-  --complexity-metric halstead-difficulty --additive --log-size \
-  --non-zero-pp --remove-description -s avg -x "Cublas" -l --export-to-csv
-```
+| `-p` | `-H` | `-o` |
+|---|---|---|
+| `./nvidia-rtx3080` | `NVIDIA RTX3080` | `Results_NVIDIA_RTX3080` |
+| `./nvidia-rtx4060` | `NVIDIA RTX4060` | `Results_NVIDIA_RTX4060` |
+| `./nvidia-rtx5080` | `NVIDIA RTX5080` | `Results_NVIDIA_RTX5080` |
+| `./nvidia-gh200` | `NVIDIA GH200` | `Results_NVIDIA_GH200` |
+| `./amd-mi210` | `AMD Instinct MI210` | `Results_AMD_Instinct_MI210` |
+| `./intel-data_center_gpu_max_1550` | `INTEL Data Center GPU Max 1550` | `Results_INTEL_Data_Center_GPU_Max_1550` |
 
-```bash
-# For NBody Plots
-ppbcc p3analysis NBody ./Results_* -c boxplot \
-  --non-zero-pp -s all -x "VerletLists|LinkedCells|Reduction" --remove-description
-# For Polyhedral Plots
-ppbcc p3analysis Polyhedral ./Results_* -c boxplot \
-  --non-zero-pp --remove-description -s all
-# For MatrixMultiplication Plots (no --log-complexity: --additive yields
-# non-positive complexity values for this problem)
-ppbcc p3analysis MatrixMultiplication ./Results_* -c boxplot \
-  --non-zero-pp --remove-description -s all -x "Cublas"
-# For vector Addition Plots
-ppbcc p3analysis VecAdd ./Results_* -c boxplot \
-  --non-zero-pp --remove-description -s all -x "Cublas"
-```
+## 3. Code complexity
 
-## Generate Code-Complexity results
-
-The plot commands above require `results/code-complexity/code-complexity.csv`.
-Both it and the file-level CSV are (re-)generated from the repository root with:
+Both `code-complexity/code-complexity.csv` (per implementation, required by the plots below) and
+`code-complexity/code-complexity-files.csv` (per file) are regenerated from the repository root
+with:
 
 ```bash
 python scripts/generate_code_complexity.py
 ```
 
-The file-level results correspond to:
+The script wraps `ppbcc code-complexity`: the file-level CSV is a plain run over `src/`, and every
+implementation aggregate is a `--aggregate` run over an explicit source manifest, whose `TOTAL` row
+is collected with `distinct_operators`/`distinct_operands`/`total_operators`/`total_operands`
+renamed to the conventional Halstead columns `n1`, `n2`, `N1`, `N2`. Use `--dry-run` to print every
+concrete invocation, including all resolved shared files, without changing the results.
+
+The manifest exists because the aggregates cannot be derived from directory structure alone. It
+separates the AdaptiveCpp shared-memory, CUDA matrix, OpenMP host/device, Vulkan matrix and Kokkos
+NBody reduction variants, and keeps NBody Naive, LinkedCells and VerletLists apart. Slang shaders
+are deliberately aggregated twice — with the CUDA host code for `Slang-Cuda` and with the Vulkan
+host code for `Slang-Vulkan` — and OpenCL kernels reused by Boost.Compute are counted in the Boost
+aggregates as well. Quoted repository-local includes are resolved transitively and the
+implementation units of required `src/common` utilities are added automatically; a dependency on a
+*different* benchmark problem is rejected, which prevents unrelated application code from silently
+inflating an aggregate.
+
+## 4. Plots
+
+The combined charts (application efficiency, $\Phi$ over problem size, and $\Phi$ over complexity)
+need the code-complexity CSV from step 3:
 
 ```bash
-ppbcc code-complexity src \
-  --output results/code-complexity/code-complexity-files.csv
+# N-body
+ppbcc p3analysis NBody ./Results_* --complexity ./code-complexity/code-complexity.csv -c combined \
+  --complexity-metric halstead-difficulty --additive --log-size \
+  --non-zero-pp -s avg -x "VerletLists|LinkedCells|Reduction" --remove-description -l \
+  --export-to-csv --legend--vertical
+# Polyhedral gravity model
+ppbcc p3analysis Polyhedral ./Results_* --complexity ./code-complexity/code-complexity.csv -c combined \
+  --complexity-metric halstead-difficulty --additive --log-size \
+  --non-zero-pp --remove-description -s avg -l --export-to-csv
+# Matrix multiplication
+ppbcc p3analysis MatrixMultiplication ./Results_* --complexity ./code-complexity/code-complexity.csv -c combined \
+  --complexity-metric halstead-difficulty --additive --log-size \
+  --non-zero-pp --remove-description -s avg -x "Cublas" -l --export-to-csv
+# Vector addition
+ppbcc p3analysis VecAdd ./Results_* --complexity ./code-complexity/code-complexity.csv -c combined \
+  --complexity-metric halstead-difficulty --additive --log-size \
+  --non-zero-pp --remove-description -s avg -x "Cublas" -l --export-to-csv
 ```
 
-Each implementation aggregate is generated with the same form, using the
-explicit source manifest in `scripts/generate_code_complexity.py`:
+> [!NOTE]
+> `--log-complexity` is deliberately omitted: with `--additive`, matrix multiplication yields
+> non-positive complexity values, which a logarithmic axis cannot show.
+
+The boxplots need no complexity data and use `-s all` instead of `-s avg`:
 
 ```bash
-ppbcc code-complexity <implementation-and-shared-source-files...> \
-  --dialect <dialect-list> --aggregate \
-  --metrics sloc distinct_operators distinct_operands total_operators total_operands \
-  --output <temporary-csv>
+ppbcc p3analysis NBody ./Results_* -c boxplot \
+  --non-zero-pp -s all -x "VerletLists|LinkedCells|Reduction" --remove-description
+ppbcc p3analysis Polyhedral ./Results_* -c boxplot \
+  --non-zero-pp -s all --remove-description
+ppbcc p3analysis MatrixMultiplication ./Results_* -c boxplot \
+  --non-zero-pp -s all -x "Cublas" --remove-description
+ppbcc p3analysis VecAdd ./Results_* -c boxplot \
+  --non-zero-pp -s all -x "Cublas" --remove-description
 ```
 
-The `TOTAL` rows are collected into the aggregate CSV, with
-`distinct_operators`, `distinct_operands`, `total_operators`, and
-`total_operands` renamed to the conventional `n1`, `n2`, `N1`, and `N2`
-columns. To print every concrete `python -m code_complexity` invocation,
-including all resolved shared files, without changing the results, run:
-
-```bash
-python scripts/generate_code_complexity.py --dry-run
-```
-
-The manifest separates the AdaptiveCpp shared-memory, CUDA matrix, OpenMP
-host/device, Vulkan matrix, and Kokkos NBody reduction variants. NBody Naive,
-LinkedCells, and VerletLists are separate rows. Slang shaders are deliberately
-aggregated twice: with CUDA host code for `Slang-Cuda` and with Vulkan host
-code for `Slang-Vulkan`. OpenCL kernels reused by Boost.Compute are included
-in the Boost aggregates as well. Quoted repository-local includes are resolved
-transitively, and implementation units for required utilities from
-`src/common` are added automatically. The generator rejects dependencies on a
-different benchmark problem, which prevents unrelated application code from
-silently inflating an aggregate.
+`--export-to-csv` additionally writes the underlying application-efficiency and
+performance-portability tables, so every quoted number can be checked against a CSV rather than
+read off a plot.
