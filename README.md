@@ -6,7 +6,7 @@ same problem with the same algorithm and the same features, which makes the para
 comparable in terms of both **runtime** and **code complexity**.
 
 It is the *benchmark* half of a performance-portability study; the *tooling* half — running the
-benchmarks, computing application efficiency $e_A$ and performance portability $\Phi$, measuring
+benchmarks, computing application efficiency $e_A$ and performance portability ꟼP, measuring
 code complexity and rendering the plots — lives in
 [**ppbcc**](https://github.com/schuhmaj/performance-portability-code-complexity).
 The software setup helper resides in [**software-bootstrapper**](https://github.com/schuhmaj/software-bootstrapper).
@@ -17,7 +17,7 @@ The software setup helper resides in [**software-bootstrapper**](https://github.
   <img src="docs/workflow.png" width="100%">
   <br>
   <em>
-    From a bare machine to performance portability and code complexity.<br>
+    Performance Portability and Code Complexity.<br>
   </em>
 </p>
 
@@ -26,7 +26,7 @@ Three repositories play together:
 | Repository | Role |
 |---|---|
 | **performance-portability-benchmark** (this one) | The implementations, the CMake build system, the correctness tests, and the recorded raw measurements under [`results/`](results) |
-| [**performance-portability-code-complexity**](https://github.com/schuhmaj/performance-portability-code-complexity) (`ppbcc`) | Runs the benchmarks, consolidates their reports, computes $e_A$, $\Phi$ and the code-complexity metrics, and draws every chart. Its code-complexity analysis is stand-alone and works on any C++/GPU codebase |
+| [**performance-portability-code-complexity**](https://github.com/schuhmaj/performance-portability-code-complexity) (`ppbcc`) | Runs the benchmarks, consolidates their reports, computes $e_A$, ꟼP and the code-complexity metrics, and draws every chart. Its code-complexity analysis is stand-alone and works on any C++/GPU codebase |
 | [**software-bootstrapper**](https://github.com/schuhmaj/software-bootstrapper) | Provisions the toolchains and libraries (LLVM with OpenMP offload, Vulkan SDK, CMake/Ninja, Kokkos, Boost, …) into a prefix of your choice, optionally with Lmod/Tcl module files |
 
 ## Benchmark Problems

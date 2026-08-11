@@ -1,0 +1,7 @@
+# LaTeX auxiliary files produced by latexmk (see Makefile)
+*.aux
+*.fdb_latexmk
+*.fls
+*.log
+*.out
+*.synctex.gz

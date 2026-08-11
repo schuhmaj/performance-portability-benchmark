@@ -76,7 +76,7 @@ inflating an aggregate.
 
 ## 4. Plots
 
-The combined charts (application efficiency, $\Phi$ over problem size, and $\Phi$ over complexity)
+The combined charts (application efficiency, ꟼP over problem size, and ꟼP over complexity)
 need the code-complexity CSV from step 3:
 
 ```bash

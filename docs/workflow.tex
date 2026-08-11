@@ -3,11 +3,9 @@
 %
 % Renders the four stages of the pipeline (provision, configure & build,
 % run & verify, analyze) together with the repository that provides each of
-% them. Build the figure with:
+% them. Build the PDF and the PNG with:
 %
-%   pdflatex -output-directory=docs docs/workflow.tex
-%   magick -density 200 docs/workflow.pdf -background white \
-%       -alpha remove -alpha off docs/workflow.png
+%   make -C docs
 %
 % ---------------------------------------------------------------------------
 \documentclass[border=4pt,tikz]{standalone}
@@ -15,7 +13,11 @@
 \usepackage[T1]{fontenc}
 \usepackage{lmodern}
 \usepackage{amsmath}
+\usepackage{graphicx}
 \usetikzlibrary{arrows.meta,positioning,shapes.arrows,calc}
+
+% Performance-portability symbol, identical to the definition used in the paper.
+\newcommand{\PP}{\ensuremath{\mathord{\mbox{\reflectbox{P}\kern-0.3em P}}}}
 
 % Palette shared with the methodology figure of the paper.
 \definecolor{ppbBlue}{RGB}{0,82,147}
@@ -84,7 +86,7 @@
     % ------------------------------------------------------------------
     \fill[ppbHeader, card] (0,9.05) rectangle (21.60,9.85);
     \node[stage title, text=white, font=\sffamily\bfseries\normalsize] at (10.80,9.45)
-        {From a bare machine to performance portability \(\Phi\) and code complexity};
+        {Performance portability \PP{} and Code Complexity};
 
     \fill[ppbBand, card] (0,8.15) rectangle (21.60,8.90);
     \node[band text, text width=21.00cm] at (10.80,8.65)
@@ -183,7 +185,7 @@
         \node[mono] at (0.28,4.35) {ppbcc p3analysis NBody \(\backslash\)};
         \node[mono] at (0.28,4.03) {~~Results\_* -{}-complexity \dots};
         \node[desc] at (0.28,3.61) {Application efficiency \(e_A\) and};
-        \node[desc] at (0.28,3.29) {performance portability \(\Phi\) over};
+        \node[desc] at (0.28,3.29) {performance portability \PP{} over};
         \node[desc] at (0.28,2.97) {code complexity};
         \node[desc] at (0.28,2.55) {Charts: cascade, navchart,};
         \node[desc] at (0.28,2.23) {combined, heatmap, boxplot};
@@ -196,7 +198,7 @@
         0/repoBootLight/{Toolchains in \texttt{\$PREFIX} + modulefiles},
         5.50/repoBenchLight/{60+ executables in \texttt{build-<preset>/}},
         11.00/repoPpbccLight/{\texttt{*.json} \(\rightarrow\) \texttt{Results\_<HW>.csv}},
-        16.50/repoPpbccLight/{Chart PDFs, \(e_A\) and \(\Phi\) as CSV}%
+        16.50/repoPpbccLight/{Chart PDFs, \(e_A\) and \PP{} as CSV}%
     } {
         \fill[\fillc, card] (\cx,0.90) rectangle (\cx+\cardw,1.50);
         \node[chip text, text width=4.85cm] at (\cx+2.55,1.20) {\chip};
