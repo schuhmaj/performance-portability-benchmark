@@ -600,21 +600,17 @@ namespace ppb::cuda::nbody {
     }
 
     __device__ inline bool is_in_bounds(int idx, int offset) {
-        int offset_idx = idx + offset;
         int x_idx = idx % X_DIM;
         int y_idx = (idx / X_DIM) % Y_DIM;
         int z_idx = (idx / (X_DIM * Y_DIM));
-        int x_offset = offset_idx % X_DIM;
-        int y_offset = (offset_idx / X_DIM) % Y_DIM;
-        int z_offset = (offset_idx / (X_DIM * Y_DIM));
 
-        if (offset_idx < 0) return false;
-        if (std::abs((int)(x_idx - x_offset)) > 1) return false;
-        else if (std::abs((int)(y_idx - y_offset)) > 1) return false;
-        else if (std::abs((int)(z_idx - z_offset)) > 1) return false;
-        else if (x_offset >= X_DIM) return false;
-        else if (y_offset >= Y_DIM) return false;
-        else if (z_offset >= Z_DIM) return false;
+        int offset_x = OFFSETS_XYZ[3 * offset];
+        int offset_y = OFFSETS_XYZ[3 * offset + 1];
+        int offset_z = OFFSETS_XYZ[3 * offset + 2];
+
+        if (x_idx + offset_x < 0 || x_idx + offset_x > X_DIM - 1) return false;
+        if (y_idx + offset_y < 0 || y_idx + offset_y > Y_DIM - 1) return false;
+        if (z_idx + offset_z < 0 || z_idx + offset_z > Z_DIM - 1) return false;
         return true;
     }
 
@@ -664,7 +660,7 @@ namespace ppb::cuda::nbody {
         int idx = get_cell_idx(i, positions);
 
         for (int o = 0; o < 27; o++) {
-            if (!is_in_bounds(idx, OFFSETS[o])) continue;
+            if (!is_in_bounds(idx, o)) continue;
             idx += OFFSETS[o];
             int start = starts_LC[idx];
             int end = starts_LC[idx + 1];
@@ -696,7 +692,7 @@ namespace ppb::cuda::nbody {
         int offset = 0;
         
         for (int o = 0; o < 27; o++) {
-            if (!is_in_bounds(idx, OFFSETS[o])) continue;
+            if (!is_in_bounds(idx, o)) continue;
             idx += OFFSETS[o];
             int start = starts_LC[idx];
             int end = starts_LC[idx + 1];

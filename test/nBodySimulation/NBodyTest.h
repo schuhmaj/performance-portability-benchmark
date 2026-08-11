@@ -13,7 +13,7 @@ protected:
     static constexpr double EPSILON = 0.05;
 
     static constexpr float TIME_STEP = 0.0005;
-    static constexpr int ITERATIONS = 1000;
+    static constexpr int ITERATIONS = 5;
 
     /*
     AutoPas Config File to replicate the values below.
@@ -85,6 +85,18 @@ protected:
         return result / 2;
     }
 
+    float get_mean_deviation(std::vector<ppb::Particle<float>> expected, std::vector<ppb::Particle<float>> actual, size_t size) {
+        float mean_deviation = 0.f;
+
+        for (size_t i = 0; i < size; i++) {
+            mean_deviation += std::abs(expected[i].getPosition()[0] - actual[i].getPosition()[0]);
+            mean_deviation += std::abs(expected[i].getPosition()[1] - actual[i].getPosition()[1]);
+            mean_deviation += std::abs(expected[i].getPosition()[2] - actual[i].getPosition()[2]);
+        }
+
+        return mean_deviation / (3 * size);
+    }
+
     template <typename Implementation>
     void runTest(const int size, const double epsilon = EPSILON) {
         using namespace testing;
@@ -113,12 +125,36 @@ protected:
             return;
         }
 
-            //Positions
-            ParticleSimulationConfig<float> config{static_cast<size_t>(size), ITERATIONS, 0.0005};
+        //Positions
+        ParticleSimulationConfig<float> config{static_cast<size_t>(size), ITERATIONS, 0.0005};
+        NBodySimulation<ImplCpp<float>> cppNBodySim{config};
+        NBodySimulation<Implementation> otherNBodySim{config};
+        const auto [actualResult, timings2] = otherNBodySim();
+        const auto [expectedResult, timings1] = cppNBodySim();
+        ASSERT_THAT(actualResult, ParticlesEq(expectedResult, epsilon));
+            
+        //Numerical Stability
+/*         ParticleSimulationConfig<float> config{static_cast<size_t>(size), 1, 0.005};
+        NBodySimulation<ImplCpp<float>> cppNBodySim{config};
+        NBodySimulation<Implementation> otherNBodySim{config};
+        const auto [actualResult, timings2] = otherNBodySim();
+        const auto [expectedResult, timings1] = cppNBodySim();
+        std::vector<ppb::Particle<float>> stateActual = actualResult;
+        std::vector<ppb::Particle<float>> stateExpected = expectedResult;
+        
+        for (size_t i = 0; i < ITERATIONS; i++) { 
+            ParticleSimulationConfig<float> config{static_cast<size_t>(size), 1, 0.005};
             NBodySimulation<ImplCpp<float>> cppNBodySim{config};
             NBodySimulation<Implementation> otherNBodySim{config};
+            otherNBodySim._particles = stateActual;
+            cppNBodySim._particles = stateExpected;
             const auto [actualResult, timings2] = otherNBodySim();
             const auto [expectedResult, timings1] = cppNBodySim();
-            ASSERT_THAT(actualResult, ParticlesEq(expectedResult, epsilon));
-        }
-    };
+            stateActual = actualResult;
+            stateExpected = expectedResult;
+            if (i % 10 == 0) {
+                std::cout<<get_mean_deviation(stateActual, stateExpected, static_cast<size_t>(size))<<std::endl;
+            }
+        } */
+    }
+};

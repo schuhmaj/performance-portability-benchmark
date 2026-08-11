@@ -24,6 +24,8 @@ namespace ppb::cuda::nbody {
     __constant__ int Z_DIM;
  
     __constant__ int OFFSETS[27];
+    
+    __constant__ int OFFSETS_XYZ[81];
 
     __constant__ float CELL_SIZE;
 } // namespace ppb::cuda::nbody

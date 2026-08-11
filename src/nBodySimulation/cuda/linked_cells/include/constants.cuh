@@ -11,6 +11,8 @@ namespace ppb::cuda::nbody {
 
     __constant__ int OFFSETS[27];
 
+    __constant__ int OFFSETS_XYZ[81];
+
     __constant__ int OFFSETS_COLORED[8]; 
     
     __constant__ int OFFSETS_COLORED_NON_BASE_CELL[12]; 

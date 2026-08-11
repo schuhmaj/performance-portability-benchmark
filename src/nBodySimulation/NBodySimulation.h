@@ -70,12 +70,12 @@ namespace ppb {
         /**
          * Minimum box coordinates of the initial simulation domain (lower-left-corner)
          */
-        std::array<FloatType, 3> boxMin{-1000, -1000, -1000};
+        std::array<FloatType, 3> boxMin{-10, -10, -10};
 
         /**
          * Maximum box coordinates of the initial simulation domain (upper-right-corner)
          */
-        std::array<FloatType, 3> boxMax{1000, 1000, 1000};
+        std::array<FloatType, 3> boxMax{10, 10, 10};
 
         /**
          * Flag to decide whether or not to use the kompute timestamps rather than the backend timestamps in vulkan
@@ -123,12 +123,12 @@ namespace ppb {
          * cell_size >= cutoff_radius                   for Linked Cells 
          * cell_size >= cutoff_radius + verlet_skin     for Verlet Lists with LC optimization
          */
-        FloatType cell_size{11.0f};
+        FloatType cell_size{7.0f};
         
         /**
          * Cutoff radius used in the linked cell and verlet lists implementation
          */
-        FloatType cutoff_radius{10.0f};
+        FloatType cutoff_radius{7.0f};
 
         /**
         * Size of the Verlet skin.
@@ -139,7 +139,7 @@ namespace ppb {
         * Frequency of updates of verlet lists. 
         * Updates the verlet lists every 'frequency' iterations.
         */
-        size_t frequency{15};
+        size_t frequency{2};
 
         /**
          * Creates a simulation configuration.
@@ -220,17 +220,18 @@ namespace ppb {
         using FloatType = typename ParticleSimulationImpl::float_type;
 
         /**
-         * Vector holding the simulation's particles.
-         */
-        std::vector<Particle<FloatType>> _particles;
-
-        /**
          * The simulation implementation instance.
          */
         ParticleSimulationImpl _impl;
 
     public:
 
+
+        /**
+         * Vector holding the simulation's particles.
+         */
+        std::vector<Particle<FloatType>> _particles;
+        
         /**
          * Constructs the simulation, generating an initial cuboid set of particles, and initializing the implementation.
          *

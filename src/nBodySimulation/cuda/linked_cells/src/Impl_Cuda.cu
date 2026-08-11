@@ -34,6 +34,22 @@ namespace ppb::cuda::nbody {
             (x_dim_h * y_dim_h) - 1, (x_dim_h * y_dim_h), (x_dim_h * y_dim_h) + 1,
             ((x_dim_h + 1) * y_dim_h) - 1, ((x_dim_h + 1) * y_dim_h), ((x_dim_h + 1) * y_dim_h) + 1
         };
+        int offsets_xyz[81] = {
+            //front section
+            -1, -1, -1,     0, -1, -1,      1, -1, -1,
+            -1, 0, -1,      0, 0, -1,       1, 0, -1,
+            -1, 1, -1,      0, 1, -1,       1, 1, -1,
+
+            //mid section
+            -1, -1, 0,      0, -1, 0,       1, -1, 0,
+            -1, 0, 0,       0, 0, 0,        1, 0, 0,
+            -1, 1, 0,       0, 1, 0,        1, 1, 0,
+            
+            //back section
+            -1, -1, 1,      0, -1, 1,       1, -1, 1,
+            -1, 0, 1,       0, 0, 1,        1, 0, 1,
+            -1, 1, 1,       0, 1, 1,        1, 1, 1,
+        };
         
         //-------------------------------------Init constant memory----------------------------------------
         CHECK_CUDA_ERROR(cudaMemcpyToSymbol(NUM_PARTICLES, &_config.size, sizeof(_config.size)));
@@ -41,6 +57,7 @@ namespace ppb::cuda::nbody {
         CHECK_CUDA_ERROR(cudaMemcpyToSymbol(Y_DIM, &y_dim_h, sizeof(y_dim_h)));
         CHECK_CUDA_ERROR(cudaMemcpyToSymbol(Z_DIM, &z_dim_h, sizeof(z_dim_h)));
         CHECK_CUDA_ERROR(cudaMemcpyToSymbol(OFFSETS, offsets_h, sizeof(offsets_h)));
+        CHECK_CUDA_ERROR(cudaMemcpyToSymbol(OFFSETS_XYZ, offsets_xyz, sizeof(offsets_xyz)));
         CHECK_CUDA_ERROR(cudaMemcpyToSymbol(DELTA_T, &_config.deltaT, sizeof(_config.deltaT)));
         CHECK_CUDA_ERROR(cudaMemcpyToSymbol(CUTOFF_RADIUS, &_config.cutoff_radius, sizeof(_config.cutoff_radius)));
         CHECK_CUDA_ERROR(cudaMemcpyToSymbol(CELL_SIZE, &_config.cell_size, sizeof(_config.cell_size)));
@@ -148,10 +165,11 @@ namespace ppb::cuda::nbody {
 #elif PPB_ENABLE_CUDA_LINKED_CELL_OPTIMIZATION
         //CHECK_CUDA_ERROR(cudaFuncSetAttribute(compute_forces_optimized, cudaFuncAttributeMaxDynamicSharedMemorySize, 96 * 1024));
         //printStartsCells<<<1,1>>>(starts, cells, cells_positions);
-/*         compute_forces_optimized_alt<<<_gridSizeForces, _blockSizeForces, _blockSizeForces * sizeof(float3)>>>(cells_positions, force, starts, cells); */
-        compute_forces_optimized<<<_gridSizeForces, _blockSizeForces, 24 * 1024>>>(cells_positions, force, starts, cells, (24 * 1024) / sizeof(float3));
+        compute_forces_optimized_alt<<<_gridSizeForces, _blockSizeForces, _blockSizeForces * sizeof(float3)>>>(cells_positions, force, starts, cells);
+/*         compute_forces_optimized<<<_gridSizeForces, _blockSizeForces, 24 * 1024>>>(cells_positions, force, starts, cells, (24 * 1024) / sizeof(float3)); */
 #else
-        compute_forces_unoptimized<<<_gridSizeForces, _blockSizeForces>>>(position, force, cells, starts);
+/*         printStartsCells<<<1,1>>>(starts, cells, cells_positions); */
+        compute_forces<<<_gridSizeForces, _blockSizeForces>>>(cells_positions, force, cells, starts);
 #endif
         CHECK_CUDA_ERROR(cudaEventRecord(stop));
         CHECK_CUDA_ERROR(cudaEventSynchronize(stop));
@@ -187,17 +205,16 @@ namespace ppb::cuda::nbody {
 
         for (int i = 0; i < _config.numberTimeSteps; ++i) {
 /*             std::cout<<"-------------------------ITERATION "<<i<<"--------------------------"<<std::endl; */
-/*             updatePositionsAndResetForce();
+            updatePositionsAndResetForce();
             computeForces();
-            updateVelocities(); */
-/*             int j = 0;
+            updateVelocities();
+/*              int j = 0;
             for (auto& p : _particles->toParticles()) {
-                if (j == 42) {
+                if (j == 0) {
                     std::cout<<p<<std::endl;
                 }
                 j++;
             } */
-            test<<<util::ceilDiv<size_t>(particles.size(), 1024), 1024>>>(cells_positions);
         }
         return std::make_pair(_particles->toParticles(), _timings);
     }

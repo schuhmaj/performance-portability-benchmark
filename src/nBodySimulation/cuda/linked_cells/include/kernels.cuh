@@ -21,21 +21,17 @@ namespace ppb::cuda::nbody {
     } 
 
     __device__ inline bool is_in_bounds(int idx, int offset) {
-        int offset_idx = idx + offset;
         int x_idx = idx % X_DIM;
         int y_idx = (idx / X_DIM) % Y_DIM;
         int z_idx = (idx / (X_DIM * Y_DIM));
-        int x_offset = offset_idx % X_DIM;
-        int y_offset = (offset_idx / X_DIM) % Y_DIM;
-        int z_offset = (offset_idx / (X_DIM * Y_DIM));
 
-        if (offset_idx < 0) return false;
-        if (std::abs((int)(x_idx - x_offset)) > 1) return false;
-        else if (std::abs((int)(y_idx - y_offset)) > 1) return false;
-        else if (std::abs((int)(z_idx - z_offset)) > 1) return false;
-        else if (x_offset >= X_DIM) return false;
-        else if (y_offset >= Y_DIM) return false;
-        else if (z_offset >= Z_DIM) return false;
+        int offset_x = OFFSETS_XYZ[3 * offset];
+        int offset_y = OFFSETS_XYZ[3 * offset + 1];
+        int offset_z = OFFSETS_XYZ[3 * offset + 2];
+
+        if (x_idx + offset_x < 0 || x_idx + offset_x > X_DIM - 1) return false;
+        if (y_idx + offset_y < 0 || y_idx + offset_y > Y_DIM - 1) return false;
+        if (z_idx + offset_z < 0 || z_idx + offset_z > Z_DIM - 1) return false;
         return true;
     }
 
@@ -54,11 +50,11 @@ namespace ppb::cuda::nbody {
     }
 
     __global__ void printStartsCells(int* starts, int* cells, float3* positions) {
-/*         int num_cells = X_DIM * Y_DIM * Z_DIM;
+        int num_cells = X_DIM * Y_DIM * Z_DIM;
         printf("starts:\n");
-        for (int i = 0; i < num_cells; i++) {
+        for (int i = 0; i < num_cells + 1; i++) {
             printf("%d, ", starts[i]);
-        } */
+        }
         printf("\ncells:\n");
         for (int i = 0; i < NUM_PARTICLES; i++) {
             printf("%d, ", cells[i]);
@@ -165,7 +161,7 @@ namespace ppb::cuda::nbody {
         float3 fi = make_float3(0.f, 0.f, 0.f);
         size_t idx = get_cell_idx(i, positions);
         for (size_t offset = 0; offset < 27; offset++) {
-            if (!is_in_bounds(idx, OFFSETS[offset])) continue; 
+            if (!is_in_bounds(idx, offset)) continue; 
             idx += OFFSETS[offset];
             size_t start = starts[idx];
             size_t end = starts[idx + 1];
@@ -176,6 +172,10 @@ namespace ppb::cuda::nbody {
                 const float3 dr = make_float3_sub(positions[i], positions[j]);
                 const float dr2 = dot3(dr, dr);
                 if (std::sqrt(dr2) >= CUTOFF_RADIUS) continue; // = here too because less atomics in domain coloring
+               
+/*                 if (i == 0 || j == 0) {
+                    printf("Thread %u: %u <-> %lu, offset: %lu, start: %lu, end: %lu, X_DIM: %d, Y_DIM: %d, Z_DIM: %d\n", i, i, j, offset, start, end, X_DIM, Y_DIM, Z_DIM);
+                } */
                 
                 const float sigma = 1.0f;
                 const float sigmaSquared = sigma * sigma;
@@ -218,7 +218,7 @@ namespace ppb::cuda::nbody {
         float3 pi = cells_positions[i];
         size_t ci = cells[i];
         for (size_t offset = 0; offset < 27; offset++) {
-            if (!is_in_bounds(idx, OFFSETS[offset])) continue; 
+            if (!is_in_bounds(idx, offset)) continue;
             idx += OFFSETS[offset];
             size_t start = starts[idx];
             size_t end = starts[idx + 1];
@@ -295,7 +295,7 @@ namespace ppb::cuda::nbody {
 #pragma unroll 8
             for (int o = 0; o < 8; o++) {
                 int offset = OFFSETS[OFFSETS_COLORED[o]];
-                if (!is_in_bounds(idx, offset)) continue;
+                if (!is_in_bounds(idx, OFFSETS_COLORED[o])) continue;
                 idx += offset;
                 int start = starts[idx];
                 int end = starts[idx + 1];
@@ -336,8 +336,8 @@ namespace ppb::cuda::nbody {
 
         //non-base-cell interactions
         for (int o = 0; o < 12; o+=2) {
-            if (!is_in_bounds(idx, OFFSETS[OFFSETS_COLORED_NON_BASE_CELL[o]]) 
-            || !is_in_bounds(idx, OFFSETS[OFFSETS_COLORED_NON_BASE_CELL[o+1]])) continue;
+            if (!is_in_bounds(idx, OFFSETS_COLORED_NON_BASE_CELL[o]) 
+            || !is_in_bounds(idx, OFFSETS_COLORED_NON_BASE_CELL[o+1])) continue;
             int cell_i = idx + OFFSETS[OFFSETS_COLORED_NON_BASE_CELL[o]];
             int cell_j = idx + OFFSETS[OFFSETS_COLORED_NON_BASE_CELL[o+1]];
             int start_cell_i = starts[cell_i];     
@@ -396,7 +396,7 @@ namespace ppb::cuda::nbody {
 
         //if next element in different cell, go to next *non-empty* cell
         for (; current_offset < 27; current_offset++) {
-            if (!is_in_bounds(base_cell_idx, OFFSETS[current_offset])) continue;
+            if (!is_in_bounds(base_cell_idx, current_offset)) continue;
             base_cell_idx += OFFSETS[current_offset];
             int start_cell = starts[base_cell_idx];
             int end_cell = starts[base_cell_idx + 1]; 
@@ -415,7 +415,7 @@ namespace ppb::cuda::nbody {
     __device__ inline int get_num_neighbors(int base_cell_idx, const int* starts) {
         int num_neighbors = 0;
         for (int i = 0; i < 27; i++) {
-            if (!is_in_bounds(base_cell_idx, OFFSETS[i])) continue;
+            if (!is_in_bounds(base_cell_idx, i)) continue;
             base_cell_idx += OFFSETS[i];
             num_neighbors += starts[base_cell_idx + 1] - starts[base_cell_idx];
             base_cell_idx -= OFFSETS[i];
@@ -574,7 +574,7 @@ namespace ppb::cuda::nbody {
         //Iterate over all 27 neighbor cells
         for (; current_offset < 27; current_offset++) {
             //Determine the next cell that will be loaded (in chunks) into shared memory
-            if (!is_in_bounds(idx, OFFSETS[current_offset])) continue;
+            if (!is_in_bounds(idx, current_offset)) continue;
             current_neighbor_cell = idx + OFFSETS[current_offset];
             current_start = starts[current_neighbor_cell];
             current_end = starts[current_neighbor_cell + 1];

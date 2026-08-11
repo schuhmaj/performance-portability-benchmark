@@ -45,10 +45,29 @@ namespace ppb::cuda::nbody {
             (x_dim_h * y_dim_h) - 1, (x_dim_h * y_dim_h), (x_dim_h * y_dim_h) + 1,
             ((x_dim_h + 1) * y_dim_h) - 1, ((x_dim_h + 1) * y_dim_h), ((x_dim_h + 1) * y_dim_h) + 1
         };
+
+        int offsets_xyz[81] = {
+            //front section
+            -1, -1, -1,     0, -1, -1,      1, -1, -1,
+            -1, 0, -1,      0, 0, -1,       1, 0, -1,
+            -1, 1, -1,      0, 1, -1,       1, 1, -1,
+
+            //mid section
+            -1, -1, 0,      0, -1, 0,       1, -1, 0,
+            -1, 0, 0,       0, 0, 0,        1, 0, 0,
+            -1, 1, 0,       0, 1, 0,        1, 1, 0,
+            
+            //back section
+            -1, -1, 1,      0, -1, 1,       1, -1, 1,
+            -1, 0, 1,       0, 0, 1,        1, 0, 1,
+            -1, 1, 1,       0, 1, 1,        1, 1, 1,
+        };
+
         CHECK_CUDA_ERROR(cudaMemcpyToSymbol(X_DIM, &x_dim_h, sizeof(x_dim_h)));
         CHECK_CUDA_ERROR(cudaMemcpyToSymbol(Y_DIM, &y_dim_h, sizeof(y_dim_h)));
         CHECK_CUDA_ERROR(cudaMemcpyToSymbol(Z_DIM, &z_dim_h, sizeof(z_dim_h)));
         CHECK_CUDA_ERROR(cudaMemcpyToSymbol(OFFSETS, offsets_h, sizeof(offsets_h)));
+        CHECK_CUDA_ERROR(cudaMemcpyToSymbol(OFFSETS_XYZ, offsets_xyz, sizeof(offsets_xyz)));
         CHECK_CUDA_ERROR(cudaMemcpyToSymbol(CELL_SIZE, &_config.cell_size, sizeof(_config.cell_size)));
         CHECK_CUDA_ERROR(cudaMemcpyToSymbol(BOX_MIN, _config.boxMin.data(), sizeof(_config.boxMin)));
 #endif
