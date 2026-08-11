@@ -2047,6 +2047,7 @@ def main() -> int:
     """
     args = build_parser().parse_args()
     configure_logging(args.verbose)
+    logger.warning("Deprecated: Use https://github.com/schuhmaj/performance-portability-code-complexity")
     sns.set_theme(style="whitegrid", context="talk", font="DejaVu Sans")
 
     try:

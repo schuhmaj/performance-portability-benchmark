@@ -737,6 +737,7 @@ def main() -> int:
 
     logger.remove()
     logger.add(sys.stdout, level=["INFO", "DEBUG", "TRACE"][min(args.verbose, 2)])
+    logger.warning("Deprecated: Use https://github.com/schuhmaj/performance-portability-code-complexity")
 
     # The build folder is always the working directory.
     build_dir = args.build_dir.resolve()
