@@ -55,7 +55,7 @@ namespace ppb {
         /**
          * Simulation end time.
          */
-        int numberTimeSteps{100};
+        int numberTimeSteps{1000};
 
         /**
          * Size of the simulation time step.
@@ -76,7 +76,6 @@ namespace ppb {
          * Maximum box coordinates of the initial simulation domain (upper-right-corner)
          */
         std::array<FloatType, 3> boxMax{1000, 1000, 1000};
-
 
         /**
          * Flag to decide whether or not to use the kompute timestamps rather than the backend timestamps in vulkan
@@ -120,9 +119,11 @@ namespace ppb {
         unsigned int seed{42};
 
         /**
-         * Cell size used in the linked cell implementation (cell_size >= cutoff_radius!!!)
+         * Cell size used in the linked cell implementation 
+         * cell_size >= cutoff_radius                   for Linked Cells 
+         * cell_size >= cutoff_radius + verlet_skin     for Verlet Lists with LC optimization
          */
-        FloatType cell_size{20.0f};
+        FloatType cell_size{11.0f};
         
         /**
          * Cutoff radius used in the linked cell and verlet lists implementation

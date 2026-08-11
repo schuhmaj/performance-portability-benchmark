@@ -103,6 +103,10 @@ cmake_dependent_option(
     PPB_ENABLE_CUDA_VERLET_CLUSTER_LISTS "Enables the Verlet Cluster Lists optimization for Verlet Lists" OFF 
     "PPB_ENABLE_CUDA AND PPB_ENABLE_NBodySimulation_verlet" OFF
 )
+cmake_dependent_option(
+    PPB_ENABLE_CUDA_VERLET_LISTS_LC_OPTIMIZATION "Enables the Linked Cells neighbor search optimization for Verlet Lists" OFF 
+    "PPB_ENABLE_CUDA AND PPB_ENABLE_NBodySimulation_verlet" OFF
+)
 
 set(PPB_FloatType "32" CACHE STRING "Choose the floating point precision (32 or 64 bits)")
 set_property(CACHE PPB_FloatType PROPERTY STRINGS "32" "64")
@@ -140,6 +144,7 @@ message(STATUS "####################################################")
 message(STATUS "DOMAIN_COLORING                 ${PPB_ENABLE_DOMAIN_COLORING}")
 message(STATUS "LINKED_CELL_OPTIMIZATION        ${PPB_ENABLE_CUDA_LINKED_CELL_OPTIMIZATION}")
 message(STATUS "VERLET_CLUSTER_LISTS            ${PPB_ENABLE_CUDA_VERLET_CLUSTER_LISTS}")
+message(STATUS "VERLET_LISTS_LC_OPT             ${PPB_ENABLE_CUDA_VERLET_LISTS_LC_OPTIMIZATION}")
 message(STATUS "####################################################")
 
 #######################################################

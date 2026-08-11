@@ -27,7 +27,31 @@ namespace ppb::cuda::nbody {
 #ifdef PPB_ENABLE_VERLET_CLUSTER_LISTS
         CHECK_CUDA_ERROR(cudaMemcpyToSymbol(BOX_MIN, _config.boxMin.data(), sizeof(_config.boxMin)));
         CHECK_CUDA_ERROR(cudaMemcpyToSymbol(BOX_MAX, _config.boxMax.data(), sizeof(_config.boxMax)));
-#endif 
+#elif PPB_ENABLE_VERLET_LISTS_LC_OPTIMIZATION
+        int x_dim_h = util::ceilDiv((_config.boxMax[0] - _config.boxMin[0]), _config.cell_size);
+        int y_dim_h = util::ceilDiv((_config.boxMax[1] - _config.boxMin[1]), _config.cell_size);
+        int z_dim_h = util::ceilDiv((_config.boxMax[2] - _config.boxMin[2]), _config.cell_size);
+        int offsets_h[27] = {
+            //front section
+            -((x_dim_h + 1) * y_dim_h) - 1, -((x_dim_h + 1) * y_dim_h), -((x_dim_h + 1) * y_dim_h) + 1,
+            -(x_dim_h * y_dim_h) - 1, -(x_dim_h * y_dim_h), -(x_dim_h * y_dim_h) + 1,
+            -((x_dim_h - 1) * y_dim_h) - 1, -((x_dim_h - 1) * y_dim_h), -((x_dim_h - 1) * y_dim_h) + 1,
+            //mid section
+            -x_dim_h - 1, -x_dim_h, -x_dim_h + 1,
+            -1, 0, 1,
+            x_dim_h - 1, x_dim_h, x_dim_h + 1,
+            //back section
+            ((x_dim_h - 1) * y_dim_h) - 1, ((x_dim_h - 1) * y_dim_h), ((x_dim_h - 1) * y_dim_h) + 1,
+            (x_dim_h * y_dim_h) - 1, (x_dim_h * y_dim_h), (x_dim_h * y_dim_h) + 1,
+            ((x_dim_h + 1) * y_dim_h) - 1, ((x_dim_h + 1) * y_dim_h), ((x_dim_h + 1) * y_dim_h) + 1
+        };
+        CHECK_CUDA_ERROR(cudaMemcpyToSymbol(X_DIM, &x_dim_h, sizeof(x_dim_h)));
+        CHECK_CUDA_ERROR(cudaMemcpyToSymbol(Y_DIM, &y_dim_h, sizeof(y_dim_h)));
+        CHECK_CUDA_ERROR(cudaMemcpyToSymbol(Z_DIM, &z_dim_h, sizeof(z_dim_h)));
+        CHECK_CUDA_ERROR(cudaMemcpyToSymbol(OFFSETS, offsets_h, sizeof(offsets_h)));
+        CHECK_CUDA_ERROR(cudaMemcpyToSymbol(CELL_SIZE, &_config.cell_size, sizeof(_config.cell_size)));
+        CHECK_CUDA_ERROR(cudaMemcpyToSymbol(BOX_MIN, _config.boxMin.data(), sizeof(_config.boxMin)));
+#endif
         //------------------------------Determine optimal grid size----------------------------------------
         size = _config.size;
         frequency = _config.frequency;
@@ -45,6 +69,17 @@ namespace ppb::cuda::nbody {
         CHECK_CUDA_ERROR(cudaMalloc(&starts, sizeof(int) * (size + 1))); // +1 so the last element is the total number of neighbors
         CHECK_CUDA_ERROR(cudaMemset(starts, 0, sizeof(int) * (size + 1)));
 #endif
+#ifdef PPB_ENABLE_VERLET_LISTS_LC_OPTIMIZATION
+        num_cells = x_dim_h * y_dim_h * z_dim_h;        
+        CHECK_CUDA_ERROR(cudaMalloc(&cells, sizeof(int) * size));
+        CHECK_CUDA_ERROR(cudaMalloc(&tmp, sizeof(int) * size));
+        CHECK_CUDA_ERROR(cudaMalloc(&cell_offsets, sizeof(int) * size));
+        CHECK_CUDA_ERROR(cudaMalloc(&starts_LC, sizeof(int) * (num_cells + 1)));
+        CHECK_CUDA_ERROR(cudaMemset(cells, 0, sizeof(int) * size));
+        CHECK_CUDA_ERROR(cudaMemset(tmp, 0, sizeof(int) * size));
+        CHECK_CUDA_ERROR(cudaMemset(cell_offsets, 0, sizeof(int) * size));
+        CHECK_CUDA_ERROR(cudaMemset(starts_LC, 0, sizeof(int) * (num_cells + 1)));
+#endif
     }
 
     template<typename FloatType>
@@ -56,7 +91,11 @@ namespace ppb::cuda::nbody {
         if (BBM != nullptr) CHECK_CUDA_ERROR(cudaFree(BBM));
         if (BBN != nullptr) CHECK_CUDA_ERROR(cudaFree(BBN));
         if (cluster_pairs != nullptr) CHECK_CUDA_ERROR(cudaFree(cluster_pairs));
+        if (starts_LC != nullptr) CHECK_CUDA_ERROR(cudaFree(starts_LC));
         if (verletLists != nullptr) CHECK_CUDA_ERROR(cudaFree(verletLists));
+        if (cells != nullptr) CHECK_CUDA_ERROR(cudaFree(cells));
+        if (cell_offsets != nullptr) CHECK_CUDA_ERROR(cudaFree(cell_offsets));
+        if (tmp != nullptr) CHECK_CUDA_ERROR(cudaFree(tmp));
     }
     
 #ifdef PPB_ENABLE_VERLET_CLUSTER_LISTS
@@ -189,6 +228,23 @@ namespace ppb::cuda::nbody {
             boundingBoxes();
             createPairList();
             // Potentially prune the constructed cluster pair list?
+#elif PPB_ENABLE_VERLET_LISTS_LC_OPTIMIZATION
+            if (verletLists != nullptr) {
+                CHECK_CUDA_ERROR(cudaFree(verletLists));
+            }
+
+            CHECK_CUDA_ERROR(cudaMemset(starts_LC, 0.0, sizeof(int) * (num_cells + 1)));
+            sort_particles_into_cells<<<_gridSize, _blockSize>>>(position, tmp, cell_offsets, starts_LC);
+            thrust::inclusive_scan(thrust::device, starts_LC, starts_LC + (num_cells + 1), starts_LC);  
+            update_cells<<<_gridSize, _blockSize>>>(cells, tmp, cell_offsets, starts_LC, position);
+            get_number_of_neighbors_LC_OPT<<<_gridSize, _blockSize>>>(starts, position, starts_LC, cells);
+            thrust::inclusive_scan(thrust::device, starts, starts + (size + 1), starts);
+            size_t num_neighbors = 0;
+            CHECK_CUDA_ERROR(cudaMemcpy(&num_neighbors, &starts[size], sizeof(int), cudaMemcpyDeviceToHost));
+            if (num_neighbors != 0) {
+                CHECK_CUDA_ERROR(cudaMalloc(&verletLists, sizeof(int) * num_neighbors));
+                make_verlet_lists_LC_OPT<<<_gridSize, _blockSize>>>(verletLists, starts, position, starts_LC, cells);
+            }
 #else
             if (verletLists != nullptr) {
                 CHECK_CUDA_ERROR(cudaFree(verletLists));
@@ -270,7 +326,7 @@ namespace ppb::cuda::nbody {
             updateVelocities();
 /*             int j = 0;
             for (auto& p : _particles->toParticles()) {
-                if (j == 1) {
+                if (j == 0) {
                     std::cout<<p<<std::endl;
                 }
                 j++;

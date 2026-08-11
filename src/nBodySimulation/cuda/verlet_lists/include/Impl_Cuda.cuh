@@ -46,6 +46,13 @@ namespace ppb::cuda::nbody {
          * 'starts' marks the start of each list.
          */
         int* verletLists{nullptr};
+         
+        int* starts_LC{nullptr};
+        int* cells{nullptr};
+        int* cell_offsets{nullptr};
+        int* tmp{nullptr};
+        size_t num_cells = 0;
+        
         ParticleSimulationConfig<FloatType> _config;
 
         std::optional<CudaParticleSoA<FloatType>> _particles{std::nullopt};

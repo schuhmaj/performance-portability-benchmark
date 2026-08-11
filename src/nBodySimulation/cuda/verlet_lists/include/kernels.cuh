@@ -24,6 +24,12 @@ namespace ppb::cuda::nbody {
         return a.x * b.x + a.y * b.y + a.z * b.z;
     } 
 
+    //taken from: https://github.com/dangets/cuda_examples/blob/master/clamp_function.cu (last accessed 12.6.26)
+    template <typename T>
+    __device__ inline T clamp(T val, T vMin, T vMax) {
+        return min(max(val, vMin), vMax);
+    }
+
     __global__ void update_positions(
         float3* positions, 
         const float3* velocities, 
@@ -121,7 +127,7 @@ namespace ppb::cuda::nbody {
         int neighbors = 0;
         float3 pi = positions[i];
         for (size_t j = 0; j < NUM_PARTICLES; j++) {
-            if (i == j) continue;
+            if (i >= j) continue;
             const float3 dr = make_float3_sub(pi, positions[j]);
             const float dr2 = dot3(dr, dr);
             if (std::sqrt(dr2) <= CUTOFF_RADIUS + VERLET_SKIN) {
@@ -142,7 +148,7 @@ namespace ppb::cuda::nbody {
         size_t base = starts[i];
         int offset = 0;
         for (size_t j = 0; j < NUM_PARTICLES; j++) {
-            if (i == j) continue;
+            if (i >= j) continue;
             const float3 dr = make_float3_sub(pi, positions[j]);
             const float dr2 = dot3(dr, dr);
             if (std::sqrt(dr2) <= CUTOFF_RADIUS + VERLET_SKIN) {
@@ -204,13 +210,6 @@ namespace ppb::cuda::nbody {
             printf("%f, ", z_coordinates[i]);
         }
         printf("\n");
-    }
-
-
-    //taken from: https://github.com/dangets/cuda_examples/blob/master/clamp_function.cu (last accessed 14.6.26)
-    template <typename T>
-    __device__ inline T clamp(T val, T vMin, T vMax) {
-        return min(max(val, vMin), vMax);
     }
 
     __device__ size_t get_tower_id(int particle_idx, float3* __restrict__ positions, float grid_size) {
@@ -420,7 +419,8 @@ namespace ppb::cuda::nbody {
     }
    
     /**
-        Immediately excludes entire towers based on their x and y coordinates.
+        Immediately excludes entire towers based on their x and y coordinates. 
+        A much better optimization however, would be somehow using Linked Cells in the pair search...
     */
 /*     __global__ void cluster_pair_search_optimized(
         BoundingBox* __restrict__ BBM,
@@ -590,5 +590,129 @@ namespace ppb::cuda::nbody {
             atomicAdd(&forces[i_particle_idx].z, fi.z);
         }
     }
+
+#elif PPB_ENABLE_VERLET_LISTS_LC_OPTIMIZATION
+    __device__ inline int get_cell_idx(size_t particle_idx, const float3* positions) {
+        int x_idx = clamp<int>(int(((positions[particle_idx].x - BOX_MIN[0]) / CELL_SIZE)), 0, X_DIM - 1);
+        int y_idx = clamp<int>(int(((positions[particle_idx].y - BOX_MIN[1]) / CELL_SIZE)), 0, Y_DIM - 1);
+        int z_idx = clamp<int>(int(((positions[particle_idx].z - BOX_MIN[2]) / CELL_SIZE)), 0, Z_DIM - 1);
+        return x_idx + (y_idx * X_DIM) + (z_idx * X_DIM * Y_DIM); 
+    }
+
+    __device__ inline bool is_in_bounds(int idx, int offset) {
+        int offset_idx = idx + offset;
+        int x_idx = idx % X_DIM;
+        int y_idx = (idx / X_DIM) % Y_DIM;
+        int z_idx = (idx / (X_DIM * Y_DIM));
+        int x_offset = offset_idx % X_DIM;
+        int y_offset = (offset_idx / X_DIM) % Y_DIM;
+        int z_offset = (offset_idx / (X_DIM * Y_DIM));
+
+        if (offset_idx < 0) return false;
+        if (std::abs((int)(x_idx - x_offset)) > 1) return false;
+        else if (std::abs((int)(y_idx - y_offset)) > 1) return false;
+        else if (std::abs((int)(z_idx - z_offset)) > 1) return false;
+        else if (x_offset >= X_DIM) return false;
+        else if (y_offset >= Y_DIM) return false;
+        else if (z_offset >= Z_DIM) return false;
+        return true;
+    }
+
+    __global__ void sort_particles_into_cells(
+        float3* positions, 
+        int* tmp, 
+        int* cell_offsets,
+        int* starts_LC
+    ) {
+        const unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if (i >= NUM_PARTICLES) {
+            return;
+        } 
+
+        int idx = get_cell_idx(i, positions);
+        int offset = atomicAdd(&starts_LC[idx + 1], 1); //returns the value at starts[idx + 1] *before* adding 1.
+        tmp[i] = idx;
+        cell_offsets[i] = offset;
+    }
+
+    __global__ void update_cells(
+        int* cells, 
+        int* tmp, 
+        int* cell_offsets, 
+        int* starts_LC,
+        float3* positions
+    ) {
+        const unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if (i >= NUM_PARTICLES) {
+            return;
+        } 
+        
+        size_t idx = starts_LC[tmp[i]];
+        size_t offset = cell_offsets[i];
+        size_t position = idx + offset;
+        cells[position] = i;
+    }
+
+    __global__ void get_number_of_neighbors_LC_OPT(int* starts, float3* positions, int* starts_LC, int* cells) {
+        const unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if (i >= NUM_PARTICLES) {
+            return;
+        }
+
+        int neighbors = 0;
+        float3 pi = positions[i];
+        int idx = get_cell_idx(i, positions);
+
+        for (int o = 0; o < 27; o++) {
+            if (!is_in_bounds(idx, OFFSETS[o])) continue;
+            idx += OFFSETS[o];
+            int start = starts_LC[idx];
+            int end = starts_LC[idx + 1];
+            for (int k = start; k < end; k++) {
+                int j = cells[k];
+                if (i >= j) continue; 
+                const float3 dr = make_float3_sub(pi, positions[j]);
+                const float dr2 = dot3(dr, dr);
+                if (std::sqrt(dr2) <= CUTOFF_RADIUS + VERLET_SKIN) {
+                    neighbors++;
+                }
+            }
+              
+            idx -= OFFSETS[o];
+        }
+
+        starts[i + 1] = neighbors;
+    }
+
+    __global__ void make_verlet_lists_LC_OPT(int* verletLists, int* starts, float3* positions, int* starts_LC, int* cells) {
+        const unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if (i >= NUM_PARTICLES) {
+            return;
+        }
+
+        float3 pi = positions[i];
+        int idx = get_cell_idx(i, positions);
+        size_t base = starts[i];
+        int offset = 0;
+        
+        for (int o = 0; o < 27; o++) {
+            if (!is_in_bounds(idx, OFFSETS[o])) continue;
+            idx += OFFSETS[o];
+            int start = starts_LC[idx];
+            int end = starts_LC[idx + 1];
+            for (int k = start; k < end; k++) {
+                int j = cells[k];
+                if (i >= j) continue; 
+                const float3 dr = make_float3_sub(pi, positions[j]);
+                const float dr2 = dot3(dr, dr);
+                if (std::sqrt(dr2) <= CUTOFF_RADIUS + VERLET_SKIN) {
+                    verletLists[base + offset] = j;
+                    offset++;
+                }
+            }
+            idx -= OFFSETS[o];
+        }
+    }
+
 #endif
 } // namespace ppb

@@ -2,6 +2,10 @@ if (${PPB_ENABLE_CUDA_VERLET_CLUSTER_LISTS})
     add_compile_definitions(PPB_ENABLE_VERLET_CLUSTER_LISTS)
 endif ()
 
+if (${PPB_ENABLE_CUDA_VERLET_LISTS_LC_OPTIMIZATION}) 
+    add_compile_definitions(PPB_ENABLE_VERLET_LISTS_LC_OPTIMIZATION)
+endif ()
+
 include_directories(include)
 add_library(nbody_cuda_lib_verlet_lists STATIC
         src/common.cu

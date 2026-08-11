@@ -13,7 +13,7 @@ protected:
     static constexpr double EPSILON = 0.05;
 
     static constexpr float TIME_STEP = 0.0005;
-    static constexpr int ITERATIONS = 5;
+    static constexpr int ITERATIONS = 1000;
 
     /*
     AutoPas Config File to replicate the values below.
