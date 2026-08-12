@@ -473,35 +473,6 @@ namespace ppb::cuda::nbody {
                 }
             }
         }
-
-/*         for (int t = 0; t < num_towers; t++) {
-            size_t tower = starts;
-            size_t neighbor_tower = tower_ids[t];
-            size_t neighbor_tower_x = neighbor_tower % x_dim;
-            size_t neighbor_tower_y = neighbor_tower / x_dim;
-            if (neighbor_tower_x < min_tower_x || neighbor_tower_x > max_tower_x || 
-                neighbor_tower_y < min_tower_y || neighbor_tower_y > max_tower_y) {
-                continue; //skip non-empty towers that are out of range
-            }
-            if (!isForwardNeighbor(neighbor_tower_x, neighbor_tower_y, tower_x, tower_y)) continue; //N3L
-            //if neighbor_tower is same tower as tower_idx then be sure to skip the j-clusters before the i-cluster and also the 2 j-clusters contained in the i-cluster.
-            int neighbor_tower_start = get_start_tower(neighbor_tower, tower_ids, num_towers);
-            int start_neighbor_tower = starts_towers[neighbor_tower_start] + (neighbor_tower == tower ? (cluster_z + 8) : 0);
-            int end_neighbor_tower = starts_towers[neighbor_tower_start + 1];
-            //printf("Thread %u: neighbor_tower_start = %d, start_neighbor_tower = %d\n", i, neighbor_tower_start, start_neighbor_tower);
-            for (int j = start_neighbor_tower; j < end_neighbor_tower; j+=4) {
-                float boxDistSquared = BBdistanceSquared(BBM[i], BBN[j / 4]);
-                if (boxDistSquared <= interactionLengthSqr) {
-                    if (count) {
-                        starts[i + 1]++;
-                    } else {           
-                        //printf("Thread %u: Adding cluster with id %d to cluster_pairs at %d\n", i, j/4, base_pair_idx + pair_idx);         
-                        cluster_pairs[base_pair_idx + pair_idx] = (j / 4);
-                        pair_idx++;
-                    }
-                }
-            }
-        } */
     }
     
     __device__ inline void compute_interaction(
