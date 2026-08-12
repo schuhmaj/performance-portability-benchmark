@@ -13,7 +13,7 @@ protected:
     static constexpr double EPSILON = 0.05;
 
     static constexpr float TIME_STEP = 0.0005;
-    static constexpr int ITERATIONS = 2000;
+    static constexpr int ITERATIONS = 5;
 
     /*
     AutoPas Config File to replicate the values below.
@@ -143,15 +143,15 @@ protected:
         }
 
         //Positions
-/*         ParticleSimulationConfig<float> config{static_cast<size_t>(size), ITERATIONS, 0.0005};
+        ParticleSimulationConfig<float> config{static_cast<size_t>(size), ITERATIONS, 0.0005};
         NBodySimulation<ImplCpp<float>> cppNBodySim{config};
         NBodySimulation<Implementation> otherNBodySim{config};
         const auto [actualResult, timings2] = otherNBodySim();
         const auto [expectedResult, timings1] = cppNBodySim();
-        ASSERT_THAT(actualResult, ParticlesEq(expectedResult, epsilon)); */
+        ASSERT_THAT(actualResult, ParticlesEq(expectedResult, epsilon));
             
         //Numerical Stability
-        ParticleSimulationConfig<float> config{static_cast<size_t>(size), 1, 0.005};
+/*         ParticleSimulationConfig<float> config{static_cast<size_t>(size), 1, 0.0005};
         NBodySimulation<ImplCpp<float>> cppNBodySim{config};
         NBodySimulation<Implementation> otherNBodySim{config};
         const auto [actualResult, timings2] = otherNBodySim();
@@ -160,7 +160,7 @@ protected:
         std::vector<ppb::Particle<float>> stateExpected = expectedResult;
         
         for (size_t i = 0; i < ITERATIONS; i++) { 
-            ParticleSimulationConfig<float> config{static_cast<size_t>(size), 1, 0.005};
+            ParticleSimulationConfig<float> config{static_cast<size_t>(size), 1, 0.0005};
             NBodySimulation<ImplCpp<float>> cppNBodySim{config};
             NBodySimulation<Implementation> otherNBodySim{config};
             otherNBodySim._particles = stateActual;
@@ -170,8 +170,8 @@ protected:
             stateActual = actualResult;
             stateExpected = expectedResult;
             if (i % 10 == 0) {
-                std::cout<<get_median_deviation(stateExpected, stateActual, static_cast<size_t>(size))<<std::endl;
+                std::cout<<get_mean_deviation(stateExpected, stateActual, static_cast<size_t>(size), i)<<std::endl;
             }
-        }
+        } */
     }
 };

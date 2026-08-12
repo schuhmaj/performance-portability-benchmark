@@ -171,6 +171,7 @@ namespace ppb::cuda::nbody {
     __global__ void printClusters(int* clusters, size_t size) {
         printf("clusters:\n");
         for (int i = 0; i < size; i++) {
+            if (i % 8 == 0) printf("\nCluster %d: ", i / 8);
             printf("%d, ", clusters[i]);
         }
     }
@@ -212,21 +213,13 @@ namespace ppb::cuda::nbody {
         printf("\n");
     }
 
-    __device__ size_t get_tower_id(int particle_idx, float3* __restrict__ positions, float grid_size) {
-        size_t x_dim = util::ceilDiv((BOX_MAX[0] - BOX_MIN[0]), grid_size);
-        size_t y_dim = util::ceilDiv((BOX_MAX[1] - BOX_MIN[1]), grid_size);
-        size_t tower_x = clamp<int>(int(((positions[particle_idx].x - BOX_MIN[0]) / grid_size)), 0, x_dim - 1);
-        size_t tower_y = clamp<int>(int(((positions[particle_idx].y - BOX_MIN[1]) / grid_size)), 0, y_dim - 1);
-        return tower_x + (tower_y * x_dim);
-    }
-
-/*     __device__ int2 get_tower_xy(int particle_idx, float3* __restrict__ positions, float grid_size) {
+    __device__ int get_tower_id(int particle_idx, float3* __restrict__ positions, float grid_size) {
         int x_dim = util::ceilDiv((BOX_MAX[0] - BOX_MIN[0]), grid_size);
         int y_dim = util::ceilDiv((BOX_MAX[1] - BOX_MIN[1]), grid_size);
         int tower_x = clamp<int>(int(((positions[particle_idx].x - BOX_MIN[0]) / grid_size)), 0, x_dim - 1);
         int tower_y = clamp<int>(int(((positions[particle_idx].y - BOX_MIN[1]) / grid_size)), 0, y_dim - 1);
-        return make_int2(tower_x, tower_y);
-    } */
+        return tower_x + (tower_y * x_dim);
+    }
 
     __global__ void get_tower_id_per_particle(
         float3* __restrict__ positions,
@@ -372,10 +365,9 @@ namespace ppb::cuda::nbody {
     }
 
     /** Order of N3L: iterate over all x from 0 to x_dim - 1 in one y-dimension, then repeat on the next *higher* y-dimension
-    * It's basically like a zig-zag motion from the lower-left corner of the domain to the upper-right corner.
-    * Note that if neighbor_x = tower_idx_x and neighbor_y = tower_idx_y this function will also return false! */
+    * It's basically like a zig-zag motion from the lower-left corner of the domain to the upper-right corner. */
     __device__ inline bool isForwardNeighbor(int neighbor_x, int neighbor_y, int tower_idx_x, int tower_idx_y) {
-        return neighbor_x > tower_idx_x || neighbor_y > tower_idx_y || (neighbor_x == tower_idx_x && neighbor_y == tower_idx_y);
+        return (neighbor_x > tower_idx_x && neighbor_y >= tower_idx_y) || neighbor_y > tower_idx_y || (neighbor_x == tower_idx_x && neighbor_y == tower_idx_y);
     }
 
     __global__ void cluster_pair_search(
@@ -420,20 +412,17 @@ namespace ppb::cuda::nbody {
    
     /**
         Immediately excludes entire towers based on their x and y coordinates. 
-        A much better optimization however, would be somehow using Linked Cells in the pair search...
     */
-/*     __global__ void cluster_pair_search_optimized(
+    __global__ void cluster_pair_search_optimized(
         BoundingBox* __restrict__ BBM,
         BoundingBox* __restrict__ BBN,
         bool count,
         int* __restrict__ cluster_pairs, 
         int* __restrict__ starts,
         int* __restrict__ starts_towers,
-        size_t* __restrict__ tower_ids,
         int* __restrict__ clusters,
         float3* __restrict__ positions,
         float grid_size,
-        int num_towers,
         int size_clusters
     ) {
         const unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
@@ -442,30 +431,51 @@ namespace ppb::cuda::nbody {
         }
         int pair_idx = 0;
         int base_pair_idx = starts[i]; //assuming an inclusive scan was done on starts beforehand!
-        int x_dim = util::ceilDiv((boxMax[0] - boxMin[0]), grid_size);
-        int y_dim = util::ceilDiv((boxMax[1] - boxMin[1]), grid_size);
-        //printf("x_dim: %d, y_dim: %d\n", x_dim, y_dim);
+        int x_dim = util::ceilDiv((BOX_MAX[0] - BOX_MIN[0]), grid_size);
+        int y_dim = util::ceilDiv((BOX_MAX[1] - BOX_MIN[1]), grid_size);
+/*         printf("x_dim: %d, y_dim: %d\n", x_dim, y_dim); */
 
-        size_t tower = get_tower_id(clusters[8 * i], positions, grid_size);
-        size_t tower_x = tower % x_dim;
-        size_t tower_y = tower / x_dim;
+        int tower = get_tower_id(clusters[8 * i], positions, grid_size);
+        int tower_x = tower % x_dim;
+        int tower_y = tower / x_dim;
 
-        int tower_start = get_start_tower(tower, tower_ids, num_towers);
-        if (tower_start == -1) {
-            printf("ERROR!\n");
-            return; //THIS SHOULD NOT HAPPEN!!!
-        }
-        int cluster_z = (8 * i) - starts_towers[tower_start];
+        int cluster_z = (8 * i) - starts_towers[tower];
+/*         printf("Thread %u: cluster_z = %d\n", i, cluster_z); */
         
-        float interactionLength = cutoff_radius + verlet_skin;
+        float interactionLength = CUTOFF_RADIUS + VERLET_SKIN;
         float interactionLengthSqr = interactionLength * interactionLength;
-        size_t min_tower_x = clamp<int>(int(((BBM[i].lowerCorner.x - interactionLength) - boxMin[0]) / grid_size), 0, x_dim - 1);
-        size_t min_tower_y = clamp<int>(int(((BBM[i].lowerCorner.y - interactionLength) - boxMin[0]) / grid_size), 0, y_dim - 1);
-        size_t max_tower_x = clamp<int>(int(((BBM[i].upperCorner.x + interactionLength) - boxMin[0]) / grid_size), 0, x_dim - 1);
-        size_t max_tower_y = clamp<int>(int(((BBM[i].upperCorner.y + interactionLength) - boxMin[0]) / grid_size), 0, y_dim - 1);
-        //printf("BBM[%u]: min_x: %lu, min_y: %lu, max_x: %lu, max_y: %lu\n", i, min_tower_x, min_tower_y, max_tower_x, max_tower_y);
+        int min_tower_x = clamp<int>(int(((BBM[i].lowerCorner.x - interactionLength) - BOX_MIN[0]) / grid_size), 0, x_dim - 1);
+        int min_tower_y = clamp<int>(int(((BBM[i].lowerCorner.y - interactionLength) - BOX_MIN[1]) / grid_size), 0, y_dim - 1);
+        int max_tower_x = clamp<int>(int(((BBM[i].upperCorner.x + interactionLength) - BOX_MIN[0]) / grid_size), 0, x_dim - 1);
+        int max_tower_y = clamp<int>(int(((BBM[i].upperCorner.y + interactionLength) - BOX_MIN[1]) / grid_size), 0, y_dim - 1);
+/*         printf("BBM[%u]: min_x: %d, min_y: %d, max_x: %d, max_y: %d\n", i, min_tower_x, min_tower_y, max_tower_x, max_tower_y); */
 
-        for (int t = 0; t < num_towers; t++) {
+        for (int neighbor_tower_x = min_tower_x; neighbor_tower_x <= max_tower_x; neighbor_tower_x++) {
+            for (int neighbor_tower_y = min_tower_y; neighbor_tower_y <= max_tower_y; neighbor_tower_y++) {
+                int neighbor_tower = neighbor_tower_x + (neighbor_tower_y * x_dim);
+                if (starts_towers[neighbor_tower + 1] - starts_towers[neighbor_tower] == 0) continue; //skip empty towers
+                if (!isForwardNeighbor(neighbor_tower_x, neighbor_tower_y, tower_x, tower_y)) continue; //N3L
+                int neighbor_tower_start = starts_towers[neighbor_tower] + (neighbor_tower == tower ? (cluster_z + 8) : 0);
+                int neighbor_tower_end = starts_towers[neighbor_tower + 1];
+            
+                for (int j = neighbor_tower_start; j < neighbor_tower_end; j+=4) {
+                    int j_cluster = j / 4;
+                    float boxDistSquared = BBdistanceSquared(BBM[i], BBN[j_cluster]);
+                    if (boxDistSquared <= interactionLengthSqr) {
+                        if (count) {
+                            starts[i + 1]++;
+                        } else {           
+                            //printf("Thread %u: Adding cluster with id %d to cluster_pairs at %d\n", i, j/4, base_pair_idx + pair_idx);         
+                            cluster_pairs[base_pair_idx + pair_idx] = j_cluster;
+                            pair_idx++;
+                        }
+                    }
+                }
+            }
+        }
+
+/*         for (int t = 0; t < num_towers; t++) {
+            size_t tower = starts;
             size_t neighbor_tower = tower_ids[t];
             size_t neighbor_tower_x = neighbor_tower % x_dim;
             size_t neighbor_tower_y = neighbor_tower / x_dim;
@@ -491,9 +501,9 @@ namespace ppb::cuda::nbody {
                     }
                 }
             }
-        }
-    } */
-    //-------------------------------------------------------------------------------------------------
+        } */
+    }
+    
     __device__ inline void compute_interaction(
         float3& i_particle,
         int i_particle_idx,

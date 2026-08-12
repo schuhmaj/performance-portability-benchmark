@@ -210,9 +210,14 @@ namespace ppb::cuda::nbody {
         if (starts != nullptr) CHECK_CUDA_ERROR(cudaFree(starts));
         CHECK_CUDA_ERROR(cudaMalloc(&starts, sizeof(int) * (size_clusters + 1)));
         CHECK_CUDA_ERROR(cudaMemset(starts, 0, sizeof(int) * (size_clusters + 1)));
+
+/*         printStartsTowers<<<1,1>>>(starts_towers, num_towers);
+        printClusters<<<1,1>>>(clusters, size_clusters);
+        printBB<<<1,1>>>(BBM, size_clusters / M); */
         
         // Allocate 'cluster_pairs' by first getting its size
-        cluster_pair_search<<<util::ceilDiv(size_clusters / M, (size_t)1024), 1024>>>(BBM, BBN, true, nullptr, starts, clusters, _particles->positions, tower_size, size_clusters);
+/*         cluster_pair_search<<<util::ceilDiv(size_clusters / M, (size_t)1024), 1024>>>(BBM, BBN, true, nullptr, starts, clusters, _particles->positions, tower_size, size_clusters); */
+        cluster_pair_search_optimized<<<util::ceilDiv(size_clusters / M, (size_t)1024), 1024>>>(BBM, BBN, true, nullptr, starts, starts_towers, clusters, _particles->positions, tower_size, size_clusters);
         thrust::inclusive_scan(thrust::device, starts, starts + (size_clusters / M + 1), starts);
         size_t size_cluster_pairs = 0;
         CHECK_CUDA_ERROR(cudaMemcpy(&size_cluster_pairs, &starts[size_clusters / M], sizeof(int), cudaMemcpyDeviceToHost)); 
@@ -220,7 +225,9 @@ namespace ppb::cuda::nbody {
         CHECK_CUDA_ERROR(cudaMalloc(&cluster_pairs, sizeof(int) * size_cluster_pairs));
    
         // Do the pair search
-        cluster_pair_search<<<util::ceilDiv(size_clusters / M, (size_t)1024), 1024>>>(BBM, BBN, false, cluster_pairs, starts, clusters, _particles->positions, tower_size, size_clusters); 
+/*         cluster_pair_search<<<util::ceilDiv(size_clusters / M, (size_t)1024), 1024>>>(BBM, BBN, false, cluster_pairs, starts, clusters, _particles->positions, tower_size, size_clusters);  */
+        cluster_pair_search_optimized<<<util::ceilDiv(size_clusters / M, (size_t)1024), 1024>>>(BBM, BBN, false, cluster_pairs, starts, starts_towers, clusters, _particles->positions, tower_size, size_clusters); 
+/*         printPairList<<<1,1>>>(starts, size_clusters / M, cluster_pairs, size_cluster_pairs); */
     }
 #endif
 
