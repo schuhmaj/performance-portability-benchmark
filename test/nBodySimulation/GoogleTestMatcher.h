@@ -99,7 +99,66 @@ MATCHER_P2(ParticlesEq, container, epsilon, "Comparing 1D Particle Containers") 
     for (size_t idx = 0; idx < std::size(container); ++idx) {
         const auto &p1 = container[idx];
         const auto &p2 = arg[idx];
-        if (!(ppb::util::almostEqualRelative(p1.getPosition()[0], p2.getPosition()[0], epsilon) &&
+        
+        if (!ppb::util::almostEqualRelative(p1.getPosition()[0], p2.getPosition()[0], epsilon)) {
+                *result_listener
+                    << "The particles at idx = " << idx << " do not match. Values: "
+                    << "Position[0]: " << p1 << " != " << p2;
+                return false;
+        }
+        if (!ppb::util::almostEqualRelative(p1.getPosition()[1], p2.getPosition()[1], epsilon)) {
+                *result_listener
+                    << "The particles at idx = " << idx << " do not match. Values: "
+                    << "Position[1]: " << p1 << " != " << p2;
+                return false;
+        }
+        if (!ppb::util::almostEqualRelative(p1.getPosition()[2], p2.getPosition()[2], epsilon)) {
+                *result_listener
+                    << "The particles at idx = " << idx << " do not match. Values: "
+                    << "Position[2]: " << p1 << " != " << p2;
+                return false;
+        }
+
+        if (!ppb::util::almostEqualRelative(p1.getVelocity()[0], p2.getVelocity()[0], epsilon)) {
+                *result_listener
+                    << "The particles at idx = " << idx << " do not match. Values: "
+                    << "Velocity[0]: " << p1 << " != " << p2;
+                return false;
+        }
+        if (!ppb::util::almostEqualRelative(p1.getVelocity()[1], p2.getVelocity()[1], epsilon)) {
+                *result_listener
+                    << "The particles at idx = " << idx << " do not match. Values: "
+                    << "Velocity[1]: " << p1 << " != " << p2;
+                return false;
+        }
+        if (!ppb::util::almostEqualRelative(p1.getVelocity()[2], p2.getVelocity()[2], epsilon)) {
+                *result_listener
+                    << "The particles at idx = " << idx << " do not match. Values: "
+                    << "Velocity[2]: " << p1 << " != " << p2;
+                return false;
+        }
+
+        if (!ppb::util::almostEqualRelative(p1.getForce()[0], p2.getForce()[0], epsilon)) {
+                *result_listener
+                    << "The particles at idx = " << idx << " do not match. Values: "
+                    << "Force[0]: " << p1 << " != " << p2;
+                return false;
+        }
+        if (!ppb::util::almostEqualRelative(p1.getForce()[1], p2.getForce()[1], epsilon)) {
+                *result_listener
+                    << "The particles at idx = " << idx << " do not match. Values: "
+                    << "Force[1]: " << p1 << " != " << p2;
+                return false;
+        }
+        if (!ppb::util::almostEqualRelative(p1.getForce()[2], p2.getForce()[2], epsilon)) {
+                *result_listener
+                    << "The particles at idx = " << idx << " do not match. Values: "
+                    << "Force[2]: " << p1 << " != " << p2;
+                return false;
+        }
+
+
+/*         if (!(ppb::util::almostEqualRelative(p1.getPosition()[0], p2.getPosition()[0], epsilon) &&
             ppb::util::almostEqualRelative(p1.getPosition()[1], p2.getPosition()[1], epsilon) &&
             ppb::util::almostEqualRelative(p1.getPosition()[2], p2.getPosition()[2], epsilon) &&
             ppb::util::almostEqualRelative(p1.getVelocity()[0], p2.getVelocity()[0], epsilon) &&
@@ -112,7 +171,7 @@ MATCHER_P2(ParticlesEq, container, epsilon, "Comparing 1D Particle Containers") 
                     << "The particles at idx = " << idx << " do not match. Values: "
                     << p1 << " != " << p2;
             return false;
-        }
+        } */
     }
     return true;
 }

@@ -1,6 +1,5 @@
 set(VECTOR_ADDITION_ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR})
-set(VECTOR_ADDITION_FILES VectorAddition.h
-        alpaka/Impl_Alpaka.cpp)
+set(VECTOR_ADDITION_FILES VectorAddition.h)
 
 add_library(vec_lib INTERFACE ${VECTOR_ADDITION_FILES})
 target_link_libraries(vec_lib INTERFACE benchmark::benchmark common_lib)
@@ -31,8 +30,12 @@ if (${PPB_ENABLE_OpenACC})
     add_subdirectory(openacc)
 endif ()
 
-if(CMAKE_CUDA_COMPILER AND PPB_ENABLE_Cuda)
+if(CMAKE_CUDA_COMPILER AND PPB_ENABLE_CUDA)
     add_subdirectory(cuda)
+endif ()
+
+if(${PPB_ENABLE_HIP})
+    add_subdirectory(hip)
 endif ()
 
 if (${PPB_ENABLE_Metal})
@@ -45,6 +48,10 @@ endif ()
 
 if (${PPB_ENABLE_Vulkan})
     add_subdirectory(vulkan)
+endif ()
+
+if (${PPB_ENABLE_Slang_Vulkan} OR ${PPB_ENABLE_Slang_Cuda})
+    add_subdirectory(slang)
 endif ()
 
 add_subdirectory(cpp)

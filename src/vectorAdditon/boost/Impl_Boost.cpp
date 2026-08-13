@@ -44,8 +44,8 @@ namespace ppb {
     template class ImplBoost<double>;
 }
 
-BENCHMARK(ppb::VectorAddition<ppb::ImplBoost<float>>::benchmark)
-    ->Name("VecAdd-Float-BoostCL")
+BENCHMARK(ppb::VectorAddition<ppb::ImplBoost<ppb::VectorAdditionBenchmarkConf::float_type>>::benchmark)
+    ->Name("VecAdd")
     ->RangeMultiplier(10)
     ->Range(ppb::VectorAdditionBenchmarkConf::MIN_SIZE, ppb::VectorAdditionBenchmarkConf::MAX_SIZE)
 #ifdef PPB_MEASURE_ONLY_KERNEL
@@ -53,17 +53,10 @@ BENCHMARK(ppb::VectorAddition<ppb::ImplBoost<float>>::benchmark)
 #endif
     ->Complexity();
 
-// BENCHMARK(ppb::VectorAddition<ppb::ImplBoost<double>>::benchmark)
-//     ->Name("VecAdd-Double-BoostCL")
-//     ->RangeMultiplier(10)
-//     ->Range(ppb::VectorAdditionBenchmarkConf::MIN_SIZE, ppb::VectorAdditionBenchmarkConf::MAX_SIZE)
-// #ifdef PPB_MEASURE_ONLY_KERNEL
-//     ->UseManualTime()
-// #endif
-//     ->Complexity();
 
 int main(int argc, char** argv) {
     namespace compute = boost::compute;
+    ppb::VectorAdditionBenchmarkConf::addContext("Boost");
     compute::device gpu = compute::system::default_device();
     std::cout << "GPU Name: " << gpu.name() << '\n';
 

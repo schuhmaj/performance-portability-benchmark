@@ -1,7 +1,22 @@
 message(STATUS "Setting up Kokkos")
-set(Kokkos_VERSION 4.7.01)
+set(Kokkos_VERSION 5.1.1)
 
-find_package(Kokkos ${Kokkos_VERSION} CONFIG QUIET)
+# Enable CUDA backend if CUDA language is enabled
+get_property(languages GLOBAL PROPERTY ENABLED_LANGUAGES)
+if ("CUDA" IN_LIST languages)
+    set(Kokkos_ENABLE_CUDA ON CACHE BOOL "Enable Kokkos CUDA backend" FORCE)
+endif ()
+# Enable HIP backend if HIP language is enabled
+if ("HIP" IN_LIST languages)
+    set(Kokkos_ENABLE_HIP ON CACHE BOOL "Enable Kokkos HIP backend" FORCE)
+endif ()
+
+# Enable OpenMP if on the Apple platform
+if (APPLE)
+    set(Kokkos_ENABLE_OPENMP ON CACHE BOOL "Enable Kokkos OpenMP backend" FORCE)
+endif ()
+
+find_package(Kokkos 4.7.02...${Kokkos_VERSION} QUIET)
 
 if (${Kokkos_FOUND})
     message(STATUS "Found existing Kokkos libraries: ${Kokkos_DIR}")
@@ -17,13 +32,4 @@ else ()
             URL https://github.com/kokkos/kokkos/archive/refs/tags/${Kokkos_VERSION}.tar.gz
     )
     FetchContent_MakeAvailable(Kokkos)
-
-    # Mark all CMake variables of the Kokkos project as advanced for this project expect the main backend selection
-#    get_cmake_property(_vars CACHE_VARIABLES)
-#    foreach(_var ${_vars})
-#        if(_var MATCHES "^Kokkos_" AND
-#                NOT _var MATCHES "^Kokkos_ENABLE_(SERIAL|OPENMP|THREADS|HPX|CUDA|HIP|SYCL|OPENMPTARGET|OPENACC)$")
-#            mark_as_advanced(${_var})
-#        endif()
-#    endforeach()
 endif ()

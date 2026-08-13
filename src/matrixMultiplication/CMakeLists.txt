@@ -5,7 +5,7 @@ add_library(matMul_lib INTERFACE ${MATRIX_MULTIPLICATION_FILES})
 target_link_libraries(matMul_lib INTERFACE common_lib benchmark::benchmark )
 target_include_directories(matMul_lib INTERFACE ${PPB_SRC_SOURCE_DIRECTORY})
 
-if (CMAKE_CUDA_COMPILER AND PPB_ENABLE_Cuda)
+if (CMAKE_CUDA_COMPILER AND PPB_ENABLE_CUDA)
     add_subdirectory(cuda)
 endif ()
 
@@ -37,8 +37,16 @@ if (${PPB_ENABLE_Vulkan})
     add_subdirectory(vulkan)
 endif ()
 
+if (${PPB_ENABLE_Slang_Vulkan} OR ${PPB_ENABLE_Slang_Cuda})
+    add_subdirectory(slang)
+endif ()
+
 if (${PPB_ENABLE_OpenACC})
     add_subdirectory(openacc)
+endif ()
+
+if (${PPB_ENABLE_HIP})
+    add_subdirectory(hip)
 endif ()
 
 add_subdirectory(cpp)

@@ -2,8 +2,8 @@
 #include "matrixMultiplication/alpaka/Impl_Alpaka.h"
 #include "matrixMultiplication/MatrixMultiplication.h"
 
-BENCHMARK(ppb::MatrixMultiplication<ppb::ImplAlpaka<float>>::benchmark)
-    ->Name("MatrixMultiplication-Float-Alpaka")
+BENCHMARK(ppb::MatrixMultiplication<ppb::ImplAlpaka<ppb::MatrixMultiplicationBenchmarkConf::float_type>>::benchmark)
+    ->Name("MatrixMultiplication")
     ->RangeMultiplier(2)
     ->Range(ppb::MatrixMultiplicationBenchmarkConf::MIN_SIZE, ppb::MatrixMultiplicationBenchmarkConf::MAX_SIZE)
 #ifdef PPB_MEASURE_ONLY_KERNEL
@@ -12,6 +12,7 @@ BENCHMARK(ppb::MatrixMultiplication<ppb::ImplAlpaka<float>>::benchmark)
     ->Complexity();
 
 int main(int argc, char** argv) {
+    ppb::MatrixMultiplicationBenchmarkConf::addContext("Alpaka");
     benchmark::MaybeReenterWithoutASLR(argc, argv);
     benchmark::Initialize(&argc, argv);
     benchmark::RunSpecifiedBenchmarks();

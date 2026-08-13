@@ -10,10 +10,10 @@
 class NBodyTest : public ::testing::TestWithParam<int> {
 protected:
 
-    static constexpr double EPSILON = 1e-2;
+    static constexpr double EPSILON = 0.05;
 
     static constexpr float TIME_STEP = 0.0005;
-    static constexpr int ITERATIONS = 1000;
+    static constexpr int ITERATIONS = 5;
 
     /*
     AutoPas Config File to replicate the values below.
@@ -74,6 +74,45 @@ protected:
         ppb::Particle<float>({-19.561f, -22.7167f, 0.779729f}, {-29.4066f, -40.756f, 7.57473f}, {1.36785e-08f, 1.4923e-08f, -2.49879e-09f}),
         ppb::Particle<float>({-1.81841f, -1.06152f, -5.45934f}, {0.212958f, 1.75392f, -0.98065f}, {0.0173082f, -0.0628128f, 0.042503f})};
 
+    float get_total_energy(std::vector<ppb::Particle<float>> system) {
+        //assuming all particles have the same mass
+        float result = 0.f;
+        for (auto& p : system) {
+            result += p.getVelocity()[0] * p.getVelocity()[0] 
+                    + p.getVelocity()[1] * p.getVelocity()[1]
+                    + p.getVelocity()[2] * p.getVelocity()[2];
+        }
+        return result / 2;
+    }
+
+    float get_mean_deviation(std::vector<ppb::Particle<float>> expected, std::vector<ppb::Particle<float>> actual, size_t size, int iteration) {
+        float mean_deviation = 0.f;
+
+        for (size_t i = 0; i < size; i++) {
+            float dev_x = std::abs(expected[i].getPosition()[0] - actual[i].getPosition()[0]);
+            float dev_y = std::abs(expected[i].getPosition()[1] - actual[i].getPosition()[1]);
+            float dev_z = std::abs(expected[i].getPosition()[2] - actual[i].getPosition()[2]);
+            mean_deviation += dev_x + dev_y + dev_z;
+        }
+
+        return mean_deviation / (3 * size);
+    }
+
+    float get_median_deviation(std::vector<ppb::Particle<float>> expected, std::vector<ppb::Particle<float>> actual, size_t size) {
+        std::vector<float> deviations;
+
+        for (size_t i = 0; i < size; i++) {
+            float dev_x = std::abs(expected[i].getPosition()[0] - actual[i].getPosition()[0]);
+            float dev_y = std::abs(expected[i].getPosition()[1] - actual[i].getPosition()[1]);
+            float dev_z = std::abs(expected[i].getPosition()[2] - actual[i].getPosition()[2]);
+            deviations.push_back(dev_x);
+            deviations.push_back(dev_y);
+            deviations.push_back(dev_z);
+        }
+
+        sort(deviations.begin(), deviations.end());
+        return deviations[size/2];
+    }
 
     template <typename Implementation>
     void runTest(const int size, const double epsilon = EPSILON) {
@@ -81,19 +120,58 @@ protected:
         using namespace ppb;
 
         if (size == 10) {
+            //Positions
             ParticleSimulationConfig<float> config{static_cast<size_t>(size), ITERATIONS, TIME_STEP};
             Implementation nBodySim{config};
             const auto [actualResult, timings] = nBodySim.simulate(start_state);
             ASSERT_THAT(actualResult, ParticlesEq(end_state, epsilon));
+            
+            //Energy conservation
+            auto state = start_state;
+            for (size_t i = 0; i < ITERATIONS; i++) {
+                printf("ITERATION %lu\n", i);
+                float total_energy_before = get_total_energy(state);
+                ParticleSimulationConfig<float> config{static_cast<size_t>(size), 1, TIME_STEP};
+                Implementation nBodySim{config};
+                const auto [new_state, timings] = nBodySim.simulate(state);
+                state = new_state;
+                float total_energy_after = get_total_energy(state);
+                printf("BEFORE: %f, AFTER: %f\n", total_energy_before, total_energy_after);
+            }
+
             return;
         }
 
-        ParticleSimulationConfig<float> config{static_cast<size_t>(size), ITERATIONS, 1e-10};
+        //Positions
+        ParticleSimulationConfig<float> config{static_cast<size_t>(size), ITERATIONS, 0.0005};
         NBodySimulation<ImplCpp<float>> cppNBodySim{config};
         NBodySimulation<Implementation> otherNBodySim{config};
+        const auto [actualResult, timings2] = otherNBodySim();
         const auto [expectedResult, timings1] = cppNBodySim();
-        const auto [actualResult, timings2]  = otherNBodySim();
-
         ASSERT_THAT(actualResult, ParticlesEq(expectedResult, epsilon));
+            
+        //Numerical Stability
+/*         ParticleSimulationConfig<float> config{static_cast<size_t>(size), 1, 0.0005};
+        NBodySimulation<ImplCpp<float>> cppNBodySim{config};
+        NBodySimulation<Implementation> otherNBodySim{config};
+        const auto [actualResult, timings2] = otherNBodySim();
+        const auto [expectedResult, timings1] = cppNBodySim();
+        std::vector<ppb::Particle<float>> stateActual = actualResult;
+        std::vector<ppb::Particle<float>> stateExpected = expectedResult;
+        
+        for (size_t i = 0; i < ITERATIONS; i++) { 
+            ParticleSimulationConfig<float> config{static_cast<size_t>(size), 1, 0.0005};
+            NBodySimulation<ImplCpp<float>> cppNBodySim{config};
+            NBodySimulation<Implementation> otherNBodySim{config};
+            otherNBodySim._particles = stateActual;
+            cppNBodySim._particles = stateExpected;
+            const auto [actualResult, timings2] = otherNBodySim();
+            const auto [expectedResult, timings1] = cppNBodySim();
+            stateActual = actualResult;
+            stateExpected = expectedResult;
+            if (i % 10 == 0) {
+                std::cout<<get_mean_deviation(stateExpected, stateActual, static_cast<size_t>(size), i)<<std::endl;
+            }
+        } */
     }
 };

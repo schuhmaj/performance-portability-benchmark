@@ -1,9 +1,9 @@
 #include "CudaParticleSoA.cuh"
 #include "common.cuh"
 
-#define CHECK_CUDA_ERROR(val) ppb::check((val), #val, __FILE__, __LINE__)
+#define CHECK_CUDA_ERROR(val) ppb::cuda::nbody::check((val), #val, __FILE__, __LINE__)
 
-namespace ppb {
+namespace ppb::cuda::nbody {
     template <typename FloatType>
     CudaParticleSoA<FloatType>::CudaParticleSoA(const std::vector<Particle<FloatType>> &particles)
         : positionsHost{particles.size()}
@@ -55,4 +55,4 @@ namespace ppb {
     }
 
     template class CudaParticleSoA<float>;
-} // namespace ppb
+} // namespace ppb::cuda::nbody

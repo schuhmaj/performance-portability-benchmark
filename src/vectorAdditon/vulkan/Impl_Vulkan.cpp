@@ -21,7 +21,7 @@ namespace ppb {
         std::vector<uint32_t> shader;
         std::shared_ptr<kp::Sequence> sequence;
 
-        ImplVulkan() : manager{}, shader{VECTORADDITIONSHADER_COMP_SPV.begin(), VECTORADDITIONSHADER_COMP_SPV.end()}, sequence{manager.sequence()}{}
+        ImplVulkan() : manager{}, shader{std::begin(vector_addition), std::end(vector_addition)}, sequence{manager.sequence()}{}
 
         std::pair<std::vector<FloatType>, double> operator()(const std::vector<FloatType> &a, const std::vector<FloatType> &b) {
             const unsigned int size = a.size();
@@ -61,10 +61,11 @@ namespace ppb {
     };
 
     template class ImplVulkan<float>;
+    template class ImplVulkan<double>;
 };
 
-BENCHMARK(ppb::VectorAddition<ppb::ImplVulkan<float>>::benchmark)
-    ->Name("VecAdd-Float-Vulkan")
+BENCHMARK(ppb::VectorAddition<ppb::ImplVulkan<ppb::VectorAdditionBenchmarkConf::float_type>>::benchmark)
+    ->Name("VecAdd")
     ->RangeMultiplier(10)
     ->Range(ppb::VectorAdditionBenchmarkConf::MIN_SIZE, ppb::VectorAdditionBenchmarkConf::MAX_SIZE)
 #ifdef PPB_MEASURE_ONLY_KERNEL
@@ -73,6 +74,7 @@ BENCHMARK(ppb::VectorAddition<ppb::ImplVulkan<float>>::benchmark)
     ->Complexity();
 
 int main(int argc, char **argv) {
+    ppb::VectorAdditionBenchmarkConf::addContext("Vulkan");
     benchmark::MaybeReenterWithoutASLR(argc, argv);
     benchmark::Initialize(&argc, argv);
     benchmark::RunSpecifiedBenchmarks();

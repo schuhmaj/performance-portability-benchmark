@@ -12,9 +12,10 @@ namespace ppb {
      * Metal backend implementation for the VectorAddition benchmark.
      * while using Apple's Metal API for GPU execution.
      */
+    template<typename FloatType>
     struct ImplMetal {
         /** Float Type of Implementation, Required by the Benchmark **/
-        using float_type = float;
+        using float_type = FloatType;
 
         /** The actual physical Metal device (i.e., discrete or integrated GPU) **/
         MTL::Device *device = nullptr;
@@ -146,10 +147,12 @@ namespace ppb {
             return std::make_pair(result, gpuTimeSeconds * 1e9);
         }
     };
+
+    template class ImplMetal<float>;
 } // namespace ppb
 
-BENCHMARK(ppb::VectorAddition<ppb::ImplMetal>::benchmark)
-    ->Name("VecAdd-Float-Metal")
+BENCHMARK(ppb::VectorAddition<ppb::ImplMetal<ppb::VectorAdditionBenchmarkConf::float_type>>::benchmark)
+    ->Name("VecAdd")
 #ifdef PPB_MEASURE_ONLY_KERNEL
     ->UseManualTime()
 #endif
@@ -158,6 +161,7 @@ BENCHMARK(ppb::VectorAddition<ppb::ImplMetal>::benchmark)
     ->Complexity();
 
 int main(int argc, char **argv) {
+    ppb::VectorAdditionBenchmarkConf::addContext("Metal");
     benchmark::Initialize(&argc, argv);
     benchmark::RunSpecifiedBenchmarks();
     benchmark::Shutdown();

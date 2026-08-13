@@ -1,0 +1,177 @@
+# Find the Slang Compiler
+find_program(SLANG_COMPILER_PATH NAMES slangc)
+
+# - Provides a function to compile Slang (*.slang) files to backend-specific generated files.
+# Usage:
+#   compile_slang(LANGUAGE <CUDA|PTX|SPIR-V|GLSL>
+#                 INFILE <input_file> [<input_file> ...]
+#                 PATH <output_dir>
+#                 OUT_HEADERS <output_variable>
+#                 [KERNEL_NAME <kernel_name> [<kernel_name> ...]]
+#                 [DEFINITIONS <definition> ...]
+#   )
+#
+# LANGUAGE selects the Slang target backend and generated file extension:
+#   CUDA   -> *.cuh
+#   PTX    -> *.ptx
+#   SPIR-V -> *.h
+#   GLSL   -> *.comp
+#
+# KERNEL_NAME is optional. If omitted, the input file stem is used as the embedded
+# source name and "computeMain" is used as the PTX entry point.
+# It can be given once for all input files, or once per input file.
+#
+# DEFINITIONS is optional and is passed directly to slangc, e.g.
+#   -DFloatType=float -DFloatType3=float3
+#
+# Produces one file per input:
+#   ${PATH}/<input_file_stem><language_suffix>
+#
+# The generated files are stored in <output_variable> and marked as GENERATED.
+# CUDA output is additionally post-processed with scripts/fix_generated_cuda.cmake.
+function(compile_slang)
+    set(options FIX_PTX)
+    set(oneValueArgs PATH TARGETS OUT_HEADERS LANGUAGE)
+    set(multiValueArgs INFILE KERNEL_NAME DEFINITIONS)
+    cmake_parse_arguments(ARG "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
+
+    if (NOT ARG_INFILE)
+        message(FATAL_ERROR "compile_slang: INFILE is required")
+    endif ()
+    if (NOT ARG_PATH)
+        message(FATAL_ERROR "compile_slang: PATH is required")
+    endif ()
+    if (NOT ARG_LANGUAGE)
+        message(FATAL_ERROR "compile_slang: LANGUAGE is required")
+    endif ()
+
+    set(ALLOWED_LANGUAGES "CUDA" "PTX" "SPIR-V" "GLSL")
+    if (NOT ARG_LANGUAGE IN_LIST ALLOWED_LANGUAGES)
+        message(FATAL_ERROR "compile_slang: LANGUAGE must be one of: CUDA, PTX, SPIR-V, GLSL. Got: ${ARG_LANGUAGE}")
+    endif ()
+    if (ARG_LANGUAGE STREQUAL "CUDA")
+        set(SLANG_TARGET_ARGS
+                -target cuda
+        )
+        set(SUFFIX ".cuh")
+    elseif (ARG_LANGUAGE STREQUAL "PTX")
+        set(SLANG_TARGET_ARGS
+                -target ptx
+        )
+        set(SUFFIX ".ptx")
+    elseif (ARG_LANGUAGE STREQUAL "SPIR-V")
+        set(SLANG_TARGET_ARGS
+                -target spirv
+                -emit-spirv-directly
+                -source-embed-style text
+                -profile sm_6_6+spirv_1_6
+        )
+        set(SUFFIX ".h")
+    elseif (ARG_LANGUAGE STREQUAL "GLSL")
+        set(SLANG_TARGET_ARGS
+                -profile glsl_450
+                -target glsl
+        )
+        set(SUFFIX ".comp")
+    endif ()
+
+    set(extra_arg "")
+    if (FLOAT_BITS EQUAL 32)
+        set(extra_arg -DFloatType=float -DFloatType3=float3 -DFloatType4=float4 -DFloatTypeM=mat3)
+    endif()
+
+    # Validate KERNEL_NAME list length: must be empty, 1, or equal to number of INFILEs.
+    list(LENGTH ARG_INFILE _infile_count)
+    list(LENGTH ARG_KERNEL_NAME _kernel_count)
+    if (_kernel_count GREATER 0
+            AND NOT _kernel_count EQUAL 1
+            AND NOT _kernel_count EQUAL _infile_count)
+        message(FATAL_ERROR
+                "compile_slang: KERNEL_NAME must be either omitted, a single value, "
+                "or a list with the same length as INFILE "
+                "(got ${_kernel_count} kernel names for ${_infile_count} input files).")
+    endif ()
+
+    set(_index 0)
+    foreach (infile IN LISTS ARG_INFILE)
+        cmake_path(GET infile STEM LAST_ONLY stem)
+        set(out_file "${ARG_PATH}/${stem}${SUFFIX}")
+        cmake_path(ABSOLUTE_PATH infile OUTPUT_VARIABLE abs_path)
+
+        # Resolve per-file KERNEL_NAME / ENTRANCE_NAME.
+        if (_kernel_count EQUAL 0)
+            set(KERNEL_NAME "${stem}")
+            set(ENTRANCE_NAME "computeMain")
+        elseif (_kernel_count EQUAL 1)
+            list(GET ARG_KERNEL_NAME 0 _kn)
+            set(KERNEL_NAME "${_kn}")
+            set(ENTRANCE_NAME "${_kn}")
+        else ()
+            list(GET ARG_KERNEL_NAME ${_index} _kn)
+            set(KERNEL_NAME "${_kn}")
+            set(ENTRANCE_NAME "${_kn}")
+        endif ()
+
+        if (NOT ARG_LANGUAGE STREQUAL "CUDA")
+            # PTX needs a post-process step to strip a stray trailing NUL byte
+            # that slangc writes — newer CUDA driver JITs reject PTX with NULs.
+            set(_ptx_strip_cmd "")
+            if (ARG_LANGUAGE STREQUAL "PTX" AND ${ARG_FIX_PTX})
+#                message(WARNING [[
+#                The CMake Build process is fixing the generated PTX code by `slangc`:
+#                    * Removing the trailing NUL terminator
+#                    * Embedding PTX Version 8.7 (more widley supported)
+#                This fixes problems with newer Cuda Driver being strict about NUL terminators and
+#                not necessarily supporting the PTX Version generated by slangc.
+#
+#                This can break with different version! To revert to normal behavior remove the flag `FIX_PTX` from the function call!
+#                ]])
+                set(_ptx_strip_cmd
+                        COMMAND ${CMAKE_COMMAND}
+                            -D "INPUT_FILE=${out_file}"
+                            -P "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/scripts/strip_ptx_null.cmake"
+                )
+            endif ()
+            add_custom_command(
+                    OUTPUT ${out_file}
+                    COMMAND ${SLANG_COMPILER_PATH}
+                        ${ARG_DEFINITIONS}
+                        -O3
+                        ${SLANG_TARGET_ARGS}
+                        -o ${out_file}
+                        "$<$<OR:$<STREQUAL:${ARG_LANGUAGE},GLSL>,$<STREQUAL:${ARG_LANGUAGE},SPIR-V>>:-source-embed-name;${KERNEL_NAME}>"
+                        "$<$<STREQUAL:${ARG_LANGUAGE},PTX>:-entry;${ENTRANCE_NAME}>"
+                        ${abs_path}
+                    ${_ptx_strip_cmd}
+                    COMMAND_EXPAND_LISTS
+                    DEPENDS ${abs_path}
+                    COMMENT "Slang -> ${ARG_LANGUAGE}: ${stem}${SUFFIX}"
+            )
+        else ()
+            set(tmp_file "${ARG_PATH}/temp_${stem}${SUFFIX}")
+            add_custom_command(
+                    OUTPUT  ${out_file}
+                    COMMAND ${SLANG_COMPILER_PATH}
+                        ${ARG_DEFINITIONS}
+                        -DTARGET_CUDA=1
+                        -O3
+                        -target cuda
+                        -o ${tmp_file}
+                        ${abs_path}
+                    COMMAND ${CMAKE_COMMAND}
+                        -D "INPUT_FILE=${tmp_file}"
+                        -P "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/scripts/fix_generated_cuda.cmake"
+                    DEPENDS ${abs_path} ${infile}
+                    COMMENT "Slang -> ${ARG_LANGUAGE}: ${stem}${SUFFIX}"
+            )
+        endif ()
+
+        list(APPEND generated_headers ${out_file})
+        math(EXPR _index "${_index} + 1")
+    endforeach ()
+
+    set_source_files_properties(${generated_headers}
+            PROPERTIES GENERATED TRUE
+    )
+    set(${ARG_OUT_HEADERS} "${generated_headers}" PARENT_SCOPE)
+endfunction()

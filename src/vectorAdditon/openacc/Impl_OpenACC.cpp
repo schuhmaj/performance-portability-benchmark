@@ -32,8 +32,8 @@ namespace ppb {
 }
 
 
-BENCHMARK(ppb::VectorAddition<ppb::ImplOpenAcc<float>>::benchmark)
-    ->Name("VecAdd-Float-OpenACC")
+BENCHMARK(ppb::VectorAddition<ppb::ImplOpenAcc<ppb::VectorAdditionBenchmarkConf::float_type>>::benchmark)
+    ->Name("VecAdd")
     ->RangeMultiplier(10)
     ->Range(ppb::VectorAdditionBenchmarkConf::MIN_SIZE, ppb::VectorAdditionBenchmarkConf::MAX_SIZE)
 #ifdef PPB_MEASURE_ONLY_KERNEL
@@ -42,6 +42,7 @@ BENCHMARK(ppb::VectorAddition<ppb::ImplOpenAcc<float>>::benchmark)
     ->Complexity();
 
 int main(int argc, char **argv) {
+    ppb::VectorAdditionBenchmarkConf::addContext("OpenACC");
     // Get number of devices before any parallel regions
     int num_devices = acc_get_num_devices(acc_device_default);
     printf("Number of available devices %d\n", num_devices);

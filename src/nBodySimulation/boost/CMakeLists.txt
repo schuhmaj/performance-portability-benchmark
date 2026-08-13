@@ -1,5 +1,7 @@
+set(NBODY_OCL_KERNEL_DIR ${NBODY_SIMULATION_ROOT_DIR}/opencl/)
+
 compile_opencl(
-        INFILE ForceKernel.cl
+        INFILE ${NBODY_OCL_KERNEL_DIR}/ForceKernel.cl
         OUTFILE ForceKernel.h
         PATH ${CMAKE_CURRENT_BINARY_DIR}
 )

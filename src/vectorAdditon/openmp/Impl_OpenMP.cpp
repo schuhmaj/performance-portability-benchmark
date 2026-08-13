@@ -29,10 +29,11 @@ namespace ppb {
     };
 
     template class ImplOpenMP<float>;
+    template class ImplOpenMP<double>;
 }
 
-BENCHMARK(ppb::VectorAddition<ppb::ImplOpenMP<float>>::benchmark)
-    ->Name("VecAdd-Float-OpenMP")
+BENCHMARK(ppb::VectorAddition<ppb::ImplOpenMP<ppb::VectorAdditionBenchmarkConf::float_type>>::benchmark)
+    ->Name("VecAdd")
     ->RangeMultiplier(10)
     ->Range(ppb::VectorAdditionBenchmarkConf::MIN_SIZE, ppb::VectorAdditionBenchmarkConf::MAX_SIZE)
 #ifdef PPB_MEASURE_ONLY_KERNEL
@@ -41,6 +42,7 @@ BENCHMARK(ppb::VectorAddition<ppb::ImplOpenMP<float>>::benchmark)
     ->Complexity();
 
 int main(int argc, char **argv) {
+    ppb::VectorAdditionBenchmarkConf::addContext("OpenMP");
     benchmark::MaybeReenterWithoutASLR(argc, argv);
     benchmark::Initialize(&argc, argv);
     benchmark::RunSpecifiedBenchmarks();

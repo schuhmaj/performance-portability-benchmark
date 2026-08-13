@@ -15,24 +15,24 @@ namespace ppb {
         , forcesHost{ref.size()}
     {
         const size_t size = ref.size();
-        const auto transformFloat4 = [](auto getter) {
+        const auto transformVec4 = [](auto getter) {
             return [getter](const auto& particle) {
                 const auto arr = std::invoke(getter, particle);
-                return cl_float4{arr[0], arr[1], arr[2], 0.0f};
+                return cl_vec4{arr[0], arr[1], arr[2], static_cast<cl_scalar>(0)};
             };
         };
-        std::transform(ref.begin(), ref.end(), positionsHost.begin(), transformFloat4(&Particle<FloatType>::getPosition));
-        std::transform(ref.begin(), ref.end(), velocitiesHost.begin(), transformFloat4(&Particle<FloatType>::getVelocity));
-        std::transform(ref.begin(), ref.end(), forcesHost.begin(), transformFloat4(&Particle<FloatType>::getForce));
+        std::transform(ref.begin(), ref.end(), positionsHost.begin(), transformVec4(&Particle<FloatType>::getPosition));
+        std::transform(ref.begin(), ref.end(), velocitiesHost.begin(), transformVec4(&Particle<FloatType>::getVelocity));
+        std::transform(ref.begin(), ref.end(), forcesHost.begin(), transformVec4(&Particle<FloatType>::getForce));
 
         cl_int err = 0;
-        positions = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, size * sizeof(cl_float4),
-                                const_cast<cl_float4*>(positionsHost.data()), &err);
-        velocities = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, size * sizeof(cl_float4),
-                                const_cast<cl_float4*>(velocitiesHost.data()), &err);
-        forces = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, size * sizeof(cl_float4),
-                                const_cast<cl_float4*>(forcesHost.data()), &err);
-        oldForces = clCreateBuffer(context, CL_MEM_READ_WRITE, size * sizeof(cl_float4), nullptr, nullptr);
+        positions = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, size * sizeof(cl_vec4),
+                                const_cast<cl_vec4*>(positionsHost.data()), &err);
+        velocities = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, size * sizeof(cl_vec4),
+                                const_cast<cl_vec4*>(velocitiesHost.data()), &err);
+        forces = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, size * sizeof(cl_vec4),
+                                const_cast<cl_vec4*>(forcesHost.data()), &err);
+        oldForces = clCreateBuffer(context, CL_MEM_READ_WRITE, size * sizeof(cl_vec4), nullptr, nullptr);
     }
 
     template <typename FloatType>
@@ -50,13 +50,13 @@ namespace ppb {
         const size_t size = _ref.size();
         std::vector<Particle<FloatType>> particles{_ref};
 
-        err = clEnqueueReadBuffer(queue, positions, CL_FALSE, 0,  size * sizeof(cl_float4),positionsHost.data(), 0, nullptr, nullptr);
-        err |= clEnqueueReadBuffer(queue, velocities, CL_FALSE, 0,  size * sizeof(cl_float4),velocitiesHost.data(), 0, nullptr, nullptr);
-        err |= clEnqueueReadBuffer(queue, forces, CL_FALSE, 0,  size * sizeof(cl_float4),forcesHost.data(), 0, nullptr, nullptr);
+        err = clEnqueueReadBuffer(queue, positions, CL_FALSE, 0,  size * sizeof(cl_vec4),positionsHost.data(), 0, nullptr, nullptr);
+        err |= clEnqueueReadBuffer(queue, velocities, CL_FALSE, 0,  size * sizeof(cl_vec4),velocitiesHost.data(), 0, nullptr, nullptr);
+        err |= clEnqueueReadBuffer(queue, forces, CL_FALSE, 0,  size * sizeof(cl_vec4),forcesHost.data(), 0, nullptr, nullptr);
         if (err != CL_SUCCESS) throw std::runtime_error("ReadBuffer failed");
         clFinish(queue);
-        const auto toArray = [](const cl_float4 &float4) -> std::array<FloatType, 3> {
-            return {float4.x, float4.y, float4.z};
+        const auto toArray = [](const cl_vec4 &v) -> std::array<FloatType, 3> {
+            return {v.x, v.y, v.z};
         };
         for (size_t i = 0; i < particles.size(); ++i) {
             particles[i].setPosition(toArray(positionsHost[i]));
@@ -83,7 +83,8 @@ namespace ppb {
         std::string kernelSource;
         const char *kernelProg = KERNEL_SOURCE;
         program = clCreateProgramWithSource(context, 1, &kernelProg, nullptr, &err);
-        err = clBuildProgram(program, 0, nullptr, nullptr, nullptr, nullptr);
+        // FloatType is injected via the build args (OPENCL_COMPILE_ARGS) per PPB_FloatType.
+        err = clBuildProgram(program, 0, nullptr, OPENCL_COMPILE_ARGS, nullptr, nullptr);
         kernelPositionUpdate = clCreateKernel(program, "update_positions_reset_forces", &err);
         kerneVelocityUpdate = clCreateKernel(program, "update_velocities", &err);
         kernelForceUpdate = clCreateKernel(program, "compute_forces", &err);
@@ -111,14 +112,14 @@ namespace ppb {
         clSetKernelArg(kernelPositionUpdate, 1, sizeof(cl_mem), &_particles->velocities);
         clSetKernelArg(kernelPositionUpdate, 2, sizeof(cl_mem), &_particles->forces);
         clSetKernelArg(kernelPositionUpdate, 3, sizeof(cl_mem), &_particles->oldForces);
-        clSetKernelArg(kernelPositionUpdate, 4, sizeof(cl_float4), &_globalForce);
-        clSetKernelArg(kernelPositionUpdate, 5, sizeof(cl_float), &_deltaT);
+        clSetKernelArg(kernelPositionUpdate, 4, sizeof(cl_vec4), &_globalForce);
+        clSetKernelArg(kernelPositionUpdate, 5, sizeof(cl_scalar), &_deltaT);
         clSetKernelArg(kernelPositionUpdate, 6, sizeof(cl_uint), &_numParticles);
 
         clSetKernelArg(kerneVelocityUpdate, 0, sizeof(cl_mem), &_particles->velocities);
         clSetKernelArg(kerneVelocityUpdate, 1, sizeof(cl_mem), &_particles->forces);
         clSetKernelArg(kerneVelocityUpdate, 2, sizeof(cl_mem), &_particles->oldForces);
-        clSetKernelArg(kerneVelocityUpdate, 3, sizeof(cl_float), &_deltaT);
+        clSetKernelArg(kerneVelocityUpdate, 3, sizeof(cl_scalar), &_deltaT);
         clSetKernelArg(kerneVelocityUpdate, 4, sizeof(cl_uint), &_numParticles);
 
         clSetKernelArg(kernelForceUpdate, 0, sizeof(cl_mem), &_particles->positions);
@@ -176,7 +177,7 @@ namespace ppb {
 
     template <typename FloatType>
     void ImplOpenCL<FloatType>::computeForces() {
-        const size_t localSize[2] = {32, 32};
+        const size_t localSize[2] = {16, 16};
         const size_t globalSize[2] = {
             util::roundUp<size_t>(_numParticles, localSize[0]),
             util::roundUp<size_t>(_numParticles, localSize[1])
@@ -197,6 +198,8 @@ namespace ppb {
 
     template class ImplOpenCL<float>;
     template class OpenCLParticleSoA<float>;
+    template class ImplOpenCL<double>;
+    template class OpenCLParticleSoA<double>;
 
 } // namespace ppb
 

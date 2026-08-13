@@ -2,6 +2,8 @@
 #include <chrono>
 #include <benchmark/benchmark.h>
 #include <execution>
+
+#include "UtilityFloatArithmetic.h"
 #include "vectorAdditon/VectorAddition.h"
 
 namespace ppb {
@@ -24,8 +26,8 @@ namespace ppb {
     template class ImplCpp<double>;
 };
 
-BENCHMARK(ppb::VectorAddition<ppb::ImplCpp<float>>::benchmark)
-    ->Name("VecAdd-Float-CPP")
+BENCHMARK(ppb::VectorAddition<ppb::ImplCpp<ppb::VectorAdditionBenchmarkConf::float_type>>::benchmark)
+    ->Name("VecAdd")
     ->RangeMultiplier(10)
     ->Range(ppb::VectorAdditionBenchmarkConf::MIN_SIZE, ppb::VectorAdditionBenchmarkConf::MAX_SIZE)
 #ifdef PPB_MEASURE_ONLY_KERNEL
@@ -33,16 +35,8 @@ BENCHMARK(ppb::VectorAddition<ppb::ImplCpp<float>>::benchmark)
 #endif
     ->Complexity();
 
-// BENCHMARK(ppb::VectorAddition<ppb::ImplCpp<double>>::benchmark)
-//     ->Name("VecAdd-Double-cpp")
-//     ->RangeMultiplier(10)
-//     ->Range(ppb::VectorAdditionBenchmarkConf::MIN_SIZE, ppb::VectorAdditionBenchmarkConf::MAX_SIZE)
-// #ifdef PPB_MEASURE_ONLY_KERNEL
-//     ->UseManualTime()
-// #endif
-//     ->Complexity();
-
 int main(int argc, char **argv) {
+    ppb::VectorAdditionBenchmarkConf::addContext("Cpp");
     benchmark::Initialize(&argc, argv);
     benchmark::RunSpecifiedBenchmarks();
     benchmark::Shutdown();

@@ -2,7 +2,7 @@
 
 #include "nBodySimulation/Particle.h"
 
-namespace ppb {
+namespace ppb::cuda::nbody {
     template <typename FloatType>
     struct CudaParticleSoA {
         const std::vector<Particle<FloatType>> &_ref;
@@ -24,4 +24,4 @@ namespace ppb {
 
         std::vector<Particle<FloatType>> toParticles();
     };
-} // namespace ppb
+} // namespace ppb::cuda::nbody

@@ -1,12 +1,15 @@
-cmake_minimum_required(VERSION 3.22)
+cmake_minimum_required(VERSION 3.23.1 FATAL_ERROR) #changed to 3.23.1 for cuCollections
 project(performance_portability_benchmark VERSION 1.0 LANGUAGES CXX)
 
 include(CheckLanguage)
+include(CMakeDependentOption)
+
 
 check_language(CUDA)
 if (CMAKE_CUDA_COMPILER)
     enable_language(CUDA)
     find_package(CUDAToolkit QUIET)
+    set(CMAKE_CUDA_ARCHITECTURES "native" CACHE STRING "" FORCE)
     if (CUDAToolkit_FOUND)
         message(STATUS "CUDA language enabled and CUDAToolkit found")
     else ()
@@ -15,11 +18,13 @@ if (CMAKE_CUDA_COMPILER)
 else ()
     message(STATUS "CUDA language not available with current toolchain")
 endif ()
+message(STATUS "Set default value of PPB_ENABLE_CUDA to ${CUDAToolkit_FOUND}")
 
 check_language(HIP)
 if (CMAKE_HIP_COMPILER)
     enable_language(HIP)
     find_package(HIP QUIET)
+    set(CMAKE_HIP_ARCHITECTURES "native" CACHE STRING "" FORCE)
     if (HIP_FOUND)
         message(STATUS "HIP language enabled and HIP package found")
     else ()
@@ -28,6 +33,7 @@ if (CMAKE_HIP_COMPILER)
 else ()
     message(STATUS "HIP language not available with current toolchain")
 endif ()
+message(STATUS "Set default value of PPB_ENABLE_HIP to ${HIP_FOUND}")
 
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
@@ -40,6 +46,11 @@ include(CMakeDependentOption)
 if(NOT CMAKE_CONFIGURATION_TYPES AND NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the type of build (Debug or Release)" FORCE)
     set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
+endif()
+
+if (${CMAKE_BUILD_TYPE} EQUAL "Debug")
+    add_compile_options(-O0)
+    add_compile_options(-g)
 endif()
 
 set(PPB_LOGGING_LEVEL_LIST "TRACE" "DEBUG" "INFO" "WARN" "ERROR" "CRITICAL" "OFF")
@@ -57,11 +68,14 @@ option(PPB_ENABLE_OnlyKernelRuntime "Only measures the actual GPU Kernel runtime
 option(PPB_ENABLE_OpenACC "Enable OpenACC Target" OFF)
 option(PPB_ENABLE_OpenMP "Enable OpenMP Target" OFF)
 option(PPB_ENABLE_AdaptiveCpp "Enable AdaptiveCPP Target" OFF)
-option(PPB_ENABLE_Vulkan "Enable Vulkan Kompute Target" OFF)
+option(PPB_ENABLE_Vulkan "Enable Vulkan-Kompute Target" OFF)
+option(PPB_ENABLE_Slang_Vulkan "Enable Slang-Vulkan Target" OFF)
+option(PPB_ENABLE_Slang_Cuda "Enable Slang-Cuda Target" OFF)
 option(PPB_ENABLE_OpenCL "Enable OpenCL Targets" OFF)
 option(PPB_ENABLE_Boost "Enable Boost::Compute Target (requires OpenCL)" OFF)
 option(PPB_ENABLE_Kokkos "Enable Kokkos Target" OFF)
-option(PPB_ENABLE_Cuda "Enable Cuda and Thrust Targets" ON)
+option(PPB_ENABLE_CUDA "Enable Cuda and Thrust Targets" ${CUDAToolkit_FOUND})
+option(PPB_ENABLE_HIP "Enable Hip Targets" ${HIP_FOUND})
 option(PPB_ENABLE_Metal "Enable MetalCpp (Only on macOS!)" OFF)
 option(PPB_ENABLE_Alpaka "Enable Alpaka" OFF)
 
@@ -70,38 +84,67 @@ option(PPB_ENABLE_MatrixMultiplication "Enable MatrixMultiplication Benchmarks" 
 option(PPB_ENABLE_NBodySimulation "Enable NBodySimulation Benchmarks" OFF)
 option(PPB_ENABLE_Testing "Enable Testing" OFF)
 
-option(PPB_ENABLE_Cuda_DirectSum "Enables the Cuda direct sum implementation" ON)
-option(PPB_ENABLE_Cuda_LinkedCells "Enables the Cuda linked cells implementation" ON)
-option(PPB_ENABLE_Cuda_VerletLists "Enables the Cuda verlet lists implementation" OFF)
+option(PPB_ENABLE_PolyhedralGravity "Enable PolyhedralGravity Benchmarks" OFF)
+option(PPB_ENABLE_Testing "Enable Testing" ON)
 
-option(PPB_ENABLE_DOMAIN_COLORING "Enables the domain coloring optimization for nBodySimulation/cuda/linked_cells" OFF)
+cmake_dependent_option(PPB_ENABLE_NBodySimulation_naive  "Enable naive nBodySimulation"  OFF "PPB_ENABLE_NBodySimulation" OFF)
+cmake_dependent_option(PPB_ENABLE_NBodySimulation_cells  "Enable cells nBodySimulation"  OFF "PPB_ENABLE_NBodySimulation" OFF)
+cmake_dependent_option(PPB_ENABLE_NBodySimulation_verlet  "Enable verlet nBodySimulation"  OFF "PPB_ENABLE_NBodySimulation" OFF)
+
+cmake_dependent_option(
+    PPB_ENABLE_DOMAIN_COLORING "Enables the domain coloring optimization for linked cells" OFF
+    "PPB_ENABLE_CUDA AND PPB_ENABLE_NBodySimulation_cells" OFF
+)
+cmake_dependent_option(
+    PPB_ENABLE_CUDA_LINKED_CELL_OPTIMIZATION "Enables the force computation optimization for linked cells" OFF 
+    "PPB_ENABLE_CUDA AND PPB_ENABLE_NBodySimulation_cells" OFF
+)
+cmake_dependent_option(
+    PPB_ENABLE_CUDA_VERLET_CLUSTER_LISTS "Enables the Verlet Cluster Lists optimization for Verlet Lists" OFF 
+    "PPB_ENABLE_CUDA AND PPB_ENABLE_NBodySimulation_verlet" OFF
+)
+cmake_dependent_option(
+    PPB_ENABLE_CUDA_VERLET_LISTS_LC_OPTIMIZATION "Enables the Linked Cells neighbor search optimization for Verlet Lists" OFF 
+    "PPB_ENABLE_CUDA AND PPB_ENABLE_NBodySimulation_verlet" OFF
+)
+
+set(PPB_FloatType "32" CACHE STRING "Choose the floating point precision (32 or 64 bits)")
+set_property(CACHE PPB_FloatType PROPERTY STRINGS "32" "64")
 
 message(STATUS "####################################################")
 message(STATUS "Build Type                      ${CMAKE_BUILD_TYPE}")
 message(STATUS "Logging Level                   ${PPB_LOGGING_LEVEL}")
+message(STATUS "Float Type                      ${PPB_FloatType}")
 message(STATUS "Only Kernel Runtime             ${PPB_ENABLE_OnlyKernelRuntime}")
 message(STATUS "####################################################")
 message(STATUS "Kokkos                          ${PPB_ENABLE_Kokkos}")
 message(STATUS "AdaptiveCpp (needs Boost)       ${PPB_ENABLE_AdaptiveCpp}")
 message(STATUS "Vulkan-Kompute                  ${PPB_ENABLE_Vulkan}")
+message(STATUS "Slang-Vulkan                    ${PPB_ENABLE_Slang_Vulkan}")
+message(STATUS "Slang-CUDA                      ${PPB_ENABLE_Slang_Cuda}")
 message(STATUS "OpenACC                         ${PPB_ENABLE_OpenACC}")
 message(STATUS "OpenMP                          ${PPB_ENABLE_OpenMP}")
 message(STATUS "OpenCL                          ${PPB_ENABLE_OpenCL}")
 message(STATUS "Boost::Compute (needs OpenCL)   ${PPB_ENABLE_Boost}")
-message(STATUS "Cuda                            ${PPB_ENABLE_Cuda}")
+message(STATUS "CUDA                            ${PPB_ENABLE_CUDA}")
+message(STATUS "HIP                             ${PPB_ENABLE_HIP}")
 message(STATUS "Alpaka                          ${PPB_ENABLE_Alpaka}")
 message(STATUS "Metal (Apple)                   ${PPB_ENABLE_Metal}")
 message(STATUS "####################################################")
 message(STATUS "VectorAddition                  ${PPB_ENABLE_VectorAddition}")
 message(STATUS "MatrixMultiplication            ${PPB_ENABLE_MatrixMultiplication}")
+message(STATUS "PolyhedralGravity               ${PPB_ENABLE_PolyhedralGravity}")
 message(STATUS "NBodySimulation                 ${PPB_ENABLE_NBodySimulation}")
+message(STATUS " ⮑ Naive                       ${PPB_ENABLE_NBodySimulation_naive}")
+message(STATUS " ⮑ LinkedCells                 ${PPB_ENABLE_NBodySimulation_cells}")
+message(STATUS " ⮑ VerletLists                 ${PPB_ENABLE_NBodySimulation_verlet}")
+message(STATUS "####################################################")
 message(STATUS "Testing                         ${PPB_ENABLE_Testing}")
 message(STATUS "####################################################")
-message(STATUS "Cuda_DirectSum                  ${PPB_ENABLE_Cuda_DirectSum}")
-message(STATUS "Cuda_LinkedCells                ${PPB_ENABLE_Cuda_LinkedCells}")
-message(STATUS "Cuda_VerletLists                ${PPB_ENABLE_Cuda_VerletLists}")
-message(STATUS "####################################################")
 message(STATUS "DOMAIN_COLORING                 ${PPB_ENABLE_DOMAIN_COLORING}")
+message(STATUS "LINKED_CELL_OPTIMIZATION        ${PPB_ENABLE_CUDA_LINKED_CELL_OPTIMIZATION}")
+message(STATUS "VERLET_CLUSTER_LISTS            ${PPB_ENABLE_CUDA_VERLET_CLUSTER_LISTS}")
+message(STATUS "VERLET_LISTS_LC_OPT             ${PPB_ENABLE_CUDA_VERLET_LISTS_LC_OPTIMIZATION}")
 message(STATUS "####################################################")
 
 #######################################################
@@ -118,7 +161,9 @@ list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 
 # We always requires Google Benchmark
 include(gbench)
-include(opencl_compiling)
+# Definitions for Shading-Based Languages (OpenCL, OpenGL, Slang) to switch between
+# single and double precision during compilation
+include(float_type)
 
 if (${PPB_ENABLE_Boost} OR ${PPB_ENABLE_AdaptiveCpp})
     # std::random_shuffle was removed in C++17 and deprecated in C++14 - Boost uses it if we don't enable
@@ -127,17 +172,33 @@ if (${PPB_ENABLE_Boost} OR ${PPB_ENABLE_AdaptiveCpp})
     include(boost)
 endif ()
 
-# OpenCL Inclusion
 if (${PPB_ENABLE_OpenCL})
     find_package(OpenCL REQUIRED)
+    if (APPLE AND TARGET OpenCL::OpenCL)
+        # Inject the Homebrew C++ headers into the OpenCL target
+        find_path(OpenCL_CXX_INCLUDE_DIR
+                NAMES CL/opencl.hpp
+                HINTS
+                /opt/homebrew/opt/opencl-clhpp-headers/include
+                /opt/homebrew/include
+                /usr/local/include
+                /opt/local/include
+        )
+        if (OpenCL_CXX_INCLUDE_DIR)
+            message(STATUS "Found OpenCL C++ bindings at: ${OpenCL_CXX_INCLUDE_DIR}")
+            target_include_directories(OpenCL::OpenCL INTERFACE "${OpenCL_CXX_INCLUDE_DIR}")
+        else()
+            message(WARNING "Could not find CL/opencl.hpp. Please install opencl-clhpp-headers.")
+        endif()
+    endif()
+    include(compile_opencl)
 endif()
 
-# OpenMP Inclusion
 if (${PPB_ENABLE_OpenMP})
     find_package(OpenMP REQUIRED)
+    include(openmp_offload)
 endif ()
 
-# OpenACC Inclusion
 if (${PPB_ENABLE_OpenACC})
     if(CMAKE_CXX_COMPILER_ID STREQUAL "NVHPC")
         find_package(OpenACC REQUIRED)
@@ -146,22 +207,18 @@ if (${PPB_ENABLE_OpenACC})
     endif ()
 endif ()
 
-# Kokkos Inclusion
 if (${PPB_ENABLE_Kokkos})
     include(kokkos)
 endif()
 
-# Kokkos Inclusion
 if (${PPB_ENABLE_Raja})
     include(raja)
 endif()
 
-# AdaptiveCPP Inclusion
 if (${PPB_ENABLE_AdaptiveCpp} AND NOT CMAKE_CXX_COMPILER_ID STREQUAL "IntelLLVM")
     include(adaptive_cpp)
 endif ()
 
-# AdaptiveCPP Inclusion
 if (${PPB_ENABLE_Metal})
     include(metal)
 endif ()
@@ -170,8 +227,15 @@ if (${PPB_ENABLE_Alpaka})
     include(alpaka)
 endif ()
 
+# Vulkan Inclusion
 if (${PPB_ENABLE_Vulkan})
+    include(glm)
+    include(compile_vulkan_opengl)
     include(vulkan)
+endif ()
+
+if (${PPB_ENABLE_Slang_Cuda} OR ${PPB_ENABLE_Slang_Vulkan})
+    include(compile_slang)
 endif ()
 
 #######################################################

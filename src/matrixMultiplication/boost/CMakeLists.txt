@@ -1,5 +1,7 @@
+set(MATMUL_OCL_KERNEL_DIR ${MATRIX_MULTIPLICATION_ROOT_DIR}/opencl/)
+
 compile_opencl(
-        INFILE MatrixMultiplication.cl
+        INFILE ${MATMUL_OCL_KERNEL_DIR}/MatrixMultiplication.cl
         OUTFILE MatrixMultiplicationKernel.h
         PATH ${CMAKE_CURRENT_BINARY_DIR}
 )

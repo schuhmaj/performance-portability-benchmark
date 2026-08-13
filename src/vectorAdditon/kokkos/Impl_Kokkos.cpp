@@ -4,37 +4,6 @@
 #include "Kokkos_Core.hpp"
 #include "vectorAdditon/VectorAddition.h"
 
-// This neat code using SharedMemory performs better for smaller vector sizes N
-// However, the larger the vector becomes, the better a "pure" GPU version becomes
-
-// template <typename FloatType>
-// struct ppb::VectorAddition<FloatType>::impl {
-//     Kokkos::View<FloatType *, Kokkos::SharedSpace> deviceA;
-//     Kokkos::View<FloatType *, Kokkos::SharedSpace> deviceB;
-//
-//     explicit impl(const size_t size, const std::vector<FloatType> &a, const std::vector<FloatType> &b) :
-//         deviceA{"deviceA", size}, deviceB {"deviceB", size} {
-//         std::copy(a.begin(), a.end(), deviceA.data());
-//         std::copy(b.begin(), b.end(), deviceB.data());
-//     }
-// };
-
-// Equivalent in runtime and the meaning compared to the formulation below
-// The syntax is shorter
-
-// template <typename FloatType>
-// struct ppb::VectorAddition<FloatType>::impl {
-//     Kokkos::View<FloatType *> deviceA;
-//     Kokkos::View<FloatType *> deviceB;
-//
-//     explicit impl(const size_t size, const std::vector<FloatType> &a, const std::vector<FloatType> &b) : deviceA{Kokkos::view_alloc("deviceA", Kokkos::WithoutInitializing)}, deviceB{Kokkos::view_alloc("deviceB", Kokkos::WithoutInitializing)} {
-//         Kokkos::View<FloatType*, Kokkos::HostSpace, Kokkos::MemoryUnmanaged> hostA(const_cast<FloatType*>(a.data()), size);
-//         Kokkos::View<FloatType*, Kokkos::HostSpace, Kokkos::MemoryUnmanaged> hostB(const_cast<FloatType*>(b.data()), size);
-//         deviceA = Kokkos::create_mirror_view_and_copy(Kokkos::DefaultExecutionSpace{}, hostA);
-//         deviceB = Kokkos::create_mirror_view_and_copy(Kokkos::DefaultExecutionSpace{}, hostB);
-//     }
-// };
-
 namespace ppb {
     template <typename FloatType>
     struct KokkosImpl {
@@ -44,11 +13,11 @@ namespace ppb {
             Kokkos::View<FloatType *> deviceA{"deviceA", size};
             Kokkos::View<FloatType *> deviceB{"deviceB", size};
 
-            typename Kokkos::View<FloatType *>::HostMirror hostA = Kokkos::create_mirror_view(deviceA);
+            auto hostA = Kokkos::create_mirror_view(deviceA);
             std::copy(a.begin(), a.end(), hostA.data());
             Kokkos::deep_copy(deviceA, hostA);
 
-            typename Kokkos::View<FloatType *>::HostMirror hostB = Kokkos::create_mirror_view(deviceB);
+            auto hostB = Kokkos::create_mirror_view(deviceB);
             std::copy(b.begin(), b.end(), hostB.data());
             Kokkos::deep_copy(deviceB, hostB);
 
@@ -71,8 +40,8 @@ namespace ppb {
     template class KokkosImpl<double>;
 };
 
-BENCHMARK(ppb::VectorAddition<ppb::KokkosImpl<float>>::benchmark)
-    ->Name("VecAdd-Float-Kokkos")
+BENCHMARK(ppb::VectorAddition<ppb::KokkosImpl<ppb::VectorAdditionBenchmarkConf::float_type>>::benchmark)
+    ->Name("VecAdd")
     ->RangeMultiplier(10)
     ->Range(ppb::VectorAdditionBenchmarkConf::MIN_SIZE, ppb::VectorAdditionBenchmarkConf::MAX_SIZE)
 #ifdef PPB_MEASURE_ONLY_KERNEL
@@ -80,17 +49,8 @@ BENCHMARK(ppb::VectorAddition<ppb::KokkosImpl<float>>::benchmark)
 #endif
     ->Complexity();
 
-// BENCHMARK(ppb::VectorAddition<ppb::KokkosImpl<double>>::benchmark)
-//     ->Name("VecAdd-Double-Kokkos")
-//     ->RangeMultiplier(10)
-//     ->Range(ppb::VectorAdditionBenchmarkConf::MIN_SIZE, ppb::VectorAdditionBenchmarkConf::MAX_SIZE)
-// #ifdef PPB_MEASURE_ONLY_KERNEL
-//     ->UseManualTime()
-// #endif
-//     ->Complexity();
-
-
 int main(int argc, char **argv) {
+    ppb::VectorAdditionBenchmarkConf::addContext("Kokkos");
     benchmark::MaybeReenterWithoutASLR(argc, argv);
 
     Kokkos::ScopeGuard guard{argc, argv};

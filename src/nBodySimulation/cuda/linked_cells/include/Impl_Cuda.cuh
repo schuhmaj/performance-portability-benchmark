@@ -5,18 +5,16 @@
 #include "common/UtilityContainer.h"
 #include "CudaParticleSoA.cuh"
 
-namespace ppb {
+namespace ppb::cuda::nbody {
     template <typename FloatType>
     class ImplCuda {
         int _blockSize;
         int _gridSize;
+        int _blockSizeForces;
+        int _gridSizeForces;
         int x_dim_h;
         int y_dim_h;
         int z_dim_h;
-#ifdef PPB_ENABLE_DOMAIN_COLORING
-        int _gridSizeColored;
-        int _blockSizeColored;
-#endif
 
         /**
          * @brief 'starts' looks like this:
@@ -31,11 +29,13 @@ namespace ppb {
          * 'starts' marks the start of each cell.
          */
         int* cells{nullptr};
-       
+
         int* cell_offsets{nullptr};
+        
+        float3* cells_positions{nullptr};
 
         /**
-        * @brief Permanent array that is used in update_cells. (TODO: replace this with cooperative groups!!)
+        * @brief Permanent array that is used in update_cells.
         */
         int* tmp{nullptr};
 
@@ -81,4 +81,4 @@ namespace ppb {
         ~ImplCuda();
     };
 
-} // namespace ppb
+} // namespace ppb::cuda::nbody

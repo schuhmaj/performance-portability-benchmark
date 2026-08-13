@@ -1,4 +1,4 @@
-add_library(nbody_kokkos_lib STATIC Impl_Kokkos.cpp Impl_Kokkos.h)
+add_library(nbody_kokkos_lib STATIC Impl_Kokkos.cpp Impl_Kokkos.h Impl_KokkosReduction.cpp Impl_KokkosReduction.h)
 target_compile_features(nbody_kokkos_lib PUBLIC cxx_std_20)
 target_link_libraries(nbody_kokkos_lib
     PUBLIC

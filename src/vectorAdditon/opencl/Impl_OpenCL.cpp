@@ -11,7 +11,7 @@
 constexpr size_t WORKGROUP_SIZE = 32;
 #else
 #include <CL/cl.h>
-constexpr size_t WORKGROUP_SIZE = 1024;
+constexpr size_t WORKGROUP_SIZE = 256;
 #endif
 
 namespace ppb {
@@ -37,15 +37,8 @@ namespace ppb {
             // 3. opencl_utility program & kernel
             const char* kernelProg = KERNEL_SOURCE;
             program = clCreateProgramWithSource(context, 1, &kernelProg, nullptr, &err);
-            err = clBuildProgram(program, 0, nullptr, nullptr, nullptr, nullptr);
-
-            if constexpr (std::is_same_v<FloatType, float>) {
-                kernel = clCreateKernel(program, "add_vector_float", &err);
-            } else if constexpr (std::is_same_v<FloatType, double>) {
-                kernel = clCreateKernel(program, "add_vector_double", &err);
-            } else {
-                static_assert(std::is_same_v<FloatType, float> || std::is_same_v<FloatType, double>, "Unsupported type");
-            }
+            err = clBuildProgram(program, 0, nullptr, OPENCL_COMPILE_ARGS, nullptr, nullptr);
+            kernel = clCreateKernel(program, "add_vector", &err);
         }
 
         ~ImplOpenCL() {
@@ -100,8 +93,8 @@ namespace ppb {
     template class ImplOpenCL<double>;
 }
 
-BENCHMARK(ppb::VectorAddition<ppb::ImplOpenCL<float>>::benchmark)
-    ->Name("VecAdd-Float-OpenCL")
+BENCHMARK(ppb::VectorAddition<ppb::ImplOpenCL<ppb::VectorAdditionBenchmarkConf::float_type>>::benchmark)
+    ->Name("VecAdd")
     ->RangeMultiplier(10)
     ->Range(ppb::VectorAdditionBenchmarkConf::MIN_SIZE, ppb::VectorAdditionBenchmarkConf::MAX_SIZE)
 #ifdef PPB_MEASURE_ONLY_KERNEL
@@ -109,20 +102,8 @@ BENCHMARK(ppb::VectorAddition<ppb::ImplOpenCL<float>>::benchmark)
 #endif
     ->Complexity();
 
-// Apple Metal Devices don't support Double Precision (as of 29.09.2025 - tested with M1 Pro)
-// Hence, building the Kernel will fail on an Apple Chip
-// #ifndef __APPLE__
-// BENCHMARK(ppb::VectorAddition<ppb::ImplOpenCL<double>>::benchmark)
-//     ->Name("VecAdd-Double-OpenCL")
-//     ->RangeMultiplier(10)
-//     ->Range(ppb::VectorAdditionBenchmarkConf::MIN_SIZE, ppb::VectorAdditionBenchmarkConf::MAX_SIZE)
-// #ifdef PPB_MEASURE_ONLY_KERNEL
-//     ->UseManualTime()
-// #endif
-//     ->Complexity();
-// #endif
-
 int main(int argc, char **argv) {
+    ppb::VectorAdditionBenchmarkConf::addContext("OpenCL");
     benchmark::MaybeReenterWithoutASLR(argc, argv);
     benchmark::Initialize(&argc, argv);
     benchmark::RunSpecifiedBenchmarks();

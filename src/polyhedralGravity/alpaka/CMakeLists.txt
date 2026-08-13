@@ -1,0 +1,7 @@
+alpaka_add_library(polyhedral_alpaka_lib STATIC Impl_Alpaka.cpp)
+target_compile_features(polyhedral_alpaka_lib PUBLIC cxx_std_17)
+target_link_libraries(polyhedral_alpaka_lib PUBLIC polyhedral_lib alpaka::alpaka)
+
+alpaka_add_executable(polyhedral_alpaka ${POLYHEDRAL_GRAVITY_ROOT_DIR}/main.cpp)
+target_compile_definitions(polyhedral_alpaka PRIVATE PARADIGM="Alpaka")
+target_link_libraries(polyhedral_alpaka PUBLIC polyhedral_alpaka_lib)

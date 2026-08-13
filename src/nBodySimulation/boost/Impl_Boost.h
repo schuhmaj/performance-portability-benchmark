@@ -10,8 +10,15 @@
 
 namespace ppb {
 
+    template <typename FloatType> struct boost_vec_traits;
+    template <> struct boost_vec_traits<float>  { using scalar = boost::compute::float_;  using vec4 = boost::compute::float4_;  };
+    template <> struct boost_vec_traits<double> { using scalar = boost::compute::double_; using vec4 = boost::compute::double4_; };
+
     template <typename FloatType>
     class BoostParticleSoA {
+
+        using bc_scalar = typename boost_vec_traits<FloatType>::scalar;
+        using bc_vec4 = typename boost_vec_traits<FloatType>::vec4;
 
         /**
          * Reference to the original vector of particles (used as a data source during initialization and conversion).
@@ -20,14 +27,14 @@ namespace ppb {
 
     public:
 
-        boost::compute::vector<boost::compute::float4_> positions;
-        boost::compute::vector<boost::compute::float4_> velocities;
-        boost::compute::vector<boost::compute::float4_> forces;
-        boost::compute::vector<boost::compute::float4_> oldForces;
+        boost::compute::vector<bc_vec4> positions;
+        boost::compute::vector<bc_vec4> velocities;
+        boost::compute::vector<bc_vec4> forces;
+        boost::compute::vector<bc_vec4> oldForces;
 
-        std::vector<boost::compute::float4_> positionsHost;
-        std::vector<boost::compute::float4_> velocitiesHost;
-        std::vector<boost::compute::float4_> forcesHost;
+        std::vector<bc_vec4> positionsHost;
+        std::vector<bc_vec4> velocitiesHost;
+        std::vector<bc_vec4> forcesHost;
 
         boost::compute::command_queue &queue;
 
@@ -47,6 +54,9 @@ namespace ppb {
     template<typename FloatType>
     class ImplBoost {
 
+        using bc_scalar = typename boost_vec_traits<FloatType>::scalar;
+        using bc_vec4 = typename boost_vec_traits<FloatType>::vec4;
+
         /**
          * Simulation configuration with parameters such as particle count, force, time step, and bounds.
          */
@@ -62,8 +72,8 @@ namespace ppb {
          */
         std::optional<BoostParticleSoA<FloatType>> _particles{std::nullopt};
         const unsigned int _numParticles;
-        const float _deltaT;
-        const boost::compute::float4_ _globalForce;
+        const bc_scalar _deltaT;
+        const bc_vec4 _globalForce;
 
         boost::compute::device gpu;
         boost::compute::context context;

@@ -5,36 +5,18 @@ set(NBODY_SIMULATION_FILES
     CSVFileHandler.h
 )
 
-if (${PPB_ENABLE_VTK})
-# taken from https://github.com/MaxieHelenBichmann/MolSim-WS25-GroupD/blob/main/cmake/modules/vtk.cmake
-    find_package(VTK REQUIRED COMPONENTS
-            CommonCore
-            CommonDataModel
-            IOXML
-    )
-
-    if(VTK_FOUND)
-        message (STATUS "Found VTK Version: ${VTK_VERSION}")
-    else ()
-        message(FATAL_ERROR "VTK not found")
-    endif ()
-
-    if(VTK_VERSION VERSION_GREATER_EQUAL 8.9)
-        target_include_directories(nbody_lib INTERFACE ${VTK_INCLUDE_DIRS})
-    else()
-        include(${VTK_USE_FILE})
-    endif ()
-
-    add_compile_definitions(PPB_ENABLE_VTK)
-    target_link_libraries(nbody_lib
-            INTERFACE
-            ${VTK_LIBRARIES}
-    )
-endif ()
-
 add_library(nbody_lib INTERFACE ${NBODY_SIMULATION_FILES})
-target_include_directories(nbody_lib INTERFACE ${PPB_SRC_SOURCE_DIRECTORY})
+target_include_directories(nbody_lib INTERFACE ${PPB_SRC_SOURCE_DIRECTORY} ${NBODY_SIMULATION_ROOT_DIR}/vulkan)
 target_link_libraries(nbody_lib INTERFACE benchmark::benchmark common_lib)
+
+execute_process(
+    COMMAND git rev-parse --short HEAD
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    OUTPUT_VARIABLE GIT_HASH
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+
+add_definitions(-DGIT_HASH_STRING="${GIT_HASH}")
 
 if (${PPB_ENABLE_Kokkos})
     add_subdirectory(kokkos)
@@ -52,8 +34,16 @@ if (${PPB_ENABLE_AdaptiveCpp})
     add_subdirectory(acpp)
 endif()
 
-if (CMAKE_CUDA_COMPILER AND PPB_ENABLE_Cuda)
-    add_subdirectory(cuda)
+if (CMAKE_CUDA_COMPILER AND PPB_ENABLE_CUDA)
+    if (${PPB_ENABLE_NBodySimulation_naive})
+        add_subdirectory(cuda/direct_sum)
+    endif ()
+    if (${PPB_ENABLE_NBodySimulation_cells})
+        add_subdirectory(cuda/linked_cells)
+    endif ()
+    if (${PPB_ENABLE_NBodySimulation_verlet})
+        add_subdirectory(cuda/verlet_lists)
+    endif ()
 endif ()
 
 if (${PPB_ENABLE_Alpaka})
@@ -65,11 +55,35 @@ if (${PPB_ENABLE_OpenMP})
 endif ()
 
 if (${PPB_ENABLE_Vulkan})
-    add_subdirectory(vulkan)
+    if (${PPB_ENABLE_NBodySimulation_naive})
+        add_subdirectory(vulkan/naive)
+    endif ()
+    if (${PPB_ENABLE_NBodySimulation_cells})
+        add_subdirectory(vulkan/cell_lists)
+    endif ()
+    if (${PPB_ENABLE_NBodySimulation_verlet})
+        add_subdirectory(vulkan/verlet_lists)
+    endif ()
+endif ()
+
+if (${PPB_ENABLE_Slang_Vulkan} OR ${PPB_ENABLE_Slang_Cuda})
+    if (${PPB_ENABLE_NBodySimulation_naive})
+        add_subdirectory(slang/naive)
+    endif ()
+    if (${PPB_ENABLE_NBodySimulation_cells})
+        add_subdirectory(slang/cell_lists)
+    endif ()
+    if (${PPB_ENABLE_NBodySimulation_verlet})
+        add_subdirectory(slang/verlet_lists)
+    endif ()
 endif ()
 
 if (${PPB_ENABLE_OpenACC})
     add_subdirectory(openacc)
+endif ()
+
+if (${PPB_ENABLE_HIP})
+    add_subdirectory(hip)
 endif ()
 
 add_subdirectory(cpp)

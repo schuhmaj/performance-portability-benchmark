@@ -73,7 +73,7 @@ to explicit enable one technology:
 | PPB_ENABLE_OpenMP                | OpenMP                                          | LLVM                   |
 | PPB_ENABLE_OpenCL                | OpenCL                                          | LLVM, NVHPC            |
 | PPB_ENABLE_Boost                 | Boost::Compute (needs OpenCL)                   | LLVM, NVHPC            |
-| PPB_ENABLE_Cuda                  | Cuda                                            | LLVM, NVHPC            |
+| PPB_ENABLE_CUDA                  | Cuda                                            | LLVM, NVHPC            |
 | PPB_ENABLE_Alpaka                | Alpaka                                          | LLVM, NVHPC            |
 | PPB_ENABLE_Metal                 | Metal (Apple)                                   | Apple Clang (macOS)    |
 | PPB_ENABLE_VectorAddition        | VectorAddition                                  | N/A                    |
