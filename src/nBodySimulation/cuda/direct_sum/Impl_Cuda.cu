@@ -1,5 +1,8 @@
 #include "Impl_Cuda.cuh"
+#include "common/cuda/Cuda_Error_Checking.cuh"
 #include <cuda_runtime.h>
+
+#define CHECK_CUDA_ERROR(val) ppb::cuda::nbody::check((val), #val, __FILE__, __LINE__)
 
 namespace ppb::cuda::nbody {
 
@@ -20,31 +23,31 @@ namespace ppb::cuda::nbody {
             velocitiesHost[i] = {static_cast<Scalar>(particles[i].getVelocity()[0]), static_cast<Scalar>(particles[i].getVelocity()[1]), static_cast<Scalar>(particles[i].getVelocity()[2])};
             forcesHost[i] = {static_cast<Scalar>(particles[i].getForce()[0]), static_cast<Scalar>(particles[i].getForce()[1]), static_cast<Scalar>(particles[i].getForce()[2])};
         }
-        cudaMalloc(&positions, sizeof(VectorType3) * size);
-        cudaMalloc(&velocities, sizeof(VectorType3) * size);
-        cudaMalloc(&forces, sizeof(VectorType3) * size);
-        cudaMalloc(&oldForces, sizeof(VectorType3) * size);
+        CHECK_CUDA_ERROR(cudaMalloc(&positions, sizeof(VectorType3) * size));
+        CHECK_CUDA_ERROR(cudaMalloc(&velocities, sizeof(VectorType3) * size));
+        CHECK_CUDA_ERROR(cudaMalloc(&forces, sizeof(VectorType3) * size));
+        CHECK_CUDA_ERROR(cudaMalloc(&oldForces, sizeof(VectorType3) * size));
 
-        cudaMemcpy(positions, positionsHost.data(), sizeof(VectorType3) * size, cudaMemcpyHostToDevice);
-        cudaMemcpy(velocities, velocitiesHost.data(), sizeof(VectorType3) * size, cudaMemcpyHostToDevice);
-        cudaMemcpy(forces, forcesHost.data(), sizeof(VectorType3) * size, cudaMemcpyHostToDevice);
-        cudaMemset(oldForces, 0, sizeof(VectorType3) * size);
+        CHECK_CUDA_ERROR(cudaMemcpy(positions, positionsHost.data(), sizeof(VectorType3) * size, cudaMemcpyHostToDevice));
+        CHECK_CUDA_ERROR(cudaMemcpy(velocities, velocitiesHost.data(), sizeof(VectorType3) * size, cudaMemcpyHostToDevice));
+        CHECK_CUDA_ERROR(cudaMemcpy(forces, forcesHost.data(), sizeof(VectorType3) * size, cudaMemcpyHostToDevice));
+        CHECK_CUDA_ERROR(cudaMemset(oldForces, 0, sizeof(VectorType3) * size));
     }
 
     template <typename FloatType>
     CudaParticleSoA<FloatType>::~CudaParticleSoA() {
-        cudaFree(positions);
-        cudaFree(velocities);
-        cudaFree(forces);
-        cudaFree(oldForces);
+        CHECK_CUDA_ERROR(cudaFree(positions));
+        CHECK_CUDA_ERROR(cudaFree(velocities));
+        CHECK_CUDA_ERROR(cudaFree(forces));
+        CHECK_CUDA_ERROR(cudaFree(oldForces));
     }
 
     template <typename FloatType>
     std::vector<Particle<FloatType>> CudaParticleSoA<FloatType>::toParticles() {
         std::vector<Particle<FloatType>> particles{_ref};
-        cudaMemcpy(positionsHost.data(), positions, sizeof(VectorType3) * _ref.size(), cudaMemcpyDeviceToHost);
-        cudaMemcpy(velocitiesHost.data(), velocities, sizeof(VectorType3) * _ref.size(), cudaMemcpyDeviceToHost);
-        cudaMemcpy(forcesHost.data(), forces, sizeof(VectorType3) * _ref.size(), cudaMemcpyDeviceToHost);
+        CHECK_CUDA_ERROR(cudaMemcpy(positionsHost.data(), positions, sizeof(VectorType3) * _ref.size(), cudaMemcpyDeviceToHost));
+        CHECK_CUDA_ERROR(cudaMemcpy(velocitiesHost.data(), velocities, sizeof(VectorType3) * _ref.size(), cudaMemcpyDeviceToHost));
+        CHECK_CUDA_ERROR(cudaMemcpy(forcesHost.data(), forces, sizeof(VectorType3) * _ref.size(), cudaMemcpyDeviceToHost));
         for (size_t i = 0; i < particles.size(); ++i) {
             const VectorType3& position = positionsHost[i];
             const VectorType3& velocity = velocitiesHost[i];
@@ -162,7 +165,7 @@ namespace ppb::cuda::nbody {
         } else {
             int blockSize = 0;
             int minGridSize = 0;
-            cudaOccupancyMaxPotentialBlockSize(&minGridSize, &_blockSize, reinterpret_cast<void *>(update_positions), 0, size);
+            CHECK_CUDA_ERROR(cudaOccupancyMaxPotentialBlockSize(&minGridSize, &_blockSize, reinterpret_cast<void *>(update_positions), 0, size));
         }
         _gridSize = util::ceilDiv<unsigned int>(size, _blockSize);
     }
@@ -179,17 +182,17 @@ namespace ppb::cuda::nbody {
 
         float elapsedTime;
         cudaEvent_t start, stop;
-        cudaEventCreate(&start);
-        cudaEventCreate(&stop);
+        CHECK_CUDA_ERROR(cudaEventCreate(&start));
+        CHECK_CUDA_ERROR(cudaEventCreate(&stop));
 
-        cudaEventRecord(start);
+        CHECK_CUDA_ERROR(cudaEventRecord(start));
         update_positions<<<_gridSize, _blockSize>>>(position, velocity, force, oldForce, _globalForce, dt, size);
-        cudaEventRecord(stop);
+        CHECK_CUDA_ERROR(cudaEventRecord(stop));
 
-        cudaEventSynchronize(stop);
-        cudaEventElapsedTime(&elapsedTime, start, stop);
-        cudaEventDestroy(start);
-        cudaEventDestroy(stop);
+        CHECK_CUDA_ERROR(cudaEventSynchronize(stop));
+        CHECK_CUDA_ERROR(cudaEventElapsedTime(&elapsedTime, start, stop));
+        CHECK_CUDA_ERROR(cudaEventDestroy(start));
+        CHECK_CUDA_ERROR(cudaEventDestroy(stop));
         _timings.positionUpdateForceResetTime += (elapsedTime * 1e6);
     }
 
@@ -204,17 +207,17 @@ namespace ppb::cuda::nbody {
 
         float elapsedTime;
         cudaEvent_t start, stop;
-        cudaEventCreate(&start);
-        cudaEventCreate(&stop);
+        CHECK_CUDA_ERROR(cudaEventCreate(&start));
+        CHECK_CUDA_ERROR(cudaEventCreate(&stop));
 
-        cudaEventRecord(start);
+        CHECK_CUDA_ERROR(cudaEventRecord(start));
         update_velocities<<<_gridSize, _blockSize>>>(velocity, force, oldForce, dt, size);
-        cudaEventRecord(stop);
+        CHECK_CUDA_ERROR(cudaEventRecord(stop));
 
-        cudaEventSynchronize(stop);
-        cudaEventElapsedTime(&elapsedTime, start, stop);
-        cudaEventDestroy(start);
-        cudaEventDestroy(stop);
+        CHECK_CUDA_ERROR(cudaEventSynchronize(stop));
+        CHECK_CUDA_ERROR(cudaEventElapsedTime(&elapsedTime, start, stop));
+        CHECK_CUDA_ERROR(cudaEventDestroy(start));
+        CHECK_CUDA_ERROR(cudaEventDestroy(stop));
         _timings.velocityUpdateTime += (elapsedTime * 1e6);
     }
 
@@ -226,17 +229,17 @@ namespace ppb::cuda::nbody {
 
         float elapsedTime;
         cudaEvent_t start, stop;
-        cudaEventCreate(&start);
-        cudaEventCreate(&stop);
+        CHECK_CUDA_ERROR(cudaEventCreate(&start));
+        CHECK_CUDA_ERROR(cudaEventCreate(&stop));
 
-        cudaEventRecord(start);
+        CHECK_CUDA_ERROR(cudaEventRecord(start));
         compute_forces<<<_gridSize, _blockSize>>>(position, force, size);
-        cudaEventRecord(stop);
+        CHECK_CUDA_ERROR(cudaEventRecord(stop));
 
-        cudaEventSynchronize(stop);
-        cudaEventElapsedTime(&elapsedTime, start, stop);
-        cudaEventDestroy(start);
-        cudaEventDestroy(stop);
+        CHECK_CUDA_ERROR(cudaEventSynchronize(stop));
+        CHECK_CUDA_ERROR(cudaEventElapsedTime(&elapsedTime, start, stop));
+        CHECK_CUDA_ERROR(cudaEventDestroy(start));
+        CHECK_CUDA_ERROR(cudaEventDestroy(stop));
         _timings.forceUpdateTime += (elapsedTime * 1e6);
     }
 

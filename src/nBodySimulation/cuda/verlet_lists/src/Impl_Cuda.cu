@@ -1,6 +1,6 @@
 #include "Impl_Cuda.cuh"
 #include "kernels.cuh"
-#include "common.cuh"
+#include "common/cuda/Cuda_Error_Checking.cuh"
 #include "constants.cuh"
 #include <iostream>
 #include <cuda_runtime.h>
@@ -26,7 +26,7 @@ namespace ppb::cuda::nbody {
         CHECK_CUDA_ERROR(cudaMemcpyToSymbol(CUTOFF_RADIUS_SQUARED, &cutoff_radius_squared, sizeof(cutoff_radius_squared)));
         CHECK_CUDA_ERROR(cudaMemcpyToSymbol(VERLET_SKIN, &_config.verlet_skin, sizeof(_config.verlet_skin)));
         CHECK_CUDA_ERROR(cudaMemcpyToSymbol(GLOBAL_FORCE, _config.globalForce.data(), sizeof(_config.globalForce)));
-#ifdef PPB_ENABLE_CUDA_VERLET_CLUSTER_LISTS
+#if defined PPB_ENABLE_CUDA_VERLET_CLUSTER_LISTS || defined PPB_ENABLE_CUDA_VERLET_CLUSTER_LISTS_OPT
         CHECK_CUDA_ERROR(cudaMemcpyToSymbol(BOX_MIN, _config.boxMin.data(), sizeof(_config.boxMin)));
         CHECK_CUDA_ERROR(cudaMemcpyToSymbol(BOX_MAX, _config.boxMax.data(), sizeof(_config.boxMax)));
 #elif PPB_ENABLE_CUDA_VERLET_LISTS_LC_OPTIMIZATION
@@ -80,12 +80,12 @@ namespace ppb::cuda::nbody {
         }
         _gridSize = util::ceilDiv<unsigned int>(size, _blockSize);
 
-#ifdef PPB_ENABLE_CUDA_VERLET_CLUSTER_LISTS
+#if defined PPB_ENABLE_CUDA_VERLET_CLUSTER_LISTS || defined PPB_ENABLE_CUDA_VERLET_CLUSTER_LISTS_OPT
         int minGridSize = 0;
         CHECK_CUDA_ERROR(cudaOccupancyMaxPotentialBlockSize(&minGridSize, &_blockSizeForces, reinterpret_cast<void *>(compute_force_cluster_lists), 0, 0));
 #endif
         //---------------------------------Allocate device memory------------------------------------------
-#ifndef PPB_ENABLE_CUDA_VERLET_CLUSTER_LISTS
+#if !defined PPB_ENABLE_CUDA_VERLET_CLUSTER_LISTS && !defined PPB_ENABLE_CUDA_VERLET_CLUSTER_LISTS_OPT
         CHECK_CUDA_ERROR(cudaMalloc(&starts, sizeof(int) * (size + 1))); // +1 so the last element is the total number of neighbors
         CHECK_CUDA_ERROR(cudaMemset(starts, 0, sizeof(int) * (size + 1)));
 #endif
@@ -118,7 +118,6 @@ namespace ppb::cuda::nbody {
         if (tmp != nullptr) CHECK_CUDA_ERROR(cudaFree(tmp));
     }
     
-#ifdef PPB_ENABLE_CUDA_VERLET_CLUSTER_LISTS
     template<typename FloatType>
     void ImplCuda<FloatType>::makeClusters() {
         // Split up the domain into towers
@@ -225,8 +224,11 @@ namespace ppb::cuda::nbody {
         printBB<<<1,1>>>(BBM, size_clusters / M); */
         
         // Allocate 'cluster_pairs' by first getting its size
-/*         cluster_pair_search<<<util::ceilDiv(size_clusters / M, (size_t)1024), 1024>>>(BBM, BBN, true, nullptr, starts, clusters, _particles->positions, tower_size, size_clusters); */
+#ifndef PPB_ENABLE_CUDA_VERLET_CLUSTER_LISTS_OPT
+        cluster_pair_search<<<util::ceilDiv(size_clusters / M, (size_t)1024), 1024>>>(BBM, BBN, true, nullptr, starts, clusters, _particles->positions, tower_size, size_clusters);
+#else
         cluster_pair_search_optimized<<<util::ceilDiv(size_clusters / M, (size_t)1024), 1024>>>(BBM, BBN, true, nullptr, starts, starts_towers, clusters, _particles->positions, tower_size, size_clusters);
+#endif
         thrust::inclusive_scan(thrust::device, starts, starts + (size_clusters / M + 1), starts);
         size_t size_cluster_pairs = 0;
         CHECK_CUDA_ERROR(cudaMemcpy(&size_cluster_pairs, &starts[size_clusters / M], sizeof(int), cudaMemcpyDeviceToHost)); 
@@ -234,11 +236,13 @@ namespace ppb::cuda::nbody {
         CHECK_CUDA_ERROR(cudaMalloc(&cluster_pairs, sizeof(int) * size_cluster_pairs));
    
         // Do the pair search
-/*         cluster_pair_search<<<util::ceilDiv(size_clusters / M, (size_t)1024), 1024>>>(BBM, BBN, false, cluster_pairs, starts, clusters, _particles->positions, tower_size, size_clusters);  */
-        cluster_pair_search_optimized<<<util::ceilDiv(size_clusters / M, (size_t)1024), 1024>>>(BBM, BBN, false, cluster_pairs, starts, starts_towers, clusters, _particles->positions, tower_size, size_clusters); 
-/*         printPairList<<<1,1>>>(starts, size_clusters / M, cluster_pairs, size_cluster_pairs); */
-    }
+#ifndef PPB_ENABLE_CUDA_VERLET_CLUSTER_LISTS_OPT
+        cluster_pair_search<<<util::ceilDiv(size_clusters / M, (size_t)1024), 1024>>>(BBM, BBN, false, cluster_pairs, starts, clusters, _particles->positions, tower_size, size_clusters); 
+#else        
+        cluster_pair_search_optimized<<<util::ceilDiv(size_clusters / M, (size_t)1024), 1024>>>(BBM, BBN, false, cluster_pairs, starts, starts_towers, clusters, _particles->positions, tower_size, size_clusters);
 #endif
+    /*         printPairList<<<1,1>>>(starts, size_clusters / M, cluster_pairs, size_cluster_pairs); */
+    }
 
     template<typename FloatType>
     void ImplCuda<FloatType>::updatePositionsAndResetForce() {
@@ -256,7 +260,7 @@ namespace ppb::cuda::nbody {
         update_positions<<<_gridSize, _blockSize>>>(position, velocity, force, oldForce); 
         // every frequency iterations update verlet lists
         if (iteration % frequency == 0) {
- #ifdef PPB_ENABLE_CUDA_VERLET_CLUSTER_LISTS 
+ #if defined PPB_ENABLE_CUDA_VERLET_CLUSTER_LISTS || PPB_ENABLE_CUDA_VERLET_CLUSTER_LISTS_OPT
             // TODO max occupancy for those kernel launches with magic numbers (not too important as these are not a bottleneck).
             // TODO think about what we *really* need to reallocate every iteration. This becomes a bottleneck for small frequencies.
             makeClusters();
@@ -314,7 +318,7 @@ namespace ppb::cuda::nbody {
         CHECK_CUDA_ERROR(cudaEventCreate(&stop));
 
         CHECK_CUDA_ERROR(cudaEventRecord(start));
-#ifdef PPB_ENABLE_CUDA_VERLET_CLUSTER_LISTS
+#if defined PPB_ENABLE_CUDA_VERLET_CLUSTER_LISTS || defined PPB_ENABLE_CUDA_VERLET_CLUSTER_LISTS_OPT
         int _gridSizeForces = util::ceilDiv<int>(4 * size_clusters, _blockSizeForces);
         compute_force_cluster_lists<<<_gridSizeForces, _blockSizeForces>>>(position, force, clusters, cluster_pairs, starts, size_clusters);
 #else

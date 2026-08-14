@@ -1,5 +1,5 @@
 add_library(nbody_cuda_lib_verlet_lists STATIC
-        src/common.cu
+        src/kernels.cu
         src/CudaParticleSoA.cu 
         src/Impl_Cuda.cu)
 target_include_directories(nbody_cuda_lib_verlet_lists PUBLIC include)
@@ -23,7 +23,9 @@ set_target_properties(nbody_cuda_verlet_lists PROPERTIES
 if (${PPB_ENABLE_CUDA_VERLET_CLUSTER_LISTS}) 
     target_compile_definitions(nbody_cuda_lib_verlet_lists PUBLIC PPB_ENABLE_CUDA_VERLET_CLUSTER_LISTS)
 endif ()
-
 if (${PPB_ENABLE_CUDA_VERLET_LISTS_LC_OPTIMIZATION}) 
     target_compile_definitions(nbody_cuda_lib_verlet_lists PUBLIC PPB_ENABLE_CUDA_VERLET_LISTS_LC_OPTIMIZATION)
+endif ()
+if (${PPB_ENABLE_CUDA_VERLET_CLUSTER_LISTS_OPT}) 
+    target_compile_definitions(nbody_cuda_lib_verlet_lists PUBLIC PPB_ENABLE_CUDA_VERLET_CLUSTER_LISTS_OPT)
 endif ()

@@ -1,5 +1,5 @@
 #include "CudaParticleSoA.cuh"
-#include "common.cuh"
+#include "common/cuda/Cuda_Error_Checking.cuh"
 
 #define CHECK_CUDA_ERROR(val) ppb::cuda::nbody::check((val), #val, __FILE__, __LINE__)
 

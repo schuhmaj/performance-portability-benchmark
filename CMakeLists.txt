@@ -89,15 +89,27 @@ cmake_dependent_option(
     "PPB_ENABLE_CUDA AND PPB_ENABLE_NBodySimulation_cells" OFF
 )
 cmake_dependent_option(
-    PPB_ENABLE_CUDA_LINKED_CELL_OPTIMIZATION "Enables the force computation optimization for linked cells" OFF 
+    PPB_ENABLE_CUDA_LINKED_CELL_OPTIMIZATION "Enables the force computation shared memory optimization for linked cells" OFF 
     "PPB_ENABLE_CUDA AND PPB_ENABLE_NBodySimulation_cells" OFF
 )
 cmake_dependent_option(
-    PPB_ENABLE_CUDA_VERLET_CLUSTER_LISTS "Enables the Verlet Cluster Lists optimization for Verlet Lists" OFF 
-    "PPB_ENABLE_CUDA AND PPB_ENABLE_NBodySimulation_verlet" OFF
+    PPB_ENABLE_CUDA_LINKED_CELL_OPTIMIZATION_ALT "Enables the alternative force computation shared memory optimization for linked cells" OFF 
+    "PPB_ENABLE_CUDA AND PPB_ENABLE_NBodySimulation_cells" OFF
+)
+cmake_dependent_option(
+    PPB_ENABLE_CUDA_LINKED_CELL_BEST_OPTIMIZATION "Enables the best force computation optimization for linked cells" OFF 
+    "PPB_ENABLE_CUDA AND PPB_ENABLE_NBodySimulation_cells" OFF
 )
 cmake_dependent_option(
     PPB_ENABLE_CUDA_VERLET_LISTS_LC_OPTIMIZATION "Enables the Linked Cells neighbor search optimization for Verlet Lists" OFF 
+    "PPB_ENABLE_CUDA AND PPB_ENABLE_NBodySimulation_verlet" OFF
+)
+cmake_dependent_option(
+    PPB_ENABLE_CUDA_VERLET_CLUSTER_LISTS "Enables Verlet Cluster Lists" OFF 
+    "PPB_ENABLE_CUDA AND PPB_ENABLE_NBodySimulation_verlet" OFF
+)
+cmake_dependent_option(
+    PPB_ENABLE_CUDA_VERLET_CLUSTER_LISTS_OPT "Enables the Verlet Cluster Lists pair search optimization" OFF 
     "PPB_ENABLE_CUDA AND PPB_ENABLE_NBodySimulation_verlet" OFF
 )
 
@@ -136,8 +148,11 @@ message(STATUS "Testing                         ${PPB_ENABLE_Testing}")
 message(STATUS "####################################################")
 message(STATUS "DOMAIN_COLORING                 ${PPB_ENABLE_CUDA_DOMAIN_COLORING}")
 message(STATUS "LINKED_CELL_OPTIMIZATION        ${PPB_ENABLE_CUDA_LINKED_CELL_OPTIMIZATION}")
-message(STATUS "VERLET_CLUSTER_LISTS            ${PPB_ENABLE_CUDA_VERLET_CLUSTER_LISTS}")
+message(STATUS "LINKED_CELL_OPTIMIZATION_ALT    ${PPB_ENABLE_CUDA_LINKED_CELL_OPTIMIZATION_ALT}")
+message(STATUS "LINKED_CELL_OPTIMIZATION_ALT    ${PPB_ENABLE_CUDA_LINKED_CELL_BEST_OPTIMIZATION}")
 message(STATUS "VERLET_LISTS_LC_OPT             ${PPB_ENABLE_CUDA_VERLET_LISTS_LC_OPTIMIZATION}")
+message(STATUS "VERLET_CLUSTER_LISTS            ${PPB_ENABLE_CUDA_VERLET_CLUSTER_LISTS}")
+message(STATUS "VERLET_CLUSTER_LISTS_OPT        ${PPB_ENABLE_CUDA_VERLET_CLUSTER_LISTS_OPT}")
 message(STATUS "####################################################")
 
 #######################################################

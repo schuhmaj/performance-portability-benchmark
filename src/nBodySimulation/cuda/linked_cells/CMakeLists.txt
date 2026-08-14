@@ -1,5 +1,5 @@
 add_library(nbody_cuda_lib_linked_cells STATIC
-        src/common.cu
+        src/kernels.cu
         src/CudaParticleSoA.cu 
         src/Impl_Cuda.cu)
 target_include_directories(nbody_cuda_lib_linked_cells PUBLIC include)
@@ -25,4 +25,10 @@ if (${PPB_ENABLE_CUDA_DOMAIN_COLORING})
 endif ()
 if (${PPB_ENABLE_CUDA_LINKED_CELL_OPTIMIZATION}) 
     target_compile_definitions(nbody_cuda_lib_linked_cells PUBLIC PPB_ENABLE_CUDA_LINKED_CELL_OPTIMIZATION)
+endif ()
+if (${PPB_ENABLE_CUDA_LINKED_CELL_OPTIMIZATION_ALT}) 
+    target_compile_definitions(nbody_cuda_lib_linked_cells PUBLIC PPB_ENABLE_CUDA_LINKED_CELL_OPTIMIZATION_ALT)
+endif ()
+if (${PPB_ENABLE_CUDA_LINKED_CELL_BEST_OPTIMIZATION}) 
+    target_compile_definitions(nbody_cuda_lib_linked_cells PUBLIC PPB_ENABLE_CUDA_LINKED_CELL_BEST_OPTIMIZATION)
 endif ()

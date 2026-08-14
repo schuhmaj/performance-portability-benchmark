@@ -1,6 +1,6 @@
 #include "Impl_Cuda.cuh"
 #include "kernels.cuh"
-#include "common.cuh"
+#include "common/cuda/Cuda_Error_Checking.cuh"
 #include "constants.cuh"
 #include <iostream>
 #include <cuda_runtime.h>
@@ -68,6 +68,7 @@ namespace ppb::cuda::nbody {
         _gridSize = util::ceilDiv<unsigned int>(size, _blockSize); 
 
 #ifdef PPB_ENABLE_CUDA_DOMAIN_COLORING
+        printf("DOMAIN COLORING ON\n");
         int offsets_colored_h[8] = { 13, 14, 16, 17, 22, 23, 25, 26 };
         int offsets_colored_non_base_cell_h[12] = { 14, 16, 14, 25, 14, 22, 16, 22, 16, 23, 17, 22 };
         int x_dim_nearest_4 = std::ceil(x_dim_h / 4.0) * 4;
@@ -90,8 +91,15 @@ namespace ppb::cuda::nbody {
         //CHECK_CUDA_ERROR(cudaFuncSetAttribute(compute_forces_optimized, cudaFuncAttributeMaxDynamicSharedMemorySize, 96 * 1024));
         CHECK_CUDA_ERROR(cudaOccupancyMaxPotentialBlockSize(&minGridSize, &_blockSizeForces, reinterpret_cast<void *>(compute_forces_optimized), 24 * 1024, 0));
         _gridSizeForces = util::ceilDiv<unsigned int>(size, _blockSizeForces); 
-#else 
+#elif PPB_ENABLE_CUDA_LINKED_CELL_OPTIMIZATION_ALT
+        size_t shmem_size = 1024 * sizeof(float3) + 1024 * sizeof(int); //upper bound for amount of shared memory
+        CHECK_CUDA_ERROR(cudaOccupancyMaxPotentialBlockSize(&minGridSize, &_blockSizeForces, reinterpret_cast<void *>(compute_forces_optimized), shmem_size, 0));
+        _gridSizeForces = util::ceilDiv<unsigned int>(size, _blockSizeForces); 
+#elif PPB_ENABLE_CUDA_LINKED_CELL_BEST_OPTIMIZATION
         CHECK_CUDA_ERROR(cudaOccupancyMaxPotentialBlockSize(&minGridSize, &_blockSizeForces, reinterpret_cast<void *>(compute_forces), 0, 0));
+        _gridSizeForces = util::ceilDiv<unsigned int>(size, _blockSizeForces); 
+#else 
+        CHECK_CUDA_ERROR(cudaOccupancyMaxPotentialBlockSize(&minGridSize, &_blockSizeForces, reinterpret_cast<void *>(compute_forces_unoptimized), 0, 0));
         _gridSizeForces = util::ceilDiv<unsigned int>(size, _blockSizeForces); 
 #endif
         
@@ -156,16 +164,18 @@ namespace ppb::cuda::nbody {
         CHECK_CUDA_ERROR(cudaEventCreate(&start));
         CHECK_CUDA_ERROR(cudaEventCreate(&stop));
         CHECK_CUDA_ERROR(cudaEventRecord(start));
+        //printStartsCells<<<1,1>>>(starts, cells, cells_positions);
 #ifdef PPB_ENABLE_CUDA_DOMAIN_COLORING
         for (size_t color = 0; color < 8; color++) 
             compute_forces_colored<<<_gridSizeForces, _blockSizeForces>>>(color, position, force, cells, starts); 
 #elif PPB_ENABLE_CUDA_LINKED_CELL_OPTIMIZATION
         //CHECK_CUDA_ERROR(cudaFuncSetAttribute(compute_forces_optimized, cudaFuncAttributeMaxDynamicSharedMemorySize, 96 * 1024));
-        //printStartsCells<<<1,1>>>(starts, cells, cells_positions);
-/*         compute_forces_optimized_alt<<<_gridSizeForces, _blockSizeForces, _blockSizeForces * sizeof(float3) + _blockSizeForces * sizeof(int)>>>(cells_positions, force, starts, cells); */
         compute_forces_optimized<<<_gridSizeForces, _blockSizeForces, 24 * 1024>>>(cells_positions, force, starts, cells, (24 * 1024) / sizeof(float3));
+#elif PPB_ENABLE_CUDA_LINKED_CELL_OPTIMIZATION_ALT
+        compute_forces_optimized_alt<<<_gridSizeForces, _blockSizeForces, _blockSizeForces * sizeof(float3) + _blockSizeForces * sizeof(int)>>>(cells_positions, force, starts, cells);
+#elif PPB_ENABLE_CUDA_LINKED_CELL_BEST_OPTIMIZATION
+        compute_forces<<<_gridSizeForces, _blockSizeForces>>>(cells_positions, force, cells, starts);
 #else
-/*         printStartsCells<<<1,1>>>(starts, cells, cells_positions); */
         compute_forces_unoptimized<<<_gridSizeForces, _blockSizeForces>>>(position, force, cells, starts);
 #endif
         CHECK_CUDA_ERROR(cudaEventRecord(stop));

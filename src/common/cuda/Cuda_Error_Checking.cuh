@@ -1,9 +1,10 @@
 #pragma once
+#include <cuda_runtime.h>
 #include <iostream>
 
-namespace ppb {
+namespace ppb::cuda::nbody {
     //taken from https://leimao.github.io/blog/Proper-CUDA-Error-Checking/ (last accessed 13.6.26, 19:44)
-    void check(cudaError_t err, char const* func, char const* file, int line)
+    void inline check(cudaError_t err, char const* func, char const* file, int line)
     {
         if (err != cudaSuccess)
         {
@@ -14,7 +15,7 @@ namespace ppb {
     }
     
     //taken from https://leimao.github.io/blog/Proper-CUDA-Error-Checking/ (last accessed 13.6.26, 19:44)
-    void checkLast(char const* file, int line) {
+    void inline checkLast(char const* file, int line) {
         cudaError_t const err{cudaGetLastError()};
         if (err != cudaSuccess)
         {
@@ -25,4 +26,4 @@ namespace ppb {
             // std::exit(EXIT_FAILURE);
         }
     }
-} // namespace ppb
+} // namespace ppb::cuda::nbody
