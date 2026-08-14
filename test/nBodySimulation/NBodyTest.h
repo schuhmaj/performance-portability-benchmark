@@ -10,10 +10,9 @@
 class NBodyTest : public ::testing::TestWithParam<int> {
 protected:
 
-    static constexpr double EPSILON = 0.05;
-
+    static constexpr double EPSILON = 1e-2;
     static constexpr float TIME_STEP = 0.0005;
-    static constexpr int ITERATIONS = 5;
+    static constexpr int ITERATIONS = 1000;
 
     /*
     AutoPas Config File to replicate the values below.
@@ -74,18 +73,58 @@ protected:
         ppb::Particle<float>({-19.561f, -22.7167f, 0.779729f}, {-29.4066f, -40.756f, 7.57473f}, {1.36785e-08f, 1.4923e-08f, -2.49879e-09f}),
         ppb::Particle<float>({-1.81841f, -1.06152f, -5.45934f}, {0.212958f, 1.75392f, -0.98065f}, {0.0173082f, -0.0628128f, 0.042503f})};
 
-    float get_total_energy(std::vector<ppb::Particle<float>> system) {
-        //assuming all particles have the same mass
+    void sub_arr3(std::array<float, 3>& a, std::array<float, 3>& b) {
+        a[0] = a[0] - b[0];
+        a[1] = a[1] - b[1];
+        a[2] = a[2] - b[2];
+    }
+
+    float dot3(const std::array<float, 3>& a) {
+        return (a[0] * a[0]) + (a[1] * a[1]) + (a[2] * a[2]);
+    }
+
+    float get_total_energy(const std::vector<ppb::Particle<float>>& system) {
         float result = 0.f;
+        
+        //Kinetic energy
+        //assuming all particles have the same mass
         for (auto& p : system) {
             result += p.getVelocity()[0] * p.getVelocity()[0] 
                     + p.getVelocity()[1] * p.getVelocity()[1]
                     + p.getVelocity()[2] * p.getVelocity()[2];
         }
-        return result / 2;
+        result /= 2;
+
+        //LJ potential sum
+        for (auto& i : system) {
+            for (auto& j : system) {
+                if (i == j) continue;
+
+                std::array<float, 3> pi = i.getPosition();
+                std::array<float, 3> pj = j.getPosition();
+
+                sub_arr3(pi, pj);
+                const float dr2 = dot3(pi);
+
+                const float sigma = 1.0f;
+                const float sigmaSquared = sigma * sigma;
+                const float epsilon24 = 24.0f; // 1.0 * 24.0
+        
+                const float invdr2 = 1.0f / dr2;
+                float lj6 = sigmaSquared * invdr2;
+                lj6 = lj6 * lj6 * lj6;
+                const float lj12 = lj6 * lj6;
+                const float lj12m6 = lj12 - lj6;
+                const float fac = epsilon24 * (lj12 + lj12m6) * invdr2;
+
+                result += fac;
+            }
+        }
+
+        return result;
     }
 
-    float get_mean_deviation(std::vector<ppb::Particle<float>> expected, std::vector<ppb::Particle<float>> actual, size_t size, int iteration) {
+    float get_mean_deviation(const std::vector<ppb::Particle<float>>& expected, const std::vector<ppb::Particle<float>>& actual, size_t size) {
         float mean_deviation = 0.f;
 
         for (size_t i = 0; i < size; i++) {
@@ -98,7 +137,7 @@ protected:
         return mean_deviation / (3 * size);
     }
 
-    float get_median_deviation(std::vector<ppb::Particle<float>> expected, std::vector<ppb::Particle<float>> actual, size_t size) {
+    float get_median_deviation(const std::vector<ppb::Particle<float>>& expected, const std::vector<ppb::Particle<float>>& actual, size_t size) {
         std::vector<float> deviations;
 
         for (size_t i = 0; i < size; i++) {
@@ -110,8 +149,8 @@ protected:
             deviations.push_back(dev_z);
         }
 
-        sort(deviations.begin(), deviations.end());
-        return deviations[size/2];
+        std::sort(deviations.begin(), deviations.end());
+        return deviations[deviations.size() / 2];
     }
 
     template <typename Implementation>
@@ -142,14 +181,28 @@ protected:
             return;
         }
 
-        //Positions
+        //Positions stable
         ParticleSimulationConfig<float> config{static_cast<size_t>(size), ITERATIONS, 0.0005};
+        config.boxMin = {-1000, -1000, -1000};
+        config.boxMax = {1000, 1000, 1000};
         NBodySimulation<ImplCpp<float>> cppNBodySim{config};
         NBodySimulation<Implementation> otherNBodySim{config};
         const auto [actualResult, timings2] = otherNBodySim();
         const auto [expectedResult, timings1] = cppNBodySim();
         ASSERT_THAT(actualResult, ParticlesEq(expectedResult, epsilon));
-            
+        printf("Stable Positions OK\n");
+        
+        //Positions volatile
+        ParticleSimulationConfig<float> config_volatile{static_cast<size_t>(size), 5, 0.0005};
+        config_volatile.boxMin = {-10, -10, -10};
+        config_volatile.boxMax = {10, 10, 10};
+        NBodySimulation<ImplCpp<float>> cppNBodySim_volatile{config_volatile};
+        NBodySimulation<Implementation> otherNBodySim_volatile{config_volatile};
+        const auto [actualResult_volatile, timings2_volatile] = otherNBodySim_volatile();
+        const auto [expectedResult_volatile, timings1_volatile] = cppNBodySim_volatile();
+        ASSERT_THAT(actualResult_volatile, ParticlesEq(expectedResult_volatile, epsilon));
+        printf("Volatile Positions OK\n");
+
         //Numerical Stability
 /*         ParticleSimulationConfig<float> config{static_cast<size_t>(size), 1, 0.0005};
         NBodySimulation<ImplCpp<float>> cppNBodySim{config};
@@ -163,14 +216,14 @@ protected:
             ParticleSimulationConfig<float> config{static_cast<size_t>(size), 1, 0.0005};
             NBodySimulation<ImplCpp<float>> cppNBodySim{config};
             NBodySimulation<Implementation> otherNBodySim{config};
-            otherNBodySim._particles = stateActual;
-            cppNBodySim._particles = stateExpected;
+            otherNBodySim.setParticles(stateActual);
+            cppNBodySim.setParticles(stateExpected);
             const auto [actualResult, timings2] = otherNBodySim();
             const auto [expectedResult, timings1] = cppNBodySim();
             stateActual = actualResult;
             stateExpected = expectedResult;
             if (i % 10 == 0) {
-                std::cout<<get_mean_deviation(stateExpected, stateActual, static_cast<size_t>(size), i)<<std::endl;
+                std::cout<<get_mean_deviation(stateExpected, stateActual, static_cast<size_t>(size))<<std::endl;
             }
         } */
     }

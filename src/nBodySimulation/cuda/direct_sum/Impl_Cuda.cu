@@ -28,7 +28,7 @@ namespace ppb::cuda::nbody {
         cudaMemcpy(positions, positionsHost.data(), sizeof(VectorType3) * size, cudaMemcpyHostToDevice);
         cudaMemcpy(velocities, velocitiesHost.data(), sizeof(VectorType3) * size, cudaMemcpyHostToDevice);
         cudaMemcpy(forces, forcesHost.data(), sizeof(VectorType3) * size, cudaMemcpyHostToDevice);
-        cudaMemset(oldForces, 0.0, sizeof(VectorType3) * size);
+        cudaMemset(oldForces, 0, sizeof(VectorType3) * size);
     }
 
     template <typename FloatType>
@@ -188,6 +188,8 @@ namespace ppb::cuda::nbody {
 
         cudaEventSynchronize(stop);
         cudaEventElapsedTime(&elapsedTime, start, stop);
+        cudaEventDestroy(start);
+        cudaEventDestroy(stop);
         _timings.positionUpdateForceResetTime += (elapsedTime * 1e6);
     }
 
@@ -211,7 +213,8 @@ namespace ppb::cuda::nbody {
 
         cudaEventSynchronize(stop);
         cudaEventElapsedTime(&elapsedTime, start, stop);
-
+        cudaEventDestroy(start);
+        cudaEventDestroy(stop);
         _timings.velocityUpdateTime += (elapsedTime * 1e6);
     }
 
@@ -232,6 +235,8 @@ namespace ppb::cuda::nbody {
 
         cudaEventSynchronize(stop);
         cudaEventElapsedTime(&elapsedTime, start, stop);
+        cudaEventDestroy(start);
+        cudaEventDestroy(stop);
         _timings.forceUpdateTime += (elapsedTime * 1e6);
     }
 

@@ -14,6 +14,7 @@ namespace ppb::cuda::nbody {
     class ImplCuda {
         int _blockSize;
         int _gridSize;
+        int _blockSizeForces;
         size_t frequency;
         size_t size;
         size_t iteration{0};

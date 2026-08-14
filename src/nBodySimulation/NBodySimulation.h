@@ -32,8 +32,10 @@ namespace ppb {
 #else
 #error "Invliad float bits size"
 #endif
-        constexpr double MIN_SIZE = 1e6;
-        constexpr double MAX_SIZE = 1e7;
+        constexpr double MIN_SIZE = 1e2;
+        constexpr double MAX_SIZE = 1e5;
+        constexpr double PPB_NBODY_MIN_SIZE = 1e6;
+        constexpr double PPB_NBODY_MAX_SIZE = 1e7;
         inline void addContext(const char* paradigm) {
             benchmark::AddCustomContext("paradigm", paradigm);
             benchmark::AddCustomContext("float_type", util::to_string<float_type>());
@@ -111,7 +113,7 @@ namespace ppb {
          * example: if interval_neighbor_search = 1 then compute neighbor search every frame,
          *    if interval_neighbor_search = 10 then compute neighbor search every 10th frame.
          */
-        static constexpr uint interval_neighbor_search{10};
+        static constexpr uint interval_neighbor_search{2};
 
         /**
          * Seed to initialize the ParticleGenerator
@@ -120,26 +122,18 @@ namespace ppb {
 
         /**
          * Cell size used in the linked cell implementation 
-         * cell_size >= cutoff_radius                   for Linked Cells 
-         * cell_size >= cutoff_radius + verlet_skin     for Verlet Lists with LC optimization
          */
         FloatType cell_size{7.0f};
-        
+
         /**
-         * Cutoff radius used in the linked cell and verlet lists implementation
+         * Cutoff radius used in the verlet lists implementation
          */
-        FloatType cutoff_radius{10.0f};
+        FloatType cutoff_radius{7.0f};
 
         /**
         * Size of the Verlet skin.
         */
         FloatType verlet_skin{1.0f};
-
-        /**
-        * Frequency of updates of verlet lists. 
-        * Updates the verlet lists every 'frequency' iterations.
-        */
-        size_t frequency{15};
 
         /**
          * Creates a simulation configuration.
@@ -224,13 +218,12 @@ namespace ppb {
          */
         ParticleSimulationImpl _impl;
 
-    public:
-
-
         /**
          * Vector holding the simulation's particles.
          */
         std::vector<Particle<FloatType>> _particles;
+
+    public:
         
         /**
          * Constructs the simulation, generating an initial cuboid set of particles, and initializing the implementation.
@@ -278,6 +271,10 @@ namespace ppb {
             state.counters["velocity_update"] = benchmark::Counter(velocityUpdateTime, benchmark::Counter::kAvgIterations);
             state.counters["force_update"] = benchmark::Counter(forceUpdateTime, benchmark::Counter::kAvgIterations);
             state.SetComplexityN(static_cast<long long>(size));
+        }
+
+        void setParticles(const std::vector<Particle<FloatType>>& particles) {
+            _particles = particles;
         }
 
     };

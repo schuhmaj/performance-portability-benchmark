@@ -38,14 +38,15 @@ namespace ppb::util {
     template bool almostEqualUlps<double>(double lhs, double rhs, int ulpDistance);
 
     template<typename FloatType>
-    bool almostEqualRelative(FloatType lhs, FloatType rhs, double epsilon) {
+    bool almostEqualRelative(FloatType lhs, FloatType rhs, double relEps) {
+        const double absEps = 1e-3;
         const FloatType diff = std::abs(rhs - lhs);
+        if (diff <= absEps) return true;
         const FloatType largerValue = std::max(std::abs(rhs), std::abs(lhs));
-        if (std::abs(lhs) <= epsilon && std::abs(rhs) <= epsilon) return diff <= epsilon;
-        return diff <= largerValue * epsilon;
+        return diff <= largerValue * relEps;
     }
 
-    template bool almostEqualRelative<float>(float lhs, float rhs, double epsilon);
-    template bool almostEqualRelative<double>(double lhs, double rhs, double epsilon);
+    template bool almostEqualRelative<float>(float lhs, float rhs, double relEps);
+    template bool almostEqualRelative<double>(double lhs, double rhs, double relEps);
 
 }

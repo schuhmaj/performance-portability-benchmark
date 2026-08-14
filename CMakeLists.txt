@@ -48,11 +48,6 @@ if(NOT CMAKE_CONFIGURATION_TYPES AND NOT CMAKE_BUILD_TYPE)
     set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
 endif()
 
-if (${CMAKE_BUILD_TYPE} EQUAL "Debug")
-    add_compile_options(-O0)
-    add_compile_options(-g)
-endif()
-
 set(PPB_LOGGING_LEVEL_LIST "TRACE" "DEBUG" "INFO" "WARN" "ERROR" "CRITICAL" "OFF")
 set(PPB_LOGGING_LEVEL "INFO" CACHE STRING "Set the Logging level, default (INFO), available options: TRACE, DEBUG, INFO, WARN, ERROR, CRITICAL, OFF")
 set_property(CACHE PPB_LOGGING_LEVEL PROPERTY STRINGS ${PPB_LOGGING_LEVEL_LIST})
@@ -82,8 +77,6 @@ option(PPB_ENABLE_Alpaka "Enable Alpaka" OFF)
 option(PPB_ENABLE_VectorAddition "Enable VectorAddition Benchmarks" OFF)
 option(PPB_ENABLE_MatrixMultiplication "Enable MatrixMultiplication Benchmarks" OFF)
 option(PPB_ENABLE_NBodySimulation "Enable NBodySimulation Benchmarks" OFF)
-option(PPB_ENABLE_Testing "Enable Testing" OFF)
-
 option(PPB_ENABLE_PolyhedralGravity "Enable PolyhedralGravity Benchmarks" OFF)
 option(PPB_ENABLE_Testing "Enable Testing" ON)
 
@@ -92,7 +85,7 @@ cmake_dependent_option(PPB_ENABLE_NBodySimulation_cells  "Enable cells nBodySimu
 cmake_dependent_option(PPB_ENABLE_NBodySimulation_verlet  "Enable verlet nBodySimulation"  OFF "PPB_ENABLE_NBodySimulation" OFF)
 
 cmake_dependent_option(
-    PPB_ENABLE_DOMAIN_COLORING "Enables the domain coloring optimization for linked cells" OFF
+    PPB_ENABLE_CUDA_DOMAIN_COLORING "Enables the domain coloring optimization for linked cells" OFF
     "PPB_ENABLE_CUDA AND PPB_ENABLE_NBodySimulation_cells" OFF
 )
 cmake_dependent_option(
@@ -141,7 +134,7 @@ message(STATUS " ⮑ VerletLists                 ${PPB_ENABLE_NBodySimulation_ve
 message(STATUS "####################################################")
 message(STATUS "Testing                         ${PPB_ENABLE_Testing}")
 message(STATUS "####################################################")
-message(STATUS "DOMAIN_COLORING                 ${PPB_ENABLE_DOMAIN_COLORING}")
+message(STATUS "DOMAIN_COLORING                 ${PPB_ENABLE_CUDA_DOMAIN_COLORING}")
 message(STATUS "LINKED_CELL_OPTIMIZATION        ${PPB_ENABLE_CUDA_LINKED_CELL_OPTIMIZATION}")
 message(STATUS "VERLET_CLUSTER_LISTS            ${PPB_ENABLE_CUDA_VERLET_CLUSTER_LISTS}")
 message(STATUS "VERLET_LISTS_LC_OPT             ${PPB_ENABLE_CUDA_VERLET_LISTS_LC_OPTIMIZATION}")

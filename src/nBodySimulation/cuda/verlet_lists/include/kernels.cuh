@@ -90,15 +90,13 @@ namespace ppb::cuda::nbody {
         for (size_t k = start; k < end; ++k) {
             size_t j = verletLists[k];
            
-            if (i >= j) continue; //N3L via natural ordering of indicies
-
             const float sigma = 1.0f;
             const float sigmaSquared = sigma * sigma;
             const float epsilon24 = 24.0f; // 1.0 * 24.0
 
             const float3 dr = make_float3_sub(positions[i], positions[j]);
             const float dr2 = dot3(dr, dr);
-            if (std::sqrt(dr2) >= CUTOFF_RADIUS) continue;
+            if (dr2 >= CUTOFF_RADIUS_SQUARED) continue;
 
             const float invdr2 = 1.0f / dr2;
             float lj6 = sigmaSquared * invdr2;
@@ -124,13 +122,14 @@ namespace ppb::cuda::nbody {
             return;
         }
 
+        float INFLUENCE_RADIUS_SQUARED = (CUTOFF_RADIUS + VERLET_SKIN) * (CUTOFF_RADIUS + VERLET_SKIN);
         int neighbors = 0;
         float3 pi = positions[i];
         for (size_t j = 0; j < NUM_PARTICLES; j++) {
             if (i >= j) continue;
             const float3 dr = make_float3_sub(pi, positions[j]);
             const float dr2 = dot3(dr, dr);
-            if (std::sqrt(dr2) <= CUTOFF_RADIUS + VERLET_SKIN) {
+            if (dr2 <= INFLUENCE_RADIUS_SQUARED) {
                 neighbors++;
             }
         }
@@ -144,6 +143,7 @@ namespace ppb::cuda::nbody {
             return;
         }
 
+        float INFLUENCE_RADIUS_SQUARED = (CUTOFF_RADIUS + VERLET_SKIN) * (CUTOFF_RADIUS + VERLET_SKIN);
         float3 pi = positions[i];
         size_t base = starts[i];
         int offset = 0;
@@ -151,7 +151,7 @@ namespace ppb::cuda::nbody {
             if (i >= j) continue;
             const float3 dr = make_float3_sub(pi, positions[j]);
             const float dr2 = dot3(dr, dr);
-            if (std::sqrt(dr2) <= CUTOFF_RADIUS + VERLET_SKIN) {
+            if (dr2 <= INFLUENCE_RADIUS_SQUARED) {
                 verletLists[base + offset] = j;
                 offset++;
             }
@@ -159,7 +159,7 @@ namespace ppb::cuda::nbody {
     }
 
 //--------------------------------------------- VERLET CLUSTER LISTS --------------------------------------------------
-#ifdef PPB_ENABLE_VERLET_CLUSTER_LISTS
+#ifdef PPB_ENABLE_CUDA_VERLET_CLUSTER_LISTS
     __global__ void printStartsTowers(int* starts_towers, size_t num_towers) {
         printf("starts_towers:\n");
         for (int i = 0; i <= num_towers; i++) {
@@ -435,6 +435,7 @@ namespace ppb::cuda::nbody {
         int y_dim = util::ceilDiv((BOX_MAX[1] - BOX_MIN[1]), grid_size);
 /*         printf("x_dim: %d, y_dim: %d\n", x_dim, y_dim); */
 
+        //IMPORTANT: This code (and all the other Verlet Cluster Lists related code) assumes that i-clusters have size 8!
         int tower = get_tower_id(clusters[8 * i], positions, grid_size);
         int tower_x = tower % x_dim;
         int tower_y = tower / x_dim;
@@ -483,11 +484,11 @@ namespace ppb::cuda::nbody {
         float3& fi,
         float3* __restrict__ forces
     ) {
-        const unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
+/*         const unsigned int i = blockIdx.x * blockDim.x + threadIdx.x; */
         const float3 dr = make_float3_sub(i_particle, j_particle);
         const float dr2 = dot3(dr, dr);
 
-        if (std::sqrt(dr2) >= CUTOFF_RADIUS) return;
+        if (dr2 >= CUTOFF_RADIUS_SQUARED) return;
 
 /*         if (i_particle_idx == 1 || j_particle_idx == 1) {
             printf("Thread %u: %d <-> %d", i, i_particle_idx, j_particle_idx);
@@ -526,43 +527,46 @@ namespace ppb::cuda::nbody {
 
         int i_cluster = i / 32;
         int i_particle_idx = clusters[i / 4];
-        if (i_particle_idx == -1) return; //skip dummy particles
-        int start_neighbors = starts[i_cluster];
-        int end_neighbors = starts[i_cluster + 1];
+        const bool active = (i_particle_idx != -1); 
         float3 fi = make_float3(0.f, 0.f, 0.f);
-        float3 i_particle = positions[i_particle_idx];
-        
-        //Compute interactions within the i-cluster
-        for (int j = 0; j < 2; j++) {
-            int j_particle_idx = clusters[i_cluster * 8 + (j * 4) + (i % 4)];
-            if (j_particle_idx == -1) continue; //skip dummy particles
-            if (i_particle_idx >= j_particle_idx) continue; //N3L within the same i-cluster
-            float3 j_particle = positions[j_particle_idx];
-            compute_interaction(i_particle, i_particle_idx, j_particle, j_particle_idx, fi, forces);
-        }
 
-        //N3L by construction. The pair list contains each pair of interacting clusters only once.
-        for (int j = start_neighbors; j < end_neighbors; j++) {
-            int j_cluster = cluster_pairs[j];
-            int j_particle_idx = clusters[j_cluster * 4 + (i % 4)];
-            if (j_particle_idx == -1) continue; //skip dummy particles
-            float3 j_particle = positions[j_particle_idx];
-            compute_interaction(i_particle, i_particle_idx, j_particle, j_particle_idx, fi, forces);
+        if (active) {
+            int start_neighbors = starts[i_cluster];
+            int end_neighbors = starts[i_cluster + 1];
+            float3 i_particle = positions[i_particle_idx];
+            
+            //Compute interactions within the i-cluster
+            for (int j = 0; j < 2; j++) {
+                int j_particle_idx = clusters[i_cluster * 8 + (j * 4) + (i % 4)];
+                if (j_particle_idx == -1) continue; //skip dummy particles
+                if (i_particle_idx >= j_particle_idx) continue; //N3L within the same i-cluster
+                float3 j_particle = positions[j_particle_idx];
+                compute_interaction(i_particle, i_particle_idx, j_particle, j_particle_idx, fi, forces);
+            }
+
+            //N3L by construction. The pair list contains each pair of interacting clusters only once.
+            for (int j = start_neighbors; j < end_neighbors; j++) {
+                int j_cluster = cluster_pairs[j];
+                int j_particle_idx = clusters[j_cluster * 4 + (i % 4)];
+                if (j_particle_idx == -1) continue; //skip dummy particles
+                float3 j_particle = positions[j_particle_idx];
+                compute_interaction(i_particle, i_particle_idx, j_particle, j_particle_idx, fi, forces);
+            }
         }
 
         int MASK = 0xffffffff;
-        float fi1_x = __shfl_down_sync(MASK, fi.x, 1);
-        float fi1_y = __shfl_down_sync(MASK, fi.y, 1);
-        float fi1_z = __shfl_down_sync(MASK, fi.z, 1);
-        float fi2_x = __shfl_down_sync(MASK, fi.x, 2);
-        float fi2_y = __shfl_down_sync(MASK, fi.y, 2);
-        float fi2_z = __shfl_down_sync(MASK, fi.z, 2);
-        float fi3_x = __shfl_down_sync(MASK, fi.x, 3);
-        float fi3_y = __shfl_down_sync(MASK, fi.y, 3);
-        float fi3_z = __shfl_down_sync(MASK, fi.z, 3);
+        float fi1_x = __shfl_down_sync(MASK, fi.x, 1, 4);
+        float fi1_y = __shfl_down_sync(MASK, fi.y, 1, 4);
+        float fi1_z = __shfl_down_sync(MASK, fi.z, 1, 4);
+        float fi2_x = __shfl_down_sync(MASK, fi.x, 2, 4);
+        float fi2_y = __shfl_down_sync(MASK, fi.y, 2, 4);
+        float fi2_z = __shfl_down_sync(MASK, fi.z, 2, 4);
+        float fi3_x = __shfl_down_sync(MASK, fi.x, 3, 4);
+        float fi3_y = __shfl_down_sync(MASK, fi.y, 3, 4);
+        float fi3_z = __shfl_down_sync(MASK, fi.z, 3, 4);
         
         //We have 4 threads per i-particle. We assign the first of those threads to be the one that adds the accumulated fi's to the i-particle.
-        if (i % 4 == 0) { 
+        if (active && i % 4 == 0) { 
             fi.x += fi1_x + fi2_x + fi3_x;
             fi.y += fi1_y + fi2_y + fi3_y;
             fi.z += fi1_z + fi2_z + fi3_z;
@@ -572,7 +576,7 @@ namespace ppb::cuda::nbody {
         }
     }
 
-#elif PPB_ENABLE_VERLET_LISTS_LC_OPTIMIZATION
+#elif PPB_ENABLE_CUDA_VERLET_LISTS_LC_OPTIMIZATION
     __device__ inline int get_cell_idx(size_t particle_idx, const float3* positions) {
         int x_idx = clamp<int>(int(((positions[particle_idx].x - BOX_MIN[0]) / CELL_SIZE)), 0, X_DIM - 1);
         int y_idx = clamp<int>(int(((positions[particle_idx].y - BOX_MIN[1]) / CELL_SIZE)), 0, Y_DIM - 1);
@@ -636,6 +640,7 @@ namespace ppb::cuda::nbody {
             return;
         }
 
+        float INFLUENCE_RADIUS_SQUARED = (CUTOFF_RADIUS + VERLET_SKIN) * (CUTOFF_RADIUS + VERLET_SKIN);
         int neighbors = 0;
         float3 pi = positions[i];
         int idx = get_cell_idx(i, positions);
@@ -650,7 +655,7 @@ namespace ppb::cuda::nbody {
                 if (i >= j) continue; 
                 const float3 dr = make_float3_sub(pi, positions[j]);
                 const float dr2 = dot3(dr, dr);
-                if (std::sqrt(dr2) <= CUTOFF_RADIUS + VERLET_SKIN) {
+                if (dr2 <= INFLUENCE_RADIUS_SQUARED) {
                     neighbors++;
                 }
             }
@@ -667,6 +672,7 @@ namespace ppb::cuda::nbody {
             return;
         }
 
+        float INFLUENCE_RADIUS_SQUARED = (CUTOFF_RADIUS + VERLET_SKIN) * (CUTOFF_RADIUS + VERLET_SKIN);
         float3 pi = positions[i];
         int idx = get_cell_idx(i, positions);
         size_t base = starts[i];
@@ -682,7 +688,7 @@ namespace ppb::cuda::nbody {
                 if (i >= j) continue; 
                 const float3 dr = make_float3_sub(pi, positions[j]);
                 const float dr2 = dot3(dr, dr);
-                if (std::sqrt(dr2) <= CUTOFF_RADIUS + VERLET_SKIN) {
+                if (dr2 <= INFLUENCE_RADIUS_SQUARED) {
                     verletLists[base + offset] = j;
                     offset++;
                 }

@@ -19,32 +19,20 @@ namespace ppb::cuda::nbody {
         : _config{config}
     {
         //-------------------------------------Init constant memory----------------------------------------
+        float cutoff_radius_squared = _config.cutoff_radius * _config.cutoff_radius;
         CHECK_CUDA_ERROR(cudaMemcpyToSymbol(NUM_PARTICLES, &_config.size, sizeof(_config.size)));
         CHECK_CUDA_ERROR(cudaMemcpyToSymbol(DELTA_T, &_config.deltaT, sizeof(_config.deltaT)));
         CHECK_CUDA_ERROR(cudaMemcpyToSymbol(CUTOFF_RADIUS, &_config.cutoff_radius, sizeof(_config.cutoff_radius)));
+        CHECK_CUDA_ERROR(cudaMemcpyToSymbol(CUTOFF_RADIUS_SQUARED, &cutoff_radius_squared, sizeof(cutoff_radius_squared)));
         CHECK_CUDA_ERROR(cudaMemcpyToSymbol(VERLET_SKIN, &_config.verlet_skin, sizeof(_config.verlet_skin)));
         CHECK_CUDA_ERROR(cudaMemcpyToSymbol(GLOBAL_FORCE, _config.globalForce.data(), sizeof(_config.globalForce)));
-#ifdef PPB_ENABLE_VERLET_CLUSTER_LISTS
+#ifdef PPB_ENABLE_CUDA_VERLET_CLUSTER_LISTS
         CHECK_CUDA_ERROR(cudaMemcpyToSymbol(BOX_MIN, _config.boxMin.data(), sizeof(_config.boxMin)));
         CHECK_CUDA_ERROR(cudaMemcpyToSymbol(BOX_MAX, _config.boxMax.data(), sizeof(_config.boxMax)));
-#elif PPB_ENABLE_VERLET_LISTS_LC_OPTIMIZATION
+#elif PPB_ENABLE_CUDA_VERLET_LISTS_LC_OPTIMIZATION
         int x_dim_h = util::ceilDiv((_config.boxMax[0] - _config.boxMin[0]), _config.cell_size);
         int y_dim_h = util::ceilDiv((_config.boxMax[1] - _config.boxMin[1]), _config.cell_size);
         int z_dim_h = util::ceilDiv((_config.boxMax[2] - _config.boxMin[2]), _config.cell_size);
-        int offsets_h[27] = {
-            //front section
-            -((x_dim_h + 1) * y_dim_h) - 1, -((x_dim_h + 1) * y_dim_h), -((x_dim_h + 1) * y_dim_h) + 1,
-            -(x_dim_h * y_dim_h) - 1, -(x_dim_h * y_dim_h), -(x_dim_h * y_dim_h) + 1,
-            -((x_dim_h - 1) * y_dim_h) - 1, -((x_dim_h - 1) * y_dim_h), -((x_dim_h - 1) * y_dim_h) + 1,
-            //mid section
-            -x_dim_h - 1, -x_dim_h, -x_dim_h + 1,
-            -1, 0, 1,
-            x_dim_h - 1, x_dim_h, x_dim_h + 1,
-            //back section
-            ((x_dim_h - 1) * y_dim_h) - 1, ((x_dim_h - 1) * y_dim_h), ((x_dim_h - 1) * y_dim_h) + 1,
-            (x_dim_h * y_dim_h) - 1, (x_dim_h * y_dim_h), (x_dim_h * y_dim_h) + 1,
-            ((x_dim_h + 1) * y_dim_h) - 1, ((x_dim_h + 1) * y_dim_h), ((x_dim_h + 1) * y_dim_h) + 1
-        };
 
         int offsets_xyz[81] = {
             //front section
@@ -63,17 +51,25 @@ namespace ppb::cuda::nbody {
             -1, 1, 1,       0, 1, 1,        1, 1, 1,
         };
 
+        int offsets_h[27];
+        for (int o = 0; o < 27; o++) {
+            offsets_h[o] = offsets_xyz[3*o] 
+                         + offsets_xyz[3*o + 1] * x_dim_h
+                         + offsets_xyz[3*o + 2] * x_dim_h * y_dim_h;
+        }
+
+        float cell_size = _config.cutoff_radius + _config.verlet_skin;
         CHECK_CUDA_ERROR(cudaMemcpyToSymbol(X_DIM, &x_dim_h, sizeof(x_dim_h)));
         CHECK_CUDA_ERROR(cudaMemcpyToSymbol(Y_DIM, &y_dim_h, sizeof(y_dim_h)));
         CHECK_CUDA_ERROR(cudaMemcpyToSymbol(Z_DIM, &z_dim_h, sizeof(z_dim_h)));
         CHECK_CUDA_ERROR(cudaMemcpyToSymbol(OFFSETS, offsets_h, sizeof(offsets_h)));
         CHECK_CUDA_ERROR(cudaMemcpyToSymbol(OFFSETS_XYZ, offsets_xyz, sizeof(offsets_xyz)));
-        CHECK_CUDA_ERROR(cudaMemcpyToSymbol(CELL_SIZE, &_config.cell_size, sizeof(_config.cell_size)));
+        CHECK_CUDA_ERROR(cudaMemcpyToSymbol(CELL_SIZE, &cell_size, sizeof(cell_size)));
         CHECK_CUDA_ERROR(cudaMemcpyToSymbol(BOX_MIN, _config.boxMin.data(), sizeof(_config.boxMin)));
 #endif
         //------------------------------Determine optimal grid size----------------------------------------
         size = _config.size;
-        frequency = _config.frequency;
+        frequency = _config.interval_neighbor_search;
         constexpr unsigned int WARP_SIZE = 32;
         constexpr unsigned int MAX_THREADS = 1024;
         if (size <= MAX_THREADS) {
@@ -83,12 +79,17 @@ namespace ppb::cuda::nbody {
             CHECK_CUDA_ERROR(cudaOccupancyMaxPotentialBlockSize(&minGridSize, &_blockSize, reinterpret_cast<void *>(update_positions), 0, size));
         }
         _gridSize = util::ceilDiv<unsigned int>(size, _blockSize);
+
+#ifdef PPB_ENABLE_CUDA_VERLET_CLUSTER_LISTS
+        int minGridSize = 0;
+        CHECK_CUDA_ERROR(cudaOccupancyMaxPotentialBlockSize(&minGridSize, &_blockSizeForces, reinterpret_cast<void *>(compute_force_cluster_lists), 0, 0));
+#endif
         //---------------------------------Allocate device memory------------------------------------------
-#ifndef PPB_ENABLE_VERLET_CLUSTER_LISTS
+#ifndef PPB_ENABLE_CUDA_VERLET_CLUSTER_LISTS
         CHECK_CUDA_ERROR(cudaMalloc(&starts, sizeof(int) * (size + 1))); // +1 so the last element is the total number of neighbors
         CHECK_CUDA_ERROR(cudaMemset(starts, 0, sizeof(int) * (size + 1)));
 #endif
-#ifdef PPB_ENABLE_VERLET_LISTS_LC_OPTIMIZATION
+#ifdef PPB_ENABLE_CUDA_VERLET_LISTS_LC_OPTIMIZATION
         num_cells = x_dim_h * y_dim_h * z_dim_h;        
         CHECK_CUDA_ERROR(cudaMalloc(&cells, sizeof(int) * size));
         CHECK_CUDA_ERROR(cudaMalloc(&tmp, sizeof(int) * size));
@@ -117,16 +118,24 @@ namespace ppb::cuda::nbody {
         if (tmp != nullptr) CHECK_CUDA_ERROR(cudaFree(tmp));
     }
     
-#ifdef PPB_ENABLE_VERLET_CLUSTER_LISTS
+#ifdef PPB_ENABLE_CUDA_VERLET_CLUSTER_LISTS
     template<typename FloatType>
     void ImplCuda<FloatType>::makeClusters() {
         // Split up the domain into towers
         float volume_domain = (_config.boxMax[0] - _config.boxMin[0]) * (_config.boxMax[1] - _config.boxMin[1]) * (_config.boxMax[2] - _config.boxMin[2]);
         float rho = _config.size / volume_domain;
-        tower_size = std::pow(max(M, N) / rho, 1.0/3.0);
+        tower_size = std::pow(std::max(M, N) / rho, 1.0/3.0);
         size_t num_towers_x = std::ceil((_config.boxMax[0] - _config.boxMin[0]) / tower_size);
         size_t num_towers_y = std::ceil((_config.boxMax[1] - _config.boxMin[1]) / tower_size);
         num_towers = num_towers_x * num_towers_y;
+        if (num_towers <= 0 || std::isnan(num_towers) || std::isinf(num_towers)) {
+            std::cerr
+            <<"Invalid number of towers was encountered in the Verlet Cluster Lists approach."
+            <<"Change simulation hyperparameters or try another algorithm." 
+            <<"Aborting."
+            <<std::endl;
+            exit(-1);
+        }
 
         // Get number of particles + dummy particles in towers
         if (starts_towers != nullptr) CHECK_CUDA_ERROR(cudaFree(starts_towers));
@@ -208,8 +217,8 @@ namespace ppb::cuda::nbody {
     void ImplCuda<FloatType>::createPairList() {
         // Allocate 'starts', which will demarkate the borders between two pair lists in 'cluster_pairs'
         if (starts != nullptr) CHECK_CUDA_ERROR(cudaFree(starts));
-        CHECK_CUDA_ERROR(cudaMalloc(&starts, sizeof(int) * (size_clusters + 1)));
-        CHECK_CUDA_ERROR(cudaMemset(starts, 0, sizeof(int) * (size_clusters + 1)));
+        CHECK_CUDA_ERROR(cudaMalloc(&starts, sizeof(int) * (size_clusters / M + 1)));
+        CHECK_CUDA_ERROR(cudaMemset(starts, 0, sizeof(int) * (size_clusters / M + 1)));
 
 /*         printStartsTowers<<<1,1>>>(starts_towers, num_towers);
         printClusters<<<1,1>>>(clusters, size_clusters);
@@ -247,19 +256,19 @@ namespace ppb::cuda::nbody {
         update_positions<<<_gridSize, _blockSize>>>(position, velocity, force, oldForce); 
         // every frequency iterations update verlet lists
         if (iteration % frequency == 0) {
- #ifdef PPB_ENABLE_VERLET_CLUSTER_LISTS 
-            // TODO max occupancy for those kernel launches with magic numbers
-            // TODO think about what we *really* need to reallocate every iteration (if that's a bottleneck)
+ #ifdef PPB_ENABLE_CUDA_VERLET_CLUSTER_LISTS 
+            // TODO max occupancy for those kernel launches with magic numbers (not too important as these are not a bottleneck).
+            // TODO think about what we *really* need to reallocate every iteration. This becomes a bottleneck for small frequencies.
             makeClusters();
             boundingBoxes();
             createPairList();
             // Potentially prune the constructed cluster pair list?
-#elif PPB_ENABLE_VERLET_LISTS_LC_OPTIMIZATION
+#elif PPB_ENABLE_CUDA_VERLET_LISTS_LC_OPTIMIZATION
             if (verletLists != nullptr) {
                 CHECK_CUDA_ERROR(cudaFree(verletLists));
             }
 
-            CHECK_CUDA_ERROR(cudaMemset(starts_LC, 0.0, sizeof(int) * (num_cells + 1)));
+            CHECK_CUDA_ERROR(cudaMemset(starts_LC, 0, sizeof(int) * (num_cells + 1)));
             sort_particles_into_cells<<<_gridSize, _blockSize>>>(position, tmp, cell_offsets, starts_LC);
             thrust::inclusive_scan(thrust::device, starts_LC, starts_LC + (num_cells + 1), starts_LC);  
             update_cells<<<_gridSize, _blockSize>>>(cells, tmp, cell_offsets, starts_LC, position);
@@ -289,6 +298,8 @@ namespace ppb::cuda::nbody {
 
         CHECK_CUDA_ERROR(cudaEventSynchronize(stop));
         CHECK_CUDA_ERROR(cudaEventElapsedTime(&elapsedTime, start, stop));
+        CHECK_CUDA_ERROR(cudaEventDestroy(start));
+        CHECK_CUDA_ERROR(cudaEventDestroy(stop));
         _timings.positionUpdateForceResetTime += (elapsedTime * 1e6);
     }
 
@@ -303,10 +314,7 @@ namespace ppb::cuda::nbody {
         CHECK_CUDA_ERROR(cudaEventCreate(&stop));
 
         CHECK_CUDA_ERROR(cudaEventRecord(start));
-#ifdef PPB_ENABLE_VERLET_CLUSTER_LISTS
-        int minGridSize = 0;
-        int _blockSizeForces = 0;
-        CHECK_CUDA_ERROR(cudaOccupancyMaxPotentialBlockSize(&minGridSize, &_blockSizeForces, reinterpret_cast<void *>(compute_force_cluster_lists), 0, 0));
+#ifdef PPB_ENABLE_CUDA_VERLET_CLUSTER_LISTS
         int _gridSizeForces = util::ceilDiv<int>(4 * size_clusters, _blockSizeForces);
         compute_force_cluster_lists<<<_gridSizeForces, _blockSizeForces>>>(position, force, clusters, cluster_pairs, starts, size_clusters);
 #else
@@ -316,6 +324,8 @@ namespace ppb::cuda::nbody {
 
         CHECK_CUDA_ERROR(cudaEventSynchronize(stop));
         CHECK_CUDA_ERROR(cudaEventElapsedTime(&elapsedTime, start, stop));
+        CHECK_CUDA_ERROR(cudaEventDestroy(start));
+        CHECK_CUDA_ERROR(cudaEventDestroy(stop));
         _timings.forceUpdateTime += (elapsedTime * 1e6);
     }
 
@@ -336,7 +346,8 @@ namespace ppb::cuda::nbody {
 
         CHECK_CUDA_ERROR(cudaEventSynchronize(stop));
         CHECK_CUDA_ERROR(cudaEventElapsedTime(&elapsedTime, start, stop));
-
+        CHECK_CUDA_ERROR(cudaEventDestroy(start));
+        CHECK_CUDA_ERROR(cudaEventDestroy(stop));
         _timings.velocityUpdateTime += (elapsedTime * 1e6);
     }
 
