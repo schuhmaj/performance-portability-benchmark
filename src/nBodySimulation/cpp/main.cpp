@@ -4,7 +4,7 @@
 
 BENCHMARK(ppb::NBodySimulation<ppb::ImplCpp<ppb::NBodyBenchmarkConf::float_type>>::benchmark)
     ->Name("NBody")
-    ->RangeMultiplier(10)
+    ->RangeMultiplier(5)
     ->Range(ppb::NBodyBenchmarkConf::MIN_SIZE, ppb::NBodyBenchmarkConf::MAX_SIZE)
     ->Complexity();
 

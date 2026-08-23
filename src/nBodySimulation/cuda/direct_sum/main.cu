@@ -5,8 +5,8 @@
 BENCHMARK(ppb::NBodySimulation<ppb::cuda::nbody::ImplCuda<float>>::benchmark)
     ->Name("NBody-Float-Cuda")
     ->Iterations(1)
-    ->RangeMultiplier(2)
-    ->Range(ppb::NBodyBenchmarkConf::PPB_NBODY_MIN_SIZE, ppb::NBodyBenchmarkConf::PPB_NBODY_MAX_SIZE)
+    ->RangeMultiplier(5)
+    ->Range(ppb::NBodyBenchmarkConf::PPB_NBODY_CUDA_MIN_SIZE, ppb::NBodyBenchmarkConf::PPB_NBODY_CUDA_MAX_SIZE)
     ->Complexity();
 
 int main(int argc, char** argv) {

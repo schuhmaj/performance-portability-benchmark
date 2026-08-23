@@ -32,10 +32,10 @@ namespace ppb {
 #else
 #error "Invliad float bits size"
 #endif
-        constexpr double MIN_SIZE = 1e2;
-        constexpr double MAX_SIZE = 1e5;
-        constexpr double PPB_NBODY_MIN_SIZE = 1e6;
-        constexpr double PPB_NBODY_MAX_SIZE = 1e7;
+        constexpr double MIN_SIZE = 1e1;
+        constexpr double MAX_SIZE = 1e6;
+        constexpr double PPB_NBODY_CUDA_MIN_SIZE = 1e3;
+        constexpr double PPB_NBODY_CUDA_MAX_SIZE = 1e6;
         inline void addContext(const char* paradigm) {
             benchmark::AddCustomContext("paradigm", paradigm);
             benchmark::AddCustomContext("float_type", util::to_string<float_type>());
@@ -121,12 +121,12 @@ namespace ppb {
         unsigned int seed{42};
 
         /**
-         * Cell size used in the linked cell implementation 
+         * Cell size used in the linked cell implementations
          */
         FloatType cell_size{7.0f};
 
         /**
-         * Cutoff radius used in the verlet lists implementation
+         * Cutoff radius used in the verlet lists implementations
          */
         FloatType cutoff_radius{7.0f};
 

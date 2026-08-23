@@ -243,7 +243,6 @@ namespace ppb::cuda::nbody {
         for (int q = startBaseCell; q < endBaseCell; q++) {
             float3 fi = make_float3(0.f, 0.f, 0.f);
             int i = cells[q];
-#pragma unroll 8
             for (int o = 0; o < 8; o++) {
                 int offset = OFFSETS[OFFSETS_COLORED[o]];
                 if (!is_in_bounds(idx, OFFSETS_COLORED[o])) continue;
@@ -361,7 +360,7 @@ namespace ppb::cuda::nbody {
                 printf("ERROR!\n");
                 return;
             } //error if num_cells_in_tile > shmem_size. (might make this nicer in the future but probably not. Just tweak the tile size if need be.)
-    
+
             //determine #neighbors the thread has to iterate over
             int num_neighbors = get_num_neighbors(idx, starts);
 
