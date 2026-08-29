@@ -5,6 +5,12 @@
 
 namespace ppb::cuda::nbody {
 //------------------------------------------------------------------HELPER FUNCTIONS---------------------------------------------------------------------
+    /**
+    * @brief Checks if a cell at a given offset from a given index of another cell is within the bounds of the simulation domain.
+    * @param idx The index from which the offset starts
+    * @param offset The offset in indices that the other cell has from the cell at idx
+    * @returns true if offset within bounds, false otherwise
+    */
     __device__ inline bool is_in_bounds(int idx, int offset) {
         int x_idx = idx % X_DIM;
         int y_idx = (idx / X_DIM) % Y_DIM;
@@ -21,11 +27,23 @@ namespace ppb::cuda::nbody {
     }
 
     //taken from: https://github.com/dangets/cuda_examples/blob/master/clamp_function.cu (last accessed 14.6.26)
+    /**
+    * @brief std::clamp implementation that can be used in device code. 
+    * @param val The value to be clamped
+    * @param vMin The min value that val is clamped to if it is smaller
+    * @param vMax The max value that val is clamped to if it is larger
+    */
     template <typename T>
     __device__ inline T clamp(T val, T vMin, T vMax) {
         return min(max(val, vMin), vMax);
     }
 
+    /**
+    * @brief Returns the index of the cell that a given particle is contained inside of
+    * @param particle_idx The index of the particle in 'positions'
+    * @param positions The array storing the positions of the particles
+    * @returns The index of the cell that the particle at particle_idx is contained inside of
+    */
     __device__ inline int get_cell_idx(size_t particle_idx, const float3* positions) {
         int x_idx = clamp<int>(int(((positions[particle_idx].x - BOX_MIN[0]) / CELL_SIZE)), 0, X_DIM - 1);
         int y_idx = clamp<int>(int(((positions[particle_idx].y - BOX_MIN[1]) / CELL_SIZE)), 0, Y_DIM - 1);
@@ -35,6 +53,15 @@ namespace ppb::cuda::nbody {
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------
 
+    /**
+    * @brief Updates 'cells' to match the new positions of the particles
+    * @param cells The cells buffer that the sorted particles will be stored in
+    * @param tmp A temporary buffer where the i-th element is the index of the cell that the i-th particle is contained inside of
+    * @param cell_offsets Buffer storing the offsets of the particles within their respective cell.
+    * @param starts The starts buffer that indicates where in 'cells' the different cells start and end
+    * @param cell_positions A buffer that stores the positions of the sorted particles in 'cells'
+    * @param positions The positions buffer. The i-th element is the position of the i-th particle
+    */
     __global__ void update_cells(
         int* cells, 
         int* tmp, 
@@ -44,6 +71,16 @@ namespace ppb::cuda::nbody {
         float3* positions
     );
 
+    /**
+    * @brief Updates the positions of the particles
+    * @param positions The positions buffer. The i-th element is the position of the i-th particle
+    * @param velocities The velocities buffer. The i-th element is the velocity of the i-th particle
+    * @param forces The forces buffer. The i-th element is the force of the i-th particle
+    * @param oldForces The buffer storing the previous iteration's forces. The i-th element is the force of the previous iterations of the i-th particle
+    * @param tmp A temporary buffer where the i-th element is the index of the cell that the i-th particle is contained inside of
+    * @param cell_offsets Buffer storing the offsets of the particles within their respective cell.
+    * @param starts The starts buffer that indicates where in 'cells' the different cells start and end
+    */
     __global__ void update_positions(
         float3* positions, 
         const float3* velocities, 
@@ -54,12 +91,25 @@ namespace ppb::cuda::nbody {
         int* starts 
     );
 
+    /**
+    * @brief Updates the velocities of the particles
+    * @param velocities The velocities buffer. The i-th element is the velocity of the i-th particle
+    * @param forces The forces buffer. The i-th element is the force of the i-th particle
+    * @param oldForces The buffer storing the previous iteration's forces. The i-th element is the force of the previous iterations of the i-th particle
+    */
     __global__ void update_velocities(
         float3* velocities, 
         const float3* forces, 
         const float3* oldForces
     );
     
+    /**
+    * @brief [UNOPTIMIZED] Updates the forces of the particles.
+    * @param positions The positions buffer. The i-th element is the position of the i-th particle
+    * @param forces The forces buffer. The i-th element is the force of the i-th particle
+    * @param cells The cells buffer that the sorted particles are stored in 
+    * @param starts The starts buffer that indicates where in 'cells' the different cells start and end
+    */
     __global__ void compute_forces_unoptimized(
         const float3* __restrict__ positions,
         float3* __restrict__ forces,
@@ -67,6 +117,13 @@ namespace ppb::cuda::nbody {
         const int* __restrict__ starts 
     );
 
+    /**
+    * @brief [GM BROADCAST OPT] Updates the forces of the particles.
+    * @param cell_positions A buffer that stores the positions of the sorted particles in 'cells'
+    * @param forces The forces buffer. The i-th element is the force of the i-th particle
+    * @param cells The cells buffer that the sorted particles are stored in 
+    * @param starts The starts buffer that indicates where in 'cells' the different cells start and end
+    */
     __global__ void compute_forces(
         const float3* __restrict__ cells_positions,
         float3* __restrict__ forces,
@@ -74,6 +131,14 @@ namespace ppb::cuda::nbody {
         const int* __restrict__ starts 
     );
 
+    /**
+    * @brief [DOMAIN COLORING] Updates the forces of the particles.
+    * @param color The current color
+    * @param positions The positions buffer. The i-th element is the position of the i-th particle
+    * @param forces The forces buffer. The i-th element is the force of the i-th particle
+    * @param cells The cells buffer that the sorted particles are stored in 
+    * @param starts The starts buffer that indicates where in 'cells' the different cells start and end
+    */
     __global__ void compute_forces_colored(
         int color,
         const float3* __restrict__ positions,
@@ -83,9 +148,12 @@ namespace ppb::cuda::nbody {
     );
 
     /**
-    * @param 'current_idx' is the current index inside of 'cells'
-    * @param 'offset' is the offset which we have to the base_idx
-    * @param 'base_cell_idx' is the index of the base cell
+    * @brief Returns the index and offset of the next element in the neighborhood of a given base cell
+    * @param current_idx is the current index inside of 'cells'
+    * @param offset is the offset which we have to the base_idx
+    * @param base_cell_idx is the index of the base cell
+    * @param starts The starts buffer that indicates where in 'cells' the different cells start and end
+    * @returns (x, y)-tuple where x = index of next element, y = offset of cell that contains next element
     */
     __device__ inline int2 get_next_element_neighborhood(int current_idx, int base_cell_idx, int current_offset, const int* starts) {
         //if next element still in current cell, return that
@@ -115,6 +183,12 @@ namespace ppb::cuda::nbody {
         return make_int2(INT_MAX, -1);
     }
 
+    /**
+    * @brief Returns the number of particles contained in the 27-cell range of a given base cell
+    * @param base_cell_idx is the index of the base cell
+    * @param starts The starts buffer that indicates where in 'cells' the different cells start and end
+    * @returns The number of particles contained in the 27-cell range of a given base cell
+    */
     __device__ inline int get_num_neighbors(int base_cell_idx, const int* starts) {
         int num_neighbors = 0;
         for (int i = 0; i < 27; i++) {
@@ -126,6 +200,14 @@ namespace ppb::cuda::nbody {
         return num_neighbors;
     }
 
+    /**
+    * @brief [SHARED MEMORY OPT] Updates the forces of the particles.
+    * @param cell_positions A buffer that stores the positions of the sorted particles in 'cells'
+    * @param forces The forces buffer. The i-th element is the force of the i-th particle
+    * @param cells The cells buffer that the sorted particles are stored in 
+    * @param starts The starts buffer that indicates where in 'cells' the different cells start and end
+    * @param shmem_size The amount of shared memory used in multiples of sizeof(float3)
+    */
     __global__ void compute_forces_optimized(
         const float3* __restrict__ cells_positions,
         float3* __restrict__ forces,
@@ -134,6 +216,13 @@ namespace ppb::cuda::nbody {
         const int shmem_size //size of shared memory in float3
     );
 
+    /**
+    * @brief [SHARED MEMORY OPT ALT] Updates the forces of the particles.
+    * @param cell_positions A buffer that stores the positions of the sorted particles in 'cells'
+    * @param forces The forces buffer. The i-th element is the force of the i-th particle
+    * @param cells The cells buffer that the sorted particles are stored in 
+    * @param starts The starts buffer that indicates where in 'cells' the different cells start and end
+    */
     __global__ void compute_forces_optimized_alt(
         const float3* __restrict__ cells_positions,
         float3* __restrict__ forces,

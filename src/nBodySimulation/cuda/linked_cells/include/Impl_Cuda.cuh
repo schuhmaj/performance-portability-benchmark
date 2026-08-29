@@ -8,34 +8,69 @@
 namespace ppb::cuda::nbody {
     template <typename FloatType>
     class ImplCuda {
+        /**
+        * The block size used for all kernels, except the force computation kernel
+        */
         int _blockSize;
+       
+        /**
+        * The grid size used for all kernels, except the force computation kernel
+        */
         int _gridSize;
+        
+        /**
+        * The block size used for the force computation kernels
+        */
         int _blockSizeForces;
+     
+        /**
+        * The grid size used for the force computation kernels
+        */
         int _gridSizeForces;
+      
+        /**
+        * A copy of X_DIM (number of cells in x-dimension of domain) on host memory
+        */
         int x_dim_h;
+       
+        /**
+        * A copy of Y_DIM (number of cells in y-dimension of domain) on host memory
+        */
         int y_dim_h;
+       
+        /**
+        * A copy of Z_DIM (number of cells in z-dimension of domain) on host memory
+        */
         int z_dim_h;
 
         /**
-         * @brief 'starts' looks like this:
+         * An array indicating where each cell starts and ends in 'cells'.
+         * 'starts' looks like this:
          * 0, 2, 2, 4, ..., 10
-         * The first one has 2 particles, the second has none, the third has 2 particles again.
+         * The first cell has 2 particles, the second has none, the third has 2 particles again.
          * The stored indicies are the indicies in the 'cells' container, where the i-th index 
          * describes the starting index of the i-th cell inside 'cells'.
          */
         int* starts{nullptr};
+        
         /**
-         * @brief 'cells' contains the sorted particle *indicies* to the particles contained in 'particles'.
+         * 'cells' contains the sorted particle *indicies* to the particles contained in 'positions', 'velocities', 'forces' in CudaParticleSoA.
          * 'starts' marks the start of each cell.
          */
         int* cells{nullptr};
 
+        /**
+        * Array used when updating the cells. This array stores the offset of a given particle within its designated cell to avoid race conditions.
+        */
         int* cell_offsets{nullptr};
-        
+       
+        /**
+        * Array that stores the sorted particles' positions.
+        */
         float3* cells_positions{nullptr};
 
         /**
-        * @brief Permanent array that is used in update_cells.
+        * Permanent array that is used in update_cells.
         */
         int* tmp{nullptr};
 
