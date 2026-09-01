@@ -9,4 +9,8 @@ TEST_P(NBodyTest, ImplRaja_Implementation) {
     this->runTest<ppb::ImplRaja<float>>(size);
 }
 
+TEST_F(NBodyEnergyTest, ImplRaja_EnergyConservation) {
+    this->runEnergyConservationTest<ppb::ImplRaja<float>>();
+}
+
 INSTANTIATE_TEST_SUITE_P(BySize, NBodyTest, ::testing::Values(10, 100, 1000));

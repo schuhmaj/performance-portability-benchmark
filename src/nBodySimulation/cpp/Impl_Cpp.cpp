@@ -55,6 +55,11 @@ namespace ppb {
         using namespace ppb::util;
         const size_t size = particles.size();
 
+#ifdef PPB_NBODY_ENABLE_CUTOFF
+        size_t skippedByCutoff = 0;
+        size_t forcesCalculated = 0;
+#endif
+
         const auto start = std::chrono::high_resolution_clock::now();
         for (size_t i = 0; i < size; ++i) {
             for (size_t j = 0; j < i; ++j) {
@@ -71,6 +76,17 @@ namespace ppb {
                 const auto dr = pi.getPosition() - pj.getPosition();
                 const auto dr2 = dot(dr, dr);
 
+#ifdef PPB_NBODY_ENABLE_CUTOFF
+                // The cut-off radius is derived from the pair's (mixed) sigma: r_c = CUTOFF_SIGMA_FACTOR * sigma_ij.
+                // Beyond it the Lennard-Jones interaction is negligible and the pair is skipped entirely.
+                const auto cutoff = CUTOFF_SIGMA_FACTOR * sigma;
+                if (dr2 > cutoff * cutoff) {
+                    ++skippedByCutoff;
+                    continue;
+                }
+                ++forcesCalculated;
+#endif
+
                 const auto invdr2 = 1. / dr2;
                 auto lj6 = sigmaSquared * invdr2;
                 lj6 = lj6 * lj6 * lj6;
@@ -84,6 +100,16 @@ namespace ppb {
         }
         const auto end = std::chrono::high_resolution_clock::now();
         _timings.forceUpdateTime += static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::operator-(end, start)).count());
+
+#ifdef PPB_NBODY_ENABLE_CUTOFF
+        const size_t totalPairs = skippedByCutoff + forcesCalculated;
+        std::cout << "[nbody-cutoff] r_c = " << (CUTOFF_SIGMA_FACTOR * 1.0)
+                  << " * sigma | skipped early: " << skippedByCutoff
+                  << " | forces calculated: " << forcesCalculated
+                  << " | pairs: " << totalPairs
+                  << " (" << (totalPairs == 0 ? 0.0 : 100.0 * static_cast<double>(forcesCalculated) / static_cast<double>(totalPairs))
+                  << "% calculated)" << std::endl;
+#endif
     }
 
     /* Explicit Instantiation for float and double */

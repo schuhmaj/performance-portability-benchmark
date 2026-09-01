@@ -9,4 +9,8 @@ TEST_P(NBodyTest, ImplOpenMP_Implementation) {
     this->runTest<ppb::ImplOpenMP<float>>(size);
 }
 
+TEST_F(NBodyEnergyTest, ImplOpenMP_EnergyConservation) {
+    this->runEnergyConservationTest<ppb::ImplOpenMP<float>>();
+}
+
 INSTANTIATE_TEST_SUITE_P(BySize, NBodyTest, ::testing::Values(10, 100));

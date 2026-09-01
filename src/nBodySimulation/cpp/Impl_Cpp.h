@@ -13,7 +13,21 @@
 #include <iostream>
 #include <chrono>
 
+// #define PPB_NBODY_ENABLE_CUTOFF
+
 namespace ppb {
+
+    /**
+     * @def PPB_NBODY_ENABLE_CUTOFF
+     * Debug switch for the Lennard-Jones cut-off radius of ImplCpp.
+     *
+     * It is deliberately NOT wired into the CMake system yet; compile the nbody_cpp_lib sources with
+     * -DPPB_NBODY_ENABLE_CUTOFF to enable it. When enabled, pair interactions beyond the cut-off radius are skipped
+     * and every call of computeForces() reports to stdout how many pairs were skipped and how many were evaluated.
+     *
+     * NOTE: Switching this on changes the trajectory and therefore breaks the reference comparison of NBodyTest,
+     * which was generated with an effectively infinite cut-off.
+     */
 
     /**
      * @class ImplCpp
@@ -40,6 +54,18 @@ namespace ppb {
          * Type alias for the floating-point type used in this simulation.
          */
         using float_type = FloatType;
+
+        /**
+         * Factor determining the cut-off radius from the (mixed) Lennard-Jones sigma of an interacting pair:
+         * r_c = CUTOFF_SIGMA_FACTOR * sigma_ij.
+         *
+         * 2.5 * sigma is the textbook choice for the Lennard-Jones potential and is derived from sigma alone:
+         * epsilon only scales the potential, it does not move the point at which the potential becomes negligible.
+         * At r = 2.5 * sigma the potential has decayed to |U| ~ 0.0163 * epsilon (1.6% of the well depth) and the
+         * magnitude of the force to ~0.4% of the strongest attractive force, so truncating there is safe.
+         * With the sigma = 1 / epsilon = 1 particles of this benchmark this yields r_c = 2.5.
+         */
+        static constexpr FloatType CUTOFF_SIGMA_FACTOR{2.5};
 
         /**
          * Constructs the simulation implementation.

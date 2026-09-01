@@ -9,4 +9,8 @@ TEST_P(NBodyTest, ImplOpenACC_Implementation) {
     this->runTest<ppb::ImplOpenACC<float>>(size);
 }
 
+TEST_F(NBodyEnergyTest, ImplOpenACC_EnergyConservation) {
+    this->runEnergyConservationTest<ppb::ImplOpenACC<float>>();
+}
+
 INSTANTIATE_TEST_SUITE_P(BySize, NBodyTest, ::testing::Values(10, 100));

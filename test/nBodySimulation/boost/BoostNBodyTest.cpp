@@ -9,4 +9,8 @@ TEST_P(NBodyTest, ImplBoost_Implementation) {
     this->runTest<ppb::ImplBoost<float>>(size);
 }
 
+TEST_F(NBodyEnergyTest, ImplBoost_EnergyConservation) {
+    this->runEnergyConservationTest<ppb::ImplBoost<float>>();
+}
+
 INSTANTIATE_TEST_SUITE_P(BySize, NBodyTest, ::testing::Values(10, 100));

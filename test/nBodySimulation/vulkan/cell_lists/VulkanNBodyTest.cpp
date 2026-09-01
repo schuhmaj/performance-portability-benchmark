@@ -10,4 +10,8 @@ TEST_P(NBodyTest, ImplVulkan_Implementation) {
     this->runTest<ppb::ImplVulkan<float>>(size, 5);
 }
 
+TEST_F(NBodyEnergyTest, ImplVulkan_EnergyConservation) {
+    this->runEnergyConservationTest<ppb::ImplVulkan<float>>();
+}
+
 INSTANTIATE_TEST_SUITE_P(BySize, NBodyTest, ::testing::Values(10, 100));
