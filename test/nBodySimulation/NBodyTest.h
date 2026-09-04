@@ -181,8 +181,9 @@ protected:
 
     /**
      * Allowed relative drift |E(T) - E(0)| / |E(0)| of the total energy.
-     * The reference C++ implementation stays below 2e-6 in single precision, so this leaves roughly two orders
-     * of magnitude of head room for implementations that reorder their floating point operations.
+     * With the initial forces seeded by seedInitialForces(), the reference C++ implementation stays below 3e-8 in
+     * single precision (ImplCpp 1.5e-8, ImplKokkos 2.9e-8), so this leaves more than three orders of magnitude of
+     * head room for implementations that reorder their floating point operations.
      */
     static constexpr double ENERGY_TOLERANCE = 1e-4;
 
@@ -230,7 +231,56 @@ protected:
                 }
             }
         }
+        seedInitialForces(particles);
         return particles;
+    }
+
+    /**
+     * Seeds every particle of the initial state with the force f(x_0) of that configuration.
+     *
+     * Velocity-Stoermer-Verlet needs f(x_0) to be known before its first step. All implementations enter their time
+     * loop with updatePositionsAndResetForce(), so a state that arrives with zero forces performs its first drift
+     * without the f * dt^2 / (2m) term and its first kick with (f_1 + 0) instead of (f_1 + f_0). That injects a
+     * one-time O(dt) error which dominates the measured drift: for ImplCpp it is 1.5e-6 without seeding versus
+     * 1.5e-8 with it, and it makes the drift scale with dt instead of the dt^2 this fixture is meant to observe.
+     *
+     * This is done here rather than in the implementations on purpose. Adding a force computation before their time
+     * loop changes the trajectory and breaks NBodyTest, whose reference end state was produced by AutoPas from a
+     * zero-force start.
+     *
+     * Computing the seed here does not weaken the test. Only the initial condition is provided; all
+     * ENERGY_ITERATIONS steps still run through the force kernel of the implementation under test, so a wrong
+     * kernel still shows up as a drift.
+     *
+     * @param particles the particles to seed, whose forces are expected to be zero on entry
+     */
+    static void seedInitialForces(std::vector<ppb::Particle<float>> &particles) {
+        for (size_t i = 0; i < particles.size(); ++i) {
+            for (size_t j = 0; j < i; ++j) {
+                const auto positionI = particles[i].getPosition();
+                const auto positionJ = particles[j].getPosition();
+                const std::array<double, 3> dr{static_cast<double>(positionI[0]) - positionJ[0],
+                                               static_cast<double>(positionI[1]) - positionJ[1],
+                                               static_cast<double>(positionI[2]) - positionJ[2]};
+
+                const double sigma = 0.5 * (static_cast<double>(particles[i].getSigma()) + particles[j].getSigma());
+                const double sigmaSquared = sigma * sigma;
+                const double epsilon24 =
+                        24.0 * std::sqrt(static_cast<double>(particles[i].getEpsilon()) * particles[j].getEpsilon());
+
+                const double invR2 = 1.0 / (dr[0] * dr[0] + dr[1] * dr[1] + dr[2] * dr[2]);
+                double lj6 = sigmaSquared * invR2;
+                lj6 = lj6 * lj6 * lj6;
+                const double lj12 = lj6 * lj6;
+                const double factor = epsilon24 * (lj12 + (lj12 - lj6)) * invR2;
+
+                const std::array<float, 3> force{static_cast<float>(dr[0] * factor),
+                                                 static_cast<float>(dr[1] * factor),
+                                                 static_cast<float>(dr[2] * factor)};
+                particles[i].addForce(force);
+                particles[j].subtractForce(force);
+            }
+        }
     }
 
     /**
