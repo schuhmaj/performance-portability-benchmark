@@ -13,8 +13,6 @@
 #include <iostream>
 #include <chrono>
 
-// #define PPB_NBODY_ENABLE_CUTOFF
-
 namespace ppb {
 
     /**
