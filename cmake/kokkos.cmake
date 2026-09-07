@@ -30,3 +30,10 @@ else ()
     )
     FetchContent_MakeAvailable(Kokkos)
 endif ()
+
+# Kokkos routes every CXX compile through kokkos_launch_compiler -> nvcc_wrapper, which uses g++ as
+# the host compiler. g++ rejects the clang-only -f[no-]color-diagnostics that CMake emits whenever
+# CMAKE_COLOR_DIAGNOSTICS is defined (IDEs such as CLion set it via the environment).
+# This hacky trick avoids issues when have one build folder being used by Clion and via the CLI
+unset(CMAKE_COLOR_DIAGNOSTICS CACHE)
+unset(CMAKE_COLOR_DIAGNOSTICS)
