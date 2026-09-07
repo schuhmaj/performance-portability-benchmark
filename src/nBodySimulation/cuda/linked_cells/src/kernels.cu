@@ -438,10 +438,12 @@ namespace ppb::cuda::nbody {
         const int* __restrict__ cells
     ) {
         const unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
+        extern __shared__ char shmem[];
+        float3* shared_neighbors = reinterpret_cast<float3*>(shmem);
+        int* cell_indices = reinterpret_cast<int*>(shmem + blockDim.x * sizeof(float3));
+        cell_indices[threadIdx.x] = -1;
+        
         if (i < NUM_PARTICLES) {
-            extern __shared__ char shmem[];
-            float3* shared_neighbors = reinterpret_cast<float3*>(shmem);
-            int* cell_indices = reinterpret_cast<int*>(shmem + blockDim.x * sizeof(float3));
 
             //Information for assigned i-particle
             float3 pi = cells_positions[i];

@@ -34,7 +34,7 @@ namespace ppb {
 #endif
         constexpr double MIN_SIZE = 1e1;
         constexpr double MAX_SIZE = 1e6;
-        constexpr double PPB_NBODY_CUDA_MIN_SIZE = 1e3;
+        constexpr double PPB_NBODY_CUDA_MIN_SIZE = 1e6;
         constexpr double PPB_NBODY_CUDA_MAX_SIZE = 1e6;
         inline void addContext(const char* paradigm) {
             benchmark::AddCustomContext("paradigm", paradigm);
@@ -113,7 +113,7 @@ namespace ppb {
          * example: if interval_neighbor_search = 1 then compute neighbor search every frame,
          *    if interval_neighbor_search = 10 then compute neighbor search every 10th frame.
          */
-        static constexpr uint interval_neighbor_search{2};
+        static constexpr uint interval_neighbor_search{1};
 
         /**
          * Seed to initialize the ParticleGenerator
@@ -123,12 +123,12 @@ namespace ppb {
         /**
          * Cell size used in the linked cell implementations
          */
-        FloatType cell_size{7.0f};
+        FloatType cell_size{10.0f};
 
         /**
          * Cutoff radius used in the verlet lists implementations
          */
-        FloatType cutoff_radius{7.0f};
+        FloatType cutoff_radius{10.0f};
 
         /**
         * Size of the Verlet skin.
