@@ -1,3 +1,4 @@
+#include "common/Profiling.h"
 #include <chrono>
 #include <iostream>
 #include <utility>
@@ -70,7 +71,7 @@ BENCHMARK(ppb::VectorAddition<ppb::ImplSlangVulkan<ppb::VectorAdditionBenchmarkC
 int main(int argc, char **argv) {
     ppb::VectorAdditionBenchmarkConf::addContext("Slang-Vulkan");
     benchmark::MaybeReenterWithoutASLR(argc, argv);
-    benchmark::Initialize(&argc, argv);
+    ppb::profiling::initialize(&argc, argv);
     benchmark::RunSpecifiedBenchmarks();
     benchmark::Shutdown();
 }

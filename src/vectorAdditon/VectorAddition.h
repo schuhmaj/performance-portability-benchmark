@@ -24,8 +24,14 @@ namespace ppb {
 #else
 #error "Invliad float bits size"
 #endif
+#ifdef PPB_PROFILING
+        // Profiling mode (see common/Profiling.h): a single input, the largest one.
+        constexpr double MIN_SIZE = 1e8;
+        constexpr double MAX_SIZE = 1e8;
+#else
         constexpr double MIN_SIZE = 1e3;
         constexpr double MAX_SIZE = 1e8;
+#endif
 
         inline void addContext(const char* paradigm) {
             benchmark::AddCustomContext("paradigm", paradigm);

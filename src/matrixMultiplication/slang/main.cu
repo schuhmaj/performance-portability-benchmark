@@ -1,3 +1,4 @@
+#include "common/Profiling.h"
 #include "benchmark/benchmark.h"
 #include "matrixMultiplication/slang/Impl_SlangCuda.cuh"
 #include "matrixMultiplication/MatrixMultiplication.h"
@@ -14,7 +15,7 @@ BENCHMARK(ppb::MatrixMultiplication<ppb::ImplSlangCuda<ppb::MatrixMultiplication
 int main(int argc, char** argv) {
     ppb::MatrixMultiplicationBenchmarkConf::addContext("Slang-Cuda");
     benchmark::MaybeReenterWithoutASLR(argc, argv);
-    benchmark::Initialize(&argc, argv);
+    ppb::profiling::initialize(&argc, argv);
     benchmark::RunSpecifiedBenchmarks();
     benchmark::Shutdown();
 }

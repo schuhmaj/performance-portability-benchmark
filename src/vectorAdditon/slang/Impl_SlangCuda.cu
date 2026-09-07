@@ -1,3 +1,4 @@
+#include "common/Profiling.h"
 #include <chrono>
 #include <utility>
 #include "common/cuda/Common_Structs.cuh"
@@ -94,7 +95,7 @@ BENCHMARK(ppb::VectorAddition<ppb::ImplSlangCuda<ppb::VectorAdditionBenchmarkCon
 int main(int argc, char **argv) {
     ppb::VectorAdditionBenchmarkConf::addContext("Slang-Cuda");
     benchmark::MaybeReenterWithoutASLR(argc, argv);
-    benchmark::Initialize(&argc, argv);
+    ppb::profiling::initialize(&argc, argv);
     benchmark::RunSpecifiedBenchmarks();
     benchmark::Shutdown();
 }

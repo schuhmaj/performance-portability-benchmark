@@ -1,3 +1,4 @@
+#include "common/Profiling.h"
 #include <benchmark/benchmark.h>
 #include "Impl_Cuda.cuh"
 #include "nBodySimulation/NBodySimulation.h"
@@ -11,7 +12,7 @@ BENCHMARK(ppb::NBodySimulation<ppb::ImplCuda<ppb::NBodyBenchmarkConf::float_type
 int main(int argc, char** argv) {
     ppb::NBodyBenchmarkConf::addContext("Cuda");
     benchmark::MaybeReenterWithoutASLR(argc, argv);
-    benchmark::Initialize(&argc, argv);
+    ppb::profiling::initialize(&argc, argv);
     benchmark::RunSpecifiedBenchmarks();
     benchmark::Shutdown();
 }

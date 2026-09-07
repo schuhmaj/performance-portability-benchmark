@@ -1,3 +1,4 @@
+#include "common/Profiling.h"
 #include "benchmark/benchmark.h"
 #include "matrixMultiplication/slang/Impl_SlangVulkan.h"
 #include "matrixMultiplication/MatrixMultiplication.h"
@@ -14,7 +15,7 @@ BENCHMARK(ppb::MatrixMultiplication<ppb::ImplSlangVulkan<ppb::MatrixMultiplicati
 int main(int argc, char** argv) {
     ppb::MatrixMultiplicationBenchmarkConf::addContext("Slang-Vulkan");
     benchmark::MaybeReenterWithoutASLR(argc, argv);
-    benchmark::Initialize(&argc, argv);
+    ppb::profiling::initialize(&argc, argv);
     benchmark::RunSpecifiedBenchmarks();
     benchmark::Shutdown();
 }

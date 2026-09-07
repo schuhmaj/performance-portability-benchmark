@@ -1,3 +1,4 @@
+#include "common/Profiling.h"
 #include "matrixMultiplication/cuda/Impl_Cuda.cuh"
 #include "matrixMultiplication/cuda/Impl_CudaTensor.cuh"
 #include "matrixMultiplication/cuda/Impl_CudaBuffer.cuh"
@@ -54,7 +55,7 @@ BENCHMARK(ppb::MatrixMultiplication<ppb::ImplCudaNaive<ppb::MatrixMultiplication
 int main(int argc, char** argv) {
     ppb::MatrixMultiplicationBenchmarkConf::addContext("Cuda");
     benchmark::MaybeReenterWithoutASLR(argc, argv);
-    benchmark::Initialize(&argc, argv);
+    ppb::profiling::initialize(&argc, argv);
     benchmark::RunSpecifiedBenchmarks();
     benchmark::Shutdown();
 }

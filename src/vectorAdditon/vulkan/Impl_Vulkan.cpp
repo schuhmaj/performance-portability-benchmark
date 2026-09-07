@@ -1,3 +1,4 @@
+#include "common/Profiling.h"
 #include <algorithm>
 #include <benchmark/benchmark.h>
 #include <chrono>
@@ -76,7 +77,7 @@ BENCHMARK(ppb::VectorAddition<ppb::ImplVulkan<ppb::VectorAdditionBenchmarkConf::
 int main(int argc, char **argv) {
     ppb::VectorAdditionBenchmarkConf::addContext("Vulkan");
     benchmark::MaybeReenterWithoutASLR(argc, argv);
-    benchmark::Initialize(&argc, argv);
+    ppb::profiling::initialize(&argc, argv);
     benchmark::RunSpecifiedBenchmarks();
     benchmark::Shutdown();
 }

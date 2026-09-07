@@ -129,6 +129,8 @@ ctest                        # verify every implementation
 | `abstract-base` | default | Base preset with **all** paradigms and problems on; inherit from it for a platform we do not cover |
 | `cuda-llvm` | `clang`/`clang++`, `nvcc` | Everything except OpenACC and Stdpar |
 | `cuda-nvhpc` | `nvc`/`nvc++`, `nvcc` | Adds OpenACC and Stdpar; drops OpenMP offload, Vulkan and Slang-Vulkan |
+| `cuda-llvm-profiling` | `clang`/`clang++`, `nvcc` | Like `cuda-llvm`, plus `PPB_PROFILING=ON` for `ppbcc profile` |
+| `cuda-nvhpc-profiling` | `nvc`/`nvc++`, `nvcc` | Like `cuda-nvhpc`, plus `PPB_PROFILING=ON` for `ppbcc profile` |
 | `cuda-gcc` | `gcc`/`g++`, `nvcc` | Drops OpenMP offload, OpenACC and Stdpar |
 | `rocm-amdclang-cdna` | `amdclang`/`amdclang++` | Compute GPUs (MI210, …). Drops OpenACC, Slang-CUDA, Vulkan and Slang-Vulkan. Run the Stdpar binaries with `HSA_XNACK=1` |
 | `rocm-llvm-cdna` | `clang`/`clang++` | Like the above, but additionally drops Stdpar |
@@ -167,6 +169,7 @@ use a preset, which does it for you).
 | `PPB_LOGGING_LEVEL` | `INFO` | `TRACE`, `DEBUG`, `INFO`, `WARN`, `ERROR`, `CRITICAL` or `OFF` |
 | `PPB_FloatType` | `32` | Floating-point precision, `32` or `64` bit |
 | `PPB_ENABLE_OnlyKernelRuntime` | `OFF` | Measure only the kernel runtime instead of the wall-clock time including transfers |
+| `PPB_PROFILING` | `OFF` | Profiling mode: every executable runs a **single input exactly once** (see [`src/common/Profiling.h`](src/common/Profiling.h)). Needed for `ppbcc profile`, useless for measuring |
 | `PPB_ENABLE_Testing` | `ON` | Build the GoogleTest suite, run it with `ctest` |
 
 **Paradigms**
@@ -237,7 +240,8 @@ Drop `--dry-run` to actually run them, and add `-o "Results_NVIDIA_GH200"` to na
 The recorded raw measurements of the six GPUs of the study (NVIDIA RTX 3080/4060/5080 and GH200,
 AMD Instinct MI210, INTEL Data Center GPU Max 1550) are archived under [`results/`](results),
 alongside CPU runs. [`results/README.md`](results/README.md) documents the
-exact commands that turn them into the published CSVs, code-complexity tables and plots.
+exact commands that turn them into the published CSVs, code-complexity tables and plots, and how the
+roofline models are profiled with Nsight Compute.
 
 For the analysis options themselves, see the
 [ppbcc documentation](https://schuhmaj.github.io/performance-portability-code-complexity/) and its

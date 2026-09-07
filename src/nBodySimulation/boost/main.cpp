@@ -1,3 +1,4 @@
+#include "common/Profiling.h"
 #include <benchmark/benchmark.h>
 #include "Impl_Boost.h"
 #include "nBodySimulation/NBodySimulation.h"
@@ -11,7 +12,7 @@ BENCHMARK(ppb::NBodySimulation<ppb::ImplBoost<ppb::NBodyBenchmarkConf::float_typ
 int main(int argc, char** argv) {
     ppb::NBodyBenchmarkConf::addContext("Boost");
     benchmark::MaybeReenterWithoutASLR(argc, argv);
-    benchmark::Initialize(&argc, argv);
+    ppb::profiling::initialize(&argc, argv);
     benchmark::RunSpecifiedBenchmarks();
     benchmark::Shutdown();
 }

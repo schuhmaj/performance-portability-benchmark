@@ -57,6 +57,7 @@ endif ()
 add_compile_definitions(SPDLOG_ACTIVE_LEVEL=${PPB_LOGGING_LEVEL_INDEX})
 
 option(PPB_ENABLE_OnlyKernelRuntime "Only measures the actual GPU Kernel runtime, but not memory transfers, etc." OFF)
+option(PPB_PROFILING "Build for kernel profiling (ncu): every executable runs a single input exactly once" OFF)
 
 option(PPB_ENABLE_OpenACC "Enable OpenACC Target" OFF)
 option(PPB_ENABLE_OpenMP "Enable OpenMP Target" OFF)
@@ -93,6 +94,7 @@ message(STATUS "Build Type                      ${CMAKE_BUILD_TYPE}")
 message(STATUS "Logging Level                   ${PPB_LOGGING_LEVEL}")
 message(STATUS "Float Type                      ${PPB_FloatType}")
 message(STATUS "Only Kernel Runtime             ${PPB_ENABLE_OnlyKernelRuntime}")
+message(STATUS "Profiling Mode (ncu)            ${PPB_PROFILING}")
 message(STATUS "####################################################")
 message(STATUS "Kokkos                          ${PPB_ENABLE_Kokkos}")
 message(STATUS "RAJA                            ${PPB_ENABLE_Raja}")
@@ -127,6 +129,13 @@ message(STATUS "####################################################")
 
 if (${PPB_ENABLE_OnlyKernelRuntime})
     add_compile_definitions(PPB_MEASURE_ONLY_KERNEL)
+endif ()
+
+# Profiling mode: a kernel profiler replays every launch it sees, so the executables
+# are reduced to the single largest input and a single, un-repeated iteration.
+# See src/common/Profiling.h for the details.
+if (${PPB_PROFILING})
+    add_compile_definitions(PPB_PROFILING)
 endif ()
 
 # Appends the the module path to contain additional CMake modules for this project

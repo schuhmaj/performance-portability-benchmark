@@ -1,3 +1,4 @@
+#include "common/Profiling.h"
 #include <chrono>
 #include <utility>
 #include <benchmark/benchmark.h>
@@ -61,7 +62,7 @@ int main(int argc, char** argv) {
     std::cout << "GPU Name: " << gpu.name() << '\n';
 
     benchmark::MaybeReenterWithoutASLR(argc, argv);
-    benchmark::Initialize(&argc, argv);
+    ppb::profiling::initialize(&argc, argv);
     benchmark::RunSpecifiedBenchmarks();
     benchmark::Shutdown();
 }

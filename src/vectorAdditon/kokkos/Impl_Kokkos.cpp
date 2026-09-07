@@ -1,3 +1,4 @@
+#include "common/Profiling.h"
 #include <benchmark/benchmark.h>
 #include <iostream>
 #include <utility>
@@ -55,7 +56,7 @@ int main(int argc, char **argv) {
 
     Kokkos::ScopeGuard guard{argc, argv};
     // std::cout << "Default Execution Space: " << Kokkos::DefaultExecutionSpace::name() << std::endl;
-    benchmark::Initialize(&argc, argv);
+    ppb::profiling::initialize(&argc, argv);
     benchmark::RunSpecifiedBenchmarks();
     benchmark::Shutdown();
 }

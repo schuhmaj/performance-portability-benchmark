@@ -1,3 +1,4 @@
+#include "common/Profiling.h"
 #include <algorithm>
 #include <chrono>
 #include <utility>
@@ -52,7 +53,7 @@ int main(int argc, char **argv) {
     printf("Running on device number %d\n", device_num);
 
     benchmark::MaybeReenterWithoutASLR(argc, argv);
-    benchmark::Initialize(&argc, argv);
+    ppb::profiling::initialize(&argc, argv);
     benchmark::RunSpecifiedBenchmarks();
     benchmark::Shutdown();
 }

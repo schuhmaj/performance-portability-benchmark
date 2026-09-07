@@ -1,3 +1,4 @@
+#include "common/Profiling.h"
 #include "vectorAdditon/VectorAddition.h"
 #include <benchmark/benchmark.h>
 #include <hip/hip_runtime.h>
@@ -89,7 +90,7 @@ BENCHMARK(ppb::VectorAddition<ppb::ImplHip<ppb::VectorAdditionBenchmarkConf::flo
 int main(int argc, char **argv) {
     ppb::VectorAdditionBenchmarkConf::addContext("Hip");
     benchmark::MaybeReenterWithoutASLR(argc, argv);
-    benchmark::Initialize(&argc, argv);
+    ppb::profiling::initialize(&argc, argv);
     benchmark::RunSpecifiedBenchmarks();
     benchmark::Shutdown();
 }

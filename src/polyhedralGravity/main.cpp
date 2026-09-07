@@ -1,3 +1,4 @@
+#include "common/Profiling.h"
 #include <benchmark/benchmark.h>
 #include "PolyhedralGravityDefinitions.h"
 
@@ -42,12 +43,16 @@ void BM_obj(benchmark::State &state, Args &&...args) {
     state.counters["NumFaces"] = static_cast<double>(Faces.size());
 }
 
+// Profiling mode (see common/Profiling.h) keeps only the Eros mesh above, so a
+// profiler sees a single input.
+#ifndef PPB_PROFILING
 BENCHMARK_CAPTURE(BM_obj, 67P_ESA_NAVCAM_Jul2015data_256k, std::string("67P_ESA_NAVCAM_Jul2015data_256k"))->Name("Polyhedral-67P_ESA_NAVCAM_Jul2015data_256k");
 BENCHMARK_CAPTURE(BM_obj, 25143_Itokawa_200k, std::string("25143_Itokawa_200k"))->Name("Polyhedral-25143_Itokawa_200k");
 BENCHMARK_CAPTURE(BM_obj, a8567, std::string("a8567.tab"))->Name("Polyhedral-a8567");
 BENCHMARK_CAPTURE(BM_obj, SHAPE_SFM_3M_v20180804, std::string("SHAPE_SFM_3M_v20180804"))->Name("Polyhedral-SHAPE_SFM_3M_v20180804");
 BENCHMARK_CAPTURE(BM_obj, 4179toutatis, std::string("4179toutatis.tab"))->Name("Polyhedral-4179toutatis");
 BENCHMARK_CAPTURE(BM_obj, hartley2_2012_cart, std::string("hartley2_2012_cart"))->Name("Polyhedral-hartley2_2012_cart");
+#endif
 
 // Based on https://schneide.blog/2016/07/15/generating-an-icosphere-in-c/
 
@@ -139,7 +144,7 @@ int main(int argc, char **argv) {
     benchmark::AddCustomContext("paradigm", PARADIGM);
     benchmark::AddCustomContext("float_type", XSTR(FLOAT_BITS));
 
-    benchmark::Initialize(&argc, argv);
+    ppb::profiling::initialize(&argc, argv);
     benchmark::RunSpecifiedBenchmarks();
     benchmark::Shutdown();
 }

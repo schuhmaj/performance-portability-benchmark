@@ -1,3 +1,4 @@
+#include "common/Profiling.h"
 #include <benchmark/benchmark.h>
 #include "Impl_Kokkos.h"
 #include "Impl_KokkosReduction.h"
@@ -19,7 +20,7 @@ int main(int argc, char** argv) {
     ppb::NBodyBenchmarkConf::addContext("Kokkos");
     Kokkos::ScopeGuard guard{argc, argv};
     benchmark::MaybeReenterWithoutASLR(argc, argv);
-    benchmark::Initialize(&argc, argv);
+    ppb::profiling::initialize(&argc, argv);
     benchmark::RunSpecifiedBenchmarks();
     benchmark::Shutdown();
 }

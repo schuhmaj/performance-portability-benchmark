@@ -1,3 +1,4 @@
+#include "common/Profiling.h"
 #include "benchmark/benchmark.h"
 #include "Impl_Vulkan.h"
 #include "nBodySimulation/NBodySimulation.h"
@@ -15,7 +16,7 @@ BENCHMARK(ppb::NBodySimulation<ppb::ImplVulkan<ppb::NBodyBenchmarkConf::float_ty
 int main(int argc, char** argv) {
     ppb::NBodyBenchmarkConf::addContext(PARADIGM);
     benchmark::MaybeReenterWithoutASLR(argc, argv);
-    benchmark::Initialize(&argc, argv);
+    ppb::profiling::initialize(&argc, argv);
     benchmark::RunSpecifiedBenchmarks();
     benchmark::Shutdown();
 }

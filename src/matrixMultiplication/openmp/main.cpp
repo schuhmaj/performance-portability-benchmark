@@ -1,3 +1,4 @@
+#include "common/Profiling.h"
 #include "Impl_OpenMP.h"
 #include "Impl_OpenMPDevice.h"
 #include "matrixMultiplication/MatrixMultiplication.h"
@@ -15,7 +16,7 @@ BENCHMARK(ppb::MatrixMultiplication<ppb::ImplOpenMPDevice<ppb::MatrixMultiplicat
 int main(int argc, char** argv) {
     ppb::MatrixMultiplicationBenchmarkConf::addContext("OpenMP");
     benchmark::MaybeReenterWithoutASLR(argc, argv);
-    benchmark::Initialize(&argc, argv);
+    ppb::profiling::initialize(&argc, argv);
     benchmark::RunSpecifiedBenchmarks();
     benchmark::Shutdown();
 }

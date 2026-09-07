@@ -1,3 +1,4 @@
+#include "common/Profiling.h"
 #include "vectorAdditon/cuda/Implementations.cuh"
 
 namespace ppb {
@@ -112,7 +113,7 @@ namespace ppb {
 
 // int main(int argc, char** argv) {
 //     benchmark::MaybeReenterWithoutASLR(argc, argv);
-//     benchmark::Initialize(&argc, argv);
+//     ppb::profiling::initialize(&argc, argv);
 //     benchmark::RunSpecifiedBenchmarks();
 //     benchmark::Shutdown();
 //

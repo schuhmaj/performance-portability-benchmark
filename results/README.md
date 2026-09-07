@@ -12,8 +12,12 @@ only records the exact invocations that produced the archived data.
 | `<platform>/*.json` | Step 1 — raw Google Benchmark reports, one per executable |
 | `Results_<platform>.csv` | Step 2 — one consolidated CSV per platform |
 | `code-complexity/*.csv` | Step 3 — SLOC and Halstead metrics per file and per implementation |
+| `Profiling_<platform>.csv` | Step 5 — per-kernel Nsight Compute counters and roofline quantities |
+| `polyhedral_roofline_<platform>.pdf` | Step 5 — the roofline model built from that CSV |
 
-Step 4 renders the plots into the working directory; they are not committed here.
+Step 4 renders the plots into the working directory; they are not committed here. The `.ncu-rep`
+reports behind the profiling CSV are not committed either — step 5 regenerates them in about a
+minute.
 
 ## 1. Run the benchmarks
 
@@ -119,3 +123,57 @@ ppbcc p3analysis VecAdd ./Results_* -c boxplot \
 `--export-to-csv` additionally writes the underlying application-efficiency and
 performance-portability tables, so every quoted number can be checked against a CSV rather than
 read off a plot.
+
+## 5. Roofline models
+
+The roofline models need a **separate build** of the benchmark: a profiler replays every kernel
+launch it sees, so the executables must be reduced to one input and one iteration first. That is
+what the CMake option `PPB_PROFILING` does, and the two `*-profiling` presets switch it on:
+
+```bash
+# From the repository root
+cmake --preset cuda-llvm-profiling && cmake --build build-cuda-llvm-profiling -j
+# Only for OpenACC and Stdpar (they need the NVHPC toolchain)
+cmake --preset cuda-nvhpc-profiling && cmake --build build-cuda-nvhpc-profiling -j
+```
+
+`ppbcc profile` then drives `ncu` over the resulting binaries. Both builds write their reports into
+one shared folder (`--report-dir` is relative to `--build-dir`), so the two runs can be consolidated
+together:
+
+```bash
+ppbcc profile -b build-cuda-llvm-profiling  -p src -r "polyhedral_.*"    \
+  -d ../profiling-nvidia-rtx5080 -H "NVIDIA RTX5080" --no-csv
+ppbcc profile -b build-cuda-nvhpc-profiling -p src -r "polyhedral_acc$" \
+  -d ../profiling-nvidia-rtx5080 -H "NVIDIA RTX5080" --no-csv
+```
+
+Each run leaves `profiling-nvidia-rtx5080/<executable>.ncu-rep` next to the Google-Benchmark report
+`<executable>.json`, which supplies the paradigm and precision that `ncu` itself does not know.
+`--no-csv` skips the intermediate CSV; the final one comes from the consolidation step, which
+re-parses the reports without running anything:
+
+```bash
+ppbcc profile -b . -d profiling-nvidia-rtx5080 -r "polyhedral_.*" --skip-profile \
+  -H "NVIDIA RTX5080" -o results/Profiling_NVIDIA_RTX5080 \
+  --roofline --roofline-output results/polyhedral_roofline_NVIDIA_RTX5080.pdf \
+  -k "init_lock_arrays" -k "query_cuda_kernel_arch"
+```
+
+The two `-k` patterns drop Kokkos' architecture query and desul's lock-array initialization from the
+plot: the runtime launches them once at startup, they compute nothing, and they would distort the
+per-implementation aggregate. They stay in the CSV.
+
+> [!NOTE]
+> Nsight Compute only sees **CUDA** kernels. `polyhedral_ocl`, `polyhedral_boost`,
+> `polyhedral_vulkan`, `polyhedral_slang_vulkan` and `polyhedral_cpp` therefore produce no report
+> and are skipped with a warning. `polyhedral_stdpar` is missing for an unrelated reason: NVHPC 26.5
+> fails to compile it (`NVVM_ERROR_COMPILATION` in `static_thread_pool.hpp`), with or without
+> `PPB_PROFILING`.
+
+The plot places one point per implementation — work, traffic and kernel time summed over all its
+launches — and uses the same paradigm colors as the `p3analysis` charts of step 4. Both roofs are
+*measured*: every `peak_sustained` counter is scaled with the clock the corresponding unit actually
+ran at, which on the RTX 5080 gives 57.4 TFLOP/s (FP32) and 959 GB/s. Use `-a dominant` for the
+longest kernel only, `-a none` for one point per launch, and `-m l2`/`-m l1` to move the arithmetic
+intensity to another level of the memory hierarchy.

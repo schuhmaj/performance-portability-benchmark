@@ -1,3 +1,4 @@
+#include "common/Profiling.h"
 #include "benchmark/benchmark.h"
 #include "Impl_AdaptiveCpp.h"
 #include "Impl_AdaptiveCppShr.h"
@@ -24,7 +25,7 @@ BENCHMARK(ppb::MatrixMultiplication<ppb::ImplAdaptiveCpp<ppb::MatrixMultiplicati
 int main(int argc, char** argv) {
     ppb::MatrixMultiplicationBenchmarkConf::addContext("AdaptiveCpp");
     benchmark::MaybeReenterWithoutASLR(argc, argv);
-    benchmark::Initialize(&argc, argv);
+    ppb::profiling::initialize(&argc, argv);
     benchmark::RunSpecifiedBenchmarks();
     benchmark::Shutdown();
 }

@@ -1,3 +1,4 @@
+#include "common/Profiling.h"
 #include "Impl_OpenCL.h"
 #include "benchmark/benchmark.h"
 #include "matrixMultiplication/MatrixMultiplication.h"
@@ -14,7 +15,7 @@ BENCHMARK(ppb::MatrixMultiplication<ppb::ImplOpenCL<ppb::MatrixMultiplicationBen
 int main(int argc, char** argv) {
     ppb::MatrixMultiplicationBenchmarkConf::addContext("OpenCL");
     benchmark::MaybeReenterWithoutASLR(argc, argv);
-    benchmark::Initialize(&argc, argv);
+    ppb::profiling::initialize(&argc, argv);
     benchmark::RunSpecifiedBenchmarks();
     benchmark::Shutdown();
 }

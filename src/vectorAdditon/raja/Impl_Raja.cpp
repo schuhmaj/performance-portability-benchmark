@@ -1,3 +1,4 @@
+#include "common/Profiling.h"
 #include <benchmark/benchmark.h>
 #include <chrono>
 #include <utility>
@@ -74,7 +75,7 @@ int main(int argc, char **argv) {
     ppb::VectorAdditionBenchmarkConf::addContext("RAJA");
     benchmark::MaybeReenterWithoutASLR(argc, argv);
 
-    benchmark::Initialize(&argc, argv);
+    ppb::profiling::initialize(&argc, argv);
     benchmark::RunSpecifiedBenchmarks();
     benchmark::Shutdown();
 }

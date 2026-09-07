@@ -1,3 +1,4 @@
+#include "common/Profiling.h"
 #include <algorithm>
 #include <chrono>
 #include <benchmark/benchmark.h>
@@ -37,7 +38,7 @@ BENCHMARK(ppb::VectorAddition<ppb::ImplCpp<ppb::VectorAdditionBenchmarkConf::flo
 
 int main(int argc, char **argv) {
     ppb::VectorAdditionBenchmarkConf::addContext("Cpp");
-    benchmark::Initialize(&argc, argv);
+    ppb::profiling::initialize(&argc, argv);
     benchmark::RunSpecifiedBenchmarks();
     benchmark::Shutdown();
 }

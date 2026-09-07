@@ -1,3 +1,4 @@
+#include "common/Profiling.h"
 #include <utility>
 #include <benchmark/benchmark.h>
 #include <iostream>
@@ -61,7 +62,7 @@ BENCHMARK(ppb::VectorAddition<ppb::ImplAcpp<ppb::VectorAdditionBenchmarkConf::fl
 int main(int argc, char **argv) {
     ppb::VectorAdditionBenchmarkConf::addContext("AdaptiveCpp");
     benchmark::MaybeReenterWithoutASLR(argc, argv);
-    benchmark::Initialize(&argc, argv);
+    ppb::profiling::initialize(&argc, argv);
     benchmark::RunSpecifiedBenchmarks();
     benchmark::Shutdown();
 }

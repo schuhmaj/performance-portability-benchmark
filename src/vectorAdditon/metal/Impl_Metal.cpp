@@ -1,3 +1,4 @@
+#include "common/Profiling.h"
 #include <Metal/Metal.hpp>
 #include <benchmark/benchmark.h>
 #include <chrono>
@@ -162,7 +163,7 @@ BENCHMARK(ppb::VectorAddition<ppb::ImplMetal<ppb::VectorAdditionBenchmarkConf::f
 
 int main(int argc, char **argv) {
     ppb::VectorAdditionBenchmarkConf::addContext("Metal");
-    benchmark::Initialize(&argc, argv);
+    ppb::profiling::initialize(&argc, argv);
     benchmark::RunSpecifiedBenchmarks();
     benchmark::Shutdown();
 }

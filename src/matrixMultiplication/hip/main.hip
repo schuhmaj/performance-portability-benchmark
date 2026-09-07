@@ -1,3 +1,4 @@
+#include "common/Profiling.h"
 #include "matrixMultiplication/hip/Impl_HipNaive.h"
 #include "matrixMultiplication/MatrixMultiplication.h"
 #include "benchmark/benchmark.h"
@@ -14,7 +15,7 @@ BENCHMARK(ppb::MatrixMultiplication<ppb::ImplHipNaive<ppb::MatrixMultiplicationB
 int main(int argc, char** argv) {
     ppb::MatrixMultiplicationBenchmarkConf::addContext("Hip");
     benchmark::MaybeReenterWithoutASLR(argc, argv);
-    benchmark::Initialize(&argc, argv);
+    ppb::profiling::initialize(&argc, argv);
     benchmark::RunSpecifiedBenchmarks();
     benchmark::Shutdown();
 }

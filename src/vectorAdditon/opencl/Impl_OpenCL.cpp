@@ -1,3 +1,4 @@
+#include "common/Profiling.h"
 #include <benchmark/benchmark.h>
 #include <iostream>
 #include <utility>
@@ -105,7 +106,7 @@ BENCHMARK(ppb::VectorAddition<ppb::ImplOpenCL<ppb::VectorAdditionBenchmarkConf::
 int main(int argc, char **argv) {
     ppb::VectorAdditionBenchmarkConf::addContext("OpenCL");
     benchmark::MaybeReenterWithoutASLR(argc, argv);
-    benchmark::Initialize(&argc, argv);
+    ppb::profiling::initialize(&argc, argv);
     benchmark::RunSpecifiedBenchmarks();
     benchmark::Shutdown();
 }

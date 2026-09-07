@@ -1,3 +1,4 @@
+#include "common/Profiling.h"
 #include <algorithm>
 #include <chrono>
 #include <utility>
@@ -34,7 +35,7 @@ BENCHMARK(ppb::VectorAddition<ImplNvHpcStd<float>>::benchmark)
     ->Complexity();
 
 int main(int argc, char **argv) {
-    benchmark::Initialize(&argc, argv);
+    ppb::profiling::initialize(&argc, argv);
     benchmark::RunSpecifiedBenchmarks();
     benchmark::Shutdown();
 }

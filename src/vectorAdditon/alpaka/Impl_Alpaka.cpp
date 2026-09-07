@@ -1,3 +1,4 @@
+#include "common/Profiling.h"
 #include <benchmark/benchmark.h>
 #include <iostream>
 #include <utility>
@@ -134,7 +135,7 @@ int main(int argc, char **argv) {
     std::cout << "Alpaka Enabled Accelerator Tags:" << std::endl;
     alpaka::printTagNames<alpaka::EnabledAccTags>();
 
-    benchmark::Initialize(&argc, argv);
+    ppb::profiling::initialize(&argc, argv);
     benchmark::RunSpecifiedBenchmarks();
     benchmark::Shutdown();
 }

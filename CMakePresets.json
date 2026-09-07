@@ -88,6 +88,26 @@
       }
     },
     {
+      "name": "cuda-llvm-profiling",
+      "inherits": "cuda-llvm",
+      "displayName": "Linux CUDA with LLVM (Profiling)",
+      "description": "Like 'cuda-llvm', but with PPB_PROFILING=ON: every executable runs a single input exactly once, which is what the 'ppbcc profile' (ncu) driver expects.",
+      "binaryDir": "${sourceDir}/build-cuda-llvm-profiling",
+      "cacheVariables": {
+        "PPB_PROFILING": "ON"
+      }
+    },
+    {
+      "name": "cuda-nvhpc-profiling",
+      "inherits": "cuda-nvhpc",
+      "displayName": "Linux CUDA with NVHPC (Profiling)",
+      "description": "Like 'cuda-nvhpc', but with PPB_PROFILING=ON: every executable runs a single input exactly once, which is what the 'ppbcc profile' (ncu) driver expects.",
+      "binaryDir": "${sourceDir}/build-cuda-nvhpc-profiling",
+      "cacheVariables": {
+        "PPB_PROFILING": "ON"
+      }
+    },
+    {
       "name": "cuda-gcc",
       "inherits": "abstract-base",
       "displayName": "Linux CUDA with GCC",

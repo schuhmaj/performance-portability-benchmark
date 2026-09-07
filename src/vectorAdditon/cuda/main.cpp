@@ -1,3 +1,4 @@
+#include "common/Profiling.h"
 #include <benchmark/benchmark.h>
 // #include <likwid-marker.h>
 
@@ -49,7 +50,7 @@ int main(int argc, char **argv) {
     // NVMON_MARKER_INIT;
     ppb::VectorAdditionBenchmarkConf::addContext("Cuda");
     benchmark::MaybeReenterWithoutASLR(argc, argv);
-    benchmark::Initialize(&argc, argv);
+    ppb::profiling::initialize(&argc, argv);
     benchmark::RunSpecifiedBenchmarks();
     benchmark::Shutdown();
     // NVMON_MARKER_CLOSE;
