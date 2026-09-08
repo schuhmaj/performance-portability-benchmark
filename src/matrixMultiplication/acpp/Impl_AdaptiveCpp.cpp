@@ -1,3 +1,4 @@
+#include "common/Marker.h"
 #include "Impl_AdaptiveCpp.h"
 #include "common/UtilityFloatArithmetic.h"
 #include <utility>
@@ -23,6 +24,7 @@ std::pair<std::vector<FloatType>, double> ppb::ImplAdaptiveCpp<FloatType>::opera
     queue.copy(b.data(), deviceB, b.size());
 
     FloatType *deviceResult = sycl::aligned_alloc_shared<FloatType>(ALIGNMENT, resultSize, queue);
+    PPB_MARKER_GPU_START("matmul");
     auto event = queue.submit([&](sycl::handler &h) {
         // SYCL's last range dimension is the fastest-varying one, so the row index is
         // taken from dimension 1. That keeps the accesses to A and C coalesced, matching
@@ -42,6 +44,7 @@ std::pair<std::vector<FloatType>, double> ppb::ImplAdaptiveCpp<FloatType>::opera
         });
     });
     event.wait_and_throw();
+    PPB_MARKER_GPU_STOP("matmul");
     auto end = event.template get_profiling_info<sycl::info::event_profiling::command_end>();
     auto start = event.template get_profiling_info<sycl::info::event_profiling::command_start>();
     double elapsed_nanoseconds = end - start;

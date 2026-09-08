@@ -1,3 +1,4 @@
+#include "common/Marker.h"
 #include "Impl_Cublas.cuh"
 
 namespace ppb {
@@ -27,6 +28,7 @@ namespace ppb {
 
         // Perform matrix multiplication: C = alpha * A * B + beta * C
         // Note: CUBLAS expects column-major matrices
+        PPB_MARKER_GPU_START("matmul-cublas");
         cudaEventRecord(start);
         if constexpr (std::is_same_v<FloatType, float>) {
             cublasSgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N,
@@ -48,6 +50,12 @@ namespace ppb {
             static_assert(std::is_same_v<FloatType, float> || std::is_same_v<FloatType, double>, "Unsupported type");
         }
         cudaEventRecord(stop);
+#ifdef PPB_MARKER_SYNC_REGION
+        // The launch is asynchronous, but the marker reads the GPU counters when
+        // the region closes, so the kernel has to have finished by then.
+        cudaEventSynchronize(stop);
+#endif
+        PPB_MARKER_GPU_STOP("matmul-cublas");
         cudaEventSynchronize(stop);
         cudaEventElapsedTime(&elapsedTime, start, stop);
 

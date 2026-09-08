@@ -1,3 +1,4 @@
+#include "common/Marker.h"
 #include <algorithm>
 #include <execution>
 #include <functional>
@@ -29,6 +30,7 @@ public:
 
     GravityModelResult evaluate(const Array3 &Point) override {
         if (!_initialized) init();
+        PPB_MARKER_GPU_SCOPE("evaluate");
 
         const size_t faceCount = _faces.size();
         const Array3 *vertices = _vertices.data();
@@ -410,6 +412,7 @@ public:
 
 private:
     void init() {
+        PPB_MARKER_GPU_SCOPE("init");
         const size_t faceCount = _faces.size();
         const Array3 *vertices = _vertices.data();
         const IndexArray3 *faces = _faces.data();

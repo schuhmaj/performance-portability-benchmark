@@ -1,3 +1,4 @@
+#include "common/Marker.h"
 #include "Impl_Stdpar.h"
 
 #include <algorithm>
@@ -22,6 +23,7 @@ namespace ppb {
         // its iterators are not usable with every stdpar backend: oneDPL rejects them (they are neither
         // USM pointers nor writable, and iota_view<size_t>::difference_type is __int128, which SPIR-V
         // targets cannot represent), so keep to plain pointers, which all backends map to device memory.
+        PPB_MARKER_GPU_START("matmul");
         const auto start = std::chrono::high_resolution_clock::now();
         std::for_each(std::execution::par_unseq, resultPtr, resultPtr + result.size(), [=](FloatType &element) {
             const size_t index = static_cast<size_t>(&element - resultPtr);
@@ -34,6 +36,7 @@ namespace ppb {
             element = sum;
         });
         const auto end = std::chrono::high_resolution_clock::now();
+        PPB_MARKER_GPU_STOP("matmul");
         const double elapsed_nanoseconds = static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count());
         return std::make_pair(result, elapsed_nanoseconds);
     }

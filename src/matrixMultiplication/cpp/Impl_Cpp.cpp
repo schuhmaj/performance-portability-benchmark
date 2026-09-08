@@ -1,3 +1,4 @@
+#include "common/Marker.h"
 #include "Impl_Cpp.h"
 
 namespace ppb {
@@ -6,6 +7,7 @@ namespace ppb {
                                                                const std::vector<FloatType> &b, const MatrixMultiplicationConfig &config) {
         std::vector<FloatType> result(config.m * config.n, 0.0);
         constexpr int TILE_SIZE = 64;
+        PPB_MARKER_CPU_START("matmul");
         const auto start = std::chrono::high_resolution_clock::now();
         // if constexpr (row_major::value) {
         //     for (int tile = 0; tile < config.k; tile += TILE_SIZE) {
@@ -31,6 +33,7 @@ namespace ppb {
             }
         // }
         const auto end = std::chrono::high_resolution_clock::now();
+        PPB_MARKER_CPU_STOP("matmul");
         const double elapsed_nanoseconds = static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count());
         return std::make_pair(result, elapsed_nanoseconds);
     }

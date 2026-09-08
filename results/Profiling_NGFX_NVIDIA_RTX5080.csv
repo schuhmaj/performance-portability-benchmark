@@ -1,0 +1,4 @@
+Benchmark Problem,Paradigm,Precision,Hardware,Executable,Region,Kernel ID,Kernel,Kernel Signature,Duration,Memory Level,FLOP,Memory Traffic,Arithmetic Intensity,Performance,Peak Performance,Peak Bandwidth
+MatrixMultiplication,Slang-Vulkan,FP32,NVIDIA RTX5080,matMul_slang_vulkan,,0,traced submission,GPU Trace of one queue submission (47.689 ms),0.0476892,DRAM,137438953472.0,6107360000.0,22.503823824369285,2881972301317.6987,57400000000000.0,959200000000.0
+MatrixMultiplication,Vulkan,FP32,NVIDIA RTX5080,matMul_vulkan,,0,traced submission,GPU Trace of one queue submission (47.359 ms),0.047358800000000006,DRAM,137438953472.0,6126490000.0,22.43355550600752,2902078462123.1953,57400000000000.0,959200000000.0
+Polyhedral,Vulkan,FP32,NVIDIA RTX5080,polyhedral_vulkan,,0,traced submission,GPU Trace of one queue submission (59.314 ms),0.05931430000000001,DRAM,4129600000.0,719506000.0,5.739493485808318,69622333905.98894,57400000000000.0,959200000000.0

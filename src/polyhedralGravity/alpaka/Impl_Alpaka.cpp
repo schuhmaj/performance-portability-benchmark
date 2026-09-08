@@ -1,3 +1,4 @@
+#include "common/Marker.h"
 #include "polyhedralGravity/PolyhedralGravityDefinitions.h"
 
 #include <alpaka/alpaka.hpp>
@@ -380,6 +381,7 @@ public:
 
     GravityModelResult evaluate(const Array3 &Point) override {
         if (!_initialized) init();
+        PPB_MARKER_GPU_SCOPE("evaluate");
 
         const Idx num_faces = _faces.size();
         const auto extent = extentOf(num_faces);
@@ -432,6 +434,7 @@ public:
 
 private:
     void init() {
+        PPB_MARKER_GPU_SCOPE("init");
         const Idx num_vertices = _vertices.size();
         const Idx num_faces = _faces.size();
 

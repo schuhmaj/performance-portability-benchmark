@@ -1,3 +1,4 @@
+#include "common/Marker.h"
 #include "polyhedralGravity/PolyhedralGravityDefinitions.h"
 
 #include <sycl/sycl.hpp>
@@ -56,6 +57,7 @@ public:
 
     GravityModelResult evaluate(const Array3 &Point) override {
         if (!_initialized) init();
+        PPB_MARKER_GPU_SCOPE("evaluate");
 
         const size_t numFaces = _faces.size();
         const Array3 point = Point;
@@ -356,6 +358,7 @@ public:
 
 private:
     void init() {
+        PPB_MARKER_GPU_SCOPE("init");
         const size_t numFaces = _faces.size();
 
         const Array3 *V = _vertices_device;

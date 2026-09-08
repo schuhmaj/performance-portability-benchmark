@@ -1,3 +1,4 @@
+#include "common/Marker.h"
 #include "Impl_AdaptiveCppShr.h"
 #include "common/UtilityFloatArithmetic.h"
 #include <utility>
@@ -25,6 +26,7 @@ std::pair<std::vector<FloatType>, double> ppb::ImplAdaptiveCppShr<FloatType>::op
     // We make it shared for easy access to copy results back
     FloatType *deviceResult = sycl::aligned_alloc_shared<FloatType>(ALIGNMENT, resultSize, queue);
     // Using Work Groups and Shared Memory
+    PPB_MARKER_GPU_START("matmul");
     auto event = queue.submit([&](sycl::handler &h) {
         constexpr size_t TM = 16;
         constexpr size_t TN = 16;
@@ -72,6 +74,7 @@ std::pair<std::vector<FloatType>, double> ppb::ImplAdaptiveCppShr<FloatType>::op
             });
     });
     event.wait_and_throw();
+    PPB_MARKER_GPU_STOP("matmul");
     auto end = event.template get_profiling_info<sycl::info::event_profiling::command_end>();
     auto start = event.template get_profiling_info<sycl::info::event_profiling::command_start>();
     double elapsed_nanoseconds = end - start;

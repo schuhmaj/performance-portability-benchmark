@@ -20,9 +20,16 @@ namespace ppb {
 #error "Invliad float bits size"
 #endif
 #ifdef PPB_PROFILING
-        // Profiling mode (see common/Profiling.h): a single input, the largest one.
-        constexpr double MIN_SIZE = 16384;
-        constexpr double MAX_SIZE = 16384;
+        // Profiling mode (see common/Profiling.h): a single input. 4096 rather
+        // than the largest size 16384, because a profiler multiplies the cost of
+        // the kernel: Nsight Compute replays every launch once per pass and has
+        // to snapshot and restore the device working set - 12 GB at 16384 -
+        // around each of them, and Nsight Systems' sampled reports grow with the
+        // wall-clock time of the run. 4096 keeps every backend at a few tens of
+        // milliseconds per kernel, which is long enough to sample and short
+        // enough to replay.
+        constexpr double MIN_SIZE = 4096;
+        constexpr double MAX_SIZE = 4096;
 #else
         constexpr double MIN_SIZE = 32;
         constexpr double MAX_SIZE = 16384;

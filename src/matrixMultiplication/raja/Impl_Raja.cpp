@@ -1,3 +1,4 @@
+#include "common/Marker.h"
 #include "Impl_Raja.h"
 
 #include <chrono>
@@ -72,6 +73,7 @@ namespace ppb {
         res.memcpy(devB, b.data(), static_cast<size_t>(k) * n * sizeof(FloatType));
         res.wait();
 
+        PPB_MARKER_GPU_START("matmul");
         const auto start = std::chrono::steady_clock::now();
         // The matrices are stored in column-major format (like the Kokkos LayoutLeft implementation)
         RAJA::kernel_resource<KernelPolicy>(
@@ -86,6 +88,7 @@ namespace ppb {
                 });
         res.wait();
         const auto end = std::chrono::steady_clock::now();
+        PPB_MARKER_GPU_STOP("matmul");
         const double nanoseconds = std::chrono::duration<double, std::nano>(end - start).count();
 
         std::vector<FloatType> result(static_cast<size_t>(m) * n);

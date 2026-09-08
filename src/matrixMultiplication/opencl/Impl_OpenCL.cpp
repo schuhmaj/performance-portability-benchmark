@@ -1,3 +1,4 @@
+#include "common/Marker.h"
 #include "Impl_OpenCL.h"
 #include "common/UtilityFloatArithmetic.h"
 #include <benchmark/benchmark.h>
@@ -75,8 +76,15 @@ ppb::ImplOpenCL<FloatType>::operator()(const std::vector<FloatType> &a, const st
     // Launch and time
     cl_event event;
     cl_ulong start, end;
+    PPB_MARKER_GPU_START("matmul");
     err = clEnqueueNDRangeKernel(queue, kernel, 2, nullptr, globalSize, localSize, 0, nullptr, &event);
     if (err != CL_SUCCESS) throw std::runtime_error("EnqueueNDRangeKernel failed");
+#ifdef PPB_MARKER_SYNC_REGION
+    // The launch is asynchronous, but the marker reads the GPU counters when
+    // the region closes, so the kernel has to have finished by then.
+    clWaitForEvents(1, &event);
+#endif
+    PPB_MARKER_GPU_STOP("matmul");
 
     // Read back C (size M*N)
     err = clEnqueueReadBuffer(queue, resultBuffer, CL_TRUE, 0,

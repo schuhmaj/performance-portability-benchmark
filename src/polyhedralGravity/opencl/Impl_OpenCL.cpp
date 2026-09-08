@@ -1,3 +1,4 @@
+#include "common/Marker.h"
 #include "polyhedralGravity/PolyhedralGravityDefinitions.h"
 
 #include <algorithm>
@@ -165,6 +166,7 @@ public:
 
     GravityModelResult evaluate(const Array3 &Point) override {
         if (!_initialized) init();
+        PPB_MARKER_GPU_SCOPE("evaluate");
 
         GravityModelResult result{};
 
@@ -213,6 +215,7 @@ public:
 
 private:
     void init() {
+        PPB_MARKER_GPU_SCOPE("init");
         cl::NDRange global(_faces.size());
         queue.enqueueNDRangeKernel(kernel_init, cl::NullRange, global);
         queue.finish();

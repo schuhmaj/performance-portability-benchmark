@@ -169,7 +169,10 @@ use a preset, which does it for you).
 | `PPB_LOGGING_LEVEL` | `INFO` | `TRACE`, `DEBUG`, `INFO`, `WARN`, `ERROR`, `CRITICAL` or `OFF` |
 | `PPB_FloatType` | `32` | Floating-point precision, `32` or `64` bit |
 | `PPB_ENABLE_OnlyKernelRuntime` | `OFF` | Measure only the kernel runtime instead of the wall-clock time including transfers |
-| `PPB_PROFILING` | `OFF` | Profiling mode: every executable runs a **single input exactly once** (see [`src/common/Profiling.h`](src/common/Profiling.h)). Needed for `ppbcc profile`, useless for measuring |
+| `PPB_PROFILING` | `OFF` | Profiling mode: every executable runs a **single input exactly once**, names its kernels with NVTX ranges, and is compiled with line tables (see [`src/common/Profiling.h`](src/common/Profiling.h)). Needed for `ppbcc profile`, useless for measuring |
+| `PPB_ENABLE_NVTX` | `ON` with `PPB_PROFILING` | Name the marked regions (`matmul`, `init`, `evaluate`) for Nsight Compute and Nsight Systems (see [`src/common/Marker.h`](src/common/Marker.h)). Switched off automatically if the NVTX headers are not found |
+| `PPB_PROFILING_DEVICE_DEBUG` | `OFF` | Add `nvcc -G` to the profiling build. Only for stepping through a kernel in `cuda-gdb`: `-G` disables every device optimization, so the profiled program is no longer the one under study |
+| `PPB_ENABLE_LIKWID` | `OFF` | Compile the LIKWID marker regions around the matrix-multiplication and polyhedral kernels (see [`src/common/Marker.h`](src/common/Marker.h)). Needed for `ppbcc profile --profiler likwid`; set `LIKWID_ROOT` if LIKWID is not on the default search path |
 | `PPB_ENABLE_Testing` | `ON` | Build the GoogleTest suite, run it with `ctest` |
 
 **Paradigms**

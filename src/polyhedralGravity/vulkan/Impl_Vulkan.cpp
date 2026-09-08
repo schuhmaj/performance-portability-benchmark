@@ -1,3 +1,4 @@
+#include "common/Marker.h"
 #include "polyhedralGravity/PolyhedralGravityDefinitions.h"
 #include <glm/glm.hpp>
 #include <vulkan/vulkan.hpp>
@@ -416,6 +417,7 @@ public:
 
     GravityModelResult evaluate(const Array3 &Point) override {
         if (!_initialized) init();
+        PPB_MARKER_GPU_SCOPE("evaluate");
 
         GravityModelResult g_result{};
         auto &[potential, acceleration, gradiometricTensor] = g_result;
@@ -484,6 +486,7 @@ public:
 
 private:
     void init() {
+        PPB_MARKER_GPU_SCOPE("init");
         PushConstants pushConstantsData{};
         pushConstantsData.num_faces = _faces.size();
 

@@ -1,3 +1,4 @@
+#include "common/Marker.h"
 #include "polyhedralGravity/PolyhedralGravityDefinitions.h"
 #include <Kokkos_Core.hpp>
 
@@ -25,6 +26,7 @@ public:
 
     GravityModelResult evaluate(const Array3 &Point) override {
         if (!_initialized) init();
+        PPB_MARKER_GPU_SCOPE("evaluate");
 
         Kokkos::View<Array3> devicePoint("devicePoint");
         Kokkos::deep_copy(devicePoint, Point);
@@ -398,6 +400,7 @@ public:
     }
 
     void init() {
+        PPB_MARKER_GPU_SCOPE("init");
         Kokkos::View<const Array3 *, Kokkos::HostSpace, Kokkos::MemoryUnmanaged> hostVertices{_vertices.data(), _vertices.size()};
         Kokkos::View<const IndexArray3 *, Kokkos::HostSpace, Kokkos::MemoryUnmanaged> hostFaces{_faces.data(), _faces.size()};
 

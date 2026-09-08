@@ -58,6 +58,12 @@ add_compile_definitions(SPDLOG_ACTIVE_LEVEL=${PPB_LOGGING_LEVEL_INDEX})
 
 option(PPB_ENABLE_OnlyKernelRuntime "Only measures the actual GPU Kernel runtime, but not memory transfers, etc." OFF)
 option(PPB_PROFILING "Build for kernel profiling (ncu): every executable runs a single input exactly once" OFF)
+option(PPB_ENABLE_LIKWID "Instrument the main kernels with the LIKWID marker API (see src/common/Marker.h)" OFF)
+cmake_dependent_option(PPB_ENABLE_NVTX
+        "Name the marked kernel regions for Nsight Compute/Systems with NVTX (see src/common/Marker.h)"
+        ON "PPB_PROFILING" OFF)
+option(PPB_PROFILING_DEVICE_DEBUG
+        "Add -G to the profiling build. Off on purpose: -G turns off every device optimization, so the profiled program is no longer the program under study" OFF)
 
 option(PPB_ENABLE_OpenACC "Enable OpenACC Target" OFF)
 option(PPB_ENABLE_OpenMP "Enable OpenMP Target" OFF)
@@ -95,6 +101,9 @@ message(STATUS "Logging Level                   ${PPB_LOGGING_LEVEL}")
 message(STATUS "Float Type                      ${PPB_FloatType}")
 message(STATUS "Only Kernel Runtime             ${PPB_ENABLE_OnlyKernelRuntime}")
 message(STATUS "Profiling Mode (ncu)            ${PPB_PROFILING}")
+message(STATUS "LIKWID Markers                  ${PPB_ENABLE_LIKWID}")
+message(STATUS "NVTX Region Names               ${PPB_ENABLE_NVTX}")
+message(STATUS "Device Debug Info (-G)          ${PPB_PROFILING_DEVICE_DEBUG}")
 message(STATUS "####################################################")
 message(STATUS "Kokkos                          ${PPB_ENABLE_Kokkos}")
 message(STATUS "RAJA                            ${PPB_ENABLE_Raja}")
@@ -136,6 +145,36 @@ endif ()
 # See src/common/Profiling.h for the details.
 if (${PPB_PROFILING})
     add_compile_definitions(PPB_PROFILING)
+endif ()
+
+# LIKWID marker instrumentation. Only the package is located here; the flags are
+# applied in src/CMakeLists.txt so that they reach this project's targets alone.
+# Applying them globally would also hit the FetchContent subprojects, and RAJA
+# then exports targets that depend on an imported LIKWID target it cannot export.
+if (${PPB_ENABLE_LIKWID})
+    find_package(LIKWID REQUIRED)
+endif ()
+
+# NVTX names every marked region so a profiler can attribute a kernel launch to
+# it. The v3 API is header-only and resolves its implementation through dlopen,
+# so all that is needed is the header search path; it ships with the CUDA
+# toolkit but is a standalone, CUDA-independent library, which is what lets it
+# name an OpenCL or Vulkan region as well. As with LIKWID, the flags themselves
+# are applied in src/CMakeLists.txt to keep them off the FetchContent
+# subprojects.
+if (${PPB_ENABLE_NVTX})
+    find_path(PPB_NVTX_INCLUDE_DIR
+            NAMES nvtx3/nvToolsExt.h
+            HINTS ${CUDAToolkit_INCLUDE_DIRS} ${CUDAToolkit_TARGET_DIR}/include
+            PATHS /usr/local/cuda/include /usr/include
+    )
+    if (PPB_NVTX_INCLUDE_DIR)
+        message(STATUS "Found NVTX headers at: ${PPB_NVTX_INCLUDE_DIR}")
+    else ()
+        message(WARNING "nvtx3/nvToolsExt.h not found; disabling PPB_ENABLE_NVTX. "
+                "The profiled kernels then carry no region names.")
+        set(PPB_ENABLE_NVTX OFF)
+    endif ()
 endif ()
 
 # Appends the the module path to contain additional CMake modules for this project

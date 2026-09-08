@@ -1,3 +1,4 @@
+#include "common/Marker.h"
 #include <chrono>
 #include <utility>
 #include "Impl_SlangCuda.cuh"
@@ -75,9 +76,16 @@ namespace ppb {
         CHECK(cuEventCreate(&stop, CU_EVENT_DEFAULT));
         CHECK(cuStreamCreate(&stream, 0));
 
+        PPB_MARKER_GPU_START("matmul");
         CHECK(cuEventRecord(start, stream));
         CHECK(cuLaunchKernel(module.kernel, groups_x, groups_y, 1, TILE_SIZE, TILE_SIZE, 1, 0, stream, nullptr, nullptr));
         CHECK(cuEventRecord(stop, stream));
+#ifdef PPB_MARKER_SYNC_REGION
+        // The launch is asynchronous, but the marker reads the GPU counters when
+        // the region closes, so the kernel has to have finished by then.
+        CHECK(cuStreamSynchronize(stream));
+#endif
+        PPB_MARKER_GPU_STOP("matmul");
 
         CHECK(cuEventSynchronize(stop));
         CHECK(cuEventElapsedTime(&elapsedTime, start, stop));

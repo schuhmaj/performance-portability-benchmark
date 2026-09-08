@@ -1,3 +1,4 @@
+#include "common/Marker.h"
 #include "Impl_CudaNaive.cuh"
 
 namespace ppb {
@@ -45,9 +46,16 @@ namespace ppb {
 
         cudaMemcpyAsync(devA, a.data(), sizeA, cudaMemcpyHostToDevice, stream);
         cudaMemcpyAsync(devB, b.data(), sizeB, cudaMemcpyHostToDevice, stream);
+        PPB_MARKER_GPU_START("matmul-naive");
         cudaEventRecord(start, stream);
         matrixMultiplication<<<gridSize, blockSize, 0, stream>>>(devA, devB, devC, config.m, config.n, config.k);
         cudaEventRecord(stop, stream);
+#ifdef PPB_MARKER_SYNC_REGION
+        // The launch is asynchronous, but the marker reads the GPU counters when
+        // the region closes, so the kernel has to have finished by then.
+        cudaStreamSynchronize(stream);
+#endif
+        PPB_MARKER_GPU_STOP("matmul-naive");
         std::vector<FloatType> result(config.m * config.n, 0.0);
         cudaMemcpyAsync(result.data(), devC, sizeC, cudaMemcpyDeviceToHost, stream);
 

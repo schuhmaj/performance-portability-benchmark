@@ -1,3 +1,4 @@
+#include "common/Marker.h"
 #include "Impl_Kokkos.h"
 #include "Kokkos_Core.hpp"
 
@@ -32,6 +33,7 @@ namespace ppb {
         Kokkos::MDRangePolicy<Kokkos::Rank<2>, ExecutionSpace> policy(exec, {0, 0}, {m, n}, {16, 16});
 
         exec.fence();
+        PPB_MARKER_GPU_START("matmul");
         Kokkos::Timer timer;
         Kokkos::parallel_for("matrixMultiplication", policy, KOKKOS_LAMBDA(const int i, const int j) {
             FloatType sum = 0;
@@ -42,6 +44,7 @@ namespace ppb {
         });
         exec.fence();
         double seconds = timer.seconds();
+        PPB_MARKER_GPU_STOP("matmul");
 
 
         Kokkos::deep_copy(exec, hostC, devC);

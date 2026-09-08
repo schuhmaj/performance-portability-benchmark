@@ -1,3 +1,4 @@
+#include "common/Marker.h"
 
 #include "Impl_Alpaka.h"
 #include <chrono>
@@ -76,11 +77,13 @@ ppb::ImplAlpaka<FloatType>::operator()(const std::vector<FloatType> &a, const st
         config.k
     );
 
+    PPB_MARKER_GPU_START("matmul");
     const auto start = std::chrono::high_resolution_clock::now();
     alpaka::enqueue(queue, taskKernel);
     alpaka::wait(queue);
     const auto end = std::chrono::high_resolution_clock::now();
     const double elapsed_nanoseconds = static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count());
+    PPB_MARKER_GPU_STOP("matmul");
 
 
     auto resultView = alpaka::createView(host, result.data(), extentC);

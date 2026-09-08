@@ -1,3 +1,4 @@
+#include "common/Marker.h"
 #include "polyhedralGravity/PolyhedralGravityDefinitions.h"
 
 #include <cuda_runtime.h>
@@ -88,6 +89,7 @@ public:
 
     GravityModelResult evaluate(const Array3 &Point) override {
         if (!_initialized) init();
+        PPB_MARKER_GPU_SCOPE("evaluate");
 
         wrapper_eval(
                 mem_vertices._data,
@@ -138,6 +140,7 @@ public:
 
 private:
     void init() {
+        PPB_MARKER_GPU_SCOPE("init");
         std::vector<VectorType> temp_vertices(_vertices.size());
         for (uint i = 0; i < temp_vertices.size(); i++) {
             temp_vertices[i].x = _vertices[i][0];

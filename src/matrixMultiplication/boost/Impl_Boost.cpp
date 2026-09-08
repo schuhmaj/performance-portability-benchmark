@@ -1,3 +1,4 @@
+#include "common/Marker.h"
 #include "Impl_Boost.h"
 #include <chrono>
 #include <utility>
@@ -43,8 +44,10 @@ namespace ppb {
             util::roundUp<size_t>(config.n, localSize[1])
         };
 
+        PPB_MARKER_GPU_START("matmul");
         const auto event = queue.enqueue_nd_range_kernel(kernel, 2, nullptr, globalSize, localSize);
         event.wait();
+        PPB_MARKER_GPU_STOP("matmul");
 
         const double elapsed_nanoseconds = event.template duration<boost::chrono::nanoseconds>().count();
         boost::compute::copy(resultBuffer.begin(), resultBuffer.end(), result.begin(), queue);

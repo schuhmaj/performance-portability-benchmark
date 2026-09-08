@@ -1,3 +1,4 @@
+#include "common/Marker.h"
 #include "Impl_OpenMP.h"
 
 namespace ppb {
@@ -6,6 +7,7 @@ namespace ppb {
     std::pair<std::vector<FloatType>, double> ppb::ImplOpenMP<FloatType>::operator()(const std::vector<FloatType> &a,
                                                                const std::vector<FloatType> &b,  const MatrixMultiplicationConfig &config) {
         std::vector<FloatType> result(config.m * config.n, 0.0);
+        PPB_MARKER_CPU_START("matmul");
         const auto start = std::chrono::high_resolution_clock::now();
 #pragma omp parallel for
         for (int j = 0; j < config.n; ++j) {
@@ -16,6 +18,7 @@ namespace ppb {
             }
         }
         const auto end = std::chrono::high_resolution_clock::now();
+        PPB_MARKER_CPU_STOP("matmul");
         const double elapsed_nanoseconds = static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count());
         return std::make_pair(result, elapsed_nanoseconds);
     }

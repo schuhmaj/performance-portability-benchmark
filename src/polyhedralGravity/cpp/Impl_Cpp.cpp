@@ -1,3 +1,4 @@
+#include "common/Marker.h"
 #include "polyhedralGravity/PolyhedralGravityDefinitions.h"
 
 GlobalResources::GlobalResources(int &argc, char *argv[]) {
@@ -15,6 +16,7 @@ public:
 
     GravityModelResult evaluate(const Array3 &Point) override {
         if (!_initialized) init();
+        PPB_MARKER_CPU_SCOPE("evaluate");
 
         GravityModelResult result{};
         auto &[potential, acceleration, gradiometricTensor] = result;
@@ -377,6 +379,7 @@ private:
     }
 
     void init() {
+        PPB_MARKER_CPU_SCOPE("init");
         for (size_t i = 0; i < _faces.size(); ++i) {
             Array3Triplet Face = {_vertices[_faces[i][0]], _vertices[_faces[i][1]], _vertices[_faces[i][2]]};
 

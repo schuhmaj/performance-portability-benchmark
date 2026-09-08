@@ -1,3 +1,4 @@
+#include "common/Marker.h"
 #include "Impl_Cuda.cuh"
 #include <mma.h>
 
@@ -106,9 +107,16 @@ namespace ppb {
         cudaMemcpyAsync(devB, b.data(), sizeB, cudaMemcpyHostToDevice, stream);
 
         static_assert(std::is_same_v<FloatType, float>, "This kernel currently supports float only.");
+        PPB_MARKER_GPU_START("matmul-shared");
         cudaEventRecord(start, stream);
         matrixMultiplication<<<gridSize, blockSize, sharedMemSize, stream>>>(devA, devB, devC, config.m, config.n, config.k);
         cudaEventRecord(stop, stream);
+#ifdef PPB_MARKER_SYNC_REGION
+        // The launch is asynchronous, but the marker reads the GPU counters when
+        // the region closes, so the kernel has to have finished by then.
+        cudaStreamSynchronize(stream);
+#endif
+        PPB_MARKER_GPU_STOP("matmul-shared");
 
         std::vector<FloatType> result(config.m * config.n, 0.0);
         cudaMemcpyAsync(result.data(), devC, sizeC, cudaMemcpyDeviceToHost, stream);

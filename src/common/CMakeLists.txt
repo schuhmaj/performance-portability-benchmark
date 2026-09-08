@@ -6,6 +6,7 @@ set(COMMON_FILES
         UtilityFloatArithmetic.h
         UtilityFloatArithmetic.cpp
         Profiling.h
+        Marker.h
         FileReader.h
         FileReader.cpp
 )

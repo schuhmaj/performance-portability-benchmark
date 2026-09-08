@@ -1,3 +1,4 @@
+#include "common/Marker.h"
 #include "Impl_OpenACC.h"
 
 namespace ppb {
@@ -14,6 +15,7 @@ namespace ppb {
         const FloatType *bPtr = b.data();
         FloatType *resultPtr = result.data();
 
+        PPB_MARKER_GPU_START("matmul");
         const auto start = std::chrono::high_resolution_clock::now();
 #pragma acc data copyin(aPtr[0:sizeA], bPtr[0:sizeB]) copy(resultPtr[0:sizeC])
         {
@@ -31,6 +33,7 @@ namespace ppb {
         }
 
         const auto end = std::chrono::high_resolution_clock::now();
+        PPB_MARKER_GPU_STOP("matmul");
         const double elapsed_nanoseconds = static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count());
         return std::make_pair(result, elapsed_nanoseconds);
     }

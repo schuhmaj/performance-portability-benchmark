@@ -1,3 +1,4 @@
+#include "common/Marker.h"
 #include "Impl_HipNaive.h"
 
 namespace ppb {
@@ -43,9 +44,16 @@ namespace ppb {
 
         hipMemcpyAsync(devA, a.data(), sizeA, hipMemcpyHostToDevice, stream);
         hipMemcpyAsync(devB, b.data(), sizeB, hipMemcpyHostToDevice, stream);
+        PPB_MARKER_GPU_START("matmul");
         hipEventRecord(start, stream);
         matrixMultiplicationHip<<<gridSize, blockSize, 0, stream>>>(devA, devB, devC, config.m, config.n, config.k);
         hipEventRecord(stop, stream);
+#ifdef PPB_MARKER_SYNC_REGION
+        // The launch is asynchronous, but the marker reads the GPU counters when
+        // the region closes, so the kernel has to have finished by then.
+        hipStreamSynchronize(stream);
+#endif
+        PPB_MARKER_GPU_STOP("matmul");
         std::vector<FloatType> result(config.m * config.n, 0.0);
         hipMemcpyAsync(result.data(), devC, sizeC, hipMemcpyDeviceToHost, stream);
 

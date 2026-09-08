@@ -1,3 +1,4 @@
+#include "common/Marker.h"
 #include <memory>
 
 #include "polyhedralGravity/PolyhedralGravityDefinitions.h"
@@ -42,6 +43,7 @@ public:
 
     GravityModelResult evaluate(const Array3 &Point) override {
         if (!_initialized) init();
+        PPB_MARKER_GPU_SCOPE("evaluate");
 
         size_t face_count = _faces.size();
 #pragma acc parallel loop
@@ -291,6 +293,7 @@ public:
 
 private:
     void init() {
+        PPB_MARKER_GPU_SCOPE("init");
         size_t face_count = _faces.size();
 #pragma acc parallel loop
         for (size_t i = 0; i < face_count; ++i) {
