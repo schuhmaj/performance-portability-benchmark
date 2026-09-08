@@ -241,7 +241,7 @@ Drop `--dry-run` to actually run them, and add `-o "Results_NVIDIA_GH200"` to na
 ## Results and Reproduction
 
 The recorded raw measurements of the six GPUs of the study (NVIDIA RTX 3080/4060/5080 and GH200,
-AMD Instinct MI210, INTEL Data Center GPU Max 1550) are archived under [`results/`](results),
+AMD MI210, Intel GPU Max 1550) are archived under [`results/`](results),
 alongside CPU runs. [`results/README.md`](results/README.md) documents the
 exact commands that turn them into the published CSVs, code-complexity tables and plots, and how the
 roofline models are profiled with Nsight Compute.

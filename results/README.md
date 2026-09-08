@@ -32,7 +32,7 @@ them.
 From the build directory of the platform under test:
 
 ```bash
-ppbcc benchmark -p src -H "INTEL Data Center GPU Max 1550" \
+ppbcc benchmark -p src -H "Intel GPU Max 1550" \
   -r "vec_.*" "matMul_.*" "nbody_.*" "polyhedral_.*" -x ".*_cpp" --dry-run
 ```
 
@@ -57,8 +57,8 @@ Repeat for the remaining platforms:
 | `./nvidia-rtx4060` | `NVIDIA RTX4060` | `Results_NVIDIA_RTX4060` |
 | `./nvidia-rtx5080` | `NVIDIA RTX5080` | `Results_NVIDIA_RTX5080` |
 | `./nvidia-gh200` | `NVIDIA GH200` | `Results_NVIDIA_GH200` |
-| `./amd-mi210` | `AMD Instinct MI210` | `Results_AMD_Instinct_MI210` |
-| `./intel-data_center_gpu_max_1550` | `INTEL Data Center GPU Max 1550` | `Results_INTEL_Data_Center_GPU_Max_1550` |
+| `./amd-mi210` | `AMD MI210` | `Results_AMD_MI210` |
+| `./intel-data_center_gpu_max_1550` | `Intel GPU Max 1550` | `Results_Intel_GPU_Max_1550` |
 
 ## 3. Code complexity
 
@@ -88,32 +88,87 @@ inflating an aggregate.
 
 ## 4. Plots
 
-The combined charts (application efficiency, ꟼP over problem size, and ꟼP over complexity)
-need the code-complexity CSV from step 3:
+The combined charts (application efficiency, ꟼP over complexity, platform ranking, and ꟼP over
+problem size) need the code-complexity CSV from step 3:
 
 ```bash
 # N-body
 ppbcc p3analysis NBody ./Results_* --complexity ./code-complexity/code-complexity.csv -c combined \
-  --complexity-metric halstead-difficulty --additive --log-size \
+  --complexity-metric halstead-difficulty --normalize --log-complexity \
   --non-zero-pp -s avg -x "VerletLists|LinkedCells|Reduction" --remove-description -l \
   --export-to-csv --legend--vertical
 # Polyhedral gravity model
 ppbcc p3analysis Polyhedral ./Results_* --complexity ./code-complexity/code-complexity.csv -c combined \
-  --complexity-metric halstead-difficulty --additive --log-size \
+  --complexity-metric halstead-difficulty --normalize --log-complexity \
   --non-zero-pp --remove-description -s avg -l --export-to-csv
 # Matrix multiplication
 ppbcc p3analysis MatrixMultiplication ./Results_* --complexity ./code-complexity/code-complexity.csv -c combined \
-  --complexity-metric halstead-difficulty --additive --log-size \
+  --complexity-metric halstead-difficulty --normalize --log-complexity \
   --non-zero-pp --remove-description -s avg -x "Cublas" -l --export-to-csv
 # Vector addition
 ppbcc p3analysis VecAdd ./Results_* --complexity ./code-complexity/code-complexity.csv -c combined \
-  --complexity-metric halstead-difficulty --additive --log-size \
+  --complexity-metric halstead-difficulty --normalize --log-complexity \
   --non-zero-pp --remove-description -s avg -x "Cublas" -l --export-to-csv
 ```
 
+`--normalize` replaces the `--additive` these charts used before. Expressing complexity as a
+percentage of the sequential C++ baseline keeps every value positive, which is what makes
+`--log-complexity` usable — and the log axis is what the polyhedral chart needs, because its two
+CUDA implementations sit at roughly 500 % of the baseline and squeeze the other twelve paradigms
+into the left quarter of a linear axis. Ranking is unaffected either way: both options apply the
+same transform to every paradigm.
+
 > [!NOTE]
-> `--log-complexity` is deliberately omitted: with `--additive`, matrix multiplication yields
-> non-positive complexity values, which a logarithmic axis cannot show.
+> The lower-right panel is a **heatmap** over the benchmark sizes, one row per implementation and
+> one column per size, and no longer a line plot: with fourteen implementations the lines
+> overlapped to the point of being unreadable. Its rows keep the descending-ꟼP order of the
+> platform-ranking panel to its left, so the two lower panels line up row for row and the paradigm
+> labels are not repeated. `--log-size` is therefore obsolete — the axis is categorical — and is
+> accepted but ignored, with a warning.
+>
+> Its column labels use exponents whenever every benchmark size is an exact power of the same
+> base: `2^5 … 2^14` for matrix multiplication and `10^1 … 10^8` for N-body and vector addition.
+> That is short enough to carry the same font size as the cells themselves. The polyhedral meshes
+> (2780, 12796, …) are no such sweep and keep decimal labels at a smaller size, because upright
+> labels that long would otherwise grow the figure's bounding box.
+
+### 4.1 SLOC against Halstead difficulty
+
+`-c complexity-comparison` plots two complexity metrics against each other, one marker per
+paradigm, with the identity line drawn in: above it the y metric charges a paradigm more than the
+x metric does — *dense vocabulary* — and below it the x metric charges more — *verbose code*. Both
+axes are relative to the sequential C++ baseline, which is what makes the identity line meaningful,
+so the chart always normalizes and rejects `--additive`.
+
+```bash
+# Vector addition
+ppbcc p3analysis VecAdd ./Results_* --complexity ./code-complexity/code-complexity.csv \
+  -c complexity-comparison --complexity-metric halstead-difficulty --compare-metric sloc \
+  --log-complexity --non-zero-pp -s avg -x "Cublas" --remove-description -l
+# Matrix multiplication
+ppbcc p3analysis MatrixMultiplication ./Results_* --complexity ./code-complexity/code-complexity.csv \
+  -c complexity-comparison --complexity-metric halstead-difficulty --compare-metric sloc \
+  --log-complexity --non-zero-pp -s avg -x "Cublas" --remove-description -l
+# N-body
+ppbcc p3analysis NBody ./Results_* --complexity ./code-complexity/code-complexity.csv \
+  -c complexity-comparison --complexity-metric halstead-difficulty --compare-metric sloc \
+  --log-complexity --non-zero-pp -s avg -x "VerletLists|LinkedCells|Reduction" \
+  --remove-description -l
+# Polyhedral gravity model
+ppbcc p3analysis Polyhedral ./Results_* --complexity ./code-complexity/code-complexity.csv \
+  -c complexity-comparison --complexity-metric halstead-difficulty --compare-metric sloc \
+  --log-complexity --non-zero-pp -s avg --remove-description -l
+```
+
+`--compare-metric` names the x-axis metric and `--complexity-metric` the y-axis one; both accept
+the same names and aliases as everywhere else. `-l` suppresses the in-plot legend *and* the
+per-point paradigm labels, because the paper keys these charts to the shared vertical legend of
+step 4; drop it to get a self-contained chart with both.
+
+Spearman's rho and Kendall's tau are **not** drawn by default — they belong in the running text,
+where they can be discussed. `--legend-complexity-comparison-coefficients` boxes them in the
+top-right corner; with points hugging the identity line that corner is not always empty, so the
+box is drawn *under* the markers and may sit behind one.
 
 The boxplots need no complexity data and use `-s all` instead of `-s avg`:
 
