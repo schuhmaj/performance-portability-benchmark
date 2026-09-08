@@ -218,10 +218,6 @@ namespace ppb::cuda::nbody {
         if (starts != nullptr) CHECK_CUDA_ERROR(cudaFree(starts));
         CHECK_CUDA_ERROR(cudaMalloc(&starts, sizeof(int) * (size_clusters / M + 1)));
         CHECK_CUDA_ERROR(cudaMemset(starts, 0, sizeof(int) * (size_clusters / M + 1)));
-
-/*         printStartsTowers<<<1,1>>>(starts_towers, num_towers);
-        printClusters<<<1,1>>>(clusters, size_clusters);
-        printBB<<<1,1>>>(BBM, size_clusters / M); */
         
         // Allocate 'cluster_pairs' by first getting its size
         size_t _blockSizePairSearch = 1024;
@@ -242,7 +238,6 @@ namespace ppb::cuda::nbody {
 #else        
         cluster_pair_search_optimized<<<util::ceilDiv(size_clusters / M, _blockSizePairSearch), _blockSizePairSearch>>>(BBM, BBN, false, cluster_pairs, starts, starts_towers, clusters, _particles->positions, tower_size, size_clusters);
 #endif
-    /*         printPairList<<<1,1>>>(starts, size_clusters / M, cluster_pairs, size_cluster_pairs); */
     }
 
     template<typename FloatType>
@@ -279,11 +274,6 @@ namespace ppb::cuda::nbody {
             thrust::inclusive_scan(thrust::device, starts_LC, starts_LC + (num_cells + 1), starts_LC);  
             update_cells<<<_gridSize, _blockSize>>>(cells, tmp, cell_offsets, starts_LC, position);
             
-/*             int oldBlockSize = _blockSize;
-            int oldGridSize = _gridSize;
-            _blockSize = 1024;
-            _gridSize = util::ceilDiv<size_t>(size, _blockSize);
-             */
             get_number_of_neighbors_LC_OPT<<<_gridSize, _blockSize>>>(starts, position, starts_LC, cells);
             thrust::inclusive_scan(thrust::device, starts, starts + (size + 1), starts);
             size_t num_neighbors = 0;
@@ -292,16 +282,7 @@ namespace ppb::cuda::nbody {
                 CHECK_CUDA_ERROR(cudaMalloc(&verletLists, sizeof(int) * num_neighbors));
                 make_verlet_lists_LC_OPT<<<_gridSize, _blockSize>>>(verletLists, starts, position, starts_LC, cells);
             }
-/* 
-            _blockSize = oldBlockSize;
-            _gridSize = oldGridSize; */
 #else
-/*             int oldBlockSize = _blockSize;
-            int oldGridSize = _gridSize;
-
-            _blockSize = 128;
-            _gridSize = util::ceilDiv<size_t>(size, _blockSize); */
-
             if (verletLists != nullptr) {
                 CHECK_CUDA_ERROR(cudaFree(verletLists));
             }
@@ -313,9 +294,6 @@ namespace ppb::cuda::nbody {
                 CHECK_CUDA_ERROR(cudaMalloc(&verletLists, sizeof(int) * num_neighbors));
                 make_verlet_lists<<<_gridSize, _blockSize>>>(verletLists, starts, position);
             }
-/* 
-            _blockSize = oldBlockSize;
-            _gridSize = oldGridSize; */
 #endif
         }
         CHECK_CUDA_ERROR(cudaEventRecord(stop));
@@ -339,19 +317,10 @@ namespace ppb::cuda::nbody {
 
         CHECK_CUDA_ERROR(cudaEventRecord(start));
 #if defined PPB_ENABLE_CUDA_VERLET_CLUSTER_LISTS || defined PPB_ENABLE_CUDA_VERLET_CLUSTER_LISTS_OPT
-/*         _blockSizeForces = 1024; */
         int _gridSizeForces = util::ceilDiv<int>(4 * size_clusters, _blockSizeForces);
         compute_force_cluster_lists<<<_gridSizeForces, _blockSizeForces>>>(position, force, clusters, cluster_pairs, starts, size_clusters);
 #else
-/*             int oldBlockSize = _blockSize;
-            int oldGridSize = _gridSize;
-            _blockSize = 1024;
-            _gridSize = util::ceilDiv<size_t>(size, _blockSize);
- */
         compute_forces<<<_gridSize, _blockSize>>>(position, force, verletLists, starts);
-/* 
-            _blockSize = oldBlockSize;
-            _gridSize = oldGridSize; */
 #endif 
         CHECK_CUDA_ERROR(cudaEventRecord(stop));
 
@@ -390,17 +359,9 @@ namespace ppb::cuda::nbody {
         _particles.emplace(particles);
 
         for (iteration = 0; iteration < _config.numberTimeSteps; ++iteration) {
-/*             std::cout<<"-----------------------ITERATION "<<iteration<<"--------------------------"<<std::endl; */
             updatePositionsAndResetForce();
             computeForces();
             updateVelocities();
-/*             int j = 0;
-            for (auto& p : _particles->toParticles()) {
-                if (j == 0) {
-                    std::cout<<p<<std::endl;
-                }
-                j++;
-            } */
         }
         return std::make_pair(_particles->toParticles(), _timings);
     }

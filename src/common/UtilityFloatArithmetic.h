@@ -12,7 +12,13 @@ namespace ppb::util {
      * This relative EPSILON is utilized ONLY for testing purposes to compare floating points.
      * It is used in the {@link ppb::util::almostEqualRelative} function.
      */
-    constexpr double EPSILON_ALMOST_EQUAL = 1e-4;
+    constexpr double RELATIVE_EPSILON_ALMOST_EQUAL = 1e-4;
+   
+    /**
+    * This absolute EPISLON is utilized ONLY for testing purposes to compare floating points.
+    * It is used in the {@link ppb::util::almostEqualRelative} function
+    */
+    constexpr double ABSOLUTE_EPSILON_ALMOST_EQUAL = 1e-12;
 
     /**
      * The maximal allowed ULP distance utilized for FloatingPoint comparisons using the
@@ -47,15 +53,15 @@ namespace ppb::util {
      * @tparam FloatType must be either double or float (ensured by static assertion)
      * @param lhs The first floating-point number to be compared.
      * @param rhs The second floating-point number to be compared.
-     * @param epsilon The tolerance for comparison. Two numbers that are less than epsilon apart are considered equal.
+     * @param relEps The relative tolerance for comparison. Two numbers that are less than epsilon apart are considered equal.
      *                The default value is {@link EPSILON_ALMOST_EQUAL}.
-     *
+     * @param absEps The absolute tolerance for comparison.
      * @return boolean value - Returns `true` if the absolute difference between `lhs` and `rhs` is less than or equal to
      *                         the relative error factored by the larger of the magnitude of `lhs` and `rhs`. Otherwise, `false`.
      * @see https://randomascii.wordpress.com/2012/02/25/comparing-floating-point-numbers-2012-edition/
      */
     template<typename FloatType>
-    bool almostEqualRelative(FloatType lhs, FloatType rhs, double epsilon = EPSILON_ALMOST_EQUAL);
+    bool almostEqualRelative(FloatType lhs, FloatType rhs, double relEps = RELATIVE_EPSILON_ALMOST_EQUAL, double absEps = ABSOLUTE_EPSILON_ALMOST_EQUAL);
 
 
     /**

@@ -124,10 +124,6 @@ namespace ppb::cuda::nbody {
                 const float dr2 = dot3(dr, dr);
                 if (dr2 >= CUTOFF_RADIUS_SQUARED) continue;
                
-/*                 if (i == 0 || j == 0) {
-                    printf("Thread %u: %u <-> %lu, offset: %lu, start: %lu, end: %lu, X_DIM: %d, Y_DIM: %d, Z_DIM: %d\n", i, i, j, offset, start, end, X_DIM, Y_DIM, Z_DIM);
-                } */
-                
                 const float sigma = 1.0f;
                 const float sigmaSquared = sigma * sigma;
                 const float epsilon24 = 24.0f; // 1.0 * 24.0
@@ -260,10 +256,6 @@ namespace ppb::cuda::nbody {
                     // = here too because this way we never get into a race condition with another cell of the same color
                     if (dr2 >= CUTOFF_RADIUS_SQUARED) continue;
 
-/*                 if (i == 0 || j == 0) {
-                    printf("Thread %u: %d (Cell: %d) <-> %d (Cell: %d)\n", t_id, i, idx - offset, j, idx);
-                } */
-
                     const float sigma = 1.0f;
                     const float sigmaSquared = sigma * sigma;
                     const float epsilon24 = 24.0f; // 1.0 * 24.0
@@ -304,10 +296,6 @@ namespace ppb::cuda::nbody {
 
                     // = here too because this way we never get into a race condition with another cell of the same color
                     if (dr2 >= CUTOFF_RADIUS_SQUARED) continue;
-                
-/*                     if (ci == 0 || cj == 0) {
-                        printf("Thread %u: NON BASE CELL %d (Cell: %d) <-> %d (Cell: %d)\n", t_id, ci, cell_i, cj, cell_j);
-                    } */
 
                     const float sigma = 1.0f;
                     const float sigmaSquared = sigma * sigma;
@@ -474,9 +462,6 @@ namespace ppb::cuda::nbody {
             }
             __syncthreads(); //maybe unnecessary?       
 
-
-/*             printf("Thread %u: c = %d, o = %d\n", i, c, o); */
-
             //Iterate over all 27 neighbor cells
             for (; current_offset < 27; current_offset++) {
                 //Determine the next cell that will be loaded (in chunks) into shared memory
@@ -531,7 +516,6 @@ namespace ppb::cuda::nbody {
                     }
                     __syncthreads();
 
-/*                 printf("Thread %u: co - o: %d, current_size: %d, c: %d, o: %d\n", i, co-o, current_size, c, o); */
                     if (co - o >= current_size) break; //check if we're done with this cell
                 }
             }

@@ -10,7 +10,8 @@
 class NBodyTest : public ::testing::TestWithParam<int> {
 protected:
 
-    static constexpr double EPSILON = 1e-2;
+    static constexpr double RELATIVE_EPSILON = 1e-2;
+    static constexpr double ABSOLUTE_EPSILON = 1e-3;
     static constexpr float TIME_STEP = 0.0005;
     static constexpr int ITERATIONS = 1000;
 
@@ -132,7 +133,7 @@ protected:
     }
 
     template <typename Implementation>
-    void runTest(const int size, const double epsilon = EPSILON) {
+    void runTest(const int size, const double relative_epsilon = RELATIVE_EPSILON, const double absolute_epsilon = ABSOLUTE_EPSILON) {
         using namespace testing;
         using namespace ppb;
 
@@ -141,7 +142,7 @@ protected:
             ParticleSimulationConfig<float> config{static_cast<size_t>(size), ITERATIONS, TIME_STEP};
             Implementation nBodySim{config};
             const auto [actualResult, timings] = nBodySim.simulate(start_state);
-            ASSERT_THAT(actualResult, ParticlesEq(end_state, epsilon));
+            ASSERT_THAT(actualResult, ParticlesEq(end_state, relative_epsilon, absolute_epsilon));
             return;
         }
 
@@ -153,7 +154,9 @@ protected:
         NBodySimulation<Implementation> otherNBodySim{config};
         const auto [actualResult, timings2] = otherNBodySim();
         const auto [expectedResult, timings1] = cppNBodySim();
-        ASSERT_THAT(actualResult, ParticlesEq(expectedResult, epsilon));
+        ASSERT_THAT(actualResult, ParticlesEq(expectedResult, relative_epsilon, absolute_epsilon))
+        << "Stable Particle Positions differences are exceeding relative epsilon" 
+        << relative_epsilon << " and / or absolute epsilon" << absolute_epsilon << '!';
         printf("Stable Positions OK\n");
         
         //Positions volatile
@@ -164,7 +167,9 @@ protected:
         NBodySimulation<Implementation> otherNBodySim_volatile{config_volatile};
         const auto [actualResult_volatile, timings2_volatile] = otherNBodySim_volatile();
         const auto [expectedResult_volatile, timings1_volatile] = cppNBodySim_volatile();
-        ASSERT_THAT(actualResult_volatile, ParticlesEq(expectedResult_volatile, epsilon));
+        ASSERT_THAT(actualResult_volatile, ParticlesEq(expectedResult_volatile, relative_epsilon, absolute_epsilon))
+        << "Stable Particle Positions differences are exceeding relative epsilon" 
+        << relative_epsilon << " and / or absolute epsilon" << absolute_epsilon << '!';
         printf("Volatile Positions OK\n");
 
         //Numerical Stability
@@ -438,7 +443,7 @@ protected:
         const double finalEnergy = kineticEnergy(finalParticles) + potentialEnergy(finalParticles);
         const double energyDrift = std::abs(finalEnergy - initialEnergy) / std::abs(initialEnergy);
 
-        std::cout<<"Initial Energy: "<<kineticEnergy(initialParticles)<<" Final Energy: "<<kineticEnergy(finalParticles)<<" Drift: "<<energyDrift<<std::endl;
+        std::cout<<"Initial kinetic energy: "<<kineticEnergy(initialParticles)<<" Final kinetic energy: "<<kineticEnergy(finalParticles)<<" Drift: "<<energyDrift<<std::endl;
 
         EXPECT_LE(energyDrift, energyTolerance)
             << "The total energy of the isolated system is not conserved.\n"

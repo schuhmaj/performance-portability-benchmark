@@ -163,7 +163,6 @@ namespace ppb::cuda::nbody {
         CHECK_CUDA_ERROR(cudaEventCreate(&start));
         CHECK_CUDA_ERROR(cudaEventCreate(&stop));
         CHECK_CUDA_ERROR(cudaEventRecord(start));
-        //printStartsCells<<<1,1>>>(starts, cells, cells_positions);
 #ifdef PPB_ENABLE_CUDA_DOMAIN_COLORING
         for (size_t color = 0; color < 8; color++) 
             compute_forces_colored<<<_gridSizeForces, _blockSizeForces>>>(color, position, force, cells, starts); 
@@ -214,17 +213,9 @@ namespace ppb::cuda::nbody {
         _particles.emplace(particles);
 
         for (int i = 0; i < _config.numberTimeSteps; ++i) {
-/*             std::cout<<"-------------------------ITERATION "<<i<<"--------------------------"<<std::endl; */
             updatePositionsAndResetForce();
             computeForces();
             updateVelocities();
-/*              int j = 0;
-            for (auto& p : _particles->toParticles()) {
-                if (j == 0) {
-                    std::cout<<p<<std::endl;
-                }
-                j++;
-            } */
         }
         return std::make_pair(_particles->toParticles(), _timings);
     }

@@ -345,7 +345,6 @@ namespace ppb::cuda::nbody {
                 if (count) {
                     starts[i + 1]++;
                 } else {           
-                    //printf("Thread %u: Adding cluster with id %d to cluster_pairs at %d\n", i, j/4, base_pair_idx + pair_idx);         
                     cluster_pairs[base_pair_idx + pair_idx] = j_cluster;
                     pair_idx++;
                 }
@@ -376,15 +375,12 @@ namespace ppb::cuda::nbody {
         int base_pair_idx = starts[i]; //assuming an inclusive scan was done on starts beforehand!
         int x_dim = util::ceilDiv((BOX_MAX[0] - BOX_MIN[0]), grid_size);
         int y_dim = util::ceilDiv((BOX_MAX[1] - BOX_MIN[1]), grid_size);
-/*         printf("x_dim: %d, y_dim: %d\n", x_dim, y_dim); */
 
         //IMPORTANT: This code (and all the other Verlet Cluster Lists related code) assumes that i-clusters have size 8!
         int tower = get_tower_id(clusters[8 * i], positions, grid_size);
         int tower_x = tower % x_dim;
         int tower_y = tower / x_dim;
-
         int cluster_z = (8 * i) - starts_towers[tower];
-/*         printf("Thread %u: cluster_z = %d\n", i, cluster_z); */
         
         float interactionLength = CUTOFF_RADIUS + VERLET_SKIN;
         float interactionLengthSqr = interactionLength * interactionLength;
@@ -392,7 +388,6 @@ namespace ppb::cuda::nbody {
         int min_tower_y = clamp<int>(int(((BBM[i].lowerCorner.y - interactionLength) - BOX_MIN[1]) / grid_size), 0, y_dim - 1);
         int max_tower_x = clamp<int>(int(((BBM[i].upperCorner.x + interactionLength) - BOX_MIN[0]) / grid_size), 0, x_dim - 1);
         int max_tower_y = clamp<int>(int(((BBM[i].upperCorner.y + interactionLength) - BOX_MIN[1]) / grid_size), 0, y_dim - 1);
-/*         printf("BBM[%u]: min_x: %d, min_y: %d, max_x: %d, max_y: %d\n", i, min_tower_x, min_tower_y, max_tower_x, max_tower_y); */
 
         for (int neighbor_tower_x = min_tower_x; neighbor_tower_x <= max_tower_x; neighbor_tower_x++) {
             for (int neighbor_tower_y = min_tower_y; neighbor_tower_y <= max_tower_y; neighbor_tower_y++) {
@@ -409,7 +404,6 @@ namespace ppb::cuda::nbody {
                         if (count) {
                             starts[i + 1]++;
                         } else {           
-                            //printf("Thread %u: Adding cluster with id %d to cluster_pairs at %d\n", i, j/4, base_pair_idx + pair_idx);         
                             cluster_pairs[base_pair_idx + pair_idx] = j_cluster;
                             pair_idx++;
                         }
@@ -427,15 +421,10 @@ namespace ppb::cuda::nbody {
         float3& fi,
         float3* __restrict__ forces
     ) {
-/*         const unsigned int i = blockIdx.x * blockDim.x + threadIdx.x; */
         const float3 dr = make_float3_sub(i_particle, j_particle);
         const float dr2 = dot3(dr, dr);
 
         if (dr2 >= CUTOFF_RADIUS_SQUARED) return;
-
-/*         if (i_particle_idx == 1 || j_particle_idx == 1) {
-            printf("Thread %u: %d <-> %d", i, i_particle_idx, j_particle_idx);
-        } */
 
         const float sigma = 1.0f;
         const float sigmaSquared = sigma * sigma;

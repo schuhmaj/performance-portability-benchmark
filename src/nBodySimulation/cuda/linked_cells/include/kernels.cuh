@@ -202,6 +202,7 @@ namespace ppb::cuda::nbody {
 
     /**
     * @brief [SHARED MEMORY OPT] Updates the forces of the particles.
+    *        NOTE: Function may result in undefined behavior if compiled with -ffast-math or -ffinite-math-only
     * @param cell_positions A buffer that stores the positions of the sorted particles in 'cells'
     * @param forces The forces buffer. The i-th element is the force of the i-th particle
     * @param cells The cells buffer that the sorted particles are stored in 
@@ -217,7 +218,8 @@ namespace ppb::cuda::nbody {
     );
 
     /**
-    * @brief [SHARED MEMORY OPT ALT] Updates the forces of the particles.
+    * @brief [SHARED MEMORY OPT ALT] Updates the forces of the particles. 
+    *        NOTE: Function may result in undefined behavior if compiled with -ffast-math or -ffinite-math-only
     * @param cell_positions A buffer that stores the positions of the sorted particles in 'cells'
     * @param forces The forces buffer. The i-th element is the force of the i-th particle
     * @param cells The cells buffer that the sorted particles are stored in 
