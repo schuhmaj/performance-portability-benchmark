@@ -136,9 +136,9 @@ same transform to every paradigm.
 
 `-c complexity-comparison` plots two complexity metrics against each other, one marker per
 paradigm, with the identity line drawn in: above it the y metric charges a paradigm more than the
-x metric does — *dense vocabulary* — and below it the x metric charges more — *verbose code*. Both
-axes are relative to the sequential C++ baseline, which is what makes the identity line meaningful,
-so the chart always normalizes and rejects `--additive`.
+x metric does — *dense lines* — and below it the x metric charges more — *verbose code*. Both axes
+are relative to the sequential C++ baseline, which is what makes the identity line meaningful, so
+the chart always normalizes and rejects `--additive`.
 
 ```bash
 # Vector addition
@@ -165,10 +165,14 @@ the same names and aliases as everywhere else. `-l` suppresses the in-plot legen
 per-point paradigm labels, because the paper keys these charts to the shared vertical legend of
 step 4; drop it to get a self-contained chart with both.
 
+A key hanging from half height on the right states the absolute sequential C++ values behind the
+100 % of both axes, e.g. `SLOC = 715` and `D = 232.22` for N-body, so the figure can be read
+without the running text. It grows downwards into the lower-right corner, which the markers leave
+free. Charts spanning several problems have several baselines and so carry no key.
+
 Spearman's rho and Kendall's tau are **not** drawn by default — they belong in the running text,
-where they can be discussed. `--legend-complexity-comparison-coefficients` boxes them in the
-top-right corner; with points hugging the identity line that corner is not always empty, so the
-box is drawn *under* the markers and may sit behind one.
+where they can be discussed. `--legend-complexity-comparison-coefficients` appends them to that
+key instead of opening a second box.
 
 The boxplots need no complexity data and use `-s all` instead of `-s avg`:
 
