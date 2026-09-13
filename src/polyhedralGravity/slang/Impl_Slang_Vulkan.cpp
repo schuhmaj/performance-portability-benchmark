@@ -367,8 +367,6 @@ public:
         wrapper_.addBuffer(Vertices.size() * sizeof(VectorType4));
         wrapper_.addBuffer(Faces.size() * sizeof(glm::uvec4));
         wrapper_.addBuffer(Faces.size() * sizeof(VectorType4));
-        wrapper_.addBuffer(Faces.size() * 3 * sizeof(VectorType4));
-        wrapper_.addBuffer(Faces.size() * 3 * sizeof(VectorType4));
 
         wrapper_.addBuffer(Faces.size() * sizeof(Result));
 
@@ -391,6 +389,12 @@ public:
 
         uint32_t num_groups = (c.num_faces + 256 - 1) / 256;
 
+        // The shader accumulates into results[0], so it has to start from zero on every call
+        {
+            auto P = wrapper_._buffers[3].map<Result>();
+            P[0] = Result{};
+        }
+
         wrapper_.startCommandBuffer(*_pipeline_eval);
         wrapper_.addCommandPushConstants(c);
         wrapper_.submitAndWait(num_groups, 1, 1);
@@ -399,7 +403,7 @@ public:
         auto &[potential, acceleration, gradiometricTensor] = g_result;
 
         {
-            auto P2 = wrapper_._buffers[5].map<Result>();
+            auto P2 = wrapper_._buffers[3].map<Result>();
             auto r = P2[0];
 
             potential += r.res[3];

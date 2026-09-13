@@ -16,7 +16,7 @@ from pathlib import Path
 
 import pandas as pd
 from loguru import logger
-from ppbcc.code_complexity import AUTO_DIALECT_NAME, evaluate, save_csv
+from ppbcc.code_complexity import AUTO_DIALECT_NAME, Exclusions, evaluate, is_excluded_file, save_csv
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -37,7 +37,7 @@ SOURCE_SUFFIXES = {
     ".c", ".cc", ".cpp", ".cxx", ".c++",
     ".h", ".hh", ".hpp", ".hxx", ".h++", ".inl", ".inc", ".ipp",
     ".cu", ".cuh", ".hip", ".cl", ".comp", ".glsl", ".vert", ".frag",
-    ".geom", ".tesc", ".tese", ".slang", ".hlsl", ".wgsl", ".metal",
+    ".geom", ".tesc", ".tese", ".slang", ".hlsl", ".metal",
 }
 
 AGGREGATE_METRICS = (
@@ -47,6 +47,13 @@ AGGREGATE_METRICS = (
     "total_operators",
     "total_operands",
 )
+
+#: The profiling instrumentation is not part of any implementation: the region markers of
+#: common/Marker.h, the profiling mode of common/Profiling.h, and the conditionals on their switches
+#: are measured as if they had never been added, i.e. as the benchmark build compiles them.
+EXCLUDED_MACROS = (r"PPB_MARKER_\w+", "PPB_PROFILING", "PPB_ENABLE_LIKWID", "PPB_ENABLE_NVTX")
+EXCLUDED_HEADERS = ("common/Marker.h", "common/Profiling.h")
+EXCLUSIONS = Exclusions.create(EXCLUDED_MACROS, EXCLUDED_HEADERS)
 
 
 @dataclass(frozen=True)
@@ -248,7 +255,6 @@ def implementation_manifest(source: Path) -> tuple[Implementation, ...]:
         ("RAJA", "raja", "raja"),
         ("Stdpar", "stdpar", "stdpar"),
         ("Vulkan", "vulkan,glsl", "vulkan"),
-        ("WebGPU", "webgpu,wgsl", "webgpu"),
     )
     for framework, dialect, directory in poly_single:
         sources = list(files_below(source, f"polyhedralGravity/{directory}"))
@@ -277,7 +283,7 @@ def all_source_files(source: Path) -> tuple[Path, ...]:
     """Return every analysable source file below the source folder."""
     return tuple(
         path for path in sorted(source.rglob("*"))
-        if path.is_file() and path.suffix.lower() in SOURCE_SUFFIXES
+        if path.is_file() and path.suffix.lower() in SOURCE_SUFFIXES and not is_excluded_file(path, EXCLUSIONS)
     )
 
 
@@ -308,6 +314,8 @@ def local_dependencies(source: Path, seed_sources: tuple[str, ...]) -> tuple[Pat
             if not stripped.startswith("#include \""):
                 continue
             include = stripped.removeprefix("#include \"").split('"', 1)[0]
+            if EXCLUSIONS.is_excluded_header(include):
+                continue
             candidates = [path.parent / include, source / include]
             dependency = next((candidate.resolve() for candidate in candidates if candidate.is_file()), None)
             if dependency is None:
@@ -367,6 +375,8 @@ def describe(
 ) -> str:
     """Render the analysis about to run the way the CLI would spell it."""
     parts = ["code-complexity", *(reported_path(source, path) for path in sources)]
+    parts.extend(("--exclude-macro", *(f"'{macro}'" for macro in EXCLUDED_MACROS)))
+    parts.extend(("--exclude-header", *EXCLUDED_HEADERS))
     if dialect is not None:
         parts.extend(("--dialect", dialect))
     if aggregate:
@@ -391,6 +401,8 @@ def analyze(
         language_dialect=AUTO_DIALECT_NAME if dialect is None else dialect,
         metrics=list(AGGREGATE_METRICS) if aggregate else None,
         aggregate=aggregate,
+        exclude_macros=list(EXCLUDED_MACROS),
+        exclude_headers=list(EXCLUDED_HEADERS),
     )
 
 

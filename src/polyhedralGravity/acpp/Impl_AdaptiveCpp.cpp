@@ -38,8 +38,6 @@ public:
         _vertices_device = sycl::malloc_device<Array3>(numVertices, queue);
         _faces_device = sycl::malloc_device<IndexArray3>(numFaces, queue);
         _normals = sycl::malloc_device<Array3>(numFaces, queue);
-        _segmentVectors = sycl::malloc_device<Array3Triplet>(numFaces, queue);
-        _segmentNormals = sycl::malloc_device<Array3Triplet>(numFaces, queue);
         _result_device = sycl::malloc_device<GravityModelResultAcpp>(1, queue);
 
         queue.copy(_vertices.data(), _vertices_device, numVertices);
@@ -50,8 +48,6 @@ public:
         sycl::free(_vertices_device, queue);
         sycl::free(_faces_device, queue);
         sycl::free(_normals, queue);
-        sycl::free(_segmentVectors, queue);
-        sycl::free(_segmentNormals, queue);
         sycl::free(_result_device, queue);
     }
 
@@ -66,8 +62,6 @@ public:
         const Array3 *V = _vertices_device;
         const IndexArray3 *F = _faces_device;
         const Array3 *N = _normals;
-        const Array3Triplet *SV = _segmentVectors;
-        const Array3Triplet *SN = _segmentNormals;
 
         // The result buffer is allocated once (see constructor) and reused across
         // calls - allocating/freeing USM on every evaluate() is a heavyweight,
@@ -84,239 +78,141 @@ public:
 
              h.parallel_for(sycl::range<1>(numFaces), reduction, [=](const sycl::id<1> &id, auto &reducer) {
                  const size_t i = id[0];
-                 Array3Triplet face = {
+                 const Array3Triplet face = {
                          V[F[i][0]] - point,
                          V[F[i][1]] - point,
                          V[F[i][2]] - point};
+                 const Array3 planeUnitNormal = N[i];
 
-                 int planeNormalOrientation = sgn(dot(N[i], face[0]));
+                 // Recomputed rather than cached: three subtractions are cheaper than reading 36 more bytes per face
+                 const Array3Triplet segmentVectors = {face[1] - face[0], face[2] - face[1], face[0] - face[2]};
 
-                 HessianPlane hessianPlane{};
-                 {
-                     constexpr Array3 origin{0.0, 0.0, 0.0};
-                     const auto crossProduct = cross(face[0] - face[1], face[0] - face[2]);
-                     const auto res = crossProduct * (origin - face[0]);
-                     const auto d = res[0] + res[1] + res[2];
+                 // N_p is a unit vector, so N_p * v_0 is the signed distance of P to the plane and P' is N_p scaled by it
+                 const FloatType planeProjection = dot(planeUnitNormal, face[0]);
+                 const FloatType planeNormalOrientation = sgn(planeProjection);
+                 const FloatType planeDistance = std::abs(planeProjection);
+                 const Array3 orthogonalProjectionPointOnPlane = planeUnitNormal * planeProjection;
 
-                     hessianPlane = {crossProduct[0], crossProduct[1], crossProduct[2], d};
-                 }
-
-                 auto planeDistance = std::abs(hessianPlane.d / std::sqrt(
-                                                                        hessianPlane.a * hessianPlane.a + hessianPlane.b * hessianPlane.b +
-                                                                        hessianPlane.c * hessianPlane.c));
-
-                 Array3 orthogonalProjectionPointOnPlane = N[i] * planeDistance;
-                 {
-                     Array3 intersections = {hessianPlane.a == 0.0 ? static_cast<FloatType>(0.0) : hessianPlane.d / hessianPlane.a,
-                                             hessianPlane.b == 0.0 ? static_cast<FloatType>(0.0) : hessianPlane.d / hessianPlane.b,
-                                             hessianPlane.c == 0.0 ? static_cast<FloatType>(0.0) : hessianPlane.d / hessianPlane.c};
-
-                     for (unsigned int index = 0; index < 3; ++index) {
-                         if (intersections[index] < 0) {
-                             orthogonalProjectionPointOnPlane[index] = std::abs(orthogonalProjectionPointOnPlane[index]);
-                         } else {
-                             if (orthogonalProjectionPointOnPlane[index] > 0) {
-                                 orthogonalProjectionPointOnPlane[index] = -1.0 * orthogonalProjectionPointOnPlane[index];
-                             } else {
-                                 orthogonalProjectionPointOnPlane[index] = orthogonalProjectionPointOnPlane[index];
-                             }
-                         }
-                     }
-                 }
-
-                 std::array<int, 3> segmentNormalOrientations{};
-                 for (unsigned int index = 0; index < 3; ++index) {
-                     segmentNormalOrientations[index] = -sgn(
-                             dot(SN[i][index], orthogonalProjectionPointOnPlane - face[index]));
-                 }
-
-                 Array3Triplet orthogonalProjectionPointsOnSegmentsForPlane{};
-                 for (unsigned int index = 0; index < 3; ++index) {
-                     if (segmentNormalOrientations[index] == 0) {
-                         orthogonalProjectionPointsOnSegmentsForPlane[index] = orthogonalProjectionPointOnPlane;
-                     } else {
-                         const auto &vertex1 = face[index];
-                         const auto &vertex2 = face[(index + 1) % 3];
-
-                         const Array3 matrixRow1 = vertex2 - vertex1;
-                         const Array3 matrixRow2 = cross(vertex1 - orthogonalProjectionPointOnPlane, matrixRow1);
-                         const Array3 matrixRow3 = cross(matrixRow2, matrixRow1);
-                         const Array3 d = {dot(matrixRow1, orthogonalProjectionPointOnPlane),
-                                           dot(matrixRow2, orthogonalProjectionPointOnPlane), dot(matrixRow3, vertex1)};
-                         Matrix columnMatrix = transpose({matrixRow1, matrixRow2, matrixRow3});
-
-                         const auto determinant = det(columnMatrix);
-                         if (determinant != 0.0) {
-                             orthogonalProjectionPointsOnSegmentsForPlane[index] =
-                                     Array3{det(Matrix{d, columnMatrix[1], columnMatrix[2]}),
-                                            det(Matrix{columnMatrix[0], d, columnMatrix[2]}),
-                                            det(Matrix{columnMatrix[0], columnMatrix[1], d})} /
-                                     determinant;
-                         }
-                     }
-                 }
-
+                 // sigma_pq, h_pq, l1, l2, s1, s2 and |P' - v_q| follow from projecting P' - v_q onto n_pq and onto G_pq
+                 const Array3 vertexNorms = {euclideanNorm(face[0]), euclideanNorm(face[1]), euclideanNorm(face[2])};
+                 Array3Triplet segmentUnitNormals{};
+                 Array3 segmentNormalOrientations{};
                  Array3 segmentDistances{};
-                 for (unsigned int index = 0; index < 3; ++index) {
-                     segmentDistances[index] = euclideanNorm(
-                             orthogonalProjectionPointsOnSegmentsForPlane[index] - orthogonalProjectionPointOnPlane);
-                 }
-
+                 Array3 projectionPointVertexNorms{};
                  std::array<Distance, 3> distances{};
                  for (unsigned int index = 0; index < 3; ++index) {
-                     distances[index].l1 = euclideanNorm(face[index]);
-                     distances[index].l2 = euclideanNorm(face[(index + 1) % 3]);
+                     const Array3 relativeProjectionPoint = orthogonalProjectionPointOnPlane - face[index];
+                     projectionPointVertexNorms[index] = euclideanNorm(relativeProjectionPoint);
 
-                     distances[index].s1 = euclideanNorm(orthogonalProjectionPointsOnSegmentsForPlane[index] - face[index]);
-                     distances[index].s2 = euclideanNorm(
-                             orthogonalProjectionPointsOnSegmentsForPlane[index] - face[(index + 1) % 3]);
+                     // n_pq is normalized by |G_pq|, which is |G_pq x N_p| since N_p is a unit vector perpendicular to G_pq
+                     const FloatType squaredSegmentNorm = dot(segmentVectors[index], segmentVectors[index]);
+                     const FloatType inverseSegmentNorm = 1 / std::sqrt(squaredSegmentNorm);
+                     const FloatType segmentNorm = squaredSegmentNorm * inverseSegmentNorm;
+                     segmentUnitNormals[index] = cross(segmentVectors[index], planeUnitNormal) * inverseSegmentNorm;
 
-                     if (std::abs(distances[index].s1 - distances[index].l1) < EPSILON_ZERO_OFFSET &&
-                         std::abs(distances[index].s2 - distances[index].l2) < EPSILON_ZERO_OFFSET) {
-                         if (distances[index].s2 < distances[index].s1) {
-                             distances[index].s1 *= -1.0;
-                             distances[index].s2 *= -1.0;
-                             distances[index].l1 *= -1.0;
-                             distances[index].l2 *= -1.0;
-                         } else if (std::abs(distances[index].s2 - distances[index].s1) < EPSILON_ZERO_OFFSET) {
-                             distances[index].s1 *= -1.0;
-                             distances[index].l1 *= -1.0;
-                         }
-                     } else {
-                         const auto norm = euclideanNorm(SV[i][index]);
-                         if (distances[index].s1 < norm && distances[index].s2 < norm) {
-                             distances[index].s1 *= -1.0;
-                         } else if (distances[index].s2 < distances[index].s1) {
-                             distances[index].s1 *= -1.0;
-                             distances[index].s2 *= -1.0;
-                         }
+                     const FloatType normalProjection = dot(segmentUnitNormals[index], relativeProjectionPoint);
+                     segmentNormalOrientations[index] = -sgn(normalProjection);
+                     segmentDistances[index] = std::abs(normalProjection);
+
+                     const FloatType alongSegment = dot(relativeProjectionPoint, segmentVectors[index]) * inverseSegmentNorm;
+                     Distance &distance = distances[index];
+                     distance.l1 = vertexNorms[index];
+                     distance.l2 = vertexNorms[(index + 1) % 3];
+                     distance.s1 = std::abs(alongSegment);
+                     distance.s2 = std::abs(alongSegment - segmentNorm);
+
+                     // The 1., 2. and 3. Option of Tsoulis (2021) all amount to s1 = -u and s2 = |G_pq| - u
+                     if (std::abs(distance.s1 - distance.l1) >= EPSILON_ZERO || std::abs(distance.s2 - distance.l2) >= EPSILON_ZERO) {
+                         distance.s1 = -alongSegment;
+                         distance.s2 = segmentNorm - alongSegment;
+                     } else if (distance.s2 < distance.s1) {
+                         distance.s1 = -distance.s1;
+                         distance.s2 = -distance.s2;
+                         distance.l1 = -distance.l1;
+                         distance.l2 = -distance.l2;
+                     } else if (std::abs(distance.s2 - distance.s1) < EPSILON_ZERO) {
+                         distance.s1 = -distance.s1;
+                         distance.l1 = -distance.l1;
                      }
                  }
 
-                 Array3 projectionPointVertexNorms{
-                         euclideanNorm(orthogonalProjectionPointOnPlane - face[0]),
-                         euclideanNorm(orthogonalProjectionPointOnPlane - face[1]),
-                         euclideanNorm(orthogonalProjectionPointOnPlane - face[2]),
-                 };
+                 // Both transcendental expressions are evaluated unconditionally and then selected
                  std::array<TranscendentalExpression, 3> transcendentalExpressions{};
                  for (unsigned int index = 0; index < 3; ++index) {
-                     const auto r1Norm = projectionPointVertexNorms[(index + 1) % 3];
-                     const auto r2Norm = projectionPointVertexNorms[index];
+                     const Distance &distance = distances[index];
+                     const FloatType r1Norm = projectionPointVertexNorms[(index + 1) % 3];
+                     const FloatType r2Norm = projectionPointVertexNorms[index];
 
-                     if ((segmentNormalOrientations[index] == 0 &&
-                          (r1Norm < EPSILON_ZERO_OFFSET || r2Norm < EPSILON_ZERO_OFFSET)) ||
-                         (std::abs(distances[index].s1 + distances[index].s2) < EPSILON_ZERO_OFFSET &&
-                          std::abs(distances[index].l1 + distances[index].l2) < EPSILON_ZERO_OFFSET)) {
-                         transcendentalExpressions[index].ln = 0.0;
-                     } else {
-                         FloatType inner_num = distances[index].s2 + distances[index].l2;
-                         FloatType inner_denom = distances[index].s1 + distances[index].l1;
+                     const bool logarithmVanishes =
+                             (segmentNormalOrientations[index] == 0 && (r1Norm < EPSILON_ZERO || r2Norm < EPSILON_ZERO)) ||
+                             (std::abs(distance.s1 + distance.s2) < EPSILON_ZERO && std::abs(distance.l1 + distance.l2) < EPSILON_ZERO);
+                     const FloatType logarithm = std::log((distance.s2 + distance.l2) / (distance.s1 + distance.l1));
+                     transcendentalExpressions[index].ln = logarithmVanishes ? 0 : logarithm;
 
-                         if (inner_num <= 0.0 || inner_denom <= 0.0) {
-                             transcendentalExpressions[index].ln = 0.0;
-                         } else {
-                             transcendentalExpressions[index].ln = std::log(inner_num / inner_denom);
-                         }
-                     }
-
-                     if (planeDistance < EPSILON_ZERO_OFFSET || segmentDistances[index] < EPSILON_ZERO_OFFSET) {
-                         transcendentalExpressions[index].an = 0.0;
-                     } else {
-                         FloatType frac1 =
-                                 (planeDistance * distances[index].s2) / (segmentDistances[index] * distances[index].l2);
-                         FloatType frac2 =
-                                 (planeDistance * distances[index].s1) / (segmentDistances[index] * distances[index].l1);
-
-                         transcendentalExpressions[index].an = std::atan(frac1) - std::atan(frac2);
-                     }
+                     // atan(x) - atan(y) = atan((x - y) / (1 + xy)), which misses a whole PI (with the sign of x) if 1 + xy < 0
+                     const bool arcTangentVanishes = planeDistance < EPSILON_ZERO || segmentDistances[index] < EPSILON_ZERO;
+                     const FloatType upper = (planeDistance * distance.s2) / (segmentDistances[index] * distance.l2);
+                     const FloatType lower = (planeDistance * distance.s1) / (segmentDistances[index] * distance.l1);
+                     const FloatType denominator = 1 + upper * lower;
+                     const FloatType branchOffset = denominator < 0 ? (upper < 0 ? -PI : PI) : 0;
+                     const FloatType arcTangent = std::atan((upper - lower) / denominator) + branchOffset;
+                     transcendentalExpressions[index].an = arcTangentVanishes ? 0 : arcTangent;
                  }
 
-                 Singularity singularities{};
-
-                 do {
-                     bool allInside = true;
-                     for (unsigned int index = 0; index < 3; ++index) {
-                         allInside &= segmentNormalOrientations[index] == 1;
+                 // The singularities are sing A = factor * h_p and sing B = factor * sigma_p * N_p in all four cases
+                 const bool allInside = segmentNormalOrientations[0] == 1 && segmentNormalOrientations[1] == 1 && segmentNormalOrientations[2] == 1;
+                 bool anyOnLine = false;
+                 bool anyAtVertex = false;
+                 unsigned int vertexSegment = 0;
+                 bool vertexIsSegmentEnd = false;
+                 for (unsigned int index = 0; index < 3; ++index) {
+                     if (segmentNormalOrientations[index] != 0) {
+                         continue;
                      }
-                     if (allInside) {
-                         singularities.a = -1.0 * PI2 * planeDistance;
-                         singularities.b = N[i] * (-1.0 * PI2 * planeNormalOrientation);
-                         break;
-                     }
+                     const FloatType r1Norm = projectionPointVertexNorms[(index + 1) % 3];
+                     const FloatType r2Norm = projectionPointVertexNorms[index];
+                     const FloatType squaredSegmentNorm = dot(segmentVectors[index], segmentVectors[index]);
+                     const bool atVertex = r1Norm < EPSILON_ZERO || r2Norm < EPSILON_ZERO;
+                     anyOnLine |= !atVertex && r1Norm * r1Norm < squaredSegmentNorm && r2Norm * r2Norm < squaredSegmentNorm;
+                     vertexSegment = anyAtVertex ? vertexSegment : index;
+                     vertexIsSegmentEnd = anyAtVertex ? vertexIsSegmentEnd : r1Norm < EPSILON_ZERO;
+                     anyAtVertex |= atVertex;
+                 }
+                 FloatType vertexAngle = 0;
+                 if (anyAtVertex) {
+                     const Array3 &g1 = vertexIsSegmentEnd ? segmentVectors[vertexSegment] : segmentVectors[(vertexSegment + 2) % 3];
+                     const Array3 &g2 = vertexIsSegmentEnd ? segmentVectors[(vertexSegment + 1) % 3] : segmentVectors[vertexSegment];
+                     const FloatType gdot = -dot(g1, g2);
+                     vertexAngle = gdot == 0 ? PI_2 : std::acos(gdot / (euclideanNorm(g1) * euclideanNorm(g2)));
+                 }
+                 const FloatType singularityFactor = allInside ? -PI2 : anyOnLine ? -PI : -vertexAngle;
+                 const Singularity singularities{singularityFactor * planeDistance, planeUnitNormal * (singularityFactor * planeNormalOrientation)};
 
-                     bool anyOnLine = false;
-                     for (unsigned int index = 0; index < 3; ++index) {
-                         if (segmentNormalOrientations[index] != 0) {
-                             continue;
-                         }
-                         const auto segmentVectorNorm = euclideanNorm(SV[i][index]);
-                         anyOnLine |= projectionPointVertexNorms[(index + 1) % 3] < segmentVectorNorm &&
-                                      projectionPointVertexNorms[index] < segmentVectorNorm;
-                     }
-
-                     if (anyOnLine) {
-                         singularities.a = -1.0 * PI * planeDistance;                  //sing alpha = -pi*h_p
-                         singularities.b = N[i] * (-1.0 * PI * planeNormalOrientation);//sing beta  = -pi*sigma_p*N_p
-                         break;
-                     }
-
-                     bool anyAtVertex = false;
-
-                     for (unsigned int index = 0; index < 3; ++index) {
-                         if (segmentNormalOrientations[index] != 0) {
-                             continue;
-                         }
-
-                         auto r1Norm = projectionPointVertexNorms[(index + 1) % 3];
-                         auto r2Norm = projectionPointVertexNorms[index];
-
-                         if (!(r1Norm < EPSILON_ZERO_OFFSET || r2Norm < EPSILON_ZERO_OFFSET)) {
-                             continue;
-                         }
-
-                         const Array3 &g1 = r1Norm == 0.0 ? SV[i][index] : SV[i][(index - 1 + 3) % 3];
-                         const Array3 &g2 = r1Norm == 0.0 ? SV[i][(index + 1) % 3] : SV[i][index];
-
-                         const FloatType gdot = dot(g1 * -1.0, g2);
-                         const FloatType theta = gdot == 0.0 ? PI_2 : std::acos(gdot / (euclideanNorm(g1) * euclideanNorm(g2)));
-
-                         singularities.a = -1.0 * theta * planeDistance;
-                         singularities.b = N[i] * (-1.0 * theta * planeNormalOrientation);
-                         anyAtVertex = true;
-                         break;
-                     }
-
-                     if (!anyAtVertex) {
-                         singularities.a = 0.0;
-                         singularities.b = {0.0, 0.0, 0.0};
-                     }
-                 } while (false);
-
-                 FloatType sum1PotentialAcceleration = 0.0;
+                 FloatType sum1PotentialAcceleration = 0;
                  for (unsigned int index = 0; index < 3; ++index)
                      sum1PotentialAcceleration += segmentNormalOrientations[index] * segmentDistances[index] *
                                                   transcendentalExpressions[index].ln;
 
-                 Array3 sum1Tensor{0.0, 0.0, 0.0};
+                 Array3 sum1Tensor{};
                  for (unsigned int index = 0; index < 3; ++index)
-                     sum1Tensor = sum1Tensor + SN[i][index] * transcendentalExpressions[index].ln;
+                     sum1Tensor = sum1Tensor + segmentUnitNormals[index] * transcendentalExpressions[index].ln;
 
-                 FloatType sum2 = 0.0;
+                 FloatType sum2 = 0;
                  for (unsigned int index = 0; index < 3; ++index)
                      sum2 += segmentNormalOrientations[index] * transcendentalExpressions[index].an;
 
                  const FloatType planeSumPotentialAcceleration =
                          sum1PotentialAcceleration + planeDistance * sum2 + singularities.a;
 
-                 const Array3 subSum = (sum1Tensor + (N[i] * (planeNormalOrientation * sum2))) + singularities.b;
+                 const Array3 subSum = (sum1Tensor + (planeUnitNormal * (planeNormalOrientation * sum2))) + singularities.b;
 
-                 const Array3 first = N[i] * subSum;
+                 const Array3 first = planeUnitNormal * subSum;
 
-                 const Array3 reorderedNp = {N[i][0], N[i][0], N[i][1]};
+                 const Array3 reorderedNp = {planeUnitNormal[0], planeUnitNormal[0], planeUnitNormal[1]};
                  const Array3 reorderedSubSum = {subSum[1], subSum[2], subSum[2]};
                  const Array3 second = reorderedNp * reorderedSubSum;
 
-                 const Array3 acc = N[i] * planeSumPotentialAcceleration;
+                 const Array3 acc = planeUnitNormal * planeSumPotentialAcceleration;
 
                  GravityModelResultAcpp r2{};
                  r2.data[0] = planeNormalOrientation * planeDistance * planeSumPotentialAcceleration;
@@ -364,23 +260,13 @@ private:
         const Array3 *V = _vertices_device;
         const IndexArray3 *F = _faces_device;
         Array3 *normals = _normals;
-        Array3Triplet *segmentVectors = _segmentVectors;
-        Array3Triplet *segmentNormals = _segmentNormals;
 
+        // The plane unit normals N_p are the only per-face property that is cached
         queue.submit([&](sycl::handler &h) {
              h.parallel_for(sycl::range<1>(numFaces), [=](const sycl::id<1> &id) {
                  const size_t i = id[0];
-                 Array3Triplet Face = {V[F[i][0]], V[F[i][1]], V[F[i][2]]};
-                 Array3Triplet SegV = {Face[1] - Face[0], Face[2] - Face[1], Face[0] - Face[2]};
-                 Array3 Normal = normal(SegV[0], SegV[1]);
-
-                 segmentVectors[i] = SegV;
-                 normals[i] = Normal;
-                 segmentNormals[i] = {
-                         normal(SegV[0], Normal),
-                         normal(SegV[1], Normal),
-                         normal(SegV[2], Normal),
-                 };
+                 const Array3Triplet face = {V[F[i][0]], V[F[i][1]], V[F[i][2]]};
+                 normals[i] = normal(face[1] - face[0], face[2] - face[1]);
              });
          }).wait();
 
@@ -393,8 +279,6 @@ private:
     IndexArray3 *_faces_device = nullptr;
 
     Array3 *_normals = nullptr;
-    Array3Triplet *_segmentVectors = nullptr;
-    Array3Triplet *_segmentNormals = nullptr;
 
     // Reused across evaluate() calls to avoid per-call USM allocation overhead.
     GravityModelResultAcpp *_result_device = nullptr;

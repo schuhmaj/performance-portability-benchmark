@@ -6,6 +6,7 @@
 #define FloatType3 double3
 #define FloatType4 double4
 #define FloatTypeM dmat3
+#define FLOAT_BITS 64
 #endif
 
 struct Result {
@@ -19,8 +20,6 @@ StructuredBuffer<FloatType3> vertices;
 StructuredBuffer<uvec3> faces;
 
 RWStructuredBuffer<FloatType3> normals;
-RWStructuredBuffer<FloatType3> segmentVectors;
-RWStructuredBuffer<FloatType3> segmentNormals;
 
 RWStructuredBuffer<Result> results;
 
@@ -44,30 +43,18 @@ struct TranscendentalExpression {
     FloatType an;
 };
 
-struct Singularity {
-    FloatType a;
-    FloatType3 b;
-};
-
-const FloatType EPSILON_ZERO_OFFSET = 1e-14;
 const FloatType PI = 3.1415926535897932384626433832795028841971693993751058209749445923;
 const FloatType PI2 = 6.2831853071795864769252867665590057683943387987502116419498891846;
 const FloatType PI_2 = 1.5707963267948966192313216916397514420985846996875529104874722961;
+// The radius around zero which is treated as zero: 1e-14 scaled to the resolution of FloatType
+#if FLOAT_BITS == 32
+const FloatType EPSILON_ZERO = 5.3687091e-6;
+#else
+const FloatType EPSILON_ZERO = 1e-14;
+#endif
 
-int sgn(FloatType val) {
-    return val < -EPSILON_ZERO_OFFSET ? -1 : val > EPSILON_ZERO_OFFSET ? 1 : 0;
-}
-
-FloatType3 normal(FloatType3 first, FloatType3 second) {
-    return normalize(cross(first, second));
-}
-
-FloatType custom_dot(FloatType3 lhs, FloatType3 rhs) {
-    return FloatType(FloatType(lhs.x) *  FloatType(rhs.x) + FloatType(lhs.y) * FloatType(rhs.y) + FloatType(lhs.z) * FloatType(rhs.z));
-}
-
-FloatType euclideanNorm(FloatType3 a) {
-    return FloatType(sqrt(custom_dot(a, a)));
+FloatType sgn(FloatType val) {
+    return val < -EPSILON_ZERO ? -1.0 : val > EPSILON_ZERO ? 1.0 : 0.0;
 }
 
 FloatType custom_log(FloatType x) {
@@ -94,62 +81,6 @@ FloatType custom_acos(FloatType x) {
     #endif
 }
 
-FloatType compute_singularities(
-    uint face_index,
-    ivec3 segmentNormalOrientations,
-    FloatType3 projectionPointVertexNorms,
-) {
-    bool allInside = true;
-    for (uint index = 0; index < 3; ++index) {
-        allInside &= segmentNormalOrientations[index] == 1;
-    }
-    if (allInside) return PI2;
-
-    bool anyOnLine = false;
-    for (uint index = 0; index < 3; ++index) {
-        if (segmentNormalOrientations[index] != 0) {
-            continue;
-        }
-        FloatType segmentVectorNorm = length(segmentVectors[face_index * 3 + index]);
-        anyOnLine |= projectionPointVertexNorms[(index + 1) % 3] < segmentVectorNorm && projectionPointVertexNorms[index] < segmentVectorNorm;
-    }
-
-    if (anyOnLine) {
-        return PI;
-    }
-
-    for (uint index = 0; index < 3; ++index) {
-        if (segmentNormalOrientations[index] != 0) {
-            continue;
-        }
-
-        FloatType r1Norm = projectionPointVertexNorms[(index + 1) % 3];
-        FloatType r2Norm = projectionPointVertexNorms[index];
-
-        if (!(r1Norm < EPSILON_ZERO_OFFSET || r2Norm < EPSILON_ZERO_OFFSET)) {
-            continue;
-        }
-
-        FloatType3 g1 = r1Norm == 0.0 ? segmentVectors[face_index * 3 + index] : segmentVectors[face_index * 3 + (index - 1 + 3) % 3];
-        FloatType3 g2 = r1Norm == 0.0 ? segmentVectors[face_index * 3 + (index + 1) % 3] : segmentVectors[face_index * 3 + index];
-
-        FloatType gdot = dot(g1 * -1.0, g2);
-        FloatType theta = gdot == 0.0 ? PI_2 : custom_acos(gdot / (length(g1) * length(g2)));
-        return theta;
-    }
-
-    return 0.0;
-}
-
-FloatType det_custom(FloatTypeM matrix) {
-    return matrix[0][0] * matrix[1][1] * matrix[2][2] +
-           matrix[0][1] * matrix[1][2] * matrix[2][0] +
-           matrix[0][2] * matrix[1][0] * matrix[2][1] -
-           matrix[0][2] * matrix[1][1] * matrix[2][0] -
-           matrix[0][0] * matrix[1][2] * matrix[2][1] -
-           matrix[0][1] * matrix[1][0] * matrix[2][2];
-}
-
 void do_init(uint index) {
     FloatType3 Face[3] = {
         vertices[faces[index][0]],
@@ -157,15 +88,8 @@ void do_init(uint index) {
         vertices[faces[index][2]]
     };
 
-    segmentVectors[index * 3 + 0] = Face[1] - Face[0];
-    segmentVectors[index * 3 + 1] = Face[2] - Face[1];
-    segmentVectors[index * 3 + 2] = Face[0] - Face[2];
-
-    normals[index] = normal(segmentVectors[index* 3 + 0], segmentVectors[index * 3 + 1]);
-
-    segmentNormals[index * 3 + 0] = normal(segmentVectors[index * 3 + 0], normals[index]);
-    segmentNormals[index * 3 + 1] = normal(segmentVectors[index * 3 + 1], normals[index]);
-    segmentNormals[index * 3 + 2] = normal(segmentVectors[index * 3 + 2], normals[index]);
+    // The plane unit normals N_p are the only per-face property that is cached
+    normals[index] = normalize(cross(Face[1] - Face[0], Face[2] - Face[1]));
 }
 
 [shader("compute")]
@@ -186,161 +110,113 @@ void computeMain(uint3 threadIdx : SV_DispatchThreadID, uint3 groupThreadIdx : S
         vertices[faces[face_index][1]] - params.point,
         vertices[faces[face_index][2]] - params.point
     };
+    FloatType3 planeUnitNormal = normals[face_index];
 
-    int planeNormalOrientation = sgn(dot(normals[face_index], face[0]));
+    // Recomputed rather than cached: three subtractions are cheaper than reading 36 more bytes per face
+    FloatType3 segmentVectors[3] = {face[1] - face[0], face[2] - face[1], face[0] - face[2]};
 
-    FloatType4 hessianPlane = {};
-    {
-        FloatType3 origin = {0.0, 0.0, 0.0};
-        FloatType3 crossP =  cross(face[0] - face[1], face[0] - face[2]);
-        FloatType3 res = (origin - face[0]) * crossP;
-        FloatType d = res.x + res.y + res.z;
+    // N_p is a unit vector, so N_p * v_0 is the signed distance of P to the plane and P' is N_p scaled by it
+    FloatType planeProjection = dot(planeUnitNormal, face[0]);
+    FloatType planeNormalOrientation = sgn(planeProjection);
+    FloatType planeDistance = abs(planeProjection);
+    FloatType3 orthogonalProjectionPointOnPlane = planeUnitNormal * planeProjection;
 
-        hessianPlane.xyz = crossP;
-        hessianPlane.w = d;
-    }
+    // sigma_pq, h_pq, l1, l2, s1, s2 and |P' - v_q| follow from projecting P' - v_q onto n_pq and onto G_pq
+    FloatType3 vertexNorms = {length(face[0]), length(face[1]), length(face[2])};
+    FloatType3 segmentUnitNormals[3];
+    FloatType3 segmentNormalOrientations = {};
+    FloatType3 segmentDistances = {};
+    FloatType3 projectionPointVertexNorms = {};
+    Distance distances[3];
+    for (uint index = 0; index < 3; ++index) {
+        FloatType3 relativeProjectionPoint = orthogonalProjectionPointOnPlane - face[index];
+        projectionPointVertexNorms[index] = length(relativeProjectionPoint);
 
+        // n_pq is normalized by |G_pq|, which is |G_pq x N_p| since N_p is a unit vector perpendicular to G_pq
+        FloatType squaredSegmentNorm = dot(segmentVectors[index], segmentVectors[index]);
+        FloatType inverseSegmentNorm = rsqrt(squaredSegmentNorm);
+        FloatType segmentNorm = squaredSegmentNorm * inverseSegmentNorm;
+        segmentUnitNormals[index] = cross(segmentVectors[index], planeUnitNormal) * inverseSegmentNorm;
 
-    FloatType planeDistance = abs(hessianPlane.w / sqrt(hessianPlane.x * hessianPlane.x + hessianPlane.y * hessianPlane.y + hessianPlane.z * hessianPlane.z));
-    FloatType3 orthogonalProjectionPointOnPlane = normals[face_index] * planeDistance;
+        FloatType normalProjection = dot(segmentUnitNormals[index], relativeProjectionPoint);
+        segmentNormalOrientations[index] = -sgn(normalProjection);
+        segmentDistances[index] = abs(normalProjection);
 
-    {
-        FloatType3 intersections = FloatType3(
-            hessianPlane.x == 0.0 ? 0.0 : hessianPlane.w / hessianPlane.x,
-            hessianPlane.y == 0.0 ? 0.0 : hessianPlane.w / hessianPlane.y,
-            hessianPlane.z == 0.0 ? 0.0 : hessianPlane.w / hessianPlane.z
-        );
+        FloatType alongSegment = dot(relativeProjectionPoint, segmentVectors[index]) * inverseSegmentNorm;
+        Distance distance;
+        distance.l1 = vertexNorms[index];
+        distance.l2 = vertexNorms[(index + 1) % 3];
+        distance.s1 = abs(alongSegment);
+        distance.s2 = abs(alongSegment - segmentNorm);
 
-        for (uint index = 0; index < 3; ++index) {
-            if (intersections[index] < 0) {
-                orthogonalProjectionPointOnPlane[index] = abs(orthogonalProjectionPointOnPlane[index]);
-            } else {
-                if (orthogonalProjectionPointOnPlane[index] > 0) {
-                    orthogonalProjectionPointOnPlane[index] = -orthogonalProjectionPointOnPlane[index];
-                } else {
-                    orthogonalProjectionPointOnPlane[index] = orthogonalProjectionPointOnPlane[index];
-                }
-            }
+        // The 1., 2. and 3. Option of Tsoulis (2021) all amount to s1 = -u and s2 = |G_pq| - u
+        if (abs(distance.s1 - distance.l1) >= EPSILON_ZERO || abs(distance.s2 - distance.l2) >= EPSILON_ZERO) {
+            distance.s1 = -alongSegment;
+            distance.s2 = segmentNorm - alongSegment;
+        } else if (distance.s2 < distance.s1) {
+            distance.s1 = -distance.s1;
+            distance.s2 = -distance.s2;
+            distance.l1 = -distance.l1;
+            distance.l2 = -distance.l2;
+        } else if (abs(distance.s2 - distance.s1) < EPSILON_ZERO) {
+            distance.s1 = -distance.s1;
+            distance.l1 = -distance.l1;
         }
+        distances[index] = distance;
     }
 
-    ivec3 segmentNormalOrientations = {};
-    for (uint index = 0; index < 3; ++index) {
-        FloatType inner = custom_dot(segmentNormals[face_index * 3 + index], orthogonalProjectionPointOnPlane - face[index]);
-        segmentNormalOrientations[index] = -sgn(inner);
-    }
-
-    FloatType3 orthogonalProjectionPointsOnSegmentsForPlane[3];
-    for (uint index = 0; index < 3; ++index) {
-        if (segmentNormalOrientations[index] == 0) {
-            orthogonalProjectionPointsOnSegmentsForPlane[index] = orthogonalProjectionPointOnPlane;
-        } else {
-            FloatType3 vertex1 = face[index];
-            FloatType3 vertex2 = face[(index + 1) % 3];
-
-            FloatType3 matrixRow1 = vertex2 - vertex1;
-            FloatType3 matrixRow2 = cross(vertex1 - orthogonalProjectionPointOnPlane, matrixRow1);
-            FloatType3 matrixRow3 = cross(matrixRow2, matrixRow1);
-
-            FloatType3 d = {
-                dot(matrixRow1, orthogonalProjectionPointOnPlane),
-                dot(matrixRow2, orthogonalProjectionPointOnPlane),
-                dot(matrixRow3, vertex1),
-            };
-
-            FloatTypeM m = FloatTypeM(matrixRow1, matrixRow2, matrixRow3);
-            FloatTypeM columnMatrix = transpose(m);
-
-            FloatType determinant_ = det_custom(columnMatrix);
-
-            if (determinant_ != 0.0) {
-                FloatType3 res = {
-                    det_custom(FloatTypeM(d, columnMatrix[1], columnMatrix[2])),
-                    det_custom(FloatTypeM(columnMatrix[0], d, columnMatrix[2])),
-                    det_custom(FloatTypeM(columnMatrix[0], columnMatrix[1], d)),
-                };
-                orthogonalProjectionPointsOnSegmentsForPlane[index] = res / determinant_;
-            }
-        }
-    }
-
-    FloatType segmentDistances[3];
-    for (uint index = 0; index < 3; ++index) {
-        segmentDistances[index] = length(orthogonalProjectionPointsOnSegmentsForPlane[index] - orthogonalProjectionPointOnPlane);
-    }
-
-    FloatType4 distances[3];
-    for (uint index = 0; index < 3; ++index) {
-        distances[index].x = length(face[index]);
-        distances[index].y = length(face[(index + 1) % 3]);
-
-        distances[index].z = length(orthogonalProjectionPointsOnSegmentsForPlane[index] - face[index]);
-        distances[index].w = length(orthogonalProjectionPointsOnSegmentsForPlane[index] - face[(index + 1) % 3]);
-
-        if (abs(distances[index].z - distances[index].x) < EPSILON_ZERO_OFFSET &&
-            abs(distances[index].w - distances[index].y) < EPSILON_ZERO_OFFSET) {
-
-            if (distances[index].w < distances[index].z) {
-                distances[index].z *= -1.0;
-                distances[index].w *= -1.0;
-                distances[index].x *= -1.0;
-                distances[index].y *= -1.0;
-            } else if(abs(distances[index].w - distances[index].z) < EPSILON_ZERO_OFFSET) {
-                distances[index].z *= -1.0;
-                distances[index].x *= -1.0;
-            }
-        } else {
-            FloatType norm = length(segmentVectors[face_index * 3 + index]);
-            if (distances[index].z < norm && distances[index].w < norm) {
-                distances[index].z *= -1.0;
-            } else if (distances[index].w < distances[index].z) {
-                distances[index].z *= -1.0;
-                distances[index].w *= -1.0;
-            }
-        }
-    }
-
-    FloatType3 projectionPointVertexNorms = {
-        euclideanNorm(orthogonalProjectionPointOnPlane - face[0]),
-        euclideanNorm(orthogonalProjectionPointOnPlane - face[1]),
-        euclideanNorm(orthogonalProjectionPointOnPlane - face[2]),
-    };
-
+    // Both transcendental expressions are evaluated unconditionally and then selected
     TranscendentalExpression transcendentalExpressions[3];
     for (uint index = 0; index < 3; ++index) {
+        Distance distance = distances[index];
         FloatType r1Norm = projectionPointVertexNorms[(index + 1) % 3];
         FloatType r2Norm = projectionPointVertexNorms[index];
 
-        if ((segmentNormalOrientations[index] == 0 && (r1Norm < EPSILON_ZERO_OFFSET || r2Norm < EPSILON_ZERO_OFFSET)) ||
-            (abs(distances[index].z + distances[index].w) < EPSILON_ZERO_OFFSET &&
-            abs(distances[index].x + distances[index].y) < EPSILON_ZERO_OFFSET))
-        {
-            transcendentalExpressions[index].ln = 0.0;
-        } else {
-            FloatType inner_num = distances[index].w + distances[index].y;
-            FloatType inner_denom = distances[index].z + distances[index].x;
+        bool logarithmVanishes =
+            (segmentNormalOrientations[index] == 0.0 && (r1Norm < EPSILON_ZERO || r2Norm < EPSILON_ZERO)) ||
+            (abs(distance.s1 + distance.s2) < EPSILON_ZERO && abs(distance.l1 + distance.l2) < EPSILON_ZERO);
+        FloatType logarithm = custom_log((distance.s2 + distance.l2) / (distance.s1 + distance.l1));
+        transcendentalExpressions[index].ln = logarithmVanishes ? 0.0 : logarithm;
 
-            if (inner_num <= 0.0 || inner_denom <= 0.0) {
-                transcendentalExpressions[index].ln = 0.0;
-            } else {
-                FloatType inner_frac = inner_num / inner_denom;
-                transcendentalExpressions[index].ln = custom_log(inner_frac);
-            }
-        }
-
-        if (planeDistance < EPSILON_ZERO_OFFSET || segmentDistances[index] < EPSILON_ZERO_OFFSET) {
-            transcendentalExpressions[index].an = 0.0;
-        } else {
-            FloatType frac1 = (planeDistance * distances[index].w) / (segmentDistances[index] * distances[index].y);
-            FloatType frac2 = (planeDistance * distances[index].z) / (segmentDistances[index] * distances[index].x);
-
-            transcendentalExpressions[index].an = custom_atan(frac1) - custom_atan(frac2);
-        }
+        // atan(x) - atan(y) = atan((x - y) / (1 + xy)), which misses a whole PI (with the sign of x) if 1 + xy < 0
+        bool arcTangentVanishes = planeDistance < EPSILON_ZERO || segmentDistances[index] < EPSILON_ZERO;
+        FloatType upper = (planeDistance * distance.s2) / (segmentDistances[index] * distance.l2);
+        FloatType lower = (planeDistance * distance.s1) / (segmentDistances[index] * distance.l1);
+        FloatType denominator = 1.0 + upper * lower;
+        FloatType branchOffset = denominator < 0.0 ? (upper < 0.0 ? -PI : PI) : 0.0;
+        FloatType arcTangent = custom_atan((upper - lower) / denominator) + branchOffset;
+        transcendentalExpressions[index].an = arcTangentVanishes ? 0.0 : arcTangent;
     }
 
-    FloatType sing_theta = compute_singularities(face_index, segmentNormalOrientations, projectionPointVertexNorms);
-    FloatType sing_alpha = -planeDistance * sing_theta;
-    FloatType3 sing_beta = normals[face_index] * (-1.0 * sing_theta * planeNormalOrientation);
+    // The singularities are sing A = factor * h_p and sing B = factor * sigma_p * N_p in all four cases
+    bool allInside = segmentNormalOrientations[0] == 1.0 && segmentNormalOrientations[1] == 1.0 && segmentNormalOrientations[2] == 1.0;
+    bool anyOnLine = false;
+    bool anyAtVertex = false;
+    uint vertexSegment = 0;
+    bool vertexIsSegmentEnd = false;
+    for (uint index = 0; index < 3; ++index) {
+        if (segmentNormalOrientations[index] != 0.0) {
+            continue;
+        }
+        FloatType r1Norm = projectionPointVertexNorms[(index + 1) % 3];
+        FloatType r2Norm = projectionPointVertexNorms[index];
+        FloatType squaredSegmentNorm = dot(segmentVectors[index], segmentVectors[index]);
+        bool atVertex = r1Norm < EPSILON_ZERO || r2Norm < EPSILON_ZERO;
+        anyOnLine = anyOnLine || (!atVertex && r1Norm * r1Norm < squaredSegmentNorm && r2Norm * r2Norm < squaredSegmentNorm);
+        vertexSegment = anyAtVertex ? vertexSegment : index;
+        vertexIsSegmentEnd = anyAtVertex ? vertexIsSegmentEnd : r1Norm < EPSILON_ZERO;
+        anyAtVertex = anyAtVertex || atVertex;
+    }
+    FloatType vertexAngle = 0.0;
+    if (anyAtVertex) {
+        FloatType3 g1 = segmentVectors[vertexIsSegmentEnd ? vertexSegment : (vertexSegment + 2) % 3];
+        FloatType3 g2 = segmentVectors[vertexIsSegmentEnd ? (vertexSegment + 1) % 3 : vertexSegment];
+        FloatType gdot = -dot(g1, g2);
+        vertexAngle = gdot == 0.0 ? PI_2 : custom_acos(gdot / (length(g1) * length(g2)));
+    }
+    FloatType singularityFactor = allInside ? -PI2 : anyOnLine ? -PI : -vertexAngle;
+    FloatType sing_alpha = singularityFactor * planeDistance;
+    FloatType3 sing_beta = planeUnitNormal * (singularityFactor * planeNormalOrientation);
 
     FloatType sum1PotentialAcceleration = 0.0;
     for (uint index = 0; index < 3; ++index) {
@@ -349,7 +225,7 @@ void computeMain(uint3 threadIdx : SV_DispatchThreadID, uint3 groupThreadIdx : S
 
     FloatType3 sum1Tensor = {0.0, 0.0, 0.0};
     for (uint index = 0; index < 3; ++index) {
-        sum1Tensor += segmentNormals[face_index * 3 + index] * transcendentalExpressions[index].ln;
+        sum1Tensor += segmentUnitNormals[index] * transcendentalExpressions[index].ln;
     }
 
     FloatType sum2 = 0.0;
@@ -358,14 +234,14 @@ void computeMain(uint3 threadIdx : SV_DispatchThreadID, uint3 groupThreadIdx : S
     }
 
     FloatType planeSumPotentialAcceleration = sum1PotentialAcceleration + planeDistance * sum2 + sing_alpha;
-    FloatType3 subSum = (sum1Tensor + (normals[face_index] * (planeNormalOrientation * sum2))) + sing_beta;
+    FloatType3 subSum = (sum1Tensor + (planeUnitNormal * (planeNormalOrientation * sum2))) + sing_beta;
 
-    FloatType3 first = normals[face_index] * subSum;
-    FloatType3 second = normals[face_index].xxy * subSum.yzz;
+    FloatType3 first = planeUnitNormal * subSum;
+    FloatType3 second = planeUnitNormal.xxy * subSum.yzz;
 
     Result res;
     res.res.w = planeNormalOrientation * planeDistance * planeSumPotentialAcceleration;
-    res.res.xyz = normals[face_index] * planeSumPotentialAcceleration;
+    res.res.xyz = planeUnitNormal * planeSumPotentialAcceleration;
     res.first.xyz = first;
     res.second.xyz = second;
 

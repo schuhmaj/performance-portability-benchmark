@@ -77,8 +77,6 @@ __global__ void run_init(
         const VectorType *vertices,
         const int3 *faces,
         VectorType *normals,
-        VectorType *segmentVectors,
-        VectorType *segmentNormals,
         int num_faces) {
     int index = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -92,111 +90,22 @@ __global__ void run_init(
             vertices[faces[index].z],
     };
 
-    VectorType sv[3] = {
-            face[1] - face[0], face[2] - face[1], face[0] - face[2]};
-
-    VectorType n = normalize(cross(sv[0], sv[1]));
-    normals[index] = n;
-
-    segmentVectors[index * 3 + 0] = sv[0];
-    segmentVectors[index * 3 + 1] = sv[1];
-    segmentVectors[index * 3 + 2] = sv[2];
-
-    segmentNormals[index * 3 + 0] = normalize(cross(sv[0], n));
-    segmentNormals[index * 3 + 1] = normalize(cross(sv[1], n));
-    segmentNormals[index * 3 + 2] = normalize(cross(sv[2], n));
+    // 1-02 Step: The plane unit normals N_p are the only per-face property that is cached
+    normals[index] = normalize(cross(face[1] - face[0], face[2] - face[1]));
 }
 
 inline __device__ FloatType dot_cuda(VectorType a, VectorType b) {
     return a.x * b.x + a.y * b.y + a.z * b.z;
 }
 
-inline __device__ VectorType to_vec(FloatType a[3]) {
-    return {a[0], a[1], a[2]};
-}
-
-inline __device__ int sgn_cuda(FloatType val) {
-    if (val < -EPSILON_ZERO_OFFSET) return -1;
-    if (val > EPSILON_ZERO_OFFSET) return 1;
+inline __device__ FloatType sgn_cuda(FloatType val) {
+    if (val < -EPSILON_ZERO) return -1;
+    if (val > EPSILON_ZERO) return 1;
     return 0;
 }
 
 inline __device__ FloatType euclideanNormCuda(VectorType v) {
     return sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
-}
-
-__device__ void transpose_cuda(VectorType matrix[3]) {
-    VectorType copy[3] = {matrix[0], matrix[1], matrix[2]};
-
-    matrix[0].y = copy[1].x;
-    matrix[0].z = copy[2].x;
-
-    matrix[1].x = copy[0].y;
-    matrix[1].z = copy[2].y;
-
-    matrix[2].x = copy[0].z;
-    matrix[2].y = copy[1].z;
-}
-
-__device__ FloatType det_cuda(VectorType matrix[3]) {
-    return matrix[0].x * matrix[1].y * matrix[2].z +
-           matrix[0].y * matrix[1].z * matrix[2].x +
-           matrix[0].z * matrix[1].x * matrix[2].y -
-           matrix[0].z * matrix[1].y * matrix[2].x -
-           matrix[0].x * matrix[1].z * matrix[2].y -
-           matrix[0].y * matrix[1].x * matrix[2].z;
-}
-
-__device__ FloatType det_v(VectorType a, VectorType b, VectorType c) {
-    VectorType matrix[3] = {a, b, c};
-    return det_cuda(matrix);
-}
-
-__device__ FloatType compute_singularities(
-        int face_index,
-        int segmentNormalOrientations[3],
-        FloatType projectionPointVertexNorms[3],
-        VectorType *segmentVectors) {
-    bool allInside = true;
-    for (uint index = 0; index < 3; ++index) {
-        allInside &= segmentNormalOrientations[index] == 1;
-    }
-    if (allInside) return PI2;
-
-    bool anyOnLine = false;
-    for (uint index = 0; index < 3; ++index) {
-        if (segmentNormalOrientations[index] != 0) {
-            continue;
-        }
-        FloatType segmentVectorNorm = euclideanNormCuda(segmentVectors[face_index * 3 + index]);
-        anyOnLine |= projectionPointVertexNorms[(index + 1) % 3] < segmentVectorNorm && projectionPointVertexNorms[index] < segmentVectorNorm;
-    }
-
-    if (anyOnLine) {
-        return PI;
-    }
-
-    for (uint index = 0; index < 3; ++index) {
-        if (segmentNormalOrientations[index] != 0) {
-            continue;
-        }
-
-        FloatType r1Norm = projectionPointVertexNorms[(index + 1) % 3];
-        FloatType r2Norm = projectionPointVertexNorms[index];
-
-        if (!(r1Norm < EPSILON_ZERO_OFFSET || r2Norm < EPSILON_ZERO_OFFSET)) {
-            continue;
-        }
-
-        VectorType g1 = r1Norm == 0.0 ? segmentVectors[face_index * 3 + index] : segmentVectors[face_index * 3 + (index - 1 + 3) % 3];
-        VectorType g2 = r1Norm == 0.0 ? segmentVectors[face_index * 3 + (index + 1) % 3] : segmentVectors[face_index * 3 + index];
-
-        FloatType gdot = dot_cuda(-g1, g2);
-        FloatType theta = gdot == 0.0 ? PI_2 : std::acos(gdot / (euclideanNormCuda(g1) * euclideanNormCuda(g2)));
-        return theta;
-    }
-
-    return 0.0;
 }
 
 struct GravityModelResultCuda {
@@ -212,12 +121,12 @@ struct GravityModelResultCuda {
     }
 };
 
-__global__ void run_eval(
+// At most 256 threads per block, and a body small enough for three such blocks per SM, so that the register
+// allocator keeps the kernel's occupancy up
+__global__ __launch_bounds__(256, 3) void run_eval(
         const VectorType *vertices,
         const int3 *faces,
-        VectorType *normals,
-        VectorType *segmentVectors,
-        VectorType *segmentNormals,
+        const VectorType *normals,
         GravityModelResultCuda *result,
         int num_faces,
         FloatType p1,
@@ -230,190 +139,146 @@ __global__ void run_eval(
         return;
     }
 
-    VectorType face[3] = {
+    const VectorType face[3] = {
             vertices[faces[face_index].x] - point,
             vertices[faces[face_index].y] - point,
             vertices[faces[face_index].z] - point,
     };
+    const VectorType planeUnitNormal = normals[face_index];
 
-    int planeNormalOrientation = sgn_cuda(dot_cuda(normals[face_index], face[0]));
+    // 1-01 Step: Compute the segment vectors G_pq
+    // Recomputed rather than cached: three subtractions are cheaper than reading 36 more bytes per face
+    const VectorType segmentVectors[3] = {face[1] - face[0], face[2] - face[1], face[0] - face[2]};
 
-    VectorType4 hessianPlane;
-    {
-        VectorType origin = {0.0, 0.0, 0.0};
-        VectorType crossProduct = cross(face[0] - face[1], face[0] - face[2]);
-        VectorType res = (origin - face[0]) * crossProduct;
-        FloatType d = res.x + res.y + res.z;
+    // 1-04 to 1-07 Step: Compute sigma_p, h_p and P' from the projection of the face onto N_p
+    // N_p is a unit vector, so N_p * v_0 is the signed distance of P to the plane and P' is N_p scaled by it
+    const FloatType planeProjection = dot_cuda(planeUnitNormal, face[0]);
+    const FloatType planeNormalOrientation = sgn_cuda(planeProjection);
+    const FloatType planeDistance = std::abs(planeProjection);
+    const VectorType orthogonalProjectionPointOnPlane = planeUnitNormal * planeProjection;
 
-        hessianPlane.x = crossProduct.x;
-        hessianPlane.y = crossProduct.y;
-        hessianPlane.z = crossProduct.z;
-        hessianPlane.w = d;
-    }
-
-    FloatType planeDistance = std::abs(hessianPlane.w / sqrt(hessianPlane.x * hessianPlane.x + hessianPlane.y * hessianPlane.y + hessianPlane.z * hessianPlane.z));
-
-    VectorType tmp1 = normals[face_index] * planeDistance;
-    FloatType orthogonalProjectionPointOnPlane[3] = {tmp1.x, tmp1.y, tmp1.z};
-    {
-        FloatType intersections[3] = {
-                hessianPlane.x == static_cast<FloatType>(0.0) ? static_cast<FloatType>(0.0) : hessianPlane.w / hessianPlane.x,
-                hessianPlane.y == static_cast<FloatType>(0.0) ? static_cast<FloatType>(0.0) : hessianPlane.w / hessianPlane.y,
-                hessianPlane.z == static_cast<FloatType>(0.0) ? static_cast<FloatType>(0.0) : hessianPlane.w / hessianPlane.z};
-
-        for (unsigned int index = 0; index < 3; ++index) {
-            if (intersections[index] < 0) {
-                orthogonalProjectionPointOnPlane[index] = std::abs(orthogonalProjectionPointOnPlane[index]);
-            } else {
-                if (orthogonalProjectionPointOnPlane[index] > 0) {
-                    orthogonalProjectionPointOnPlane[index] = -orthogonalProjectionPointOnPlane[index];
-                } else {
-                    orthogonalProjectionPointOnPlane[index] = orthogonalProjectionPointOnPlane[index];
-                }
-            }
-        }
-    }
-
-
-    int segmentNormalOrientations[3];
-    for (unsigned int index = 0; index < 3; ++index) {
-        FloatType inner = dot_cuda(segmentNormals[face_index * 3 + index], to_vec(orthogonalProjectionPointOnPlane) - face[index]);
-        segmentNormalOrientations[index] = -sgn_cuda(inner);
-    }
-
-    VectorType orthogonalProjectionPointsOnSegmentsForPlane[3];
-    for (unsigned int index = 0; index < 3; ++index) {
-        if (segmentNormalOrientations[index] == 0) {
-            orthogonalProjectionPointsOnSegmentsForPlane[index] = to_vec(orthogonalProjectionPointOnPlane);
-        } else {
-            VectorType vertex1 = face[index];
-            VectorType vertex2 = face[(index + 1) % 3];
-
-            VectorType matrixRow1 = vertex2 - vertex1;
-            VectorType matrixRow2 = cross(vertex1 - to_vec(orthogonalProjectionPointOnPlane), matrixRow1);
-            VectorType matrixRow3 = cross(matrixRow2, matrixRow1);
-
-            VectorType d = {
-                    dot_cuda(matrixRow1, to_vec(orthogonalProjectionPointOnPlane)),
-                    dot_cuda(matrixRow2, to_vec(orthogonalProjectionPointOnPlane)),
-                    dot_cuda(matrixRow3, vertex1)};
-
-            VectorType columnMatrix[3] = {
-                    matrixRow1,
-                    matrixRow2,
-                    matrixRow3};
-            transpose_cuda(columnMatrix);
-
-            FloatType determinant = det_cuda(columnMatrix);
-
-            if (determinant != 0.0) {
-                VectorType r = {
-                        det_v(d, columnMatrix[1], columnMatrix[2]),
-                        det_v(columnMatrix[0], d, columnMatrix[2]),
-                        det_v(columnMatrix[0], columnMatrix[1], d),
-                };
-                orthogonalProjectionPointsOnSegmentsForPlane[index] = r / determinant;
-            }
-        }
-    }
-
+    // 1-08 to 1-12 Step: Compute sigma_pq, h_pq, the distances l1, l2, s1, s2 and the norms of P' - v_q
+    // All of them follow from projecting P' - v_q onto n_pq and onto G_pq, so P'' is never formed
+    const FloatType vertexNorms[3] = {euclideanNormCuda(face[0]), euclideanNormCuda(face[1]), euclideanNormCuda(face[2])};
+    VectorType segmentUnitNormals[3];
+    FloatType segmentNormalOrientations[3];
     FloatType segmentDistances[3];
-    for (unsigned int index = 0; index < 3; ++index) {
-        segmentDistances[index] = euclideanNormCuda(orthogonalProjectionPointsOnSegmentsForPlane[index] - to_vec(orthogonalProjectionPointOnPlane));
-    }
-
-
+    FloatType projectionPointVertexNorms[3];
     Distance distances[3];
     for (unsigned int index = 0; index < 3; ++index) {
-        distances[index].l1 = euclideanNormCuda(face[index]);
-        distances[index].l2 = euclideanNormCuda(face[(index + 1) % 3]);
+        const VectorType relativeProjectionPoint = orthogonalProjectionPointOnPlane - face[index];
+        projectionPointVertexNorms[index] = euclideanNormCuda(relativeProjectionPoint);
 
-        distances[index].s1 = euclideanNormCuda(orthogonalProjectionPointsOnSegmentsForPlane[index] - face[index]);
-        distances[index].s2 = euclideanNormCuda(orthogonalProjectionPointsOnSegmentsForPlane[index] - face[(index + 1) % 3]);
+        // n_pq is normalized by |G_pq|, which is |G_pq x N_p| since N_p is a unit vector perpendicular to G_pq
+        const FloatType squaredSegmentNorm = dot_cuda(segmentVectors[index], segmentVectors[index]);
+        const FloatType inverseSegmentNorm = rsqrt(squaredSegmentNorm);
+        const FloatType segmentNorm = squaredSegmentNorm * inverseSegmentNorm;
+        segmentUnitNormals[index] = cross(segmentVectors[index], planeUnitNormal) * inverseSegmentNorm;
 
-        if (abs(distances[index].s1 - distances[index].l1) < EPSILON_ZERO_OFFSET && abs(distances[index].s2 - distances[index].l2) < EPSILON_ZERO_OFFSET) {
-            if (distances[index].s2 < distances[index].s1) {
-                distances[index].s1 *= -1.0;
-                distances[index].s2 *= -1.0;
-                distances[index].l1 *= -1.0;
-                distances[index].l2 *= -1.0;
-            } else if (std::abs(distances[index].s2 - distances[index].s1) < EPSILON_ZERO_OFFSET) {
-                distances[index].s1 *= -1.0;
-                distances[index].l1 *= -1.0;
-            }
-        } else {
-            FloatType norm = euclideanNormCuda(segmentVectors[face_index * 3 + index]);
-            if (distances[index].s1 < norm && distances[index].s2 < norm) {
-                distances[index].s1 *= -1.0;
-            } else if (distances[index].s2 < distances[index].s1) {
-                distances[index].s1 *= -1.0;
-                distances[index].s2 *= -1.0;
-            }
+        // The projection onto n_pq has the sign -sigma_pq and the magnitude h_pq
+        const FloatType normalProjection = dot_cuda(segmentUnitNormals[index], relativeProjectionPoint);
+        segmentNormalOrientations[index] = -sgn_cuda(normalProjection);
+        segmentDistances[index] = std::abs(normalProjection);
+
+        // The projection onto G_pq is the signed position u of P'' along the segment, from its first endpoint
+        const FloatType alongSegment = dot_cuda(relativeProjectionPoint, segmentVectors[index]) * inverseSegmentNorm;
+        Distance &distance = distances[index];
+        distance.l1 = vertexNorms[index];
+        distance.l2 = vertexNorms[(index + 1) % 3];
+        distance.s1 = std::abs(alongSegment);
+        distance.s2 = std::abs(alongSegment - segmentNorm);
+
+        // The 1., 2. and 3. Option of Tsoulis (2021) all amount to s1 = -u and s2 = |G_pq| - u
+        if (std::abs(distance.s1 - distance.l1) >= EPSILON_ZERO || std::abs(distance.s2 - distance.l2) >= EPSILON_ZERO) {
+            distance.s1 = -alongSegment;
+            distance.s2 = segmentNorm - alongSegment;
+        } else if (distance.s2 < distance.s1) {
+            distance.s1 = -distance.s1;
+            distance.s2 = -distance.s2;
+            distance.l1 = -distance.l1;
+            distance.l2 = -distance.l2;
+        } else if (std::abs(distance.s2 - distance.s1) < EPSILON_ZERO) {
+            distance.s1 = -distance.s1;
+            distance.l1 = -distance.l1;
         }
     }
 
-
-    FloatType projectionPointVertexNorms[3] = {
-            euclideanNormCuda(to_vec(orthogonalProjectionPointOnPlane) - face[0]),
-            euclideanNormCuda(to_vec(orthogonalProjectionPointOnPlane) - face[1]),
-            euclideanNormCuda(to_vec(orthogonalProjectionPointOnPlane) - face[2]),
-    };
-
+    // 1-13 Step: Compute the transcendental expressions LN_pq and AN_pq
+    // Both are evaluated unconditionally and then selected: their guards only hold for degenerate positions of P'
     TranscendentalExpression transcendentalExpressions[3];
     for (unsigned int index = 0; index < 3; ++index) {
-        FloatType r1Norm = projectionPointVertexNorms[(index + 1) % 3];
-        FloatType r2Norm = projectionPointVertexNorms[index];
+        const Distance &distance = distances[index];
+        const FloatType r1Norm = projectionPointVertexNorms[(index + 1) % 3];
+        const FloatType r2Norm = projectionPointVertexNorms[index];
 
-        if ((segmentNormalOrientations[index] == 0 && (r1Norm < EPSILON_ZERO_OFFSET || r2Norm < EPSILON_ZERO_OFFSET)) ||
-            (std::abs(distances[index].s1 + distances[index].s2) < EPSILON_ZERO_OFFSET &&
-             std::abs(distances[index].l1 + distances[index].l2) < EPSILON_ZERO_OFFSET)) {
-            transcendentalExpressions[index].ln = 0.0;
-        } else {
-            FloatType inner_num = distances[index].s2 + distances[index].l2;
-            FloatType inner_denom = distances[index].s1 + distances[index].l1;
+        const bool logarithmVanishes =
+                (segmentNormalOrientations[index] == 0 && (r1Norm < EPSILON_ZERO || r2Norm < EPSILON_ZERO)) ||
+                (std::abs(distance.s1 + distance.s2) < EPSILON_ZERO && std::abs(distance.l1 + distance.l2) < EPSILON_ZERO);
+        const FloatType logarithm = log((distance.s2 + distance.l2) / (distance.s1 + distance.l1));
+        transcendentalExpressions[index].ln = logarithmVanishes ? 0 : logarithm;
 
-            if (inner_num <= 0.0 || inner_denom <= 0.0) {
-                transcendentalExpressions[index].ln = 0.0;
-            } else {
-                transcendentalExpressions[index].ln = log(inner_num / inner_denom);
-            }
-        }
-        if (planeDistance < EPSILON_ZERO_OFFSET || segmentDistances[index] < EPSILON_ZERO_OFFSET) {
-            transcendentalExpressions[index].an = 0.0;
-        } else {
-            FloatType frac1 = (planeDistance * distances[index].s2) / (segmentDistances[index] * distances[index].l2);
-            FloatType frac2 = (planeDistance * distances[index].s1) / (segmentDistances[index] * distances[index].l1);
-
-            transcendentalExpressions[index].an = std::atan(frac1) - std::atan(frac2);
-        }
+        // atan(x) - atan(y) = atan((x - y) / (1 + xy)), which misses a whole PI (with the sign of x) if 1 + xy < 0
+        const bool arcTangentVanishes = planeDistance < EPSILON_ZERO || segmentDistances[index] < EPSILON_ZERO;
+        const FloatType upper = (planeDistance * distance.s2) / (segmentDistances[index] * distance.l2);
+        const FloatType lower = (planeDistance * distance.s1) / (segmentDistances[index] * distance.l1);
+        const FloatType denominator = 1 + upper * lower;
+        const FloatType branchOffset = denominator < 0 ? (upper < 0 ? -PI : PI) : 0;
+        const FloatType arcTangent = std::atan((upper - lower) / denominator) + branchOffset;
+        transcendentalExpressions[index].an = arcTangentVanishes ? 0 : arcTangent;
     }
 
-    FloatType sing_theta = compute_singularities(face_index, segmentNormalOrientations, projectionPointVertexNorms, segmentVectors);
-    FloatType sing_alpha = -planeDistance * sing_theta;
-    VectorType sing_beta = normals[face_index] * (-sing_theta * planeNormalOrientation);
+    // 1-14 Step: Compute the singularities sing A = factor * h_p and sing B = factor * sigma_p * N_p
+    const bool allInside = segmentNormalOrientations[0] == 1 && segmentNormalOrientations[1] == 1 && segmentNormalOrientations[2] == 1;
+    bool anyOnLine = false;
+    bool anyAtVertex = false;
+    unsigned int vertexSegment = 0;
+    bool vertexIsSegmentEnd = false;
+    for (unsigned int index = 0; index < 3; ++index) {
+        if (segmentNormalOrientations[index] != 0) {
+            continue;
+        }
+        const FloatType r1Norm = projectionPointVertexNorms[(index + 1) % 3];
+        const FloatType r2Norm = projectionPointVertexNorms[index];
+        const FloatType squaredSegmentNorm = dot_cuda(segmentVectors[index], segmentVectors[index]);
+        const bool atVertex = r1Norm < EPSILON_ZERO || r2Norm < EPSILON_ZERO;
+        anyOnLine |= !atVertex && r1Norm * r1Norm < squaredSegmentNorm && r2Norm * r2Norm < squaredSegmentNorm;
+        vertexSegment = anyAtVertex ? vertexSegment : index;
+        vertexIsSegmentEnd = anyAtVertex ? vertexIsSegmentEnd : r1Norm < EPSILON_ZERO;
+        anyAtVertex |= atVertex;
+    }
+    FloatType vertexAngle = 0;
+    if (anyAtVertex) {
+        const VectorType g1 = vertexIsSegmentEnd ? segmentVectors[vertexSegment] : segmentVectors[(vertexSegment + 2) % 3];
+        const VectorType g2 = vertexIsSegmentEnd ? segmentVectors[(vertexSegment + 1) % 3] : segmentVectors[vertexSegment];
+        const FloatType gdot = -dot_cuda(g1, g2);
+        vertexAngle = gdot == 0 ? PI_2 : std::acos(gdot / (euclideanNormCuda(g1) * euclideanNormCuda(g2)));
+    }
+    const FloatType singularityFactor = allInside ? -PI2 : anyOnLine ? -PI : -vertexAngle;
+    const FloatType sing_alpha = singularityFactor * planeDistance;
+    const VectorType sing_beta = planeUnitNormal * (singularityFactor * planeNormalOrientation);
 
-    FloatType sum1PotentialAcceleration = 0.0;
+    FloatType sum1PotentialAcceleration = 0;
     for (unsigned int index = 0; index < 3; ++index)
         sum1PotentialAcceleration += segmentNormalOrientations[index] * segmentDistances[index] * transcendentalExpressions[index].ln;
 
-    VectorType sum1Tensor = {0.0, 0.0, 0.0};
+    VectorType sum1Tensor = {0, 0, 0};
     for (unsigned int index = 0; index < 3; ++index)
-        sum1Tensor = sum1Tensor + segmentNormals[face_index * 3 + index] * transcendentalExpressions[index].ln;
+        sum1Tensor = sum1Tensor + segmentUnitNormals[index] * transcendentalExpressions[index].ln;
 
-    FloatType sum2 = 0.0;
+    FloatType sum2 = 0;
     for (unsigned int index = 0; index < 3; ++index)
         sum2 += segmentNormalOrientations[index] * transcendentalExpressions[index].an;
 
     FloatType planeSumPotentialAcceleration = sum1PotentialAcceleration + planeDistance * sum2 + sing_alpha;
-    VectorType subSum = (sum1Tensor + (normals[face_index] * (planeNormalOrientation * sum2))) + sing_beta;
-    VectorType first = normals[face_index] * subSum;
+    VectorType subSum = (sum1Tensor + (planeUnitNormal * (planeNormalOrientation * sum2))) + sing_beta;
+    VectorType first = planeUnitNormal * subSum;
 
-    VectorType reorderedNp = {normals[face_index].x, normals[face_index].x, normals[face_index].y};
+    VectorType reorderedNp = {planeUnitNormal.x, planeUnitNormal.x, planeUnitNormal.y};
     VectorType reorderedSubSum = {subSum.y, subSum.z, subSum.z};
     VectorType second = reorderedNp * reorderedSubSum;
 
     auto potential = planeNormalOrientation * planeDistance * planeSumPotentialAcceleration;
-    auto accel = normals[face_index] * planeSumPotentialAcceleration;
+    auto accel = planeUnitNormal * planeSumPotentialAcceleration;
     result[face_index].acc_pot = make4(accel, potential);
     result[face_index].first = first;
     result[face_index].second = second;
@@ -431,7 +296,7 @@ public:
             const std::vector<Array3> &Vertices,
             const std::vector<IndexArray3> &Faces,
             const double density)
-        : GravityEvaluableBase(Vertices, Faces, density), d_vertices(Vertices.size()), d_faces(Faces.size()), d_normals(Faces.size()), d_segmentVectors(Faces.size() * 3), d_segmentNormals(Faces.size() * 3), d_results(Faces.size()) {
+        : GravityEvaluableBase(Vertices, Faces, density), d_vertices(Vertices.size()), d_faces(Faces.size()), d_normals(Faces.size()), d_results(Faces.size()) {
     }
 
     GravityModelResult evaluate(const Array3 &Point) override {
@@ -444,7 +309,7 @@ public:
         numBlocks = numBlocks > 0 ? numBlocks : 1;
 
         run_eval<<<numBlocks, blockSize>>>(
-                d_vertices.get(), d_faces.get(), d_normals.get(), d_segmentVectors.get(), d_segmentNormals.get(), d_results.get(), num_faces, Point[0], Point[1], Point[2]);
+                d_vertices.get(), d_faces.get(), d_normals.get(), d_results.get(), num_faces, Point[0], Point[1], Point[2]);
 
         checkCudaError(cudaGetLastError(), "Kernel eval failed");
 
@@ -499,15 +364,13 @@ private:
         int numBlocks = (num_faces + blockSize - 1) / blockSize;
         numBlocks = numBlocks > 0 ? numBlocks : 1;
 
-        run_init<<<numBlocks, blockSize>>>(d_vertices.get(), d_faces.get(), d_normals.get(), d_segmentVectors.get(), d_segmentNormals.get(), num_faces);
+        run_init<<<numBlocks, blockSize>>>(d_vertices.get(), d_faces.get(), d_normals.get(), num_faces);
         checkCudaError(cudaGetLastError(), "Kernel init failed");
     }
 
     CudaMemory<VectorType> d_vertices;
     CudaMemory<int3> d_faces;
     CudaMemory<VectorType> d_normals;
-    CudaMemory<VectorType> d_segmentVectors;
-    CudaMemory<VectorType> d_segmentNormals;
 
     CudaMemory<GravityModelResultCuda> d_results;
 };

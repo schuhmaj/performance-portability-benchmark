@@ -22,6 +22,7 @@
 #include <cmath>
 #include <functional>
 #include <iostream>
+#include <limits>
 #include <memory>
 #include <numeric>
 #include <set>
@@ -35,13 +36,6 @@
 
 constexpr double EPSILON_ZERO_OFFSET = 1e-14;
 constexpr double EPSILON_ALMOST_EQUAL = 1e-10;
-
-constexpr double PI =
-        3.1415926535897932384626433832795028841971693993751058209749445923;
-constexpr double PI2 =
-        6.2831853071795864769252867665590057683943387987502116419498891846;
-constexpr double PI_2 =
-        1.5707963267948966192313216916397514420985846996875529104874722961;
 
 /**
  * The gravitational constant G in [m^3/(kg*s^2)].
@@ -57,6 +51,30 @@ using FloatType = double;
 using FloatType = __float128;
 #else
 #error "Invliad float bits size"
+#endif
+
+// The constants are given in the precision of the evaluation, so that they do not drag
+// double precision arithmetic into a single precision kernel.
+constexpr FloatType PI =
+        3.1415926535897932384626433832795028841971693993751058209749445923;
+constexpr FloatType PI2 =
+        6.2831853071795864769252867665590057683943387987502116419498891846;
+constexpr FloatType PI_2 =
+        1.5707963267948966192313216916397514420985846996875529104874722961;
+
+/**
+ * The radius around zero which is treated as zero, in the precision of the evaluation.
+ *
+ * EPSILON_ZERO_OFFSET is scaled by how much coarser FloatType resolves than double, i.e. it
+ * stays at 1e-14 in double precision and becomes ~5.4e-6 in single precision. The singular
+ * positions of the computation point are detected by comparing distances against this radius,
+ * and a radius below the precision's own resolution misses them.
+ */
+#if FLOAT_BITS == 128
+constexpr FloatType EPSILON_ZERO = EPSILON_ZERO_OFFSET;
+#else
+constexpr FloatType EPSILON_ZERO = static_cast<FloatType>(
+        EPSILON_ZERO_OFFSET * (std::numeric_limits<FloatType>::epsilon() / std::numeric_limits<double>::epsilon()));
 #endif
 
 
@@ -128,19 +146,13 @@ using Array6 = Array6Base<FloatType>;
 using IndexArray3 = Array3Base<size_t>;
 using Array3Triplet = Array3Base<Array3Base<FloatType>>;
 
+// GravityModelResult and Singularity are aggregates on purpose: a user-provided
+// constructor makes nvc++ (-stdpar=gpu, NVHPC 26.3) emit a `__staticinit` constant
+// with malformed NVVM IR (`float 0` instead of `float 0.0`), aborting device compilation.
 struct GravityModelResult {
     FloatType potential;
     Array3 acceleration;
     Array6 gradiometricTensor;
-
-    CTOR_PREFIX GravityModelResult()
-        : potential(0), acceleration{}, gradiometricTensor{} {
-    }
-    CTOR_PREFIX GravityModelResult(const FloatType _potential, const Array3 &_acceleration, const Array6 &_gradiometricTensor)
-        : potential(_potential), acceleration(_acceleration),
-          gradiometricTensor(_gradiometricTensor) {
-    }
-
 
     FUNC_PREFIX GravityModelResult &operator+=(const GravityModelResult &rhs) {
         potential += rhs.potential;
@@ -158,13 +170,6 @@ struct GravityModelResult {
 struct Singularity {
     FloatType a;
     Array3 b;
-
-    CTOR_PREFIX Singularity()
-        : a{}, b{} {
-    }
-    CTOR_PREFIX Singularity(const FloatType _a, const Array3 &_b)
-        : a{_a}, b{_b} {
-    }
 };
 
 struct Distance {
@@ -179,15 +184,6 @@ struct TranscendentalExpression {
     FloatType an;
 };
 
-struct HessianPlane {
-    FloatType a;
-    FloatType b;
-    FloatType c;
-    FloatType d;
-};
-
-using Matrix = Array3Base<Array3Base<FloatType>>;
-
 #if FLOAT_BITS == 128
 FUNC_PREFIX inline FloatType euclideanNorm(const Array3 &a) {
     return __builtin_sqrt(a[0] * a[0] + a[1] * a[1] + a[2] * a[2]);
@@ -197,26 +193,6 @@ FUNC_PREFIX inline FloatType euclideanNorm(const Array3 &a) {
     return sqrt(a[0] * a[0] + a[1] * a[1] + a[2] * a[2]);
 }
 #endif
-
-
-FUNC_PREFIX inline FloatType det(const Matrix &matrix) {
-    return matrix[0][0] * matrix[1][1] * matrix[2][2] +
-           matrix[0][1] * matrix[1][2] * matrix[2][0] +
-           matrix[0][2] * matrix[1][0] * matrix[2][1] -
-           matrix[0][2] * matrix[1][1] * matrix[2][0] -
-           matrix[0][0] * matrix[1][2] * matrix[2][1] -
-           matrix[0][1] * matrix[1][0] * matrix[2][2];
-}
-
-FUNC_PREFIX inline Matrix transpose(const Matrix &matrix) {
-    Matrix transposed;
-    for (size_t i = 0; i < 3; ++i) {
-        for (size_t j = 0; j < 3; ++j) {
-            transposed[i][j] = matrix[j][i];
-        }
-    }
-    return transposed;
-}
 
 FUNC_PREFIX inline Array3 cross(const Array3 &lhs,
                                 const Array3 &rhs) {
@@ -239,9 +215,9 @@ FUNC_PREFIX inline FloatType dot(const Array3 &lhs, const Array3 &rhs) {
 }
 
 FUNC_PREFIX
-inline int sgn(FloatType val, FloatType cutoffEpsilon = EPSILON_ZERO_OFFSET) {
-    return val < -cutoffEpsilon ? -1 : val > cutoffEpsilon ? 1
-                                                           : 0;
+inline FloatType sgn(FloatType val, FloatType cutoffEpsilon = EPSILON_ZERO) {
+    return val < -cutoffEpsilon ? FloatType{-1} : val > cutoffEpsilon ? FloatType{1}
+                                                                        : FloatType{0};
 }
 
 /**

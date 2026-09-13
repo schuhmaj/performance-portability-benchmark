@@ -123,8 +123,6 @@ public:
         buffer_faces = cl::Buffer(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, faces.size() * sizeof(faces[0]), faces.data());
 
         buffer_normals = cl::Buffer(context, CL_MEM_READ_WRITE, _faces.size() * sizeof(VectorTypeCl));
-        buffer_segmentVectors = cl::Buffer(context, CL_MEM_READ_WRITE, _faces.size() * sizeof(VectorTypeCl) * 3);
-        buffer_segmentNormals = cl::Buffer(context, CL_MEM_READ_WRITE, _faces.size() * sizeof(VectorTypeCl) * 3);
 
         nWorkGroups = (_faces.size() + local_n - 1) / local_n;
 
@@ -147,17 +145,13 @@ public:
         kernel_init.setArg(0, buffer_vertices);
         kernel_init.setArg(1, buffer_faces);
         kernel_init.setArg(2, buffer_normals);
-        kernel_init.setArg(3, buffer_segmentVectors);
-        kernel_init.setArg(4, buffer_segmentNormals);
-        kernel_init.setArg(5, (int32_t) _faces.size());
+        kernel_init.setArg(3, (int32_t) _faces.size());
 
         kernel_eval.setArg(0, buffer_vertices);
         kernel_eval.setArg(1, buffer_faces);
         kernel_eval.setArg(2, buffer_normals);
-        kernel_eval.setArg(3, buffer_segmentVectors);
-        kernel_eval.setArg(4, buffer_segmentNormals);
-        kernel_eval.setArg(5, buffer_results);
-        kernel_eval.setArg(6, (int32_t) _faces.size());
+        kernel_eval.setArg(3, buffer_results);
+        kernel_eval.setArg(4, (int32_t) _faces.size());
 
         kernel_sum.setArg(0, buffer_results);
         kernel_sum.setArg(1, reduction_buffer);
@@ -170,9 +164,9 @@ public:
 
         GravityModelResult result{};
 
-        kernel_eval.setArg(7, (FloatType) Point[0]);
-        kernel_eval.setArg(8, (FloatType) Point[1]);
-        kernel_eval.setArg(9, (FloatType) Point[2]);
+        kernel_eval.setArg(5, (FloatType) Point[0]);
+        kernel_eval.setArg(6, (FloatType) Point[1]);
+        kernel_eval.setArg(7, (FloatType) Point[2]);
 
         int global_n = _faces.size();
         global_n = ((global_n + local_n - 1) / local_n) * local_n;
@@ -245,8 +239,6 @@ private:
     cl::Buffer buffer_vertices;
     cl::Buffer buffer_faces;
     cl::Buffer buffer_normals;
-    cl::Buffer buffer_segmentVectors;
-    cl::Buffer buffer_segmentNormals;
 
     cl::Buffer reduction_buffer;
     cl::Buffer buffer_results;

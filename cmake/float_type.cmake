@@ -1,6 +1,6 @@
 if (${PPB_FloatType} EQUAL 32)
-    set(SLANG_COMPILER_DEFINITIONS -DFloatType=float -DFloatType3=float3 -DFloatType4=float4 -DFloatTypeM=mat3)
-    set(OPENGL_COMPILER_DEFINITIONS -DFloatType=float -DFloatType3=vec3 -DFloatType4=vec4 -DFloatTypeM=mat3)
+    set(SLANG_COMPILER_DEFINITIONS -DFloatType=float -DFloatType3=float3 -DFloatType4=float4 -DFloatTypeM=mat3 -DFLOAT_BITS=32)
+    set(OPENGL_COMPILER_DEFINITIONS -DFloatType=float -DFloatType3=vec3 -DFloatType4=vec4 -DFloatTypeM=mat3 -DFLOAT_BITS=32)
     set(OPENCL_COMPILER_DEFINITIONS "-cl-std=CL2.0 -D FloatType=float -D FloatType3=float3 -D FloatType4=float4 -D FloatType16=float16")
 elseif (${PPB_FloatType} EQUAL 64)
     set(SLANG_COMPILER_DEFINITIONS -DFloatType=double -DFloatType3=double3 -DFloatType4=double4 -DFloatTypeM=dmat3)

@@ -26,8 +26,8 @@ struct Result {
     __host__ __device__ Result operator+(const Result &other) const {
         Result result{};
         result.res = res + other.res;
-        result.first = other.first + other.first;
-        result.second = other.second + other.second;
+        result.first = first + other.first;
+        result.second = second + other.second;
         return result;
     }
 };
@@ -40,8 +40,6 @@ void wrapper_eval(
         void *vertices,
         void *faces,
         void *normals,
-        void *segmentVectors,
-        void *segmentNormals,
         void *results,
         void *settings,
         unsigned int num_faces,
@@ -84,7 +82,7 @@ public:
             const std::vector<Array3> &Vertices,
             const std::vector<IndexArray3> &Faces,
             const double density)
-        : GravityEvaluableBase(Vertices, Faces, density), mem_vertices(Vertices.size()), mem_faces(Faces.size()), mem_normals(Faces.size()), mem_segmentVectors(Faces.size() * 3), mem_segmentNormals(Faces.size() * 3), mem_results(Faces.size()), mem_settings(1) {
+        : GravityEvaluableBase(Vertices, Faces, density), mem_vertices(Vertices.size()), mem_faces(Faces.size()), mem_normals(Faces.size()), mem_results(Faces.size()), mem_settings(1) {
     }
 
     GravityModelResult evaluate(const Array3 &Point) override {
@@ -95,8 +93,6 @@ public:
                 mem_vertices._data,
                 mem_faces._data,
                 mem_normals._data,
-                mem_segmentVectors._data,
-                mem_segmentNormals._data,
                 mem_results._data,
                 mem_settings._data,
                 _faces.size(),
@@ -162,8 +158,6 @@ private:
     CudaMemory<uint3> mem_faces;
 
     CudaMemory<VectorType> mem_normals;
-    CudaMemory<VectorType> mem_segmentVectors;
-    CudaMemory<VectorType> mem_segmentNormals;
 
     CudaMemory<Result> mem_results;
 

@@ -27,8 +27,6 @@ __host__ void wrapper_eval(
         void *vertices,
         void *faces,
         void *normals,
-        void *segmentVectors,
-        void *segmentNormals,
         void *results,
         void *settings,
         unsigned int num_faces,
@@ -40,8 +38,6 @@ __host__ void wrapper_eval(
     params.vertices_0.data = reinterpret_cast<typeof(params.vertices_0.data)>(vertices);
     params.faces_0.data = reinterpret_cast<typeof(params.faces_0.data)>(faces);
     params.normals_0.data = reinterpret_cast<typeof(params.normals_0.data)>(normals);
-    params.segmentVectors_0.data = reinterpret_cast<typeof(params.segmentVectors_0.data)>(segmentVectors);
-    params.segmentNormals_0.data = reinterpret_cast<typeof(params.segmentNormals_0.data)>(segmentNormals);
     params.results_0.data = reinterpret_cast<typeof(params.results_0.data)>(results);
     params.params_0 = reinterpret_cast<typeof(params.params_0)>(settings);
 

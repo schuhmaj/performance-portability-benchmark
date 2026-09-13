@@ -101,8 +101,6 @@ public:
         bc::copy(faces.begin(), faces.end(), buffer_faces.begin(), queue);
 
         buffer_normals = bc::vector<VecType>(_faces.size(), context);
-        buffer_segmentVectors = bc::vector<VecType>(_faces.size() * 3, context);
-        buffer_segmentNormals = bc::vector<VecType>(_faces.size() * 3, context);
 
         nWorkGroups = (static_cast<int>(_faces.size()) + local_n - 1) / local_n;
 
@@ -122,17 +120,13 @@ public:
         kernel_init.set_arg(0, buffer_vertices);
         kernel_init.set_arg(1, buffer_faces);
         kernel_init.set_arg(2, buffer_normals);
-        kernel_init.set_arg(3, buffer_segmentVectors);
-        kernel_init.set_arg(4, buffer_segmentNormals);
-        kernel_init.set_arg(5, static_cast<cl_int>(_faces.size()));
+        kernel_init.set_arg(3, static_cast<cl_int>(_faces.size()));
 
         kernel_eval.set_arg(0, buffer_vertices);
         kernel_eval.set_arg(1, buffer_faces);
         kernel_eval.set_arg(2, buffer_normals);
-        kernel_eval.set_arg(3, buffer_segmentVectors);
-        kernel_eval.set_arg(4, buffer_segmentNormals);
-        kernel_eval.set_arg(5, buffer_results);
-        kernel_eval.set_arg(6, static_cast<cl_int>(_faces.size()));
+        kernel_eval.set_arg(3, buffer_results);
+        kernel_eval.set_arg(4, static_cast<cl_int>(_faces.size()));
 
         kernel_sum.set_arg(0, buffer_results);
         kernel_sum.set_arg(1, reduction_buffer);
@@ -145,9 +139,9 @@ public:
 
         GravityModelResult result{};
 
-        kernel_eval.set_arg(7, static_cast<ScalarType>(Point[0]));
-        kernel_eval.set_arg(8, static_cast<ScalarType>(Point[1]));
-        kernel_eval.set_arg(9, static_cast<ScalarType>(Point[2]));
+        kernel_eval.set_arg(5, static_cast<ScalarType>(Point[0]));
+        kernel_eval.set_arg(6, static_cast<ScalarType>(Point[1]));
+        kernel_eval.set_arg(7, static_cast<ScalarType>(Point[2]));
 
         const size_t local_size = static_cast<size_t>(local_n);
         const size_t global_size = ((_faces.size() + local_size - 1) / local_size) * local_size;
@@ -217,8 +211,6 @@ private:
     bc::vector<VecType> buffer_vertices;
     bc::vector<IntVecType> buffer_faces;
     bc::vector<VecType> buffer_normals;
-    bc::vector<VecType> buffer_segmentVectors;
-    bc::vector<VecType> buffer_segmentNormals;
 
     bc::vector<Vec16Type> buffer_results;
     bc::vector<Vec16Type> reduction_buffer;

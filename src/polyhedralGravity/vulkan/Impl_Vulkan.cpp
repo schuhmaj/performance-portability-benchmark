@@ -140,14 +140,10 @@ public:
         : GravityEvaluableBase(Vertices, Faces, density), _device(getSharedVulkan().device),
           _bufferVertices(nullptr),
           _bufferFaces(nullptr),
-          _bufferNormals(nullptr),
-          _bufferSegmentVectors(nullptr),
-          _bufferSegmentNormals(nullptr), _bufferResultPotential(nullptr), _bufferResultAcceleration(nullptr), _bufferResults(nullptr),
+          _bufferNormals(nullptr), _bufferResultPotential(nullptr), _bufferResultAcceleration(nullptr), _bufferResults(nullptr),
           _memoryVertices(nullptr),
           _memoryFaces(nullptr),
-          _memoryNormals(nullptr),
-          _memorySegmentVectors(nullptr),
-          _memorySegmentNormals(nullptr), _memoryResultPotential(nullptr), _memoryResultAcceleration(nullptr), _memoryResults(nullptr),
+          _memoryNormals(nullptr), _memoryResultPotential(nullptr), _memoryResultAcceleration(nullptr), _memoryResults(nullptr),
           _descriptorSetLayout(nullptr),
           _pipelineLayout(nullptr),
           _pipelineCache(nullptr),
@@ -189,24 +185,6 @@ public:
                 &ComputeQueueFamilyIndex                // List of queue family indices
         };
 
-        vk::BufferCreateInfo BufferCreateInfoSegmentVectors{
-                vk::BufferCreateFlags(),                // Flags
-                _faces.size() * sizeof(FloatType) * 12, // Size
-                vk::BufferUsageFlagBits::eStorageBuffer,// Usage
-                vk::SharingMode::eExclusive,            // Sharing mode
-                1,                                      // Number of queue family indices
-                &ComputeQueueFamilyIndex                // List of queue family indices
-        };
-
-        vk::BufferCreateInfo BufferCreateInfoSegmentNormals{
-                vk::BufferCreateFlags(),                // Flags
-                _faces.size() * sizeof(FloatType) * 12, // Size
-                vk::BufferUsageFlagBits::eStorageBuffer,// Usage
-                vk::SharingMode::eExclusive,            // Sharing mode
-                1,                                      // Number of queue family indices
-                &ComputeQueueFamilyIndex                // List of queue family indices
-        };
-
         vk::BufferCreateInfo BufferCreateInfoResultPotential{
                 vk::BufferCreateFlags(),                // Flags
                 sizeof(FloatType),                      // Size
@@ -237,8 +215,6 @@ public:
         _bufferVertices = _device.createBuffer(BufferCreateInfoVertices);
         _bufferFaces = _device.createBuffer(BufferCreateInfoFaces);
         _bufferNormals = _device.createBuffer(BufferCreateInfoNormals);
-        _bufferSegmentVectors = _device.createBuffer(BufferCreateInfoSegmentVectors);
-        _bufferSegmentNormals = _device.createBuffer(BufferCreateInfoSegmentNormals);
         _bufferResultPotential = _device.createBuffer(BufferCreateInfoResultPotential);
         _bufferResultAcceleration = _device.createBuffer(BufferCreateInfoResultAcceleration);
         _bufferResults = _device.createBuffer(BufferCreateInfoResults);
@@ -246,8 +222,6 @@ public:
         vk::MemoryRequirements MemoryRequirementsVertices = _bufferVertices.getMemoryRequirements();
         vk::MemoryRequirements MemoryRequirementsFaces = _bufferFaces.getMemoryRequirements();
         vk::MemoryRequirements MemoryRequirementsNormals = _bufferNormals.getMemoryRequirements();
-        vk::MemoryRequirements MemoryRequirementsSegmentVectors = _bufferSegmentVectors.getMemoryRequirements();
-        vk::MemoryRequirements MemoryRequirementsSegmentNormals = _bufferSegmentNormals.getMemoryRequirements();
         vk::MemoryRequirements MemoryRequirementsResultPotential = _bufferResultPotential.getMemoryRequirements();
         vk::MemoryRequirements MemoryRequirementsResultAcceleration = _bufferResultAcceleration.getMemoryRequirements();
         vk::MemoryRequirements MemoryRequirementsResults = _bufferResults.getMemoryRequirements();
@@ -257,10 +231,6 @@ public:
         vk::MemoryAllocateInfo MemoryAllocateInfoVertices(MemoryRequirementsVertices.size, MemoryTypeIndex);
         vk::MemoryAllocateInfo MemoryAllocateInfoFaces(MemoryRequirementsFaces.size, MemoryTypeIndex);
         vk::MemoryAllocateInfo MemoryAllocateInfoNormals(MemoryRequirementsNormals.size, MemoryTypeIndex);
-        vk::MemoryAllocateInfo MemoryAllocateInfoSegmentVectors(MemoryRequirementsSegmentVectors.size,
-                                                                MemoryTypeIndex);
-        vk::MemoryAllocateInfo MemoryAllocateInfoSegmentNormals(MemoryRequirementsSegmentNormals.size,
-                                                                MemoryTypeIndex);
         vk::MemoryAllocateInfo MemoryAllocateInfoResultPotential(MemoryRequirementsResultPotential.size,
                                                                  MemoryTypeIndex);
         vk::MemoryAllocateInfo MemoryAllocateInfoResultAcceleration(MemoryRequirementsResultAcceleration.size,
@@ -270,8 +240,6 @@ public:
         _memoryVertices = vk::raii::DeviceMemory(_device, MemoryAllocateInfoVertices);
         _memoryFaces = vk::raii::DeviceMemory(_device, MemoryAllocateInfoFaces);
         _memoryNormals = vk::raii::DeviceMemory(_device, MemoryAllocateInfoNormals);
-        _memorySegmentVectors = vk::raii::DeviceMemory(_device, MemoryAllocateInfoSegmentVectors);
-        _memorySegmentNormals = vk::raii::DeviceMemory(_device, MemoryAllocateInfoSegmentNormals);
         _memoryResultPotential = vk::raii::DeviceMemory(_device, MemoryAllocateInfoResultPotential);
         _memoryResultAcceleration = vk::raii::DeviceMemory(_device, MemoryAllocateInfoResultAcceleration);
         _memoryResults = vk::raii::DeviceMemory(_device, MemoryAllocateInfoResults);
@@ -295,8 +263,6 @@ public:
         _bufferVertices.bindMemory(*_memoryVertices, 0);
         _bufferFaces.bindMemory(*_memoryFaces, 0);
         _bufferNormals.bindMemory(*_memoryNormals, 0);
-        _bufferSegmentVectors.bindMemory(*_memorySegmentVectors, 0);
-        _bufferSegmentNormals.bindMemory(*_memorySegmentNormals, 0);
         _bufferResultPotential.bindMemory(*_memoryResultPotential, 0);
         _bufferResultAcceleration.bindMemory(*_memoryResultAcceleration, 0);
         _bufferResults.bindMemory(*_memoryResults, 0);
@@ -305,11 +271,9 @@ public:
                 {0, vk::DescriptorType::eStorageBuffer, 1, vk::ShaderStageFlagBits::eCompute},// Vertices
                 {1, vk::DescriptorType::eStorageBuffer, 1, vk::ShaderStageFlagBits::eCompute},// Faces
                 {2, vk::DescriptorType::eStorageBuffer, 1, vk::ShaderStageFlagBits::eCompute},// Normals
-                {3, vk::DescriptorType::eStorageBuffer, 1, vk::ShaderStageFlagBits::eCompute},// SegmentVectors
-                {4, vk::DescriptorType::eStorageBuffer, 1, vk::ShaderStageFlagBits::eCompute},// SegmentNormals
-                {5, vk::DescriptorType::eStorageBuffer, 1, vk::ShaderStageFlagBits::eCompute},// ResultsPotential
-                {6, vk::DescriptorType::eStorageBuffer, 1, vk::ShaderStageFlagBits::eCompute},// ResultsAcceleration
-                {7, vk::DescriptorType::eStorageBuffer, 1, vk::ShaderStageFlagBits::eCompute},// Results
+                {3, vk::DescriptorType::eStorageBuffer, 1, vk::ShaderStageFlagBits::eCompute},// ResultsPotential
+                {4, vk::DescriptorType::eStorageBuffer, 1, vk::ShaderStageFlagBits::eCompute},// ResultsAcceleration
+                {5, vk::DescriptorType::eStorageBuffer, 1, vk::ShaderStageFlagBits::eCompute},// Results
         };
         vk::DescriptorSetLayoutCreateInfo DescriptorSetLayoutCreateInfo(
                 vk::DescriptorSetLayoutCreateFlags(),
@@ -341,10 +305,6 @@ public:
         vk::DescriptorBufferInfo BufferInfoVertices(*_bufferVertices, 0, BufferCreateInfoVertices.size);
         vk::DescriptorBufferInfo BufferInfoFaces(*_bufferFaces, 0, BufferCreateInfoFaces.size);
         vk::DescriptorBufferInfo BufferInfoNormals(*_bufferNormals, 0, BufferCreateInfoNormals.size);
-        vk::DescriptorBufferInfo BufferInfoSegmentVectors(*_bufferSegmentVectors, 0,
-                                                          BufferCreateInfoSegmentVectors.size);
-        vk::DescriptorBufferInfo BufferInfoSegmentNormals(*_bufferSegmentNormals, 0,
-                                                          BufferCreateInfoSegmentNormals.size);
         vk::DescriptorBufferInfo BufferInfoResultPotential(*_bufferResultPotential, 0,
                                                            BufferCreateInfoResultPotential.size);
         vk::DescriptorBufferInfo BufferInfoResultAcceleration(*_bufferResultAcceleration, 0,
@@ -355,11 +315,9 @@ public:
                 {*_descriptorSets[0], 0, 0, 1, vk::DescriptorType::eStorageBuffer, nullptr, &BufferInfoVertices},
                 {*_descriptorSets[0], 1, 0, 1, vk::DescriptorType::eStorageBuffer, nullptr, &BufferInfoFaces},
                 {*_descriptorSets[0], 2, 0, 1, vk::DescriptorType::eStorageBuffer, nullptr, &BufferInfoNormals},
-                {*_descriptorSets[0], 3, 0, 1, vk::DescriptorType::eStorageBuffer, nullptr, &BufferInfoSegmentVectors},
-                {*_descriptorSets[0], 4, 0, 1, vk::DescriptorType::eStorageBuffer, nullptr, &BufferInfoSegmentNormals},
-                {*_descriptorSets[0], 5, 0, 1, vk::DescriptorType::eStorageBuffer, nullptr, &BufferInfoResultPotential},
-                {*_descriptorSets[0], 6, 0, 1, vk::DescriptorType::eStorageBuffer, nullptr, &BufferInfoResultAcceleration},
-                {*_descriptorSets[0], 7, 0, 1, vk::DescriptorType::eStorageBuffer, nullptr, &BufferInfoResults},
+                {*_descriptorSets[0], 3, 0, 1, vk::DescriptorType::eStorageBuffer, nullptr, &BufferInfoResultPotential},
+                {*_descriptorSets[0], 4, 0, 1, vk::DescriptorType::eStorageBuffer, nullptr, &BufferInfoResultAcceleration},
+                {*_descriptorSets[0], 5, 0, 1, vk::DescriptorType::eStorageBuffer, nullptr, &BufferInfoResults},
         };
         _device.updateDescriptorSets(WriteDescriptorSets, {});
 
@@ -528,8 +486,6 @@ private:
     vk::raii::Buffer _bufferVertices;
     vk::raii::Buffer _bufferFaces;
     vk::raii::Buffer _bufferNormals;
-    vk::raii::Buffer _bufferSegmentVectors;
-    vk::raii::Buffer _bufferSegmentNormals;
 
     vk::raii::Buffer _bufferResultPotential;
     vk::raii::Buffer _bufferResultAcceleration;
@@ -538,8 +494,6 @@ private:
     vk::raii::DeviceMemory _memoryVertices;
     vk::raii::DeviceMemory _memoryFaces;
     vk::raii::DeviceMemory _memoryNormals;
-    vk::raii::DeviceMemory _memorySegmentVectors;
-    vk::raii::DeviceMemory _memorySegmentNormals;
     vk::raii::DeviceMemory _memoryResultPotential;
     vk::raii::DeviceMemory _memoryResultAcceleration;
     vk::raii::DeviceMemory _memoryResults;
