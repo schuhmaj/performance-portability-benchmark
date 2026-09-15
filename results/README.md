@@ -13,9 +13,9 @@ only records the exact invocations that produced the archived data.
 | `Results_<platform>.csv` | Step 2 — one consolidated CSV per platform |
 | `code-complexity/*.csv` | Step 3 — SLOC and Halstead metrics per file and per implementation |
 | `Profiling_<platform>.csv` | Step 5.1 — per-kernel Nsight Compute counters and roofline quantities |
-| `Profiling_NCU_<platform>.csv` | [`ROOFLINE.md`](ROOFLINE.md) step 1 — the same, at the profiling sizes that cover every paradigm |
-| `Profiling_NSYS_<platform>.csv` | [`ROOFLINE.md`](ROOFLINE.md) step 2 — sampled counters for the paradigms without a CUDA context |
-| `Profiling_NGFX_<platform>.csv` | [`ROOFLINE.md`](ROOFLINE.md) step 4 — GPU Trace counters, cross-check on Vulkan |
+| `Profiling_NCU_<platform>.csv` | [`ROOFLINE.md`](ROOFLINE.md) Reproduce, step 1 — counted, the paradigms with a CUDA context |
+| `Profiling_NSYS_<platform>.csv` | [`ROOFLINE.md`](ROOFLINE.md) Reproduce, step 3 — sampled, the paradigms without a CUDA context |
+| `Profiling_NGFX_<platform>.csv` | [`ROOFLINE.md`](ROOFLINE.md) Reproduce, step 4 — GPU Trace counters, cross-check on Vulkan |
 | `Profiling_LIKWID_<platform>.csv` | Step 5.2 — per-region LIKWID counters, same columns |
 | `Profiling_comparison_<platform>.csv` | Step 5.3 — the two backends side by side, per executable |
 | `matmul_roofline_likwid_<platform>.pdf` | Step 5.2 — matrix-multiplication roofline |
@@ -32,7 +32,7 @@ them.
 From the build directory of the platform under test:
 
 ```bash
-ppbcc benchmark -p src -H "Intel GPU Max 1550" \
+ppbcc benchmark -p src -H "Intel Max 1550" \
   -r "vec_.*" "matMul_.*" "nbody_.*" "polyhedral_.*" -x ".*_cpp" --dry-run
 ```
 
@@ -58,7 +58,7 @@ Repeat for the remaining platforms:
 | `./nvidia-rtx5080` | `NVIDIA RTX5080` | `Results_NVIDIA_RTX5080` |
 | `./nvidia-gh200` | `NVIDIA GH200` | `Results_NVIDIA_GH200` |
 | `./amd-mi210` | `AMD MI210` | `Results_AMD_MI210` |
-| `./intel-data_center_gpu_max_1550` | `Intel GPU Max 1550` | `Results_Intel_GPU_Max_1550` |
+| `./intel-data_center_gpu_max_1550` | `Intel Max 1550` | `Results_Intel_Max_1550` |
 
 ## 3. Code complexity
 
@@ -87,12 +87,20 @@ implementation units of required `src/common` utilities are added automatically;
 inflating an aggregate.
 
 The profiling instrumentation is measured as if it had never been added (`--exclude-macro`,
-`--exclude-header`): `src/common/Marker.h` and `src/common/Profiling.h` are not counted, their
-`#include` lines and every `PPB_MARKER_*` region are removed, and conditionals on `PPB_PROFILING`,
-`PPB_ENABLE_LIKWID` and `PPB_ENABLE_NVTX` are resolved as the benchmark build compiles them. The only
-trace left is the call `ppb::profiling::initialize(&argc, argv)` in place of
-`benchmark::Initialize(&argc, argv)`, one operator and one operand more per vector-addition
-aggregate (the other problems call it from `main` files, which the manifest does not count).
+`--exclude-header`, which need a `ppbcc` with code-complexity exclusions): `src/common/Marker.h` and
+`src/common/Profiling.h` are not counted, their `#include` lines and every `PPB_MARKER_*` region are
+removed, and conditionals on `PPB_PROFILING`, `PPB_ENABLE_LIKWID` and `PPB_ENABLE_NVTX` are resolved
+as the benchmark build compiles them. The only trace left is the call
+`ppb::profiling::initialize(&argc, argv)` in place of `benchmark::Initialize(&argc, argv)`, one
+operator and one operand more per vector-addition aggregate (the other problems call it from `main`
+files, which the manifest does not count). Running the script on the sources before the
+instrumentation (`7520ac3`) and after it gives exactly that difference and nothing else.
+
+> [!NOTE]
+> `src/common/cuda/helper_math.h` and `helper_math_double.h` are excluded as well (`--exclude-header
+> common/cuda/helper_math*.h`): they are NVIDIA's vendored CUDA Samples vector-math library, i.e.
+> third-party code like Thrust or Kokkos, and only one of the two precision copies is compiled per
+> build. Counting them inflated the polyhedral `Cuda` and `Slang-Cuda` aggregates by ~1 970 SLOC.
 
 ## 4. Plots
 
@@ -103,28 +111,34 @@ problem size) need the code-complexity CSV from step 3:
 # N-body
 ppbcc p3analysis NBody ./Results_* --complexity ./code-complexity/code-complexity.csv -c combined \
   --complexity-metric halstead-difficulty --normalize --log-complexity \
-  --non-zero-pp -s avg -x "VerletLists|LinkedCells|Reduction" --remove-description -l \
-  --export-to-csv --legend--vertical
+  --non-zero-pp -s avg --average-over efficiency -x "VerletLists|LinkedCells|Reduction" \
+  --remove-description -l --export-to-csv --legend--vertical
 # Polyhedral gravity model
 ppbcc p3analysis Polyhedral ./Results_* --complexity ./code-complexity/code-complexity.csv -c combined \
   --complexity-metric halstead-difficulty --normalize --log-complexity \
-  --non-zero-pp --remove-description -s avg -l --export-to-csv
+  --non-zero-pp --remove-description -s avg --average-over efficiency -l --export-to-csv
 # Matrix multiplication
 ppbcc p3analysis MatrixMultiplication ./Results_* --complexity ./code-complexity/code-complexity.csv -c combined \
   --complexity-metric halstead-difficulty --normalize --log-complexity \
-  --non-zero-pp --remove-description -s avg -x "Cublas" -l --export-to-csv
+  --non-zero-pp --remove-description -s avg --average-over efficiency -x "Cublas" -l \
+  --export-to-csv
 # Vector addition
 ppbcc p3analysis VecAdd ./Results_* --complexity ./code-complexity/code-complexity.csv -c combined \
   --complexity-metric halstead-difficulty --normalize --log-complexity \
-  --non-zero-pp --remove-description -s avg -x "Cublas" -l --export-to-csv
+  --non-zero-pp --remove-description -s avg --average-over efficiency -x "Cublas" -l \
+  --export-to-csv
 ```
+
+`--average-over efficiency` computes ꟼP from the application efficiencies averaged over the
+benchmark sizes, i.e. as the harmonic mean of exactly the efficiency panel on the left, instead of
+averaging one ꟼP score per size (`--average-over pp`, the default the paper originally used). The
+per-size heatmap is the same in both modes. The exported `average` rows of
+`*_performance_portability.csv` follow the option.
 
 `--normalize` replaces the `--additive` these charts used before. Expressing complexity as a
 percentage of the sequential C++ baseline keeps every value positive, which is what makes
-`--log-complexity` usable — and the log axis is what the polyhedral chart needs, because its two
-CUDA implementations sit at roughly 500 % of the baseline and squeeze the other twelve paradigms
-into the left quarter of a linear axis. Ranking is unaffected either way: both options apply the
-same transform to every paradigm.
+`--log-complexity` usable. Ranking is unaffected either way: both options apply the same transform
+to every paradigm.
 
 > [!NOTE]
 > The lower-right panel is a **heatmap** over the benchmark sizes, one row per implementation and
