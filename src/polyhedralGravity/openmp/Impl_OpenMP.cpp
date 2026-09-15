@@ -28,8 +28,6 @@ public:
           _normals(allocateOpenMp<Array3>(_faces.size(), device_num)) {
         int src_device_num = omp_get_initial_device();
 
-        std::cout << "Device number: " << device_num << std::endl;
-
         omp_target_memcpy(_facesDevice, _faces.data(), sizeof(IndexArray3) * _faces.size(), 0, 0, device_num, src_device_num);
         omp_target_memcpy(_verticesDevice, _vertices.data(), sizeof(Array3) * _vertices.size(), 0, 0, device_num, src_device_num);
     }
