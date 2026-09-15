@@ -32,7 +32,7 @@ them.
 From the build directory of the platform under test:
 
 ```bash
-ppbcc benchmark -p src -H "Intel GPU Max 1550" \
+ppbcc benchmark -p src -H "Intel Max 1550" \
   -r "vec_.*" "matMul_.*" "nbody_.*" "polyhedral_.*" -x ".*_cpp" --dry-run
 ```
 
@@ -58,7 +58,7 @@ Repeat for the remaining platforms:
 | `./nvidia-rtx5080` | `NVIDIA RTX5080` | `Results_NVIDIA_RTX5080` |
 | `./nvidia-gh200` | `NVIDIA GH200` | `Results_NVIDIA_GH200` |
 | `./amd-mi210` | `AMD MI210` | `Results_AMD_MI210` |
-| `./intel-data_center_gpu_max_1550` | `Intel GPU Max 1550` | `Results_Intel_GPU_Max_1550` |
+| `./intel-data_center_gpu_max_1550` | `Intel Max 1550` | `Results_Intel_Max_1550` |
 
 ## 3. Code complexity
 
@@ -111,21 +111,29 @@ problem size) need the code-complexity CSV from step 3:
 # N-body
 ppbcc p3analysis NBody ./Results_* --complexity ./code-complexity/code-complexity.csv -c combined \
   --complexity-metric halstead-difficulty --normalize --log-complexity \
-  --non-zero-pp -s avg -x "VerletLists|LinkedCells|Reduction" --remove-description -l \
-  --export-to-csv --legend--vertical
+  --non-zero-pp -s avg --average-over efficiency -x "VerletLists|LinkedCells|Reduction" \
+  --remove-description -l --export-to-csv --legend--vertical
 # Polyhedral gravity model
 ppbcc p3analysis Polyhedral ./Results_* --complexity ./code-complexity/code-complexity.csv -c combined \
   --complexity-metric halstead-difficulty --normalize --log-complexity \
-  --non-zero-pp --remove-description -s avg -l --export-to-csv
+  --non-zero-pp --remove-description -s avg --average-over efficiency -l --export-to-csv
 # Matrix multiplication
 ppbcc p3analysis MatrixMultiplication ./Results_* --complexity ./code-complexity/code-complexity.csv -c combined \
   --complexity-metric halstead-difficulty --normalize --log-complexity \
-  --non-zero-pp --remove-description -s avg -x "Cublas" -l --export-to-csv
+  --non-zero-pp --remove-description -s avg --average-over efficiency -x "Cublas" -l \
+  --export-to-csv
 # Vector addition
 ppbcc p3analysis VecAdd ./Results_* --complexity ./code-complexity/code-complexity.csv -c combined \
   --complexity-metric halstead-difficulty --normalize --log-complexity \
-  --non-zero-pp --remove-description -s avg -x "Cublas" -l --export-to-csv
+  --non-zero-pp --remove-description -s avg --average-over efficiency -x "Cublas" -l \
+  --export-to-csv
 ```
+
+`--average-over efficiency` computes ꟼP from the application efficiencies averaged over the
+benchmark sizes, i.e. as the harmonic mean of exactly the efficiency panel on the left, instead of
+averaging one ꟼP score per size (`--average-over pp`, the default the paper originally used). The
+per-size heatmap is the same in both modes. The exported `average` rows of
+`*_performance_portability.csv` follow the option.
 
 `--normalize` replaces the `--additive` these charts used before. Expressing complexity as a
 percentage of the sequential C++ baseline keeps every value positive, which is what makes
