@@ -52,7 +52,9 @@ AGGREGATE_METRICS = (
 #: common/Marker.h, the profiling mode of common/Profiling.h, and the conditionals on their switches
 #: are measured as if they had never been added, i.e. as the benchmark build compiles them.
 EXCLUDED_MACROS = (r"PPB_MARKER_\w+", "PPB_PROFILING", "PPB_ENABLE_LIKWID", "PPB_ENABLE_NVTX")
-EXCLUDED_HEADERS = ("common/Marker.h", "common/Profiling.h")
+#: The vendored CUDA Samples vector-math library is third-party code like the Thrust or Kokkos headers,
+#: and only one of its float/double copies is compiled per build.
+EXCLUDED_HEADERS = ("common/Marker.h", "common/Profiling.h", "common/cuda/helper_math*.h")
 EXCLUSIONS = Exclusions.create(EXCLUDED_MACROS, EXCLUDED_HEADERS)
 
 
@@ -80,10 +82,10 @@ def files_below(source: Path, relative: str, *, exclude_main: bool = True) -> tu
 
 
 def impl(
-    problem: str,
-    framework: str,
-    dialect: str,
-    *sources: str,
+        problem: str,
+        framework: str,
+        dialect: str,
+        *sources: str,
 ) -> Implementation:
     return Implementation(problem, framework, dialect, tuple(sources))
 
@@ -221,9 +223,9 @@ def implementation_manifest(source: Path) -> tuple[Implementation, ...]:
         )
     )
     for variant_dir, description in (
-        ("naive", "Naive"),
-        ("cell_lists", "LinkedCells"),
-        ("verlet_lists", "VerletLists"),
+            ("naive", "Naive"),
+            ("cell_lists", "LinkedCells"),
+            ("verlet_lists", "VerletLists"),
     ):
         vulkan_host = files_below(source, f"nBodySimulation/vulkan/{variant_dir}")
         vulkan_shaders = tuple(path for path in vulkan_host if path.endswith(".comp"))
@@ -334,9 +336,9 @@ def local_dependencies(source: Path, seed_sources: tuple[str, ...]) -> tuple[Pat
 
 
 def validate_dependencies(
-    source: Path,
-    implementation: Implementation,
-    sources: tuple[Path, ...],
+        source: Path,
+        implementation: Implementation,
+        sources: tuple[Path, ...],
 ) -> None:
     """Reject empty manifest entries and dependencies on a different problem."""
     if not sources:
@@ -367,11 +369,11 @@ def reported_path(source: Path, path: Path) -> str:
 
 
 def describe(
-    source: Path,
-    sources: tuple[Path, ...],
-    *,
-    dialect: str | None = None,
-    aggregate: bool = False,
+        source: Path,
+        sources: tuple[Path, ...],
+        *,
+        dialect: str | None = None,
+        aggregate: bool = False,
 ) -> str:
     """Render the analysis about to run the way the CLI would spell it."""
     parts = ["code-complexity", *(reported_path(source, path) for path in sources)]
@@ -386,12 +388,12 @@ def describe(
 
 
 def analyze(
-    source: Path,
-    sources: tuple[Path, ...],
-    *,
-    dialect: str | None = None,
-    aggregate: bool = False,
-    dry_run: bool,
+        source: Path,
+        sources: tuple[Path, ...],
+        *,
+        dialect: str | None = None,
+        aggregate: bool = False,
+        dry_run: bool,
 ) -> pd.DataFrame | None:
     logger.info("{}", describe(source, sources, dialect=dialect, aggregate=aggregate))
     if dry_run:

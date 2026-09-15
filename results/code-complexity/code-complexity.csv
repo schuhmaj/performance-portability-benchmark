@@ -67,14 +67,14 @@ PolyhedralGravity,CPP,443,71,263,1958,1546
 PolyhedralGravity,AdaptiveCpp,509,82,292,2279,1766
 PolyhedralGravity,Alpaka,554,96,303,2374,1766
 PolyhedralGravity,Boost,623,102,348,2742,2055
-PolyhedralGravity,Cuda,2561,117,359,14883,9403
+PolyhedralGravity,Cuda,591,104,315,2590,1994
 PolyhedralGravity,Hip,626,103,323,2876,2190
 PolyhedralGravity,Kokkos,458,86,274,2056,1553
 PolyhedralGravity,OpenACC,471,79,275,2076,1611
 PolyhedralGravity,OpenCL,715,129,393,3037,2215
-PolyhedralGravity,OpenMP,467,90,270,2085,1603
+PolyhedralGravity,OpenMP,466,90,268,2079,1597
 PolyhedralGravity,RAJA,511,94,291,2283,1736
 PolyhedralGravity,Stdpar,460,72,273,2034,1594
 PolyhedralGravity,Vulkan,911,171,469,3735,2674
-PolyhedralGravity,Slang-Cuda,2661,130,399,14998,9512
+PolyhedralGravity,Slang-Cuda,691,118,352,2705,2103
 PolyhedralGravity,Slang-Vulkan,849,166,480,3311,2522
