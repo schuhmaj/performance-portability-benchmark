@@ -130,4 +130,21 @@
       "cpu_time": 3.0343611165048485e+06,
       "time_unit": "ns",
       "NumFaces": 3.2040000000000000e+04
+    },
+    {
+      "name": "Polyhedral-SHAPE_SFM_3M_v20180804",
+      "family_index": 6,
+      "per_family_instance_index": 0,
+      "run_name": "Polyhedral-SHAPE_SFM_3M_v20180804",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 61,
+      "real_time": 1.3229961606261672e+07,
+      "cpu_time": 1.1983590278685400e+07,
+      "time_unit": "ns",
+      "NumFaces": 3.1457280000000000e+06
     }
+  ]
+}
