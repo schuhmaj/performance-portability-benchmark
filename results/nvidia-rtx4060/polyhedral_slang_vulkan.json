@@ -1,6 +1,6 @@
 {
   "context": {
-    "date": "2026-08-10T17:47:54+02:00",
+    "date": "2026-09-15T17:17:56+02:00",
     "host_name": "atsccs109",
     "executable": "/work_fast/ge25zov/Programming/performance-portability-benchmark/build-cuda-llvm/src/polyhedralGravity/slang/polyhedral_slang_vulkan",
     "num_cpus": 24,
@@ -33,7 +33,7 @@
         "num_sharing": 24
       }
     ],
-    "load_avg": [1.08398,1.04346,0.913086],
+    "load_avg": [2.37158,1.2832,0.560059],
     "library_version": "v1.9.4",
     "library_build_type": "release",
     "json_schema_version": 1,
@@ -50,9 +50,9 @@
       "repetitions": 1,
       "repetition_index": 0,
       "threads": 1,
-      "iterations": 13063,
-      "real_time": 1.2434046092781159e+06,
-      "cpu_time": 2.4813597029778764e+04,
+      "iterations": 12829,
+      "real_time": 1.8020904819995121e+06,
+      "cpu_time": 6.4366861251851275e+04,
       "time_unit": "ns",
       "NumFaces": 1.4744000000000000e+04
     },
@@ -65,9 +65,9 @@
       "repetitions": 1,
       "repetition_index": 0,
       "threads": 1,
-      "iterations": 1000,
-      "real_time": 2.2785442006999802e+07,
-      "cpu_time": 9.6445139000000068e+04,
+      "iterations": 100,
+      "real_time": 2.6899603409692645e+07,
+      "cpu_time": 9.5740320000001768e+04,
       "time_unit": "ns",
       "NumFaces": 2.5593200000000000e+05
     },
@@ -81,8 +81,8 @@
       "repetition_index": 0,
       "threads": 1,
       "iterations": 1000,
-      "real_time": 1.5894349611000052e+07,
-      "cpu_time": 7.6749841999999902e+04,
+      "real_time": 2.0467763538006693e+07,
+      "cpu_time": 8.1984794000000024e+04,
       "time_unit": "ns",
       "NumFaces": 1.9660800000000000e+05
     },
@@ -96,44 +96,29 @@
       "repetition_index": 0,
       "threads": 1,
       "iterations": 10000,
-      "real_time": 2.8068470220000565e+05,
-      "cpu_time": 2.9761302899999988e+04,
+      "real_time": 2.8382599968463182e+05,
+      "cpu_time": 2.1248626100000001e+04,
       "time_unit": "ns",
       "NumFaces": 2.7800000000000000e+03
     },
     {
-      "name": "Polyhedral-SHAPE_SFM_3M_v20180804",
-      "family_index": 4,
-      "per_family_instance_index": 0,
-      "run_name": "Polyhedral-SHAPE_SFM_3M_v20180804",
-      "run_type": "iteration",
-      "repetitions": 1,
-      "repetition_index": 0,
-      "threads": 1,
-      "iterations": 1,
-      "real_time": 4.2595218829999337e+09,
-      "cpu_time": 5.9364685000000253e+07,
-      "time_unit": "ns",
-      "NumFaces": 3.1457280000000000e+06
-    },
-    {
       "name": "Polyhedral-4179toutatis",
-      "family_index": 5,
+      "family_index": 4,
       "per_family_instance_index": 0,
       "run_name": "Polyhedral-4179toutatis",
       "run_type": "iteration",
       "repetitions": 1,
       "repetition_index": 0,
       "threads": 1,
-      "iterations": 13594,
-      "real_time": 1.1805094421803842e+06,
-      "cpu_time": 3.4591691922907114e+04,
+      "iterations": 10000,
+      "real_time": 1.2700040606316179e+06,
+      "cpu_time": 2.6157227099999993e+04,
       "time_unit": "ns",
       "NumFaces": 1.2796000000000000e+04
     },
     {
       "name": "Polyhedral-hartley2_2012_cart",
-      "family_index": 6,
+      "family_index": 5,
       "per_family_instance_index": 0,
       "run_name": "Polyhedral-hartley2_2012_cart",
       "run_type": "iteration",
@@ -141,10 +126,25 @@
       "repetition_index": 0,
       "threads": 1,
       "iterations": 1000,
-      "real_time": 3.0863653320000139e+06,
-      "cpu_time": 1.0976301100000007e+05,
+      "real_time": 3.9624186400324106e+06,
+      "cpu_time": 8.5153853000000003e+04,
       "time_unit": "ns",
       "NumFaces": 3.2040000000000000e+04
+    },
+    {
+      "name": "Polyhedral-SHAPE_SFM_3M_v20180804",
+      "family_index": 6,
+      "per_family_instance_index": 0,
+      "run_name": "Polyhedral-SHAPE_SFM_3M_v20180804",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 10,
+      "real_time": 4.1834331681020558e+08,
+      "cpu_time": 1.7507541999999708e+06,
+      "time_unit": "ns",
+      "NumFaces": 3.1457280000000000e+06
     }
   ]
 }
