@@ -128,19 +128,13 @@ using Array6 = Array6Base<FloatType>;
 using IndexArray3 = Array3Base<size_t>;
 using Array3Triplet = Array3Base<Array3Base<FloatType>>;
 
+// GravityModelResult and Singularity are aggregates on purpose: a user-provided
+// constructor makes nvc++ (-stdpar=gpu, NVHPC 26.3) emit a `__staticinit` constant
+// with malformed NVVM IR (`float 0` instead of `float 0.0`), aborting device compilation.
 struct GravityModelResult {
     FloatType potential;
     Array3 acceleration;
     Array6 gradiometricTensor;
-
-    CTOR_PREFIX GravityModelResult()
-        : potential(0), acceleration{}, gradiometricTensor{} {
-    }
-    CTOR_PREFIX GravityModelResult(const FloatType _potential, const Array3 &_acceleration, const Array6 &_gradiometricTensor)
-        : potential(_potential), acceleration(_acceleration),
-          gradiometricTensor(_gradiometricTensor) {
-    }
-
 
     FUNC_PREFIX GravityModelResult &operator+=(const GravityModelResult &rhs) {
         potential += rhs.potential;
@@ -158,13 +152,6 @@ struct GravityModelResult {
 struct Singularity {
     FloatType a;
     Array3 b;
-
-    CTOR_PREFIX Singularity()
-        : a{}, b{} {
-    }
-    CTOR_PREFIX Singularity(const FloatType _a, const Array3 &_b)
-        : a{_a}, b{_b} {
-    }
 };
 
 struct Distance {

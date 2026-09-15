@@ -13,9 +13,9 @@ only records the exact invocations that produced the archived data.
 | `Results_<platform>.csv` | Step 2 — one consolidated CSV per platform |
 | `code-complexity/*.csv` | Step 3 — SLOC and Halstead metrics per file and per implementation |
 | `Profiling_<platform>.csv` | Step 5.1 — per-kernel Nsight Compute counters and roofline quantities |
-| `Profiling_NCU_<platform>.csv` | [`ROOFLINE.md`](ROOFLINE.md) step 1 — the same, at the profiling sizes that cover every paradigm |
-| `Profiling_NSYS_<platform>.csv` | [`ROOFLINE.md`](ROOFLINE.md) step 2 — sampled counters for the paradigms without a CUDA context |
-| `Profiling_NGFX_<platform>.csv` | [`ROOFLINE.md`](ROOFLINE.md) step 4 — GPU Trace counters, cross-check on Vulkan |
+| `Profiling_NCU_<platform>.csv` | [`ROOFLINE.md`](ROOFLINE.md) Reproduce, step 1 — counted, the paradigms with a CUDA context |
+| `Profiling_NSYS_<platform>.csv` | [`ROOFLINE.md`](ROOFLINE.md) Reproduce, step 3 — sampled, the paradigms without a CUDA context |
+| `Profiling_NGFX_<platform>.csv` | [`ROOFLINE.md`](ROOFLINE.md) Reproduce, step 4 — GPU Trace counters, cross-check on Vulkan |
 | `Profiling_LIKWID_<platform>.csv` | Step 5.2 — per-region LIKWID counters, same columns |
 | `Profiling_comparison_<platform>.csv` | Step 5.3 — the two backends side by side, per executable |
 | `matmul_roofline_likwid_<platform>.pdf` | Step 5.2 — matrix-multiplication roofline |
@@ -86,6 +86,22 @@ implementation units of required `src/common` utilities are added automatically;
 *different* benchmark problem is rejected, which prevents unrelated application code from silently
 inflating an aggregate.
 
+The profiling instrumentation is measured as if it had never been added (`--exclude-macro`,
+`--exclude-header`, which need a `ppbcc` with code-complexity exclusions): `src/common/Marker.h` and
+`src/common/Profiling.h` are not counted, their `#include` lines and every `PPB_MARKER_*` region are
+removed, and conditionals on `PPB_PROFILING`, `PPB_ENABLE_LIKWID` and `PPB_ENABLE_NVTX` are resolved
+as the benchmark build compiles them. The only trace left is the call
+`ppb::profiling::initialize(&argc, argv)` in place of `benchmark::Initialize(&argc, argv)`, one
+operator and one operand more per vector-addition aggregate (the other problems call it from `main`
+files, which the manifest does not count). Running the script on the sources before the
+instrumentation (`7520ac3`) and after it gives exactly that difference and nothing else.
+
+> [!NOTE]
+> `src/common/cuda/helper_math.h` and `helper_math_double.h` are excluded as well (`--exclude-header
+> common/cuda/helper_math*.h`): they are NVIDIA's vendored CUDA Samples vector-math library, i.e.
+> third-party code like Thrust or Kokkos, and only one of the two precision copies is compiled per
+> build. Counting them inflated the polyhedral `Cuda` and `Slang-Cuda` aggregates by ~1 970 SLOC.
+
 ## 4. Plots
 
 The combined charts (application efficiency, ꟼP over complexity, platform ranking, and ꟼP over
@@ -113,10 +129,8 @@ ppbcc p3analysis VecAdd ./Results_* --complexity ./code-complexity/code-complexi
 
 `--normalize` replaces the `--additive` these charts used before. Expressing complexity as a
 percentage of the sequential C++ baseline keeps every value positive, which is what makes
-`--log-complexity` usable — and the log axis is what the polyhedral chart needs, because its two
-CUDA implementations sit at roughly 500 % of the baseline and squeeze the other twelve paradigms
-into the left quarter of a linear axis. Ranking is unaffected either way: both options apply the
-same transform to every paradigm.
+`--log-complexity` usable. Ranking is unaffected either way: both options apply the same transform
+to every paradigm.
 
 > [!NOTE]
 > The lower-right panel is a **heatmap** over the benchmark sizes, one row per implementation and
@@ -238,7 +252,7 @@ Both builds write their reports into one shared folder (`--report-dir` is relati
 ```bash
 ppbcc profile -b build-cuda-llvm-profiling  -p src -r "polyhedral_.*"    \
   -d ../profiling-nvidia-rtx5080 -H "NVIDIA RTX5080" --no-csv
-ppbcc profile -b build-cuda-nvhpc-profiling -p src -r "polyhedral_acc$" \
+ppbcc profile -b build-cuda-nvhpc-profiling -p src -r "polyhedral_acc$" "polyhedral_stdpar$" \
   -d ../profiling-nvidia-rtx5080 -H "NVIDIA RTX5080" --no-csv
 ```
 
@@ -256,7 +270,7 @@ ppbcc profile -b . -d profiling-nvidia-rtx5080 -r "polyhedral_.*" --skip-profile
 > [!NOTE]
 > This step covers only the paradigms with a CUDA context, which is why the archived
 > `polyhedral_roofline_<platform>.pdf` comes from [`ROOFLINE.md`](ROOFLINE.md) instead: it merges
-> this table with the sampled one and carries all thirteen implementations.
+> this table with the sampled one and carries all fourteen polyhedral implementations.
 
 Kokkos' architecture query and desul's lock-array initialization never reach the table: the runtime
 launches them once at startup, outside every marked region, and they compute nothing. The plot shows
