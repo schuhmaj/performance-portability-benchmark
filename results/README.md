@@ -47,18 +47,17 @@ archived CSVs in this folder are regenerated:
 ```bash
 ppbcc benchmark -p ./nvidia-rtx3080 -r ".*\.json" --skip-benchmark \
   -H "NVIDIA RTX3080" -o "Results_NVIDIA_RTX3080"
+ppbcc benchmark -p ./nvidia-rtx4060 -r ".*\.json" --skip-benchmark \
+  -H "NVIDIA RTX4060" -o "Results_NVIDIA_RTX4060"
+ppbcc benchmark -p ./nvidia-rtx5080 -r ".*\.json" --skip-benchmark \
+  -H "NVIDIA RTX5080" -o "Results_NVIDIA_RTX5080"
+ppbcc benchmark -p ./nvidia-gh200 -r ".*\.json" --skip-benchmark \
+  -H "NVIDIA GH200" -o "Results_NVIDIA_GH200"
+ppbcc benchmark -p ./amd-mi210 -r ".*\.json" --skip-benchmark \
+  -H "AMD MI210" -o "Results_AMD_MI210"
+ppbcc benchmark -p ./intel-data_center_gpu_max_1550 -r ".*\.json" --skip-benchmark \
+  -H "Intel Max 1550" -o "Results_Intel_Max_1550"
 ```
-
-Repeat for the remaining platforms:
-
-| `-p` | `-H` | `-o` |
-|---|---|---|
-| `./nvidia-rtx3080` | `NVIDIA RTX3080` | `Results_NVIDIA_RTX3080` |
-| `./nvidia-rtx4060` | `NVIDIA RTX4060` | `Results_NVIDIA_RTX4060` |
-| `./nvidia-rtx5080` | `NVIDIA RTX5080` | `Results_NVIDIA_RTX5080` |
-| `./nvidia-gh200` | `NVIDIA GH200` | `Results_NVIDIA_GH200` |
-| `./amd-mi210` | `AMD MI210` | `Results_AMD_MI210` |
-| `./intel-data_center_gpu_max_1550` | `Intel Max 1550` | `Results_Intel_Max_1550` |
 
 ## 3. Code complexity
 
@@ -105,29 +104,34 @@ instrumentation (`7520ac3`) and after it gives exactly that difference and nothi
 ## 4. Plots
 
 The combined charts (application efficiency, ꟼP over complexity, platform ranking, and ꟼP over
-problem size) need the code-complexity CSV from step 3:
+problem size) come from `ppbcc p3analysis` and need the code-complexity CSV from step 3:
 
 ```bash
+CC=./code-complexity/code-complexity.csv
 # N-body
-ppbcc p3analysis NBody ./Results_* --complexity ./code-complexity/code-complexity.csv -c combined \
-  --complexity-metric halstead-difficulty --normalize --log-complexity \
+ppbcc p3analysis combined $CC ./Results_* -n NBody \
+  -c halstead-difficulty --log-complexity \
   --non-zero-pp -s avg --average-over efficiency -x "VerletLists|LinkedCells|Reduction" \
   --remove-description -l --export-to-csv --legend--vertical
 # Polyhedral gravity model
-ppbcc p3analysis Polyhedral ./Results_* --complexity ./code-complexity/code-complexity.csv -c combined \
-  --complexity-metric halstead-difficulty --normalize --log-complexity \
+ppbcc p3analysis combined $CC ./Results_* -n Polyhedral \
+  -c halstead-difficulty --log-complexity \
   --non-zero-pp --remove-description -s avg --average-over efficiency -l --export-to-csv
 # Matrix multiplication
-ppbcc p3analysis MatrixMultiplication ./Results_* --complexity ./code-complexity/code-complexity.csv -c combined \
-  --complexity-metric halstead-difficulty --normalize --log-complexity \
+ppbcc p3analysis combined $CC ./Results_* -n MatrixMultiplication \
+  -c halstead-difficulty --log-complexity \
   --non-zero-pp --remove-description -s avg --average-over efficiency -x "Cublas" -l \
   --export-to-csv
 # Vector addition
-ppbcc p3analysis VecAdd ./Results_* --complexity ./code-complexity/code-complexity.csv -c combined \
-  --complexity-metric halstead-difficulty --normalize --log-complexity \
+ppbcc p3analysis combined $CC ./Results_* -n VecAdd \
+  -c halstead-difficulty --log-complexity \
   --non-zero-pp --remove-description -s avg --average-over efficiency -x "Cublas" -l \
   --export-to-csv
 ```
+
+`ppbcc p3analysis` takes the chart first, then the code-complexity CSV, then the benchmark CSVs.
+`-n` selects the problem and may only be omitted when the CSVs hold a single problem, which the
+consolidated `Results_*` files do not.
 
 `--average-over efficiency` computes ꟼP from the application efficiencies averaged over the
 benchmark sizes, i.e. as the harmonic mean of exactly the efficiency panel on the left, instead of
@@ -135,18 +139,17 @@ averaging one ꟼP score per size (`--average-over pp`, the default the paper or
 per-size heatmap is the same in both modes. The exported `average` rows of
 `*_performance_portability.csv` follow the option.
 
-`--normalize` replaces the `--additive` these charts used before. Expressing complexity as a
-percentage of the sequential C++ baseline keeps every value positive, which is what makes
-`--log-complexity` usable. Ranking is unaffected either way: both options apply the same transform
-to every paradigm.
+Complexity is expressed as a percentage of the sequential C++ baseline by default, which keeps every
+value positive and is what makes `--log-complexity` usable. `--complexity-metric-absolute` plots the
+raw metric instead; ranking is unaffected either way, because the scaling is the same for every
+paradigm.
 
 > [!NOTE]
 > The lower-right panel is a **heatmap** over the benchmark sizes, one row per implementation and
 > one column per size, and no longer a line plot: with fourteen implementations the lines
 > overlapped to the point of being unreadable. Its rows keep the descending-ꟼP order of the
 > platform-ranking panel to its left, so the two lower panels line up row for row and the paradigm
-> labels are not repeated. `--log-size` is therefore obsolete — the axis is categorical — and is
-> accepted but ignored, with a warning.
+> labels are not repeated.
 >
 > Its column labels use exponents whenever every benchmark size is an exact power of the same
 > base: `2^5 … 2^14` for matrix multiplication and `10^1 … 10^8` for N-body and vector addition.
@@ -156,33 +159,34 @@ to every paradigm.
 
 ### 4.1 SLOC against Halstead difficulty
 
-`-c complexity-comparison` plots two complexity metrics against each other, one marker per
+`complexity-comparison` plots two complexity metrics against each other, one marker per
 paradigm, with the identity line drawn in: above it the y metric charges a paradigm more than the
 x metric does — *dense lines* — and below it the x metric charges more — *verbose code*. Both axes
 are relative to the sequential C++ baseline, which is what makes the identity line meaningful, so
-the chart always normalizes and rejects `--additive`.
+the chart rejects `--complexity-metric-absolute`.
 
 ```bash
+CC=./code-complexity/code-complexity.csv
 # Vector addition
-ppbcc p3analysis VecAdd ./Results_* --complexity ./code-complexity/code-complexity.csv \
-  -c complexity-comparison --complexity-metric halstead-difficulty --compare-metric sloc \
+ppbcc p3analysis complexity-comparison $CC ./Results_* -n VecAdd \
+  -c halstead-difficulty --compare-metric sloc \
   --log-complexity --non-zero-pp -s avg -x "Cublas" --remove-description -l
 # Matrix multiplication
-ppbcc p3analysis MatrixMultiplication ./Results_* --complexity ./code-complexity/code-complexity.csv \
-  -c complexity-comparison --complexity-metric halstead-difficulty --compare-metric sloc \
+ppbcc p3analysis complexity-comparison $CC ./Results_* -n MatrixMultiplication \
+  -c halstead-difficulty --compare-metric sloc \
   --log-complexity --non-zero-pp -s avg -x "Cublas" --remove-description -l
 # N-body
-ppbcc p3analysis NBody ./Results_* --complexity ./code-complexity/code-complexity.csv \
-  -c complexity-comparison --complexity-metric halstead-difficulty --compare-metric sloc \
+ppbcc p3analysis complexity-comparison $CC ./Results_* -n NBody \
+  -c halstead-difficulty --compare-metric sloc \
   --log-complexity --non-zero-pp -s avg -x "VerletLists|LinkedCells|Reduction" \
   --remove-description -l
 # Polyhedral gravity model
-ppbcc p3analysis Polyhedral ./Results_* --complexity ./code-complexity/code-complexity.csv \
-  -c complexity-comparison --complexity-metric halstead-difficulty --compare-metric sloc \
+ppbcc p3analysis complexity-comparison $CC ./Results_* -n Polyhedral \
+  -c halstead-difficulty --compare-metric sloc \
   --log-complexity --non-zero-pp -s avg --remove-description -l
 ```
 
-`--compare-metric` names the x-axis metric and `--complexity-metric` the y-axis one; both accept
+`--compare-metric` names the x-axis metric and `-c/--complexity-metric` the y-axis one; both accept
 the same names and aliases as everywhere else. `-l` suppresses the in-plot legend *and* the
 per-point paradigm labels, because the paper keys these charts to the shared vertical legend of
 step 4; drop it to get a self-contained chart with both.
@@ -190,28 +194,28 @@ step 4; drop it to get a self-contained chart with both.
 A key hanging from half height on the right states the absolute sequential C++ values behind the
 100 % of both axes, e.g. `SLOC = 715` and `D = 232.22` for N-body, so the figure can be read
 without the running text. It grows downwards into the lower-right corner, which the markers leave
-free. Charts spanning several problems have several baselines and so carry no key.
+free. Spearman's rho and Kendall's tau are not drawn; they belong in the running text, where they
+can be discussed.
 
-Spearman's rho and Kendall's tau are **not** drawn by default — they belong in the running text,
-where they can be discussed. `--legend-complexity-comparison-coefficients` appends them to that
-key instead of opening a second box.
+### 4.2 Benchmark-only charts
 
-The boxplots need no complexity data and use `-s all` instead of `-s avg`:
+Charts that need no complexity data come from `ppbcc p2analysis`, which takes the chart and the
+benchmark CSVs only. The boxplots use `-s all` instead of `-s avg`:
 
 ```bash
-ppbcc p3analysis NBody ./Results_* -c boxplot \
+ppbcc p2analysis boxplot ./Results_* -n NBody \
   --non-zero-pp -s all -x "VerletLists|LinkedCells|Reduction" --remove-description
-ppbcc p3analysis Polyhedral ./Results_* -c boxplot \
+ppbcc p2analysis boxplot ./Results_* -n Polyhedral \
   --non-zero-pp -s all --remove-description
-ppbcc p3analysis MatrixMultiplication ./Results_* -c boxplot \
+ppbcc p2analysis boxplot ./Results_* -n MatrixMultiplication \
   --non-zero-pp -s all -x "Cublas" --remove-description
-ppbcc p3analysis VecAdd ./Results_* -c boxplot \
+ppbcc p2analysis boxplot ./Results_* -n VecAdd \
   --non-zero-pp -s all -x "Cublas" --remove-description
 ```
 
 `--export-to-csv` additionally writes the underlying application-efficiency and
 performance-portability tables, so every quoted number can be checked against a CSV rather than
-read off a plot.
+read off a plot. With `p3analysis` the tables also carry every complexity metric.
 
 ## 5. Roofline models
 
