@@ -1,4 +1,5 @@
 #include "Impl_Stdpar.h"
+#include "common/Marker.h"
 
 #include <algorithm>
 #include <cmath>
@@ -63,6 +64,7 @@ namespace ppb {
 
     template <typename FloatType>
     void ImplStdpar<FloatType>::updatePositionsAndResetForce() {
+        PPB_MARKER_GPU_SCOPE("positions");
         const size_t size = _config.size;
         const FloatType dt = _config.deltaT;
         const std::array<FloatType, 3> globalForce = _config.globalForce;
@@ -93,6 +95,7 @@ namespace ppb {
 
     template <typename FloatType>
     void ImplStdpar<FloatType>::updateVelocities() {
+        PPB_MARKER_GPU_SCOPE("velocities");
         const size_t size = _config.size;
         const FloatType dt = _config.deltaT;
         const FloatType *forces = _particles->forces.data();
@@ -117,6 +120,7 @@ namespace ppb {
 
     template <typename FloatType>
     void ImplStdpar<FloatType>::computeForces() {
+        PPB_MARKER_GPU_SCOPE("forces");
         const size_t size = _config.size;
         FloatType *forces = _particles->forces.data();
         const FloatType *positions = _particles->positions.data();

@@ -1,4 +1,5 @@
 #include "Impl_Slang_Cuda.cuh"
+#include "common/Marker.h"
 #include <cuda_runtime.h>
 
 namespace ppb {
@@ -181,9 +182,15 @@ namespace ppb {
         const uint32_t _gridSize = util::ceilDiv<unsigned int>(_config.size, _blockSize);
 
         for (int i = 0; i < _config.numberTimeSteps; ++i) {
+            PPB_MARKER_GPU_START("positions");
             launchKernel(&module_position.kernel, _gridSize, &_timings.positionUpdateForceResetTime);
+            PPB_MARKER_GPU_STOP("positions");
+            PPB_MARKER_GPU_START("forces");
             launchKernel(&module_force.kernel, _gridSize, &_timings.forceUpdateTime);
+            PPB_MARKER_GPU_STOP("forces");
+            PPB_MARKER_GPU_START("velocities");
             launchKernel(&module_velocity.kernel, _gridSize, &_timings.velocityUpdateTime);
+            PPB_MARKER_GPU_STOP("velocities");
         }
         
         //_particles->print_buffer(soa.positions.ptr, _config.size);

@@ -1,4 +1,5 @@
 #include "Impl_AdaptiveCpp.h"
+#include "common/Marker.h"
 
 namespace ppb {
 
@@ -61,6 +62,7 @@ namespace ppb {
 
     template<typename FloatType>
     void ImplAdaptiveCpp<FloatType>::updatePositionsAndResetForce() {
+        PPB_MARKER_GPU_SCOPE("positions");
         const size_t size = _config.size;
         constexpr size_t dim = 3;
         const auto dt = static_cast<FloatType>(_config.deltaT);
@@ -102,6 +104,7 @@ namespace ppb {
 
     template<typename FloatType>
     void ImplAdaptiveCpp<FloatType>::updateVelocities() {
+        PPB_MARKER_GPU_SCOPE("velocities");
         const size_t size = _config.size;
         constexpr size_t dim = 3;
         const FloatType dt = static_cast<FloatType>(_config.deltaT);
@@ -134,6 +137,7 @@ namespace ppb {
 
     template<typename FloatType>
     void ImplAdaptiveCpp<FloatType>::computeForces() {
+        PPB_MARKER_GPU_SCOPE("forces");
         const size_t size = _config.size;
         auto &forces = _particles->forces;
         auto &positions = _particles->positions;

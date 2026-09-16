@@ -1,4 +1,5 @@
 #include "Impl_OpenMP.h"
+#include "common/Marker.h"
 
 namespace ppb {
 
@@ -84,6 +85,7 @@ namespace ppb {
 
     template <typename FloatType>
     void ImplOpenMP<FloatType>::updatePositionsAndResetForce() {
+        PPB_MARKER_GPU_SCOPE("positions");
         const size_t size = _config.size;
         const FloatType dt = _config.deltaT;
         const std::array<float_type, 3> &globalForce = _config.globalForce;
@@ -112,6 +114,7 @@ namespace ppb {
     }
     template <typename FloatType>
     void ImplOpenMP<FloatType>::updateVelocities() {
+        PPB_MARKER_GPU_SCOPE("velocities");
         const size_t size = _config.size;
         const FloatType dt = _config.deltaT;
         const std::array<float_type, 3> &globalForce = _config.globalForce;
@@ -136,6 +139,7 @@ namespace ppb {
 
     template <typename FloatType>
     void ImplOpenMP<FloatType>::computeForces() {
+        PPB_MARKER_GPU_SCOPE("forces");
         const size_t size = _config.size;
         const FloatType dt = _config.deltaT;
         const std::array<float_type, 3> &globalForce = _config.globalForce;

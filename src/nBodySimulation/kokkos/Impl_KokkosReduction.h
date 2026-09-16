@@ -22,7 +22,10 @@ namespace ppb {
 
         using float_type = FloatType;
 
-        explicit ImplKokkosReduction(const ParticleSimulationConfig<FloatType> &config) : ImplKokkos<FloatType>(config) {}
+        explicit ImplKokkosReduction(const ParticleSimulationConfig<FloatType> &config) : ImplKokkos<FloatType>(config) {
+            this->_positionsTag = "positions-reduction";
+            this->_velocitiesTag = "velocities-reduction";
+        }
 
         /**
          * Computes the inter-particle forces using the Lennard-Jones potential for all particles on the device,

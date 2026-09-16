@@ -1,4 +1,5 @@
 #include "Impl_Cuda.cuh"
+#include "common/Marker.h"
 #include <cuda_runtime.h>
 
 namespace ppb {
@@ -165,6 +166,7 @@ namespace ppb {
 
     template<typename FloatType>
     void ImplCuda<FloatType>::updatePositionsAndResetForce() {
+        PPB_MARKER_GPU_SCOPE("positions");
         const size_t size = _config.size;
         const auto dt = static_cast<FloatType>(_config.deltaT);
         const auto &globalForce = _config.globalForce;
@@ -189,6 +191,7 @@ namespace ppb {
 
     template<typename FloatType>
     void ImplCuda<FloatType>::updateVelocities() {
+        PPB_MARKER_GPU_SCOPE("velocities");
         const size_t size = _config.size;
         constexpr size_t dim = 3;
         const auto dt = static_cast<FloatType>(_config.deltaT);
@@ -213,6 +216,7 @@ namespace ppb {
 
     template<typename FloatType>
     void ImplCuda<FloatType>::computeForces() {
+        PPB_MARKER_GPU_SCOPE("forces");
         const size_t size = _config.size;
         auto &force = _particles->forces;
         auto &position = _particles->positions;

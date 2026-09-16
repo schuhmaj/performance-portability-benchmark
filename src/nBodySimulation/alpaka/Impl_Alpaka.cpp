@@ -1,4 +1,5 @@
 #include "Impl_Alpaka.h"
+#include "common/Marker.h"
 #include <chrono>
 
 template <typename FloatType>
@@ -79,6 +80,7 @@ std::pair<std::vector<ppb::Particle<FloatType>>, ppb::ParticleSimulationTimings>
 
 template <typename FloatType>
 void ppb::ImplAlpaka<FloatType>::updatePositionsAndResetForce() {
+    PPB_MARKER_GPU_SCOPE("positions");
     const size_t n = _config.size;
     const std::array<float_type, 3> &globalForce = _config.globalForce;
     const auto &dt = static_cast<float_type>(_config.deltaT);
@@ -127,6 +129,7 @@ void ppb::ImplAlpaka<FloatType>::updatePositionsAndResetForce() {
 
 template <typename FloatType>
 void ppb::ImplAlpaka<FloatType>::updateVelocities() {
+    PPB_MARKER_GPU_SCOPE("velocities");
     const size_t n = _config.size;
     const auto &dt = static_cast<float_type>(_config.deltaT);
 
@@ -163,6 +166,7 @@ void ppb::ImplAlpaka<FloatType>::updateVelocities() {
 
 template <typename FloatType>
 void ppb::ImplAlpaka<FloatType>::computeForces() {
+    PPB_MARKER_GPU_SCOPE("forces");
     const size_t n = _config.size;
     const auto &dt = static_cast<float_type>(_config.deltaT);
 

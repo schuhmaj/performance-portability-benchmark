@@ -1,4 +1,5 @@
 #include "Impl_OpenCL.h"
+#include "common/Marker.h"
 #include "common/UtilityFloatArithmetic.h"
 
 namespace ppb {
@@ -141,6 +142,7 @@ namespace ppb {
 
     template <typename FloatType>
     void ImplOpenCL<FloatType>::updatePositionsAndResetForce() {
+        PPB_MARKER_GPU_SCOPE("positions");
         const size_t localSize = ParticleSimulationConfig<FloatType>::TILE_SIZE;
         const size_t globalSize = util::roundUp<size_t>(_numParticles, localSize);
 
@@ -160,6 +162,7 @@ namespace ppb {
 
     template <typename FloatType>
     void ImplOpenCL<FloatType>::updateVelocities() {
+        PPB_MARKER_GPU_SCOPE("velocities");
         const size_t localSize = ParticleSimulationConfig<FloatType>::TILE_SIZE;
         const size_t globalSize = util::roundUp<size_t>(_numParticles, localSize);
 
@@ -179,6 +182,7 @@ namespace ppb {
 
     template <typename FloatType>
     void ImplOpenCL<FloatType>::computeForces() {
+        PPB_MARKER_GPU_SCOPE("forces");
         const size_t localSize = ParticleSimulationConfig<FloatType>::TILE_SIZE;
         const size_t globalSize = util::roundUp<size_t>(_numParticles, localSize);
 

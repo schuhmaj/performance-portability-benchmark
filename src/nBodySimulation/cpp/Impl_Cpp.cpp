@@ -1,4 +1,5 @@
 #include "Impl_Cpp.h"
+#include "common/Marker.h"
 
 namespace ppb {
 
@@ -19,6 +20,7 @@ namespace ppb {
 
     template <typename FloatType>
     void ImplCpp<FloatType>::updatePositionsAndResetForce(std::vector<Particle<FloatType>> &particles) {
+        PPB_MARKER_CPU_SCOPE("positions");
         using ppb::util::operator+, ppb::util::operator*=;
         const auto start = std::chrono::high_resolution_clock::now();
         for (auto &particle : particles) {
@@ -37,6 +39,7 @@ namespace ppb {
     }
     template <typename FloatType>
     void ImplCpp<FloatType>::updateVelocities(std::vector<Particle<FloatType>> &particles) {
+        PPB_MARKER_CPU_SCOPE("velocities");
         using ppb::util::operator+, ppb::util::operator*;
         const auto start = std::chrono::high_resolution_clock::now();
         for (auto &particle : particles) {
@@ -52,6 +55,7 @@ namespace ppb {
 
     template <typename FloatType>
     void ImplCpp<FloatType>::computeForces(std::vector<Particle<FloatType>> &particles) {
+        PPB_MARKER_CPU_SCOPE("forces");
         using namespace ppb::util;
         const size_t size = particles.size();
         const auto start = std::chrono::high_resolution_clock::now();

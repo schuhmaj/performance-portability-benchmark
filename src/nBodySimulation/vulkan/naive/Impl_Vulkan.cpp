@@ -1,4 +1,5 @@
 #include "Impl_Vulkan.h"
+#include "common/Marker.h"
 #include "Push_Constants.h"
 #include "Common_Push_Constants.h"
 
@@ -130,11 +131,13 @@ namespace ppb {
 
         auto algorithm = _manager.algorithm(params, _kernelPosition, workgroup, {}, pushData);
 
+        PPB_MARKER_GPU_START("positions");
         const auto start = std::chrono::high_resolution_clock::now();
 
         _sequence->template record<kp::OpAlgoDispatch>(algorithm ,pushData)->eval();
 
         const auto end = std::chrono::high_resolution_clock::now();
+        PPB_MARKER_GPU_STOP("positions");
         const double elapsed_nanoseconds =
             static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count());
         
@@ -162,11 +165,13 @@ namespace ppb {
 
         auto algorithm = _manager.algorithm(params, _kernelVelocity, workgroup, {}, pushData);
 
+        PPB_MARKER_GPU_START("velocities");
         const auto start = std::chrono::high_resolution_clock::now();
 
         _sequence->template record<kp::OpAlgoDispatch>(algorithm ,pushData)->eval();
 
         const auto end = std::chrono::high_resolution_clock::now();
+        PPB_MARKER_GPU_STOP("velocities");
         const double elapsed_nanoseconds =
             static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count());
         
@@ -193,11 +198,13 @@ namespace ppb {
 
         auto algorithm = _manager.algorithm(params, _kernelForce, workgroup, {}, pushData);
 
+        PPB_MARKER_GPU_START("forces");
         const auto start = std::chrono::high_resolution_clock::now();
 
         _sequence->template record<kp::OpAlgoDispatch>(algorithm ,pushData)->eval();
 
         const auto end = std::chrono::high_resolution_clock::now();
+        PPB_MARKER_GPU_STOP("forces");
         const double elapsed_nanoseconds =
             static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count());
         

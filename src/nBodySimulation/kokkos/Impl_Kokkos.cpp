@@ -1,4 +1,5 @@
 #include "Impl_Kokkos.h"
+#include "common/Marker.h"
 
 namespace ppb {
 
@@ -65,6 +66,7 @@ namespace ppb {
 
     template<typename FloatType>
     void ImplKokkos<FloatType>::updatePositionsAndResetForce() {
+        PPB_MARKER_GPU_SCOPE(this->_positionsTag);
         const size_t size = _particles->size();
         constexpr size_t dim = 3;
         const auto dt = static_cast<FloatType>(_config.deltaT);
@@ -103,6 +105,7 @@ namespace ppb {
 
     template<typename FloatType>
     void ImplKokkos<FloatType>::updateVelocities() {
+        PPB_MARKER_GPU_SCOPE(this->_velocitiesTag);
         const size_t size = _particles->size();
         constexpr size_t dim = 3;
         const auto dt = static_cast<FloatType>(_config.deltaT);
@@ -126,6 +129,7 @@ namespace ppb {
 
     template<typename FloatType>
     void ImplKokkos<FloatType>::computeForces() {
+        PPB_MARKER_GPU_SCOPE("forces");
         const size_t size = _particles->size();
         auto &force = _particles->forces;
         auto &position = _particles->positions;

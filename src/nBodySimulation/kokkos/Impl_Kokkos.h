@@ -121,6 +121,13 @@ namespace ppb {
          */
         ParticleSimulationTimings _timings;
 
+        /**
+         * Tags of the position and velocity update regions (see common/Marker.h). They have to be unique within the
+         * executable, which also runs the ImplKokkosReduction subclass that inherits both updates.
+         */
+        const char *_positionsTag{"positions"};
+        const char *_velocitiesTag{"velocities"};
+
     public:
         /**
          * Type alias for the floating-point type used in this simulation.

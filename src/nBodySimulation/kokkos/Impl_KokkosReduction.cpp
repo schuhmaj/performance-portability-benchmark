@@ -1,9 +1,11 @@
 #include "Impl_KokkosReduction.h"
+#include "common/Marker.h"
 
 namespace ppb {
 
     template<typename FloatType>
     void ImplKokkosReduction<FloatType>::computeForces() {
+        PPB_MARKER_GPU_SCOPE("forces-reduction");
         const size_t size = this->_particles->size();
         auto &force = this->_particles->forces;
         auto &position = this->_particles->positions;

@@ -1,4 +1,5 @@
 #include "Impl_Hip.h"
+#include "common/Marker.h"
 #include "common/hip/CheckHip.h"
 #include <hip/hip_runtime.h>
 
@@ -155,10 +156,9 @@ namespace ppb {
         if (size <= MAX_THREADS) {
             _blockSize = size;
         } else {
-            int blockSize = 0;
             int minGridSize = 0;
             CHECK_HIP(hipOccupancyMaxPotentialBlockSize(
-                &minGridSize, &blockSize,
+                &minGridSize, &_blockSize,
                 reinterpret_cast<const void*>(update_positions),
                 0, size)
             );
@@ -170,6 +170,7 @@ namespace ppb {
 
     template<typename FloatType>
     void ImplHip<FloatType>::updatePositionsAndResetForce() {
+        PPB_MARKER_GPU_SCOPE("positions");
         const size_t size = _config.size;
         const auto dt = static_cast<FloatType>(_config.deltaT);
         const auto &globalForce = _config.globalForce;
@@ -185,6 +186,7 @@ namespace ppb {
 
         CHECK_HIP(hipEventRecord(start));
         update_positions<<<_gridSize, _blockSize>>>(position, velocity, force, oldForce, _globalForce, dt, size);
+        CHECK_HIP(hipGetLastError());
         CHECK_HIP(hipEventRecord(stop));
 
         CHECK_HIP(hipEventSynchronize(stop));
@@ -194,6 +196,7 @@ namespace ppb {
 
     template<typename FloatType>
     void ImplHip<FloatType>::updateVelocities() {
+        PPB_MARKER_GPU_SCOPE("velocities");
         const size_t size = _config.size;
         constexpr size_t dim = 3;
         const auto dt = static_cast<FloatType>(_config.deltaT);
@@ -208,6 +211,7 @@ namespace ppb {
 
         CHECK_HIP(hipEventRecord(start));
         update_velocities<<<_gridSize, _blockSize>>>(velocity, force, oldForce, dt, size);
+        CHECK_HIP(hipGetLastError());
         CHECK_HIP(hipEventRecord(stop));
 
         CHECK_HIP(hipEventSynchronize(stop));
@@ -218,6 +222,7 @@ namespace ppb {
 
     template<typename FloatType>
     void ImplHip<FloatType>::computeForces() {
+        PPB_MARKER_GPU_SCOPE("forces");
         const size_t size = _config.size;
         auto &force = _particles->forces;
         auto &position = _particles->positions;
@@ -229,6 +234,7 @@ namespace ppb {
 
         CHECK_HIP(hipEventRecord(start));
         compute_forces<<<_gridSize, _blockSize>>>(position, force, size);
+        CHECK_HIP(hipGetLastError());
         CHECK_HIP(hipEventRecord(stop));
 
         CHECK_HIP(hipEventSynchronize(stop));

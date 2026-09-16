@@ -1,4 +1,5 @@
 #include "Impl_Raja.h"
+#include "common/Marker.h"
 
 #include <chrono>
 #include "RAJA/RAJA.hpp"
@@ -111,6 +112,7 @@ namespace ppb {
 
     template<typename FloatType>
     void ImplRaja<FloatType>::updatePositionsAndResetForce() {
+        PPB_MARKER_GPU_SCOPE("positions");
         const size_t n = _particles->size();
         const auto dt = static_cast<FloatType>(_config.deltaT);
         const auto globalForce0 = static_cast<FloatType>(_config.globalForce[0]);
@@ -147,6 +149,7 @@ namespace ppb {
 
     template<typename FloatType>
     void ImplRaja<FloatType>::updateVelocities() {
+        PPB_MARKER_GPU_SCOPE("velocities");
         const size_t n = _particles->size();
         const auto dt = static_cast<FloatType>(_config.deltaT);
         FloatType *force = _particles->forces;
@@ -169,6 +172,7 @@ namespace ppb {
 
     template<typename FloatType>
     void ImplRaja<FloatType>::computeForces() {
+        PPB_MARKER_GPU_SCOPE("forces");
         const size_t size = _particles->size();
         FloatType *force = _particles->forces;
         FloatType *position = _particles->positions;

@@ -1,4 +1,5 @@
 #include "Impl_OpenACC.h"
+#include "common/Marker.h"
 
 namespace ppb {
 
@@ -93,6 +94,7 @@ namespace ppb {
 
     template <typename FloatType>
     void ImplOpenACC<FloatType>::updatePositionsAndResetForce() {
+        PPB_MARKER_GPU_SCOPE("positions");
         const size_t size = _config.size;
         const FloatType dt = _config.deltaT;
         // Copy the global force into a plain local array. Indexing a std::array inside the
@@ -127,6 +129,7 @@ namespace ppb {
 
     template <typename FloatType>
     void ImplOpenACC<FloatType>::updateVelocities() {
+        PPB_MARKER_GPU_SCOPE("velocities");
         const size_t size = _config.size;
         const FloatType dt = _config.deltaT;
         const auto *forces = _particles->forces;
@@ -150,6 +153,7 @@ namespace ppb {
 
     template <typename FloatType>
     void ImplOpenACC<FloatType>::computeForces() {
+        PPB_MARKER_GPU_SCOPE("forces");
         const size_t size = _config.size;
         auto *forces = _particles->forces;
         const auto *positions = _particles->positions;
