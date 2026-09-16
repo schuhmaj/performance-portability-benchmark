@@ -6,9 +6,16 @@ the LIKWID/HPCToolkit/TAU notes, are in [`README.md`](README.md). This file reco
 produced `matmul_roofline_NVIDIA_RTX5080.pdf` and `polyhedral_roofline_NVIDIA_RTX5080.pdf`.
 
 RTX 5080 (GB203, sm_120), driver 610.43.02, Nsight Compute 2026.2.1, Nsight Systems 2026.1.3,
-Nsight Graphics 2026.3.1. Matrix multiplication 2026-09-08; polyhedral gravity retaken 2026-09-11
-after its kernel was rewritten (see [What changed](#what-changed-in-the-polyhedral-kernel)), and
-`polyhedral_omp` once more on 2026-09-13 after its reduction moved into the evaluation kernel.
+Nsight Graphics 2026.3.1. Matrix multiplication 2026-09-15 (first taken 2026-09-08); polyhedral
+gravity retaken 2026-09-11 after its kernel was rewritten (see
+[What changed](#what-changed-in-the-polyhedral-kernel)), and `polyhedral_omp` once more on
+2026-09-13 after its reduction moved into the evaluation kernel.
+
+The reports behind the CSVs live in `profiling/`: the matrix multiplication in `profiling-rtx5080`,
+`profiling-nsys-rtx5080` and `profiling-ngfx-rtx5080`, the polyhedral gravity in the
+`*.polyhedral-update` folder next to each. The polyhedral reports in the plain folders are the
+kernel *before* the rewrite (1121 FLOP/face) and feed only the *ms before* column below. What every
+CSV column means and how it is computed is in [Reading the CSVs](#reading-the-csvs).
 
 ## Inputs
 
@@ -84,15 +91,15 @@ Three things make the sampled numbers trustworthy; all three are implemented in
   occupancy against the dispatch's ~96 %, so a window below `-O activity-ratio` (0.7) times the
   busiest one in the same region is dropped.
 
-**The sampled durations agree with independent timers to within 2–9 %**, which is the check that the
+**The sampled durations agree with independent timers to within 2–10 %**, which is the check that the
 window detection works:
 
 | Executable | `nsys` window | independent value |
 |---|---|---|
-| `matMul_ocl` | 37.84 ms | 39.78 ms (`clGetEventProfilingInfo`) |
-| `matMul_boost` | 38.01 ms | 39.63 ms (same) |
-| `matMul_vulkan` | 38.17 ms | 39.11 ms (application timer) |
-| `matMul_slang_vulkan` | 38.25 ms | 41.04 ms (same) |
+| `matMul_ocl` | 37.16 ms | 39.78 ms (`clGetEventProfilingInfo`) |
+| `matMul_boost` | 37.08 ms | 39.63 ms (same) |
+| `matMul_vulkan` | 37.07 ms | 39.11 ms (application timer) |
+| `matMul_slang_vulkan` | 37.07 ms | 41.04 ms (same) |
 | `polyhedral_ocl` | 0.246 ms | 0.269 ms (steady-state wall clock, Google Benchmark, measuring build) |
 | `polyhedral_boost` | 0.250 ms | 0.274 ms (same) |
 | `polyhedral_vulkan` | 14.08 ms | 13.81 ms (same) |
@@ -105,7 +112,7 @@ The **byte** counts are the weaker half, on both tools.
 
 *Sampled against counted.* Profiling the CUDA binaries with `nsys` as well as `ncu` puts the sampled
 integral within 0.3 % of the counted one on the cuBLAS kernel but 29 % above it on the naive one.
-The Nsight Graphics cross-check of step 4 lands 17–20 % above the sampled value on the matrix
+The Nsight Graphics cross-check of step 4 lands 28–29 % above the sampled value on the matrix
 multiplication's Vulkan kernels, and 4.7× below it on `polyhedral_vulkan`.
 
 *Counted against itself.* At 4096² one matrix is 67 MB against this card's 64 MB of L2, so whether a
@@ -115,6 +122,9 @@ factor of two between runs of the *same binary* while the kernel time does not m
 `matMul_kokkos` measured 2.44 GB in the batch below and 4.44 / 4.48 / 4.43 GB in three separate
 runs, both at 39.82 ms. The tables below are one consistent batch; `matMul_alpaka`, whose 4×4096
 grid of 1024-thread blocks makes it the most sensitive, sits at the low end of its range there.
+Re-profiling the matrix multiplication on 2026-09-15 moved the kernel times by at most 3 % but the
+DRAM bytes by up to 34 % (`matMul_hip` 2.77 → 1.83 GB, `matMul_acc` 1.86 → 2.44 GB), the same effect
+again.
 
 **Read the arithmetic intensity of every point as good to about a factor of two, and the kernel
 times as good to a few percent.** The ranking by time is solid; the ranking by traffic is not.
@@ -152,10 +162,28 @@ ppbcc profile -b build-cuda-llvm-profiling -p src -r "matMul_.*" "polyhedral_.*"
 ppbcc profile -b build-cuda-nvhpc-profiling -p src \
   -r "matMul_acc$" "matMul_stdpar$" "polyhedral_acc$" "polyhedral_stdpar$" \
   -d ../profiling-rtx5080 -H "NVIDIA RTX5080" --no-csv --timeout 420
-# Re-read the reports without running anything and write the consolidated CSV.
-ppbcc profile -b . -d profiling-rtx5080 -r ".*" --skip-profile -H "NVIDIA RTX5080" \
-  -o results/Profiling_NCU_NVIDIA_RTX5080
 ```
+
+The archived CSV is re-read from the reports without running anything. The two problems come from
+different folders (see the top of this file), so each is consolidated on its own and the two tables
+are then merged, which is also what writes the unit-annotated header:
+
+```bash
+cd results/profiling
+S=$(mktemp -d)
+ppbcc profile -b . -d profiling-rtx5080 -r "matMul_.*" --skip-profile \
+  -H "NVIDIA RTX5080" -o $S/matmul
+ppbcc profile -b . -d profiling-rtx5080.polyhedral-update -r "polyhedral_.*" --skip-profile \
+  -H "NVIDIA RTX5080" -o $S/polyhedral
+ppbcc profile --from-csv $S/matmul.csv $S/polyhedral.csv -H "NVIDIA RTX5080" \
+  -o ../Profiling_NCU_NVIDIA_RTX5080
+```
+
+Re-reading needs no `ncu` CLI: without one on the `PATH`, `ppbcc` opens the reports through Nsight
+Compute's `ncu_report` Python module, which the macOS host application ships as well. The numbers
+are identical; the only difference is that `Kernel` and `Kernel Signature` keep namespaces the CLI
+abbreviates (`Kokkos::Impl::cuda_parallel_launch_local_memory` instead of
+`Kokkos::cuda_parallel_launch_local_memory`).
 
 `ppbcc profile` collects with `--nvtx`, so every launch carries its region and the runtime's own
 bootstrap kernels drop out on their own — no kernel-name exclusion list is needed. An existing
@@ -198,7 +226,26 @@ is also what turns the sampled percentages into bytes.
 To re-read the samples without profiling again — after step 1 moved the median, say — replace
 `-b build-cuda-llvm-profiling -p src` by `-b . -d profiling-nsys-rtx5080 --skip-profile`. The
 patterns then select among the SQLite exports (`polyhedral_ocl.sqlite`), so anchor them as
-`"^polyhedral_ocl(\.|$)"` instead of `"polyhedral_ocl$"`, or nothing matches.
+`"^polyhedral_ocl(\.|$)"` instead of `"polyhedral_ocl$"`, or nothing matches. The archived CSV is
+consolidated like step 1, per problem and then merged:
+
+```bash
+cd results/profiling
+S=$(mktemp -d)
+ROOFS="--peak-performance 5.74e13 --peak-bandwidth 9.592e11"
+ppbcc profile --profiler nsys -b . -d profiling-nsys-rtx5080 --skip-profile -O iterations=20 $ROOFS \
+  -r "^matMul_(ocl|boost|vulkan|slang_vulkan)(\.|$)" --analytic-flop "matMul_.*=137438953472" \
+  -H "NVIDIA RTX5080" -o $S/matmul
+ppbcc profile --profiler nsys -b . -d profiling-nsys-rtx5080.polyhedral-update --skip-profile \
+  -O iterations=20 $ROOFS -r "^polyhedral_(ocl|boost|vulkan|slang_vulkan)(\.|$)" \
+  --analytic-flop 'polyhedral_.*\[evaluate\]=1.84705e9' -H "NVIDIA RTX5080" -o $S/polyhedral
+ppbcc profile --from-csv $S/matmul.csv $S/polyhedral.csv -H "NVIDIA RTX5080" \
+  -o ../Profiling_NSYS_NVIDIA_RTX5080
+```
+
+Step 4's `Profiling_NGFX_NVIDIA_RTX5080.csv` follows the same pattern with `--profiler ngfx`, the
+`profiling-ngfx-rtx5080[.polyhedral-update]` folders and `-r "^matMul_(vulkan|slang_vulkan)"` /
+`-r "^polyhedral_(vulkan|slang_vulkan)"`.
 
 ### 3. The plots
 
@@ -227,24 +274,111 @@ ppbcc profile --profiler ngfx -b build-cuda-llvm-profiling -p src \
   -o "$PWD/results/Profiling_NGFX_NVIDIA_RTX5080"
 ```
 
-On the matrix multiplication it agrees with the sampled numbers to within a quarter on both
+On the matrix multiplication it agrees with the sampled numbers to within 30 % on both
 quantities; on the polyhedral kernel only the duration does:
 
 | Executable | `nsys` ms / GB | `ngfx` ms / GB | application timer |
 |---|---|---|---|
-| `matMul_vulkan` | 38.17 / 5.23 | 47.36 / 6.13 | 39.11 ms |
-| `matMul_slang_vulkan` | 38.25 / 5.10 | 47.69 / 6.11 | 41.04 ms |
+| `matMul_vulkan` | 37.07 / 4.22 | 45.91 / 5.43 | 39.11 ms |
+| `matMul_slang_vulkan` | 37.07 / 4.23 | 45.90 / 5.39 | 41.04 ms |
 | `polyhedral_vulkan` | 14.08 / 0.15 | 15.94 / 0.03 | 13.81 ms (steady-state wall clock) |
 
 The traced durations are 13–24 % above the sampled ones and above the application's own timer, which
 is the tracing overhead — GPU Trace collects counters over the whole submission, Nsight Systems
-samples them. The DRAM traffic agrees to 17–20 % on the matrix multiplication. On the rewritten
+samples them. The DRAM traffic agrees to 28–29 % on the matrix multiplication. On the rewritten
 polyhedral kernel the trace counts 4.7× fewer bytes than the sampler (before the rewrite the two were
 31 % apart, at 0.55 and 0.72 GB). The sampled 0.15 GB is the plausible one of the two: the kernels
 `ncu` counts move 0.14–0.68 GB per call for the same work.
 
 `polyhedral_slang_vulkan` has no cross-check: none of the probed submissions carries compute work in
 its trace.
+
+## Reading the CSVs
+
+All three tables share their leading columns; `Profiling_NCU_*` appends every raw Nsight Compute
+counter behind them. Each header carries its unit in brackets. A roofline point is one
+implementation and region: its rows are summed (`FLOP`, `Memory Traffic`, `Duration`) before the
+ratios are formed, so never average `Arithmetic Intensity` or `Performance` over rows.
+
+### Identifying columns
+
+| Column | Meaning |
+|---|---|
+| `Benchmark Problem`, `Paradigm`, `Precision` | Read from the Google Benchmark JSON written next to the report; `Precision` also picks which `FLOP FPxx` becomes `FLOP`. |
+| `Hardware` | The `-H` label. |
+| `Executable`, `Region` | Binary and the NVTX range of [`Marker.h`](../src/common/Marker.h) the launch ran in (`matmul`, `init`, `evaluate`); empty for `ngfx`, whose submissions carry no range. |
+| `Kernel ID` | Position of the launch in the report, counting the dropped bootstrap kernels, which is why Kokkos starts at 5 (`ncu`); a window index (`nsys`); always 0 (`ngfx`). |
+| `Kernel`, `Kernel Signature` | Short and full kernel name (`ncu`); a description of the sampled window or trace (`nsys`, `ngfx`). |
+| `Grid Size [blocks]`, `Block Size [threads/block]` | CUDA launch configuration as (x, y, z); launched GPU threads = ∏grid · ∏block. Explains a point far below the roof, enters no formula. |
+| `Memory Level` | Which counter `Memory Traffic` was read from (`DRAM`, or `L2`/`L1/TEX` with `-m`). |
+
+### Roofline quantities
+
+| Column | Meaning | Computed as (`ncu`) | Used for |
+|---|---|---|---|
+| `FLOP FP32 [FLOP]` | Floating-point operations the kernel executed in FP32. An FMA (`a·b + c`) is one multiply and one add, so it counts twice. | `fadd + fmul + 2·ffma` of the `sm__sass_thread_inst_executed_op_*_pred_on.sum` counters | `FLOP` |
+| `FLOP FP64 [FLOP]`, `FLOP FP16 [FLOP]` | The same for the `d*` and `h*` counters. Kept so a mixed-precision kernel stays visible. | `dadd + dmul + 2·dfma`, `hadd + hmul + 2·hfma` | `FLOP` when that is the build precision |
+| `FLOP [FLOP]` | The work of the launch in the precision the binary was built with. `nsys` and `ngfx` cannot count it, so they take it from `--analytic-flop` (2·4096³ or 587 FLOP/face · 3 145 728). | `FLOP FP32` for an FP32 build | `Arithmetic Intensity`, `Performance` |
+| `Duration [s]` | GPU time of the launch. `nsys`: length of the compute-active sampled windows in the region; `ngfx`: traced submission time. | `gpu__time_duration.sum · 10⁻⁹` | `Performance` |
+| `Memory Traffic [Byte]` | Bytes the kernel moved between the GPU cores and the chosen memory level. `nsys` integrates the sampled DRAM read and write throughput instead; `ngfx` reads `dram__sectors.sum`. | `dram__bytes.sum` (DRAM) | `Arithmetic Intensity`, memory-roof share |
+| `Arithmetic Intensity [FLOP/Byte]` | Work per byte of traffic: the x axis of the roofline. | `FLOP / Memory Traffic` | x coordinate of the point |
+| `Performance [FLOP/s]` | Attained FLOP rate: the y axis of the roofline. | `FLOP / Duration` | y coordinate of the point |
+| `Peak Performance [FLOP/s]` | Compute roof: the FMA rate the SM units can sustain, scaled with the clock they actually ran at. Given by `--peak-performance` for `nsys`/`ngfx`. | `2 · ffma.sum.peak_sustained · sm__cycles_elapsed.avg.per_second` | horizontal roof; ridge point |
+| `Peak Bandwidth [Byte/s]` | Memory roof: the byte rate DRAM can sustain at its actual clock. Given by `--peak-bandwidth` for `nsys`/`ngfx`, which also turns their sampled percentages into bytes. | `dram__bytes.sum.peak_sustained · dram__cycles_elapsed.avg.per_second` | slanted roof; ridge point |
+
+The plot and the tables below combine these as follows:
+
+| Derived value | Equation | Meaning |
+|---|---|---|
+| Roof at a point | `min(Peak Performance, Peak Bandwidth · Arithmetic Intensity)` | Highest `Performance` the hardware allows at this intensity. |
+| Ridge point [FLOP/Byte] | `Peak Performance / Peak Bandwidth` | Intensity where the two roofs meet (60 FLOP/byte here); left of it memory limits, right of it compute. |
+| *memory roof* [%] | `Performance / (Peak Bandwidth · Arithmetic Intensity)` = `Memory Traffic / (Duration · Peak Bandwidth)` | How close a kernel is to being bandwidth-bound; equals `gpu__dram_throughput.avg.pct_of_peak_sustained_elapsed` for a single launch. |
+| compute roof [%] | `Performance / Peak Performance` | How close a kernel is to being compute-bound. |
+| FLOP/face | `FLOP / 3 145 728` | Work per face of the polyhedral kernel; the median of the counted ones is the `nsys` work model. |
+
+### Raw Nsight Compute counters (`Profiling_NCU_*` only)
+
+Units are Nsight Compute's own (`IMetric.unit()`); `.sum` adds and `.avg` averages over all units of
+that kind on the GPU.
+
+| Column | Meaning | Relation | Used for |
+|---|---|---|---|
+| `gpu__time_duration.sum [ns]` | Measured time of the kernel launch (user time where collectable, else wall clock). | — | `Duration` |
+| `sm__cycles_elapsed.avg [cycle]` | Clock cycles that elapsed on a streaming multiprocessor (SM) during the launch. | `≈ Duration · sm__cycles_elapsed.avg.per_second` | context |
+| `sm__cycles_elapsed.avg.per_second [cycle/s]` | The SM clock rate the launch actually ran at. | — | `Peak Performance` |
+| `sm__sass_thread_inst_executed_op_{f,d,h}{add,mul,fma}_pred_on.sum [inst]` | Executed FP32 (`f`), FP64 (`d`), FP16 (`h`) additions, multiplications and FMAs whose predicates were all true, i.e. not masked by a branch. The `f` counters include the `FH*` variants. | — | `FLOP FP32/FP64/FP16` |
+| `sm__sass_thread_inst_executed_op_{f,d,h}fma_pred_on.sum.peak_sustained [inst/cycle]` | FMAs per clock cycle the SMs can sustain at most (10 752 in FP32 on this card). | — | `Peak Performance` |
+| `sm__inst_executed_pipe_tensor.sum [inst]` | Instructions executed by the tensor pipe. Never counted as FLOP. | — | context |
+| `dram__bytes.sum [Byte]` | Bytes accessed in DRAM. | — | `Memory Traffic` (`-m dram`) |
+| `dram__bytes.sum.peak_sustained [Byte/cycle]` | DRAM bytes per DRAM clock cycle the hardware can sustain (64). | — | `Peak Bandwidth` |
+| `dram__cycles_elapsed.avg.per_second [cycle/s]` | DRAM clock rate during the launch. | — | `Peak Bandwidth` |
+| `lts__t_bytes.sum [Byte]`, `lts__t_bytes.sum.peak_sustained [Byte/cycle]`, `lts__cycles_elapsed.avg.per_second [cycle/s]` | The same three for the L2 cache (LTS). | `Peak = peak_sustained · per_second` | `Memory Traffic`/`Peak Bandwidth` with `-m l2` |
+| `l1tex__t_bytes.sum [Byte]`, `l1tex__t_bytes.sum.peak_sustained [Byte/cycle]`, `l1tex__cycles_elapsed.avg.per_second [cycle/s]` | The same three for the L1/texture cache. | `Peak = peak_sustained · per_second` | `Memory Traffic`/`Peak Bandwidth` with `-m l1` |
+| `launch__grid_size [blocks]`, `launch__block_size [threads/block]` | Product of the grid and block dimensions of the launch. | `∏Grid Size`, `∏Block Size` | context |
+| `launch__waves_per_multiprocessor [1]` | Nsight Compute's scheduling statistic for the launch; the report carries no description for it. | — | context |
+| `sm__throughput.avg.pct_of_peak_sustained_elapsed [%]` | Nsight Compute's SM throughput as a share of peak, assuming ideal load balancing across the SMs. Not the same as `Performance / Peak Performance` (Kokkos `evaluate`: 46 % against 18 %). | — | context |
+| `gpu__dram_throughput.avg.pct_of_peak_sustained_elapsed [%]` | DRAM throughput as a share of peak. | `= Memory Traffic / (Duration · Peak Bandwidth)` | cross-check of *memory roof* |
+
+## Why some regions hold several kernels
+
+`Profiling_NCU_*` has one row per kernel **launch**. The polyhedral `evaluate` region sums up 3 145 728
+per-face contributions, and the number of rows it gets depends on where that reduction runs:
+
+| Paradigm | Rows in `evaluate` | Where the reduction runs |
+|---|---|---|
+| Kokkos | 1 | `Kokkos::parallel_reduce`: the reduction is folded into the one launch, in block-local memory (`cuda_parallel_launch_local_memory`). |
+| OpenMP | 1 | `target teams distribute parallel for reduction(+ : result)`: inside the one offloaded kernel. |
+| RAJA | 1 | `RAJA::ReduceSum<cuda_reduce>` inside the `forall` kernel. |
+| OpenACC, Alpaka | 1 | **On the host.** The kernel writes every face's result into a device buffer, which is copied back and summed in a CPU loop. |
+| AdaptiveCpp | 3 | `sycl::reduction`, a hierarchical reduction: the main kernel evaluates the faces and reduces each work group (336 groups · 128), then two dedicated reduction kernels reduce 336 → 3 → 1 partial results (grids 3 and 1). |
+| CUDA, HIP, Slang-Cuda | 3 | `thrust::reduce` after the evaluation kernel: CUB's `DeviceReduceKernel` sums the per-face buffer block-wise, `DeviceReduceSingleTileKernel` combines the block sums. |
+| Stdpar | 3 | `std::reduce(par_unseq)` after the `for_each`, which NVHPC also maps onto CUB's two reduce kernels. |
+
+So yes, the reduction is sometimes separate, and that affects what a point measures. For CUDA the
+reduction takes 0.17 of the 0.66 ms in the row sum; for AdaptiveCpp its two extra kernels take only
+0.005 ms, because its main kernel already reduced almost everything. For OpenACC and Alpaka the
+reduction and the device-to-host copy run outside every kernel, so their `evaluate` point **does not
+include them**: they are in the region's wall clock but not on the roofline.
 
 ## Results
 
@@ -255,31 +389,31 @@ row came from; the polyhedral table shows `evaluate`, and the `init` region is i
 
 | Executable | Paradigm | Region | Tool | ms | DRAM GB | AI [FLOP/byte] | TFLOP/s |
 |---|---|---|---|---:|---:|---:|---:|
-| `matMul_cuda` | CUDA | matmul-cublas | ncu | 3.60 | 0.54 | 252.6 | 38.24 |
-| `matMul_ocl` | OpenCL | matmul | nsys | 37.84 | 3.29 | 41.8 | 3.63 |
-| `matMul_boost` | Boost | matmul | nsys | 38.01 | 3.37 | 40.8 | 3.62 |
-| `matMul_vulkan` | Vulkan | matmul | nsys | 38.17 | 5.23 | 26.3 | 3.60 |
-| `matMul_slang_vulkan` | Slang-Vulkan | matmul | nsys | 38.25 | 5.10 | 26.9 | 3.59 |
-| `matMul_raja` | RAJA | matmul | ncu | 39.36 | 2.46 | 55.9 | 3.49 |
-| `matMul_kokkos` | Kokkos | matmul | ncu | 39.82 | 2.44 | 56.3 | 3.45 |
-| `matMul_acpp` | AdaptiveCpp | matmul | ncu | 39.94 | 1.95 | 70.3 | 3.44 |
-| `matMul_hip` | HIP | matmul | ncu | 43.00 | 2.77 | 49.5 | 3.20 |
-| `matMul_cuda` | CUDA | matmul-naive | ncu | 43.12 | 2.81 | 48.8 | 3.19 |
-| `matMul_acc` | OpenACC | matmul | ncu | 57.12 | 1.86 | 74.0 | 2.41 |
-| `matMul_stdpar` | Stdpar | matmul | ncu | 58.51 | 5.66 | 24.3 | 2.35 |
-| `matMul_alpaka` | Alpaka | matmul | ncu | 59.22 | 1.20 | 114.1 | 2.32 |
-| `matMul_omp` | OpenMP | matmul | ncu | 61.91 | 2.57 | 53.5 | 2.22 |
-| `matMul_slang_cuda` | Slang-Cuda | matmul | ncu | 83.02 | 1.99 | 69.2 | 1.66 |
+| `matMul_cuda` | CUDA | matmul-cublas | ncu | 3.60 | 0.53 | 260.7 | 38.26 |
+| `matMul_vulkan` | Vulkan | matmul | nsys | 37.07 | 4.22 | 32.6 | 3.71 |
+| `matMul_slang_vulkan` | Slang-Vulkan | matmul | nsys | 37.07 | 4.23 | 32.5 | 3.71 |
+| `matMul_boost` | Boost | matmul | nsys | 37.08 | 2.77 | 49.6 | 3.71 |
+| `matMul_ocl` | OpenCL | matmul | nsys | 37.16 | 5.27 | 26.1 | 3.70 |
+| `matMul_raja` | RAJA | matmul | ncu | 39.36 | 2.41 | 57.1 | 3.49 |
+| `matMul_kokkos` | Kokkos | matmul | ncu | 39.81 | 2.44 | 56.3 | 3.45 |
+| `matMul_acpp` | AdaptiveCpp | matmul | ncu | 39.94 | 1.92 | 71.5 | 3.44 |
+| `matMul_hip` | HIP | matmul | ncu | 42.96 | 1.83 | 74.9 | 3.20 |
+| `matMul_cuda` | CUDA | matmul-naive | ncu | 43.07 | 2.01 | 68.4 | 3.19 |
+| `matMul_stdpar` | Stdpar | matmul | ncu | 58.62 | 5.49 | 25.0 | 2.34 |
+| `matMul_acc` | OpenACC | matmul | ncu | 58.73 | 2.44 | 56.3 | 2.34 |
+| `matMul_alpaka` | Alpaka | matmul | ncu | 59.27 | 1.12 | 122.4 | 2.32 |
+| `matMul_omp` | OpenMP | matmul | ncu | 62.47 | 2.04 | 67.5 | 2.20 |
+| `matMul_slang_cuda` | Slang-Cuda | matmul | ncu | 83.16 | 1.98 | 69.3 | 1.65 |
 
 Every implementation does exactly 137.44 GFLOP, and every hand-written one lands **below both roofs**
-— 3.6 TFLOP/s against a 57.4 TFLOP/s compute ceiling at an intensity of 26–70 FLOP/byte, where the
-memory roof is already 25 TFLOP/s and above. None of these kernels is bandwidth-bound; they are
-latency-bound, which is the expected signature of a naive tiled SGEMM. The spread across the
-fourteen is a factor of 2.2 in time.
+— 3.7 TFLOP/s against a 57.4 TFLOP/s compute ceiling at an intensity of 25–75 FLOP/byte (Alpaka
+122), where the memory roof is already 24 TFLOP/s and above. None of these kernels is
+bandwidth-bound; they are latency-bound, which is the expected signature of a naive tiled SGEMM. The
+spread across the fourteen is a factor of 2.2 in time.
 
 cuBLAS is in the table because `matMul_cuda` links it next to the naive kernel, and the NVTX regions
-now tell the two apart. It is the only point that behaves like a tuned SGEMM: 10.7× faster than the
-binary's own kernel and 6.1× faster than the best portable one, at 67 % of the compute roof. It is
+now tell the two apart. It is the only point that behaves like a tuned SGEMM: 12.0× faster than the
+binary's own kernel and 10.3× faster than the best portable one, at 67 % of the compute roof. It is
 what the roofline is for — everything else has an order of magnitude in hand.
 
 ### Polyhedral gravity, SHAPE_SFM_3M (3 145 728 faces), FP32, `evaluate` region

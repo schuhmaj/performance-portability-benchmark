@@ -36,6 +36,8 @@ SETUP_KERNELS = ("init_lock_arrays", "query_cuda_kernel_arch")
 def load(path: Path, exclude_setup: bool) -> pd.DataFrame:
     """Sum a profiling CSV per executable."""
     frame = pd.read_csv(path)
+    # Headers carry their unit ("Duration [s]"); the columns are addressed without it.
+    frame.columns = frame.columns.str.replace(r"\s+\[[^\[\]]*\]$", "", regex=True)
     if exclude_setup:
         pattern = "|".join(SETUP_KERNELS)
         frame = frame[~frame["Kernel"].astype(str).str.contains(pattern, na=False)]
