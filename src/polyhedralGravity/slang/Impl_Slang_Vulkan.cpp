@@ -195,13 +195,15 @@ namespace {
             }
             device = physicalDevice.createDevice(DeviceCreateInfo);
 
+            // The buffers are mapped, so the memory has to be host visible. Device-local memory (a resizable BAR, or
+            // the unified memory of an integrated GPU) is preferred: otherwise the kernels read the mesh through PCIe.
             vk::PhysicalDeviceMemoryProperties MemoryProperties = physicalDevice.getMemoryProperties();
-            for (uint32_t i = 0; i < MemoryProperties.memoryTypeCount; ++i) {
-                const vk::MemoryType MemoryType = MemoryProperties.memoryTypes[i];
-                if ((vk::MemoryPropertyFlagBits::eHostVisible & MemoryType.propertyFlags) &&
-                    (vk::MemoryPropertyFlagBits::eHostCoherent & MemoryType.propertyFlags)) {
-                    memoryTypeIndex = i;
-                    break;
+            const vk::MemoryPropertyFlags Mappable = vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent;
+            for (const vk::MemoryPropertyFlags Required: {Mappable | vk::MemoryPropertyFlagBits::eDeviceLocal, Mappable}) {
+                for (uint32_t i = 0; i < MemoryProperties.memoryTypeCount && memoryTypeIndex == uint32_t(~0); ++i) {
+                    if ((MemoryProperties.memoryTypes[i].propertyFlags & Required) == Required) {
+                        memoryTypeIndex = i;
+                    }
                 }
             }
         }

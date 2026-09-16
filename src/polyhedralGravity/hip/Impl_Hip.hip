@@ -2,8 +2,7 @@
 #include "polyhedralGravity/PolyhedralGravityDefinitions.h"
 #include <hip/hip_runtime.h>
 
-#include <thrust/device_vector.h>
-#include <thrust/reduce.h>
+#include <utility>
 
 #if FLOAT_BITS == 32
 using VectorType = float3;
@@ -168,24 +167,13 @@ struct GravityModelResultHip {
     }
 };
 
-// At most 256 threads per block, and a body small enough for three such blocks per SM, so that the register
-// allocator keeps the kernel's occupancy up
-__global__ __launch_bounds__(256, 3) void run_eval(
+// The contribution of a single face to the potential, the acceleration and the gradiometric tensor
+inline __device__ GravityModelResultHip evaluate_face(
         const VectorType *vertices,
         const int3 *faces,
         const VectorType *normals,
-        GravityModelResultHip *result,
-        int num_faces,
-        FloatType p1,
-        FloatType p2,
-        FloatType p3) {
-    VectorType point = {p1, p2, p3};
-    const int face_index = blockIdx.x * blockDim.x + threadIdx.x;
-
-    if (face_index >= num_faces) {
-        return;
-    }
-
+        const VectorType point,
+        const int face_index) {
     const VectorType face[3] = {
             vertices[faces[face_index].x] - point,
             vertices[faces[face_index].y] - point,
@@ -326,16 +314,67 @@ __global__ __launch_bounds__(256, 3) void run_eval(
 
     auto potential = planeNormalOrientation * planeDistance * planeSumPotentialAcceleration;
     auto accel = planeUnitNormal * planeSumPotentialAcceleration;
-    result[face_index].acc_pot = make4(accel, potential);
-    result[face_index].first = first;
-    result[face_index].second = second;
+    return {make4(accel, potential), first, second};
+}
+
+// Sums up the values the threads of a block have written into its shared memory, the sum ends up at index 0
+// https://developer.download.nvidia.com/assets/cuda/files/reduction.pdf
+inline __device__ void reduce_block(GravityModelResultHip *partialSums) {
+    __syncthreads();
+    for (unsigned int stride = blockDim.x / 2; stride > 0; stride /= 2) {
+        if (threadIdx.x < stride) {
+            partialSums[threadIdx.x] = partialSums[threadIdx.x] + partialSums[threadIdx.x + stride];
+        }
+        __syncthreads();
+    }
+}
+
+// Evaluates the faces of a block and stores their sum in blockSums
+// At most 256 threads per block, and a body small enough for three such blocks per SM, so that the register
+// allocator keeps the kernel's occupancy up
+__global__ __launch_bounds__(256, 3) void run_eval(
+        const VectorType *vertices,
+        const int3 *faces,
+        const VectorType *normals,
+        GravityModelResultHip *blockSums,
+        int num_faces,
+        FloatType p1,
+        FloatType p2,
+        FloatType p3) {
+    extern __shared__ GravityModelResultHip partialSums[];
+    const int index = blockIdx.x * blockDim.x + threadIdx.x;
+
+    // Threads past the last face must not return early: every thread of the block has to reach the
+    // __syncthreads() of the reduction. They redundantly evaluate face 0 and contribute zero instead.
+    const bool inRange = index < num_faces;
+    const GravityModelResultHip result = evaluate_face(vertices, faces, normals, {p1, p2, p3}, inRange ? index : 0);
+    partialSums[threadIdx.x] = inRange ? result : GravityModelResultHip{};
+
+    reduce_block(partialSums);
+    if (threadIdx.x == 0) {
+        blockSums[blockIdx.x] = partialSums[0];
+    }
+}
+
+// Sums up the values of a block and stores the sum in blockSums
+__global__ void run_sum(
+        const GravityModelResultHip *values,
+        GravityModelResultHip *blockSums,
+        int num_values) {
+    extern __shared__ GravityModelResultHip partialSums[];
+    const int index = blockIdx.x * blockDim.x + threadIdx.x;
+
+    partialSums[threadIdx.x] = index < num_values ? values[index] : GravityModelResultHip{};
+
+    reduce_block(partialSums);
+    if (threadIdx.x == 0) {
+        blockSums[blockIdx.x] = partialSums[0];
+    }
 }
 
 GlobalResources::GlobalResources(int &argc, char *argv[]) {
 }
 GlobalResources::~GlobalResources() = default;
-
-// https://developer.download.nvidia.com/assets/cuda/files/reduction.pdf
 
 class GravityEvaluable : public GravityEvaluableBase {
 public:
@@ -343,26 +382,35 @@ public:
             const std::vector<Array3> &Vertices,
             const std::vector<IndexArray3> &Faces,
             const double density)
-        : GravityEvaluableBase(Vertices, Faces, density), d_vertices(Vertices.size()), d_faces(Faces.size()), d_normals(Faces.size()), d_results(Faces.size()) {
+        : GravityEvaluableBase(Vertices, Faces, density), d_vertices(Vertices.size()), d_faces(Faces.size()), d_normals(Faces.size()),
+          d_blockSums((Faces.size() + blockSize - 1) / blockSize), d_blockSumsSwap((Faces.size() + blockSize - 1) / blockSize) {
     }
 
     GravityModelResult evaluate(const Array3 &Point) override {
         if (!_initialized) init();
         PPB_MARKER_GPU_SCOPE("evaluate");
 
-        int num_faces = _faces.size();
-        int blockSize = 256;
-        int numBlocks = (num_faces + blockSize - 1) / blockSize;
-        numBlocks = numBlocks > 0 ? numBlocks : 1;
+        const int shared_memory_size = blockSize * sizeof(GravityModelResultHip);
 
-        run_eval<<<numBlocks, blockSize>>>(
-                d_vertices.get(), d_faces.get(), d_normals.get(), d_results.get(), num_faces, Point[0], Point[1], Point[2]);
-
+        // Every block of faces is evaluated and reduced to its sum
+        int size = _faces.size();
+        int numBlocks = (size + blockSize - 1) / blockSize;
+        run_eval<<<numBlocks, blockSize, shared_memory_size>>>(
+                d_vertices.get(), d_faces.get(), d_normals.get(), d_blockSums.get(), size, Point[0], Point[1], Point[2]);
         checkHipError(hipGetLastError(), "Kernel eval failed");
 
-        thrust::device_ptr<GravityModelResultHip> cptr = thrust::device_pointer_cast(d_results.get());
-        GravityModelResultHip init{};
-        GravityModelResultHip r = thrust::reduce(cptr, cptr + _faces.size(), init);
+        // The block sums are reduced in further passes until a single one is left
+        GravityModelResultHip *values = d_blockSums.get();
+        GravityModelResultHip *blockSums = d_blockSumsSwap.get();
+        for (size = numBlocks; size > 1; size = numBlocks) {
+            numBlocks = (size + blockSize - 1) / blockSize;
+            run_sum<<<numBlocks, blockSize, shared_memory_size>>>(values, blockSums, size);
+            checkHipError(hipGetLastError(), "Kernel sum failed");
+            std::swap(values, blockSums);
+        }
+
+        GravityModelResultHip r{};
+        checkHipError(hipMemcpy(&r, values, sizeof(r), hipMemcpyDeviceToHost), "hipMemcpy Device to Host");
 
         GravityModelResult result{};
         result.potential = r.acc_pot.w;
@@ -406,20 +454,23 @@ private:
         d_faces.copyFromHost(tmp_faces);
 
         int num_faces = _faces.size();
-
-        int blockSize = 256;
         int numBlocks = (num_faces + blockSize - 1) / blockSize;
-        numBlocks = numBlocks > 0 ? numBlocks : 1;
 
         run_init<<<numBlocks, blockSize>>>(d_vertices.get(), d_faces.get(), d_normals.get(), num_faces);
         checkHipError(hipGetLastError(), "Kernel init failed");
+
+        _initialized = true;
     }
+
+    // The reduction in shared memory halves the number of values in every step, so this has to be a power of two
+    static constexpr int blockSize = 256;
 
     HipMemory<VectorType> d_vertices;
     HipMemory<int3> d_faces;
     HipMemory<VectorType> d_normals;
 
-    HipMemory<GravityModelResultHip> d_results;
+    HipMemory<GravityModelResultHip> d_blockSums;
+    HipMemory<GravityModelResultHip> d_blockSumsSwap;
 };
 
 std::unique_ptr<GravityEvaluableBase> create_gravity_evaluable(

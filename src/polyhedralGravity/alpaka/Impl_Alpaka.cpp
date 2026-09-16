@@ -24,6 +24,10 @@ using Queue = alpaka::Queue<DeviceAcc, alpaka::Blocking>;
 
 template<typename T>
 using BufAcc = alpaka::Buf<DeviceAcc, T, Dim, Idx>;
+/** Pinned host memory where the platform supports it, regular host memory otherwise. */
+template<typename T>
+using BufHostMapped = decltype(alpaka::allocMappedBufIfSupported<T, Idx>(
+        std::declval<Host>(), std::declval<PlatformAcc>(), std::declval<alpaka::Vec<Dim, Idx>>()));
 
 inline alpaka::Vec<Dim, Idx> extentOf(const Idx n) {
     return alpaka::Vec<Dim, Idx>{n};
@@ -250,7 +254,8 @@ public:
         , _vertices_d(alpaka::allocBuf<Array3, Idx>(device, extentOf(Vertices.size())))
         , _faces_d(alpaka::allocBuf<IndexArray3, Idx>(device, extentOf(Faces.size())))
         , _normals_d(alpaka::allocBuf<Array3, Idx>(device, extentOf(Faces.size())))
-        , _results_d(alpaka::allocBuf<GravityModelResult, Idx>(device, extentOf(Faces.size()))) {
+        , _results_d(alpaka::allocBuf<GravityModelResult, Idx>(device, extentOf(Faces.size())))
+        , _results_h(alpaka::allocMappedBufIfSupported<GravityModelResult, Idx>(host, PlatformAcc{}, extentOf(Faces.size()))) {
     }
 
     GravityModelResult evaluate(const Array3 &Point) override {
@@ -284,12 +289,11 @@ public:
 
         alpaka::enqueue(queue, taskKernel);
 
-        // Copy the per-face contributions back and reduce them on the host.
-        std::vector<GravityModelResult> hostResults(num_faces);
-        auto resultView = alpaka::createView(host, hostResults.data(), extent);
-        alpaka::memcpy(queue, resultView, _results_d, extent);
+        // Copy the per-face contributions back into the host buffer allocated once, and reduce them on the host.
+        alpaka::memcpy(queue, _results_h, _results_d, extent);
         alpaka::wait(queue);
 
+        const GravityModelResult *hostResults = alpaka::getPtrNative(_results_h);
         GravityModelResult result{};
         for (Idx i = 0; i < num_faces; ++i) {
             result += hostResults[i];
@@ -346,6 +350,7 @@ private:
     BufAcc<IndexArray3> _faces_d;
     BufAcc<Array3> _normals_d;
     BufAcc<GravityModelResult> _results_d;
+    BufHostMapped<GravityModelResult> _results_h;
 };
 
 std::unique_ptr<GravityEvaluableBase> create_gravity_evaluable(

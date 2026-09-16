@@ -24,8 +24,7 @@ public:
         : GravityEvaluableBase(Vertices, Faces, density),
           _facesDevice(allocateOpenACC<IndexArray3>(_faces.size())),
           _verticesDevice(allocateOpenACC<Array3>(_vertices.size())),
-          _normals(allocateOpenACC<Array3>(_faces.size())),
-          _resultsDevice(allocateOpenACC<GravityModelResult>(_faces.size())), _results_cpu(_faces.size()) {
+          _normals(allocateOpenACC<Array3>(_faces.size())) {
         acc_memcpy_to_device(_facesDevice, (void *) (_faces.data()), sizeof(IndexArray3) * _faces.size());
         acc_memcpy_to_device(_verticesDevice, (void *) _vertices.data(), sizeof(Array3) * _vertices.size());
     }
@@ -34,15 +33,19 @@ public:
         acc_free(_facesDevice);
         acc_free(_verticesDevice);
         acc_free(_normals);
-        acc_free(_resultsDevice);
     }
 
     GravityModelResult evaluate(const Array3 &Point) override {
         if (!_initialized) init();
         PPB_MARKER_GPU_SCOPE("evaluate");
 
+        // Every face adds its contribution to the reduction directly, so no per-face results have to be stored
+        // and summed up on the host. OpenACC reduces arithmetic scalars and arrays of them, but no structs.
+        FloatType potential = 0;
+        FloatType acceleration[3] = {0, 0, 0};
+        FloatType gradiometricTensor[6] = {0, 0, 0, 0, 0, 0};
         size_t face_count = _faces.size();
-#pragma acc parallel loop
+#pragma acc parallel loop reduction(+ : potential, acceleration[0:3], gradiometricTensor[0:6])
         for (size_t i = 0; i < face_count; ++i) {
             const Array3Triplet face = {
                     _verticesDevice[_facesDevice[i][0]] - Point,
@@ -174,19 +177,17 @@ public:
             const Array3 reorderedSubSum = {subSum[1], subSum[2], subSum[2]};
             const Array3 second = reorderedNp * reorderedSubSum;
 
-            _resultsDevice[i] = {
-                    planeNormalOrientation * planeDistance * planeSumPotentialAcceleration,
-                    planeUnitNormal * planeSumPotentialAcceleration,
-                    concat(first, second)};
+            potential += planeNormalOrientation * planeDistance * planeSumPotentialAcceleration;
+            for (unsigned int index = 0; index < 3; ++index) {
+                acceleration[index] += planeUnitNormal[index] * planeSumPotentialAcceleration;
+                gradiometricTensor[index] += first[index];
+                gradiometricTensor[index + 3] += second[index];
+            }
         }
 
-        acc_memcpy_from_device(_results_cpu.data(), _resultsDevice, sizeof(_results_cpu[0]) * _results_cpu.size());
-
-        GravityModelResult result{};
-
-        for (size_t i = 0; i < face_count; ++i) {
-            result += _results_cpu[i];
-        }
+        GravityModelResult result{potential,
+                                  {acceleration[0], acceleration[1], acceleration[2]},
+                                  {gradiometricTensor[0], gradiometricTensor[1], gradiometricTensor[2], gradiometricTensor[3], gradiometricTensor[4], gradiometricTensor[5]}};
 
         const double prefix = GRAVITATIONAL_CONSTANT * _density;
 
@@ -215,9 +216,6 @@ private:
     Array3 *_verticesDevice;
 
     Array3 *_normals;
-    GravityModelResult *_resultsDevice;
-
-    std::vector<GravityModelResult> _results_cpu;
 };
 
 std::unique_ptr<GravityEvaluableBase> create_gravity_evaluable(
