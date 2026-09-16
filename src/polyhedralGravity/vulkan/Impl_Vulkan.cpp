@@ -52,6 +52,7 @@ namespace {
         vk::raii::Device device;
         uint32_t computeQueueFamilyIndex{};
         uint32_t memoryTypeIndex{uint32_t(~0)};
+        uint32_t hostMemoryTypeIndex{uint32_t(~0)};
 
         SharedVulkan()
             : context(), instance(nullptr), physicalDevice(nullptr), device(nullptr) {
@@ -115,14 +116,27 @@ namespace {
 
             // The buffers are mapped, so the memory has to be host visible. Device-local memory (a resizable BAR, or
             // the unified memory of an integrated GPU) is preferred: otherwise the kernels read the mesh through PCIe.
+            // Without a resizable BAR there are only ~256 MB of it, so host memory is kept as the fallback.
             vk::PhysicalDeviceMemoryProperties MemoryProperties = physicalDevice.getMemoryProperties();
             const vk::MemoryPropertyFlags Mappable = vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent;
-            for (const vk::MemoryPropertyFlags Required: {Mappable | vk::MemoryPropertyFlagBits::eDeviceLocal, Mappable}) {
-                for (uint32_t i = 0; i < MemoryProperties.memoryTypeCount && memoryTypeIndex == uint32_t(~0); ++i) {
-                    if ((MemoryProperties.memoryTypes[i].propertyFlags & Required) == Required) {
-                        memoryTypeIndex = i;
-                    }
+            for (uint32_t i = 0; i < MemoryProperties.memoryTypeCount; ++i) {
+                const vk::MemoryPropertyFlags Flags = MemoryProperties.memoryTypes[i].propertyFlags;
+                const bool DeviceLocal = static_cast<bool>(Flags & vk::MemoryPropertyFlagBits::eDeviceLocal);
+                uint32_t &Index = DeviceLocal ? memoryTypeIndex : hostMemoryTypeIndex;
+                if ((Flags & Mappable) == Mappable && Index == uint32_t(~0)) {
+                    Index = i;
                 }
+            }
+            // A device offering only one of the two uses it for both
+            memoryTypeIndex = memoryTypeIndex != uint32_t(~0) ? memoryTypeIndex : hostMemoryTypeIndex;
+            hostMemoryTypeIndex = hostMemoryTypeIndex != uint32_t(~0) ? hostMemoryTypeIndex : memoryTypeIndex;
+        }
+
+        vk::raii::DeviceMemory allocateMemory(const vk::DeviceSize size) const {
+            try {
+                return {device, vk::MemoryAllocateInfo(size, memoryTypeIndex)};
+            } catch (const vk::OutOfDeviceMemoryError &) {
+                return {device, vk::MemoryAllocateInfo(size, hostMemoryTypeIndex)};
             }
         }
     };
@@ -228,23 +242,13 @@ public:
         vk::MemoryRequirements MemoryRequirementsResultAcceleration = _bufferResultAcceleration.getMemoryRequirements();
         vk::MemoryRequirements MemoryRequirementsResults = _bufferResults.getMemoryRequirements();
 
-        const uint32_t MemoryTypeIndex = getSharedVulkan().memoryTypeIndex;
-
-        vk::MemoryAllocateInfo MemoryAllocateInfoVertices(MemoryRequirementsVertices.size, MemoryTypeIndex);
-        vk::MemoryAllocateInfo MemoryAllocateInfoFaces(MemoryRequirementsFaces.size, MemoryTypeIndex);
-        vk::MemoryAllocateInfo MemoryAllocateInfoNormals(MemoryRequirementsNormals.size, MemoryTypeIndex);
-        vk::MemoryAllocateInfo MemoryAllocateInfoResultPotential(MemoryRequirementsResultPotential.size,
-                                                                 MemoryTypeIndex);
-        vk::MemoryAllocateInfo MemoryAllocateInfoResultAcceleration(MemoryRequirementsResultAcceleration.size,
-                                                                    MemoryTypeIndex);
-        vk::MemoryAllocateInfo MemoryAllocateInfoResults(MemoryRequirementsResults.size, MemoryTypeIndex);
-
-        _memoryVertices = vk::raii::DeviceMemory(_device, MemoryAllocateInfoVertices);
-        _memoryFaces = vk::raii::DeviceMemory(_device, MemoryAllocateInfoFaces);
-        _memoryNormals = vk::raii::DeviceMemory(_device, MemoryAllocateInfoNormals);
-        _memoryResultPotential = vk::raii::DeviceMemory(_device, MemoryAllocateInfoResultPotential);
-        _memoryResultAcceleration = vk::raii::DeviceMemory(_device, MemoryAllocateInfoResultAcceleration);
-        _memoryResults = vk::raii::DeviceMemory(_device, MemoryAllocateInfoResults);
+        const SharedVulkan &Shared = getSharedVulkan();
+        _memoryVertices = Shared.allocateMemory(MemoryRequirementsVertices.size);
+        _memoryFaces = Shared.allocateMemory(MemoryRequirementsFaces.size);
+        _memoryNormals = Shared.allocateMemory(MemoryRequirementsNormals.size);
+        _memoryResultPotential = Shared.allocateMemory(MemoryRequirementsResultPotential.size);
+        _memoryResultAcceleration = Shared.allocateMemory(MemoryRequirementsResultAcceleration.size);
+        _memoryResults = Shared.allocateMemory(MemoryRequirementsResults.size);
 
         auto *VerticesPtr = static_cast<FloatType *>(_memoryVertices.mapMemory(0, BufferCreateInfoVertices.size));
         for (int32_t i = 0; i < _vertices.size(); ++i) {

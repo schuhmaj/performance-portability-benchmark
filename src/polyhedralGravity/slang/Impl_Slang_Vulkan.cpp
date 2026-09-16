@@ -42,72 +42,6 @@ struct PushConstants {
 #include <iostream>
 #include <list>
 
-struct VulkanMemory {
-    vk::BufferCreateInfo _bufferCreateInfo;
-    vk::DescriptorBufferInfo _descriptorBuffer;
-    vk::raii::Buffer _buffer;
-
-    vk::raii::DeviceMemory _deviceMemory;
-
-    VulkanMemory(
-            const size_t size,
-            const vk::raii::Device &device,
-            const uint32_t *compute_indeces,
-            const uint32_t MemoryTypeIndex)
-        : _bufferCreateInfo(
-                  vk::BufferCreateFlags(), size, vk::BufferUsageFlagBits::eStorageBuffer, vk::SharingMode::eExclusive, 1,
-                  compute_indeces),
-          _buffer(device.createBuffer(_bufferCreateInfo)), _deviceMemory(nullptr) {
-        vk::MemoryRequirements MemReqs = _buffer.getMemoryRequirements();
-        vk::MemoryAllocateInfo MemoryAllocateInfo(MemReqs.size, MemoryTypeIndex);
-
-        _deviceMemory = vk::raii::DeviceMemory(device, MemoryAllocateInfo);
-
-        _buffer.bindMemory(*_deviceMemory, 0);
-
-        _descriptorBuffer = vk::DescriptorBufferInfo(*_buffer, 0, _bufferCreateInfo.size);
-    }
-
-    void fillWith(const void *data) const {
-        auto *mapped = _deviceMemory.mapMemory(0, _bufferCreateInfo.size);
-        memcpy(mapped, data, _bufferCreateInfo.size);
-        _deviceMemory.unmapMemory();
-    }
-
-    template<typename T>
-    struct MapProxy {
-        const vk::raii::DeviceMemory &_mem;
-        T *data;
-
-        MapProxy(vk::raii::DeviceMemory &mem, uint32_t size)
-            : _mem(mem) {
-            data = (T *) _mem.mapMemory(0, size);
-        }
-
-        ~MapProxy() {
-            _mem.unmapMemory();
-        }
-
-        T &operator[](uint32_t index) {
-            return data[index];
-        }
-    };
-
-    template<typename T>
-    MapProxy<T> map() {
-        return MapProxy<T>(_deviceMemory, _bufferCreateInfo.size);
-    }
-};
-
-struct VulkanPipeline {
-    vk::raii::ShaderModule _shaderModule;
-    vk::raii::Pipeline _pipeline;
-
-    VulkanPipeline()
-        : _shaderModule(nullptr), _pipeline(nullptr) {
-    }
-};
-
 namespace {
     /**
      * Process-wide Vulkan instance / physical device / logical device.
@@ -128,6 +62,7 @@ namespace {
         vk::raii::Device device;
         uint32_t computeQueueFamilyIndex{};
         uint32_t memoryTypeIndex{uint32_t(~0)};
+        uint32_t hostMemoryTypeIndex{uint32_t(~0)};
 
         SharedVulkan()
             : context(), instance(nullptr), physicalDevice(nullptr), device(nullptr) {
@@ -197,14 +132,27 @@ namespace {
 
             // The buffers are mapped, so the memory has to be host visible. Device-local memory (a resizable BAR, or
             // the unified memory of an integrated GPU) is preferred: otherwise the kernels read the mesh through PCIe.
+            // Without a resizable BAR there are only ~256 MB of it, so host memory is kept as the fallback.
             vk::PhysicalDeviceMemoryProperties MemoryProperties = physicalDevice.getMemoryProperties();
             const vk::MemoryPropertyFlags Mappable = vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent;
-            for (const vk::MemoryPropertyFlags Required: {Mappable | vk::MemoryPropertyFlagBits::eDeviceLocal, Mappable}) {
-                for (uint32_t i = 0; i < MemoryProperties.memoryTypeCount && memoryTypeIndex == uint32_t(~0); ++i) {
-                    if ((MemoryProperties.memoryTypes[i].propertyFlags & Required) == Required) {
-                        memoryTypeIndex = i;
-                    }
+            for (uint32_t i = 0; i < MemoryProperties.memoryTypeCount; ++i) {
+                const vk::MemoryPropertyFlags Flags = MemoryProperties.memoryTypes[i].propertyFlags;
+                const bool DeviceLocal = static_cast<bool>(Flags & vk::MemoryPropertyFlagBits::eDeviceLocal);
+                uint32_t &Index = DeviceLocal ? memoryTypeIndex : hostMemoryTypeIndex;
+                if ((Flags & Mappable) == Mappable && Index == uint32_t(~0)) {
+                    Index = i;
                 }
+            }
+            // A device offering only one of the two uses it for both
+            memoryTypeIndex = memoryTypeIndex != uint32_t(~0) ? memoryTypeIndex : hostMemoryTypeIndex;
+            hostMemoryTypeIndex = hostMemoryTypeIndex != uint32_t(~0) ? hostMemoryTypeIndex : memoryTypeIndex;
+        }
+
+        vk::raii::DeviceMemory allocateMemory(const vk::DeviceSize size) const {
+            try {
+                return {device, vk::MemoryAllocateInfo(size, memoryTypeIndex)};
+            } catch (const vk::OutOfDeviceMemoryError &) {
+                return {device, vk::MemoryAllocateInfo(size, hostMemoryTypeIndex)};
             }
         }
     };
@@ -215,11 +163,73 @@ namespace {
     }
 } // namespace
 
+struct VulkanMemory {
+    vk::BufferCreateInfo _bufferCreateInfo;
+    vk::DescriptorBufferInfo _descriptorBuffer;
+    vk::raii::Buffer _buffer;
+
+    vk::raii::DeviceMemory _deviceMemory;
+
+    VulkanMemory(
+            const size_t size,
+            const vk::raii::Device &device,
+            const uint32_t *compute_indeces)
+        : _bufferCreateInfo(
+                  vk::BufferCreateFlags(), size, vk::BufferUsageFlagBits::eStorageBuffer, vk::SharingMode::eExclusive, 1,
+                  compute_indeces),
+          _buffer(device.createBuffer(_bufferCreateInfo)), _deviceMemory(nullptr) {
+        vk::MemoryRequirements MemReqs = _buffer.getMemoryRequirements();
+        _deviceMemory = getSharedVulkan().allocateMemory(MemReqs.size);
+
+        _buffer.bindMemory(*_deviceMemory, 0);
+
+        _descriptorBuffer = vk::DescriptorBufferInfo(*_buffer, 0, _bufferCreateInfo.size);
+    }
+
+    void fillWith(const void *data) const {
+        auto *mapped = _deviceMemory.mapMemory(0, _bufferCreateInfo.size);
+        memcpy(mapped, data, _bufferCreateInfo.size);
+        _deviceMemory.unmapMemory();
+    }
+
+    template<typename T>
+    struct MapProxy {
+        const vk::raii::DeviceMemory &_mem;
+        T *data;
+
+        MapProxy(vk::raii::DeviceMemory &mem, uint32_t size)
+            : _mem(mem) {
+            data = (T *) _mem.mapMemory(0, size);
+        }
+
+        ~MapProxy() {
+            _mem.unmapMemory();
+        }
+
+        T &operator[](uint32_t index) {
+            return data[index];
+        }
+    };
+
+    template<typename T>
+    MapProxy<T> map() {
+        return MapProxy<T>(_deviceMemory, _bufferCreateInfo.size);
+    }
+};
+
+struct VulkanPipeline {
+    vk::raii::ShaderModule _shaderModule;
+    vk::raii::Pipeline _pipeline;
+
+    VulkanPipeline()
+        : _shaderModule(nullptr), _pipeline(nullptr) {
+    }
+};
+
 struct VulkanWrapper {
     // Logical device shared across all VulkanWrapper instances (owned by SharedVulkan).
     vk::raii::Device &_device;
     uint32_t ComputeQueueFamilyIndex;
-    uint32_t MemoryTypeIndex;
 
     std::vector<VulkanMemory> _buffers;
     std::list<VulkanPipeline> _pipelines;
@@ -250,7 +260,6 @@ struct VulkanWrapper {
         // Instance, physical device and logical device are created once for the
         // whole process and shared across every VulkanWrapper (see SharedVulkan).
         ComputeQueueFamilyIndex = getSharedVulkan().computeQueueFamilyIndex;
-        MemoryTypeIndex = getSharedVulkan().memoryTypeIndex;
 
         _queue = _device.getQueue(ComputeQueueFamilyIndex, 0);
         _fence = _device.createFence(vk::FenceCreateFlags());
@@ -259,7 +268,7 @@ struct VulkanWrapper {
     }
 
     VulkanMemory &addBuffer(size_t size) {
-        auto &Buffer = _buffers.emplace_back(size, _device, &ComputeQueueFamilyIndex, MemoryTypeIndex);
+        auto &Buffer = _buffers.emplace_back(size, _device, &ComputeQueueFamilyIndex);
 
         _layout_bindings.emplace_back(
                 _layout_bindings.size(),
@@ -370,7 +379,8 @@ public:
         wrapper_.addBuffer(Faces.size() * sizeof(glm::uvec4));
         wrapper_.addBuffer(Faces.size() * sizeof(VectorType4));
 
-        wrapper_.addBuffer(Faces.size() * sizeof(Result));
+        // The shader accumulates the whole sum into results[0]
+        wrapper_.addBuffer(sizeof(Result));
 
         wrapper_.preparePipelines(sizeof(PushConstants));
         _pipeline_eval = &wrapper_.createPipeline(shd_eval, "main");
