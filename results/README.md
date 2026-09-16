@@ -217,6 +217,56 @@ ppbcc p2analysis boxplot ./Results_* -n VecAdd \
 performance-portability tables, so every quoted number can be checked against a CSV rather than
 read off a plot. With `p3analysis` the tables also carry every complexity metric.
 
+### 4.3 Runtimes
+
+`time-barplot` draws the measured runtime itself, one bar per paradigm in the paradigm's color,
+grouped by platform, on a logarithmic axis. It uses the largest benchmark size unless `-s` names
+another one. `-t` selects the runtime column: `wall-clock` (default), `kernel`, `force-update` or
+`neighbor-search`. Kernel Time is only recorded for matrix multiplication and vector addition, so
+N-body and polyhedral gravity use the wall-clock time; asking for a column the results do not
+contain is an error.
+
+```bash
+ppbcc p2analysis time-barplot ./Results_* -n MatrixMultiplication -t kernel \
+  -x "Cublas" --remove-description -l
+ppbcc p2analysis time-barplot ./Results_* -n VecAdd -t kernel \
+  -x "Cublas" --remove-description -l
+ppbcc p2analysis time-barplot ./Results_* -n NBody \
+  -x "VerletLists|LinkedCells|Reduction" --remove-description -l
+ppbcc p2analysis time-barplot ./Results_* -n Polyhedral \
+  --remove-description -l --normalize-time-to-peak
+```
+
+With `--remove-description` the fastest variant stands for a paradigm. `-H "NVIDIA RTX5080"` restricts
+the chart to one platform and labels the bars with their paradigm instead of grouping them. Slots
+stay empty where a paradigm has no result on a platform. The Slang-Cuda vector addition reports a
+Kernel Time of zero on every NVIDIA GPU; those rows are dropped with a warning because a log axis
+cannot show them.
+
+`--normalize-time-to-peak` multiplies every runtime by the published peak performance of its
+platform, i.e. plots the FLOPs the platform could have executed in that time, which makes runtimes
+on GPUs of different capability comparable. The peaks come from `ppbcc.hardware.PEAK_PERFORMANCE`,
+which documents the source of every value:
+
+| Platform | FP32 [TFLOP/s] | FP64 [TFLOP/s] | Source |
+|---|---:|---:|---|
+| NVIDIA RTX3080 (10 GB) | 29.77 | 0.465 | [Wikipedia, RTX 30 series](https://en.wikipedia.org/wiki/GeForce_RTX_30_series), boost clock |
+| NVIDIA RTX4060 | 15.11 | 0.236 | [Wikipedia, RTX 40 series](https://en.wikipedia.org/wiki/GeForce_RTX_40_series), boost clock |
+| NVIDIA RTX5080 | 56.3 | 0.88 | [Wikipedia, RTX 50 series](https://en.wikipedia.org/wiki/GeForce_RTX_50_series) |
+| NVIDIA GH200 | 66.9 | 33.5 | [Wikipedia, Nvidia Tesla](https://en.wikipedia.org/wiki/Nvidia_Tesla), H100 SXM |
+| AMD MI210 | 181.0 | 22.63 | [Wikipedia, AMD Instinct](https://en.wikipedia.org/wiki/AMD_Instinct), boost clock, *Vector TFLOPS* |
+| Intel Max 1550 | 26 | 26 | [flopper.io](https://flopper.io/gpu/intel-data-center-gpu-max-1550-128gb), 52 for the card, halved for one stack |
+
+These are datasheet values and not measured ceilings: step 5 measures 57.4 TFLOP/s on the RTX 5080,
+because Nsight Compute scales its `peak_sustained` counters with the clock the card actually ran at.
+The MI210 figure is labelled *Vector TFLOPS* in its source and may count a different unit of work
+than the NVIDIA per-core FMA figures.
+
+```bash
+ppbcc p2analysis time-barplot ./Results_* -n MatrixMultiplication -t kernel \
+  -x "Cublas" --remove-description --normalize-time-to-peak -l
+```
+
 ## 5. Roofline models
 
 The roofline models need a **separate build** of the benchmark: a profiler replays every kernel
