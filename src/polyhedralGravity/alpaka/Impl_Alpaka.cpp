@@ -29,6 +29,15 @@ template<typename T>
 using BufHostMapped = decltype(alpaka::allocMappedBufIfSupported<T, Idx>(
         std::declval<Host>(), std::declval<PlatformAcc>(), std::declval<alpaka::Vec<Dim, Idx>>()));
 
+/**
+ * The accelerator platform, shared by the whole process. On the SYCL backend every platform object creates its own
+ * SYCL context: the device, the pinned host buffer and the compiled kernels have to belong to the same one.
+ */
+PlatformAcc &getPlatformAcc() {
+    static PlatformAcc platform{};
+    return platform;
+}
+
 inline alpaka::Vec<Dim, Idx> extentOf(const Idx n) {
     return alpaka::Vec<Dim, Idx>{n};
 }
@@ -249,13 +258,13 @@ public:
             const double density)
         : GravityEvaluableBase(Vertices, Faces, density)
         , host(alpaka::getDevByIdx(PlatformHost{}, 0))
-        , device(alpaka::getDevByIdx(PlatformAcc{}, 0))
+        , device(alpaka::getDevByIdx(getPlatformAcc(), 0))
         , queue(device)
         , _vertices_d(alpaka::allocBuf<Array3, Idx>(device, extentOf(Vertices.size())))
         , _faces_d(alpaka::allocBuf<IndexArray3, Idx>(device, extentOf(Faces.size())))
         , _normals_d(alpaka::allocBuf<Array3, Idx>(device, extentOf(Faces.size())))
         , _results_d(alpaka::allocBuf<GravityModelResult, Idx>(device, extentOf(Faces.size())))
-        , _results_h(alpaka::allocMappedBufIfSupported<GravityModelResult, Idx>(host, PlatformAcc{}, extentOf(Faces.size()))) {
+        , _results_h(alpaka::allocMappedBufIfSupported<GravityModelResult, Idx>(host, getPlatformAcc(), extentOf(Faces.size()))) {
     }
 
     GravityModelResult evaluate(const Array3 &Point) override {
