@@ -1,6 +1,6 @@
 {
   "context": {
-    "date": "2026-09-16T20:50:04+02:00",
+    "date": "2026-09-17T13:42:24+02:00",
     "host_name": "Zeus1999-Ubuntu",
     "executable": "./src/polyhedralGravity/slang/polyhedral_slang_vulkan",
     "num_cpus": 28,
@@ -33,7 +33,7 @@
         "num_sharing": 28
       }
     ],
-    "load_avg": [0.0253906,0.250488,0.354004],
+    "load_avg": [1.08398,1.12549,1],
     "library_version": "v1.9.4",
     "library_build_type": "release",
     "json_schema_version": 1,
@@ -50,9 +50,9 @@
       "repetitions": 1,
       "repetition_index": 0,
       "threads": 1,
-      "iterations": 73355,
-      "real_time": 3.1035866553065891e+04,
-      "cpu_time": 1.1036950841796741e+04,
+      "iterations": 87759,
+      "real_time": 3.2452935117767542e+04,
+      "cpu_time": 1.5930128568010121e+04,
       "time_unit": "ns",
       "NumFaces": 1.4744000000000000e+04
     },
@@ -65,9 +65,9 @@
       "repetitions": 1,
       "repetition_index": 0,
       "threads": 1,
-      "iterations": 17981,
-      "real_time": 1.3488665786110243e+05,
-      "cpu_time": 3.3689927034091525e+04,
+      "iterations": 44677,
+      "real_time": 4.4144354701525292e+04,
+      "cpu_time": 1.7358922823824367e+04,
       "time_unit": "ns",
       "NumFaces": 2.5593200000000000e+05
     },
@@ -80,9 +80,9 @@
       "repetitions": 1,
       "repetition_index": 0,
       "threads": 1,
-      "iterations": 30441,
-      "real_time": 1.1474506451824516e+05,
-      "cpu_time": 3.2749401432278828e+04,
+      "iterations": 42716,
+      "real_time": 4.3966044198896612e+04,
+      "cpu_time": 1.7625372600430746e+04,
       "time_unit": "ns",
       "NumFaces": 1.9660800000000000e+05
     },
@@ -95,9 +95,9 @@
       "repetitions": 1,
       "repetition_index": 0,
       "threads": 1,
-      "iterations": 63980,
-      "real_time": 2.6492468130671841e+04,
-      "cpu_time": 1.1027058737105344e+04,
+      "iterations": 75677,
+      "real_time": 3.2878668340443073e+04,
+      "cpu_time": 1.6447634591751787e+04,
       "time_unit": "ns",
       "NumFaces": 2.7800000000000000e+03
     },
@@ -110,9 +110,9 @@
       "repetitions": 1,
       "repetition_index": 0,
       "threads": 1,
-      "iterations": 41299,
-      "real_time": 3.1257087580799922e+04,
-      "cpu_time": 1.3038191530061275e+04,
+      "iterations": 67699,
+      "real_time": 3.2897273032102989e+04,
+      "cpu_time": 1.5911398646951957e+04,
       "time_unit": "ns",
       "NumFaces": 1.2796000000000000e+04
     },
@@ -125,9 +125,9 @@
       "repetitions": 1,
       "repetition_index": 0,
       "threads": 1,
-      "iterations": 50992,
-      "real_time": 3.5926534142614189e+04,
-      "cpu_time": 1.1505231565735801e+04,
+      "iterations": 78378,
+      "real_time": 3.3285508305900155e+04,
+      "cpu_time": 1.6080788040011206e+04,
       "time_unit": "ns",
       "NumFaces": 3.2040000000000000e+04
     },
@@ -140,9 +140,9 @@
       "repetitions": 1,
       "repetition_index": 0,
       "threads": 1,
-      "iterations": 10000,
-      "real_time": 1.0213810088999708e+06,
-      "cpu_time": 4.0460160499999991e+04,
+      "iterations": 15431,
+      "real_time": 2.1584168407751623e+05,
+      "cpu_time": 4.7418407296999336e+04,
       "time_unit": "ns",
       "NumFaces": 3.1457280000000000e+06
     }
