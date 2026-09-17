@@ -127,10 +127,12 @@ public:
         kernel_eval.set_arg(2, buffer_normals);
         kernel_eval.set_arg(3, buffer_results);
         kernel_eval.set_arg(4, static_cast<cl_int>(_faces.size()));
+        kernel_eval.set_arg(8, bc::local_buffer<ScalarType>(local_n * 10));
 
         kernel_sum.set_arg(0, buffer_results);
         kernel_sum.set_arg(1, reduction_buffer);
         kernel_sum.set_arg(2, static_cast<cl_int>(nWorkGroups));
+        kernel_sum.set_arg(3, bc::local_buffer<ScalarType>(local_n2 * 10));
     }
 
     GravityModelResult evaluate(const Array3 &Point) override {

@@ -31,16 +31,15 @@ kernel void vecadd(
     int num_faces,
     FloatType p1,
     FloatType p2,
-    FloatType p3
+    FloatType p3,
+    local FloatType* partialSums
    ){
     FloatType3 point = {p1, p2, p3};
 
-    // Out-of-range work-items must NOT return early: work_group_reduce_add() below is an
-    // OpenCL 2.0 work-group collective that every work-item of the work-group has to
-    // encounter, otherwise the behaviour is undefined. Implementations that reduce across
-    // sub-groups with a barrier then deadlock on the work-items that already left.
-    // Instead the out-of-range items redundantly evaluate face 0 and contribute zero to
-    // the reduction, which is the same guard opencl_sum.cl already uses.
+    // Out-of-range work-items must NOT return early: every work-item of the work-group has
+    // to reach the barriers of the local-memory reduction below, otherwise the others
+    // deadlock. Instead the out-of-range items redundantly evaluate face 0 and contribute
+    // zero to the reduction, which is the same guard opencl_sum.cl uses.
     const int global_index = get_global_id(0);
     const bool inRange = global_index < num_faces;
     const int face_index = inRange ? global_index : 0;
@@ -186,6 +185,19 @@ kernel void vecadd(
         result_value.s789 = second;
     }
 
-    for (uint i = 0; i<10; ++i) result_value[i] = work_group_reduce_add(result_value[i]);
-    if (get_local_id(0) == 0) { results[get_group_id(0)] = result_value; }
+    // Shared-memory reduction over the ten used components of the work-group
+    const uint localId = get_local_id(0);
+    for (uint i = 0; i < 10; ++i) partialSums[localId * 10 + i] = result_value[i];
+    barrier(CLK_LOCAL_MEM_FENCE);
+
+    for (uint stride = get_local_size(0) / 2; stride > 0; stride /= 2) {
+        if (localId < stride) {
+            for (uint i = 0; i < 10; ++i) partialSums[localId * 10 + i] += partialSums[(localId + stride) * 10 + i];
+        }
+        barrier(CLK_LOCAL_MEM_FENCE);
+    }
+    if (localId == 0) {
+        for (uint i = 0; i < 10; ++i) result_value[i] = partialSums[i];
+        results[get_group_id(0)] = result_value;
+    }
 }

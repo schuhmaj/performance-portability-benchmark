@@ -152,10 +152,12 @@ public:
         kernel_eval.setArg(2, buffer_normals);
         kernel_eval.setArg(3, buffer_results);
         kernel_eval.setArg(4, (int32_t) _faces.size());
+        kernel_eval.setArg(8, cl::Local(local_n * 10 * sizeof(FloatType)));
 
         kernel_sum.setArg(0, buffer_results);
         kernel_sum.setArg(1, reduction_buffer);
         kernel_sum.setArg(2, (int32_t) nWorkGroups);
+        kernel_sum.setArg(3, cl::Local(local_n2 * 10 * sizeof(FloatType)));
     }
 
     GravityModelResult evaluate(const Array3 &Point) override {
