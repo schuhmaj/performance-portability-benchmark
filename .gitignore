@@ -5,3 +5,4 @@ profiling-*/
 scripts/__pycache__/
 .vscode
 enroot/
+results/profiling

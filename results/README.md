@@ -267,6 +267,40 @@ ppbcc p2analysis time-barplot ./Results_* -n MatrixMultiplication -t kernel \
   -x "Cublas" --remove-description --normalize-time-to-peak -l
 ```
 
+### 4.4 Heatmap of Application Efficiencies
+
+`heatmap` shows the application efficiency at one problem size, one row per platform and one column
+per paradigm, ordered by descending mean efficiency, or by name with `--sort-alphabetically`. The
+color scale is fixed to [0, 1], so heatmaps of different sizes and problems are comparable.
+
+```bash
+ppbcc p2analysis heatmap ./Results_* -n "Polyhedral" -s 3145728.0 -o "polyhedral_large" --sort-alphabetically
+ppbcc p2analysis heatmap ./Results_* -n "Polyhedral" -s 14744.0 -o "polyhedral_small" --sort-alphabetically
+```
+
+A paradigm that was never benchmarked on a platform, e.g. CUDA on the AMD MI210, is drawn as a
+black cell with a `-` instead of an efficiency of `0.00`. A measured result is always positive, so
+a `0.00` that remains is a real, if tiny, efficiency (the GH200 Vulkan results, for instance). This
+heatmap is a separate plot from the size-scaling heatmap in the `combined` chart of step 4, which
+is unchanged.
+
+### 4.5 Double Heatmap of Application Efficiencies
+
+`double-heatmap` compares two problem sizes in one figure. Every cell is split along its diagonal:
+the upper-left triangle (◤) shows the size given with `-s`, the lower-right triangle (◢) the size
+given with `--second-size`. Both sizes must be exact numeric sizes, and both halves share the
+[0, 1] color scale. A half whose paradigm was never benchmarked on the platform at that size is
+black with a `-`.
+
+```bash
+ppbcc p2analysis double-heatmap ./Results_* -n "Polyhedral" -s 14744.0 --second-size 3145728.0 \
+  -o "polyhedral_small_large" --sort-alphabetically
+```
+
+Columns are ordered by the mean efficiency over both sizes, or by name with `--sort-alphabetically`. Without `-o` the plot is written to
+`<problem>_double_heatmap.pdf`.
+
+
 ## 5. Roofline models
 
 The roofline models need a **separate build** of the benchmark: a profiler replays every kernel
