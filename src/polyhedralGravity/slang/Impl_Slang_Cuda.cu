@@ -21,7 +21,6 @@ struct Result {
     VectorType4 res;
     VectorType4 first;
     VectorType4 second;
-    VectorType4 _padding;
 
     __host__ __device__ Result operator+(const Result &other) const {
         Result result{};
@@ -77,12 +76,15 @@ struct Params {
 };
 
 class GravityEvaluable : public GravityEvaluableBase {
+    // Has to match GROUP_SIZE of the shader
+    static constexpr uint32_t blockSize = 256;
+
 public:
     GravityEvaluable(
             const std::vector<Array3> &Vertices,
             const std::vector<IndexArray3> &Faces,
             const double density)
-        : GravityEvaluableBase(Vertices, Faces, density), mem_vertices(Vertices.size()), mem_faces(Faces.size()), mem_normals(Faces.size()), mem_results(Faces.size()), mem_settings(1) {
+        : GravityEvaluableBase(Vertices, Faces, density), mem_vertices(Vertices.size()), mem_faces(Faces.size()), mem_normals(Faces.size()), mem_results((Faces.size() + blockSize - 1) / blockSize), mem_settings(1) {
     }
 
     GravityModelResult evaluate(const Array3 &Point) override {
@@ -105,9 +107,10 @@ public:
 
         GravityModelResult result{};
 
+        // The kernel reduces each block of 256 faces; only the block sums are left to reduce
         thrust::device_ptr<Result> cptr = thrust::device_pointer_cast(mem_results._data);
         Result init{};
-        Result r = thrust::reduce(cptr, cptr + _faces.size(), init);
+        Result r = thrust::reduce(cptr, cptr + (_faces.size() + blockSize - 1) / blockSize, init);
 
         result.potential = r.res.w;
         result.acceleration[0] = r.res.x;

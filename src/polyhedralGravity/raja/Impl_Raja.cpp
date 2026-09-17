@@ -5,23 +5,18 @@
 #if defined(RAJA_ENABLE_CUDA)
 // __launch_bounds__(256, 3): at most 256 threads per block, and a body small enough for three such blocks per SM
 using ExecPolicy = RAJA::cuda_exec_explicit<256, 3>;
-using ReducePolicy = RAJA::cuda_reduce;
 using Resource = RAJA::resources::Cuda;
 #elif defined(RAJA_ENABLE_HIP)
 using ExecPolicy = RAJA::hip_exec<256>;
-using ReducePolicy = RAJA::hip_reduce;
 using Resource = RAJA::resources::Hip;
 #elif defined(RAJA_ENABLE_SYCL)
 using ExecPolicy = RAJA::sycl_exec<256>;
-using ReducePolicy = RAJA::sycl_reduce;
 using Resource = RAJA::resources::Sycl;
 #elif defined(RAJA_ENABLE_OPENMP)
 using ExecPolicy = RAJA::omp_parallel_for_exec;
-using ReducePolicy = RAJA::omp_reduce;
 using Resource = RAJA::resources::Host;
 #else
 using ExecPolicy = RAJA::seq_exec;
-using ReducePolicy = RAJA::seq_reduce;
 using Resource = RAJA::resources::Host;
 #endif
 
@@ -63,18 +58,10 @@ public:
         const IndexArray3 *faces = _deviceFaces;
         const Array3 *normals = _normals;
 
-        RAJA::ReduceSum<ReducePolicy, FloatType> potential{0.0};
-        RAJA::ReduceSum<ReducePolicy, FloatType> acceleration0{0.0};
-        RAJA::ReduceSum<ReducePolicy, FloatType> acceleration1{0.0};
-        RAJA::ReduceSum<ReducePolicy, FloatType> acceleration2{0.0};
-        RAJA::ReduceSum<ReducePolicy, FloatType> tensor0{0.0};
-        RAJA::ReduceSum<ReducePolicy, FloatType> tensor1{0.0};
-        RAJA::ReduceSum<ReducePolicy, FloatType> tensor2{0.0};
-        RAJA::ReduceSum<ReducePolicy, FloatType> tensor3{0.0};
-        RAJA::ReduceSum<ReducePolicy, FloatType> tensor4{0.0};
-        RAJA::ReduceSum<ReducePolicy, FloatType> tensor5{0.0};
+        GravityModelResult result{};
 
-        RAJA::forall<ExecPolicy>(_res, RAJA::TypedRangeSegment<size_t>(0, _faces.size()), [=] RAJA_HOST_DEVICE(const size_t i) {
+        RAJA::forall<ExecPolicy>(_res, RAJA::TypedRangeSegment<size_t>(0, _faces.size()), RAJA::expt::Reduce<RAJA::operators::plus>(&result),
+                [=] RAJA_HOST_DEVICE(const size_t i, RAJA::expt::ValOp<GravityModelResult, RAJA::operators::plus> &accumulator) {
         const Array3Triplet face = {
                 vertices[faces[i][0]] - point,
                 vertices[faces[i][1]] - point,
@@ -257,7 +244,7 @@ public:
         //endregion
 
         //region 7. Step: Multiply with prefix
-        const GravityModelResult R = {
+        accumulator += GravityModelResult{
                 // Equation (11): sigma_p * h_p * sum
                 planeNormalOrientation * planeDistance * planeSumPotentialAcceleration,
 
@@ -267,23 +254,8 @@ public:
                 // Equation (13): already done above, just concat the two components for later summation
                 concat(first, second)};
         //endregion
-
-        potential += R.potential;
-        acceleration0 += R.acceleration[0];
-        acceleration1 += R.acceleration[1];
-        acceleration2 += R.acceleration[2];
-        tensor0 += R.gradiometricTensor[0];
-        tensor1 += R.gradiometricTensor[1];
-        tensor2 += R.gradiometricTensor[2];
-        tensor3 += R.gradiometricTensor[3];
-        tensor4 += R.gradiometricTensor[4];
-        tensor5 += R.gradiometricTensor[5]; });
+        });
         _res.wait();
-
-        GravityModelResult result{
-                potential.get(),
-                Array3{acceleration0.get(), acceleration1.get(), acceleration2.get()},
-                Array6{tensor0.get(), tensor1.get(), tensor2.get(), tensor3.get(), tensor4.get(), tensor5.get()}};
 
         //region Finalize
         // 9. Step: Compute prefix consisting of GRAVITATIONAL_CONSTANT * density

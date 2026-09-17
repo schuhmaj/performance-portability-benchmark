@@ -7,20 +7,9 @@ GlobalResources::GlobalResources(int &argc, char *argv[]) {
 }
 GlobalResources::~GlobalResources() = default;
 
-struct GravityModelResultAcpp {
-    FloatType data[10];
-
-    GravityModelResultAcpp operator+(const GravityModelResultAcpp &other) const {
-        GravityModelResultAcpp result = *this;
-        for (int i = 0; i < 10; i++) { result.data[i] += other.data[i]; }
-        return result;
-    }
-
-    GravityModelResultAcpp &operator+=(const GravityModelResultAcpp &other) {
-        for (int i = 0; i < 10; i++) { data[i] += other.data[i]; }
-        return *this;
-    }
-};
+// The launch bounds of Kokkos' EvaluationPolicy: an explicit nd_range with 256 threads per group. A plain
+// range<1> reduction is streamed by AdaptiveCpp: it launches only a few groups and strides each thread through the faces.
+constexpr size_t groupSize = 256;
 
 class GravityEvaluable : public GravityEvaluableBase {
 public:
@@ -38,7 +27,7 @@ public:
         _vertices_device = sycl::malloc_device<Array3>(numVertices, queue);
         _faces_device = sycl::malloc_device<IndexArray3>(numFaces, queue);
         _normals = sycl::malloc_device<Array3>(numFaces, queue);
-        _result_device = sycl::malloc_device<GravityModelResultAcpp>(1, queue);
+        _result_device = sycl::malloc_device<GravityModelResult>(1, queue);
 
         queue.copy(_vertices.data(), _vertices_device, numVertices);
         queue.copy(_faces.data(), _faces_device, numFaces);
@@ -66,18 +55,15 @@ public:
         // The result buffer is allocated once (see constructor) and reused across
         // calls - allocating/freeing USM on every evaluate() is a heavyweight,
         // synchronizing operation that dominates the (small) per-point kernel.
-        // Reset to the reduction identity; the in-order queue keeps this ordered
-        // before the kernel below.
-        queue.memset(_result_device, 0, sizeof(GravityModelResultAcpp));
+        const size_t globalSize = (numFaces + groupSize - 1) / groupSize * groupSize;
 
         queue.submit([&](sycl::handler &h) {
-             auto reduction = sycl::reduction(_result_device, GravityModelResultAcpp{},
-                                              [](const GravityModelResultAcpp &a, const GravityModelResultAcpp &b) {
-                                                  return a + b;// Custom reduction operation
-                                              });
+             auto reduction = sycl::reduction(_result_device, GravityModelResult{}, sycl::plus<GravityModelResult>(),
+                                              sycl::property::reduction::initialize_to_identity{});
 
-             h.parallel_for(sycl::range<1>(numFaces), reduction, [=](const sycl::id<1> &id, auto &reducer) {
-                 const size_t i = id[0];
+             h.parallel_for(sycl::nd_range<1>(globalSize, groupSize), reduction, [=](const sycl::nd_item<1> &item, auto &reducer) {
+                 const size_t i = item.get_global_id(0);
+                 if (i >= numFaces) return;
                  const Array3Triplet face = {
                          V[F[i][0]] - point,
                          V[F[i][1]] - point,
@@ -212,37 +198,15 @@ public:
                  const Array3 reorderedSubSum = {subSum[1], subSum[2], subSum[2]};
                  const Array3 second = reorderedNp * reorderedSubSum;
 
-                 const Array3 acc = planeUnitNormal * planeSumPotentialAcceleration;
-
-                 GravityModelResultAcpp r2{};
-                 r2.data[0] = planeNormalOrientation * planeDistance * planeSumPotentialAcceleration;
-                 r2.data[1] = acc[0];
-                 r2.data[2] = acc[1];
-                 r2.data[3] = acc[2];
-
-                 r2.data[4] = first[0];
-                 r2.data[5] = first[1];
-                 r2.data[6] = first[2];
-
-                 r2.data[7] = second[0];
-                 r2.data[8] = second[1];
-                 r2.data[9] = second[2];
-
-                 reducer.combine(r2);
+                 reducer.combine(GravityModelResult{
+                         planeNormalOrientation * planeDistance * planeSumPotentialAcceleration,
+                         planeUnitNormal * planeSumPotentialAcceleration,
+                         concat(first, second)});
              });
          });
 
-        GravityModelResultAcpp acpp_result{};
-        queue.copy(_result_device, &acpp_result, 1).wait();
-
         GravityModelResult result{};
-        result.potential = acpp_result.data[0];
-        result.acceleration[0] = acpp_result.data[1];
-        result.acceleration[1] = acpp_result.data[2];
-        result.acceleration[2] = acpp_result.data[3];
-        for (int i = 0; i < 6; ++i) {
-            result.gradiometricTensor.data[i] = acpp_result.data[i + 4];
-        }
+        queue.copy(_result_device, &result, 1).wait();
 
         const double prefix = GRAVITATIONAL_CONSTANT * _density;
 
@@ -281,7 +245,7 @@ private:
     Array3 *_normals = nullptr;
 
     // Reused across evaluate() calls to avoid per-call USM allocation overhead.
-    GravityModelResultAcpp *_result_device = nullptr;
+    GravityModelResult *_result_device = nullptr;
 };
 
 std::unique_ptr<GravityEvaluableBase> create_gravity_evaluable(

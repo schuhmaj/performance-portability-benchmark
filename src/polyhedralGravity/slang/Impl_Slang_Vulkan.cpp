@@ -29,7 +29,6 @@ struct Result {
     VectorType4 res;
     VectorType4 first;
     VectorType4 second;
-    VectorType4 _padding;
 };
 
 struct PushConstants {

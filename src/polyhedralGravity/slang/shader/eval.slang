@@ -13,7 +13,6 @@ struct Result {
     FloatType4 res;
     FloatType4 first;
     FloatType4 second;
-    FloatType4 _padding;
 };
 
 StructuredBuffer<FloatType3> vertices;
@@ -30,6 +29,23 @@ struct Params {
 };
 
 [[vk::push_constant]] ConstantBuffer<Params> params;
+
+// Shared-memory reduction within each group of 256 threads, as in the Vulkan shader
+#define GROUP_SIZE 256
+shared Result partialSums[GROUP_SIZE];
+
+#ifdef TARGET_CUDA
+__target_intrinsic(cuda, "__syncthreads()")
+void cudaSyncThreads();
+#endif
+
+void syncThreads() {
+#ifdef TARGET_CUDA
+    cudaSyncThreads();
+#else
+    barrier();
+#endif
+}
 
 struct Distance {
     FloatType l1;
@@ -93,15 +109,16 @@ void do_init(uint index) {
 }
 
 [shader("compute")]
-[numthreads(256, 1, 1)]
+[numthreads(GROUP_SIZE, 1, 1)]
 void computeMain(uint3 threadIdx : SV_DispatchThreadID, uint3 groupThreadIdx : SV_GroupThreadID, uint3 groupIdx : SV_GroupID) {
-    uint face_index = threadIdx.x;
+    // Out-of-range threads must not return early: every thread has to reach the
+    // barriers of the shared-memory reduction below. They redundantly compute
+    // face 0 and contribute zero to the partial sums instead.
+    bool inRange = threadIdx.x < params.num_faces;
+    uint face_index = inRange ? threadIdx.x : 0;
+    uint localId = groupThreadIdx.x;
 
-    if (face_index >= params.num_faces) {
-        return;
-    }
-
-    if (params.init_done == 0) {
+    if (params.init_done == 0 && inRange) {
         do_init(face_index);
     }
 
@@ -245,28 +262,38 @@ void computeMain(uint3 threadIdx : SV_DispatchThreadID, uint3 groupThreadIdx : S
     res.first.xyz = first;
     res.second.xyz = second;
 
-#ifdef TARGET_CUDA
-    results[face_index] = res;
-#else
-    // WaveActiveSum reduces per wave (not per group); with a 256-thread group the
-    // first active lane of EVERY wave has to contribute its wave's partial sum.
-    FloatType4 groupSum0 = WaveActiveSum(res.res);
-    FloatType4 groupSum1 = WaveActiveSum(res.first);
-    FloatType4 groupSum2 = WaveActiveSum(res.second);
-
-    if (WaveIsFirstLane()) {
-        atomicAdd(results[0].res.x, groupSum0.x);
-        atomicAdd(results[0].res.y, groupSum0.y);
-        atomicAdd(results[0].res.z, groupSum0.z);
-        atomicAdd(results[0].res.w, groupSum0.w);
-
-        atomicAdd(results[0].first.x, groupSum1.x);
-        atomicAdd(results[0].first.y, groupSum1.y);
-        atomicAdd(results[0].first.z, groupSum1.z);
-
-        atomicAdd(results[0].second.x, groupSum2.x);
-        atomicAdd(results[0].second.y, groupSum2.y);
-        atomicAdd(results[0].second.z, groupSum2.z);
+    if (!inRange) {
+        res = (Result)0;
     }
+    partialSums[localId] = res;
+    syncThreads();
+
+    for (uint stride = GROUP_SIZE / 2; stride > 0; stride /= 2) {
+        if (localId < stride) {
+            partialSums[localId].res += partialSums[localId + stride].res;
+            partialSums[localId].first += partialSums[localId + stride].first;
+            partialSums[localId].second += partialSums[localId + stride].second;
+        }
+        syncThreads();
+    }
+
+    if (localId == 0) {
+#ifdef TARGET_CUDA
+        // CUDA has no atomics: every group writes its sum, which the host reduces
+        results[groupIdx.x] = partialSums[0];
+#else
+        atomicAdd(results[0].res.x, partialSums[0].res.x);
+        atomicAdd(results[0].res.y, partialSums[0].res.y);
+        atomicAdd(results[0].res.z, partialSums[0].res.z);
+        atomicAdd(results[0].res.w, partialSums[0].res.w);
+
+        atomicAdd(results[0].first.x, partialSums[0].first.x);
+        atomicAdd(results[0].first.y, partialSums[0].first.y);
+        atomicAdd(results[0].first.z, partialSums[0].first.z);
+
+        atomicAdd(results[0].second.x, partialSums[0].second.x);
+        atomicAdd(results[0].second.y, partialSums[0].second.y);
+        atomicAdd(results[0].second.z, partialSums[0].second.z);
 #endif
+    }
 }
