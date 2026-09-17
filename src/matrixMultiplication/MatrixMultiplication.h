@@ -27,9 +27,9 @@ namespace ppb {
         // around each of them, and Nsight Systems' sampled reports grow with the
         // wall-clock time of the run. 4096 keeps every backend at a few tens of
         // milliseconds per kernel, which is long enough to sample and short
-        // enough to replay.
-        constexpr double MIN_SIZE = 4096;
-        constexpr double MAX_SIZE = 4096;
+        // enough to replay. The CMake option PPB_PROFILING_MATMUL_SIZE selects another size.
+        constexpr double MIN_SIZE = PPB_PROFILING_MATMUL_SIZE;
+        constexpr double MAX_SIZE = PPB_PROFILING_MATMUL_SIZE;
 #else
         constexpr double MIN_SIZE = 32;
         constexpr double MAX_SIZE = 16384;

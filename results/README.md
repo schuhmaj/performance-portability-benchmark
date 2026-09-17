@@ -385,7 +385,7 @@ ppbcc profile --profiler likwid -b build-likwid -p src \
 # Plot, re-reading the marker files without running anything.
 for problem in matMul polyhedral; do
   ppbcc profile --profiler likwid -b . -r "${problem}_.*" --skip-profile \
-    -d profiling-likwid-marker -a none --label-points \
+    -d profiling-likwid-marker -a none \
     --peak-performance 5.74e13 --peak-bandwidth 9.592e11 \
     -H "NVIDIA RTX5080" --no-csv --roofline \
     --roofline "results/${problem}_roofline_likwid_NVIDIA_RTX5080.pdf"

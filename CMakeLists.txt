@@ -62,6 +62,8 @@ option(PPB_ENABLE_LIKWID "Instrument the main kernels with the LIKWID marker API
 cmake_dependent_option(PPB_ENABLE_NVTX
         "Name the marked kernel regions for Nsight Compute/Systems with NVTX (see src/common/Marker.h)"
         ON "PPB_PROFILING" OFF)
+set(PPB_PROFILING_MATMUL_SIZE 4096 CACHE STRING
+        "Matrix size the matrix multiplication runs in profiling mode. 4096 keeps every profiler at a few tens of milliseconds per kernel; larger sizes show the memory hierarchy the kernels run into")
 option(PPB_PROFILING_DEVICE_DEBUG
         "Add -G to the profiling build. Off on purpose: -G turns off every device optimization, so the profiled program is no longer the program under study" OFF)
 
@@ -101,6 +103,7 @@ message(STATUS "Logging Level                   ${PPB_LOGGING_LEVEL}")
 message(STATUS "Float Type                      ${PPB_FloatType}")
 message(STATUS "Only Kernel Runtime             ${PPB_ENABLE_OnlyKernelRuntime}")
 message(STATUS "Profiling Mode (ncu)            ${PPB_PROFILING}")
+message(STATUS "Profiling MatMul Size           ${PPB_PROFILING_MATMUL_SIZE}")
 message(STATUS "LIKWID Markers                  ${PPB_ENABLE_LIKWID}")
 message(STATUS "NVTX Region Names               ${PPB_ENABLE_NVTX}")
 message(STATUS "Device Debug Info (-G)          ${PPB_PROFILING_DEVICE_DEBUG}")
@@ -144,7 +147,7 @@ endif ()
 # are reduced to the single largest input and a single, un-repeated iteration.
 # See src/common/Profiling.h for the details.
 if (${PPB_PROFILING})
-    add_compile_definitions(PPB_PROFILING)
+    add_compile_definitions(PPB_PROFILING PPB_PROFILING_MATMUL_SIZE=${PPB_PROFILING_MATMUL_SIZE})
 endif ()
 
 # LIKWID marker instrumentation. Only the package is located here; the flags are
