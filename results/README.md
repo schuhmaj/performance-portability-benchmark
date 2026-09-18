@@ -153,7 +153,8 @@ paradigm.
 >
 > Its column labels use exponents whenever every benchmark size is an exact power of the same
 > base: `2^5 … 2^14` for matrix multiplication and `10^1 … 10^8` for N-body and vector addition.
-> That is short enough to carry the same font size as the cells themselves. The polyhedral meshes
+> That is short enough to sit horizontally within one column, at a size slightly above the cell
+> values. The polyhedral meshes
 > (2780, 12796, …) are no such sweep and keep decimal labels at a smaller size, because upright
 > labels that long would otherwise grow the figure's bounding box.
 
@@ -299,6 +300,64 @@ ppbcc p2analysis double-heatmap ./Results_* -n "Polyhedral" -s 14744.0 --second-
 
 Columns are ordered by the mean efficiency over both sizes, or by name with `--sort-alphabetically`. Without `-o` the plot is written to
 `<problem>_double_heatmap.pdf`.
+
+
+### 4.6 Rank correlation across problems
+
+`rank-correlation` is the one `p3analysis` output that spans the problems instead of picking one:
+it asks whether a problem's ordering of the paradigms predicts the next problem's, and writes
+Spearman's rho between every pair of problems as a CSV matrix rather than a figure.
+`--correlation` selects what is ranked — `pp` (default), or a complexity metric such as
+`halstead-difficulty` or `sloc`. `-n` takes a comma-separated list and defaults to every problem in
+the CSVs.
+
+```bash
+CC=./code-complexity/code-complexity.csv
+# Performance portability, ranked as in step 4
+ppbcc p3analysis rank-correlation $CC ./Results_* --correlation pp \
+  --non-zero-pp -s avg --average-over efficiency \
+  -x "Cublas|VerletLists|LinkedCells|Reduction" -o "rank_correlation_pp"
+# Halstead difficulty
+ppbcc p3analysis rank-correlation $CC ./Results_* --correlation halstead-difficulty \
+  -x "Cublas|VerletLists|LinkedCells|Reduction" -o "rank_correlation_halstead"
+ppbcc p3analysis rank-correlation $CC ./Results_* --correlation sloc \
+  -x "Cublas|VerletLists|LinkedCells|Reduction" -o "rank_correlation_sloc"
+```
+
+The two matrices, rounded — ꟼP first, Halstead difficulty second:
+
+| ꟼP | MatMul | NBody | Polyhedral | VecAdd |
+|---|---:|---:|---:|---:|
+| MatrixMultiplication | 1.00 | 0.56 | 0.64 | 0.33 |
+| NBody | 0.56 | 1.00 | 0.73 | 0.15 |
+| Polyhedral | 0.64 | 0.73 | 1.00 | 0.01 |
+| VecAdd | 0.33 | 0.15 | 0.01 | 1.00 |
+
+| D | MatMul | NBody | Polyhedral | VecAdd |
+|---|---:|---:|---:|---:|
+| MatrixMultiplication | 1.00 | 0.88 | 0.79 | 0.93 |
+| NBody | 0.88 | 1.00 | 0.91 | 0.89 |
+| Polyhedral | 0.79 | 0.91 | 1.00 | 0.89 |
+| VecAdd | 0.93 | 0.89 | 0.89 | 1.00 |
+
+Complexity orderings agree across problems (0.79-0.93) far more than ꟼP orderings do. Among the
+performance rankings, matrix multiplication does carry information (0.56 and 0.64), while vector
+addition predicts nothing: it is the workload where Alpaka ranks 2nd and Kokkos 11th, and its rho
+against the polyhedral gravity model is 0.01.
+
+The ꟼP run takes the same options as step 4 — `-s`, `--average-over`, `--non-zero-pp`,
+`-p/--precision` and the description filters all apply, so the ranking is the one the `combined`
+charts show; the per-problem `-x` exclusions of step 4 are combined into one regex here. Complexity
+metrics are read unscaled, since dividing a problem's paradigms by its own C++ baseline cannot
+change that problem's order.
+
+Both variables are reduced to one value per **paradigm**, because that is what the problems have in
+common: the best variant stands for its paradigm in ꟼP, variants are reduced to their median for a
+complexity metric, and only paradigms with benchmark results are ranked — so the C++ baseline and
+complexity-only frameworks such as `Metal`, `Thrust` and `Cublas` stay out, and both runs above rank
+the same fourteen paradigms. `-e/--export-to-csv` writes those per-paradigm values and their ranks
+(best first) to `<prefix>_ranks.csv`. Having no figure, the chart rejects `-l/--legend`,
+`--remove-description` (which it always implies) and `--log-complexity`.
 
 
 ## 5. Roofline models
