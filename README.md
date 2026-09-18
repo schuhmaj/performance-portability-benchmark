@@ -1,5 +1,7 @@
 # Performance Portability Benchmarking
 
+[![DOI](https://zenodo.org/badge/845977933.svg)](https://doi.org/10.5281/zenodo.22830313)
+
 This repository contains four benchmark problems of increasing complexity, each implemented with
 **14 GPU programming paradigms** plus a sequential C++ baseline. Every implementation solves the
 same problem with the same algorithm and the same features, which makes the paradigms directly
