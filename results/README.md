@@ -12,20 +12,9 @@ only records the exact invocations that produced the archived data.
 | `<platform>/*.json` | Step 1 — raw Google Benchmark reports, one per executable |
 | `Results_<platform>.csv` | Step 2 — one consolidated CSV per platform |
 | `code-complexity/*.csv` | Step 3 — SLOC and Halstead metrics per file and per implementation |
-| `Profiling_<platform>.csv` | Step 5.1 — per-kernel Nsight Compute counters and roofline quantities |
-| `Profiling_NCU_<platform>.csv` | [`ROOFLINE.md`](ROOFLINE.md) Reproduce, step 1 — counted, the paradigms with a CUDA context |
-| `Profiling_NSYS_<platform>.csv` | [`ROOFLINE.md`](ROOFLINE.md) Reproduce, step 3 — sampled, the paradigms without a CUDA context |
-| `Profiling_NGFX_<platform>.csv` | [`ROOFLINE.md`](ROOFLINE.md) Reproduce, step 4 — GPU Trace counters, cross-check on Vulkan |
-| `Profiling_LIKWID_<platform>.csv` | Step 5.2 — per-region LIKWID counters, same columns |
-| `Profiling_comparison_<platform>.csv` | Step 5.3 — the two backends side by side, per executable |
-| `matmul_roofline_likwid_<platform>.pdf` | Step 5.2 — matrix-multiplication roofline |
-| `polyhedral_roofline_likwid_<platform>.pdf` | Step 5.2 — polyhedral-gravity roofline |
-| `matmul_roofline_<platform>.pdf` | [`ROOFLINE.md`](ROOFLINE.md) — matrix multiplication, **all** paradigms |
-| `polyhedral_roofline_<platform>.pdf` | [`ROOFLINE.md`](ROOFLINE.md) — polyhedral gravity, **all** paradigms |
+| `profiling/` | Step 5 — profiling reports, CSVs and roofline plots; **only in the Zenodo release** |
 
-Step 4 renders the plots into the working directory; they are not committed here. The `.ncu-rep`
-and `.likwid-marker` files behind the profiling CSVs are not committed either — step 5 regenerates
-them.
+Step 4 renders the plots into the working directory; they are not committed here.
 
 ## 1. Run the benchmarks
 
@@ -258,7 +247,7 @@ which documents the source of every value:
 | AMD MI210 | 181.0 | 22.63 | [Wikipedia, AMD Instinct](https://en.wikipedia.org/wiki/AMD_Instinct), boost clock, *Vector TFLOPS* |
 | Intel Max 1550 | 26 | 26 | [flopper.io](https://flopper.io/gpu/intel-data-center-gpu-max-1550-128gb), 52 for the card, halved for one stack |
 
-These are datasheet values and not measured ceilings: step 5 measures 57.4 TFLOP/s on the RTX 5080,
+These are datasheet values and not measured ceilings: the Nsight Compute ceilings of step 5 differ,
 because Nsight Compute scales its `peak_sustained` counters with the clock the card actually ran at.
 The MI210 figure is labelled *Vector TFLOPS* in its source and may count a different unit of work
 than the NVIDIA per-core FMA figures.
@@ -362,228 +351,165 @@ the same fourteen paradigms. `-e/--export-to-csv` writes those per-paradigm valu
 
 ## 5. Roofline models
 
-The roofline models need a **separate build** of the benchmark: a profiler replays every kernel
-launch it sees, so the executables must be reduced to one input and one iteration first. That is
-what the CMake option `PPB_PROFILING` does, and the two `*-profiling` presets switch it on:
+The profiling reports, the consolidated profiling CSVs and the roofline PDFs are not part of this
+repository; they are attached to the Zenodo release as the folder `profiling/`. The commands below
+regenerate them. They are run from the repository root, with `D` pointing at that folder:
 
 ```bash
-# From the repository root
-cmake --preset cuda-llvm-profiling && cmake --build build-cuda-llvm-profiling -j
+D=$PWD/results/profiling
+```
+
+### 5.1 Profile
+
+The roofline models need a **separate build**: a profiler replays every kernel launch it sees, so the
+executables must be reduced to one input and one iteration first. That is what the CMake option
+`PPB_PROFILING` does, and the two `*-profiling` presets switch it on. It also names the work with
+NVTX ranges (`matmul`, `init`/`evaluate`, `positions`/`forces`/`velocities`), which every row of the
+profiling CSVs carries as its region.
+
+```bash
+cmake --preset cuda-llvm-profiling  && cmake --build build-cuda-llvm-profiling
 # Only for OpenACC and Stdpar (they need the NVHPC toolchain)
-cmake --preset cuda-nvhpc-profiling && cmake --build build-cuda-nvhpc-profiling -j
+cmake --preset cuda-nvhpc-profiling && cmake --build build-cuda-nvhpc-profiling
 ```
 
-`ppbcc profile` then drives a profiler over the resulting binaries. `--profiler` picks which one:
+We profiled with two NVIDIA tools, driven by `ppbcc profile`:
 
-| `--profiler` | Tool | Instrumentation | One row is |
+| `--profiler` | Tool | Covers | One row is |
 |---|---|---|---|
-| `ncu` (default) | Nsight Compute | none — attaches from outside | one kernel launch |
-| `likwid` | LIKWID NvMarker | `PPB_ENABLE_LIKWID=ON`, see [`src/common/Marker.h`](../src/common/Marker.h) | one marked region |
-| `nsys` | Nsight Systems GPU metrics | none — samples the GPU device-wide | one marked region |
-| `ngfx` | Nsight Graphics GPU Trace | none — injects a Vulkan layer | one queue submission |
+| `ncu` (default) | Nsight Compute | every paradigm with a CUDA context | one kernel launch, counted |
+| `nsys` | Nsight Systems GPU metrics | OpenCL, Boost.Compute, Vulkan, Slang-Vulkan | one marked region, sampled |
 
-The last two exist because `ncu` and LIKWID both read their counters through CUPTI, which needs a
-current CUDA context: OpenCL and Vulkan build their own and are invisible to both. See
-[`ROOFLINE.md`](ROOFLINE.md) for the roofline that covers every paradigm.
-
-All four write the same columns, so they share the CSV writer and the plot. They differ in what they
-can attribute: `ncu` names every individual kernel, while LIKWID keeps all kernels of one marked
-region together — which is the more useful unit whenever an implementation reaches the GPU through
-a runtime that launches several kernels per call.
-
-Every row also carries the region the launch belongs to. A profiler names a kernel whatever the
-compiler called it, which for several paradigms is nothing useful — AdaptiveCpp launches four
-kernels all called `__acpp_sscp_kernel` — so the benchmark names the work itself: the regions of
-[`src/common/Marker.h`](../src/common/Marker.h) become NVTX ranges (`matmul` for the matrix
-multiplication, `init` and `evaluate` for the polyhedral gravity) that `ncu` and `nsys` both report.
-Launches outside every region are the runtime setting itself up and are dropped from the CSV;
-`--all-kernels` keeps them, `--region` restricts the plot to some of them.
-
-### 5.1 Nsight Compute
-
-Both builds write their reports into one shared folder (`--report-dir` is relative to
-`--build-dir`), so the two runs can be consolidated together:
-
-```bash
-ppbcc profile -b build-cuda-llvm-profiling  -p src -r "polyhedral_.*"    \
-  -d ../profiling-nvidia-rtx5080 -H "NVIDIA RTX5080" --no-csv
-ppbcc profile -b build-cuda-nvhpc-profiling -p src -r "polyhedral_acc$" "polyhedral_stdpar$" \
-  -d ../profiling-nvidia-rtx5080 -H "NVIDIA RTX5080" --no-csv
-```
-
-Each run leaves `profiling-nvidia-rtx5080/<executable>.ncu-rep` next to the Google-Benchmark report
-`<executable>.json`, which supplies the paradigm and precision that `ncu` itself does not know.
-`--no-csv` skips the intermediate CSV; the final one comes from the consolidation step, which
-re-parses the reports without running anything:
-
-```bash
-ppbcc profile -b . -d profiling-nvidia-rtx5080 -r "polyhedral_.*" --skip-profile \
-  -H "NVIDIA RTX5080" -o results/Profiling_NVIDIA_RTX5080 \
-  --roofline polyhedral_roofline_ncu.pdf
-```
+`ncu` reads its counters through CUPTI, which needs a current CUDA context; OpenCL and Vulkan build
+their own and are invisible to it. `nsys` samples the GPU device-wide and therefore sees them, but it
+reports pipe utilisations rather than instruction counts: the FLOP count of its rows has to be
+supplied with `--analytic-flop`, and both ceilings with `--peak-performance`/`--peak-bandwidth`
+(take the ones `ncu` measured on the same machine).
 
 > [!NOTE]
-> This step covers only the paradigms with a CUDA context, which is why the archived
-> `polyhedral_roofline_<platform>.pdf` comes from [`ROOFLINE.md`](ROOFLINE.md) instead: it merges
-> this table with the sampled one and carries all fourteen polyhedral implementations.
+> `ppbcc profile` also offers `--profiler likwid` (LIKWID NvMarker, needs a build with
+> `-DPPB_ENABLE_LIKWID=ON`). It is not **100% tested** and not used for any published result.
 
-Kokkos' architecture query and desul's lock-array initialization never reach the table: the runtime
-launches them once at startup, outside every marked region, and they compute nothing. The plot shows
-one point per implementation *and region*, so an implementation with a separate `init` kernel
-contributes two.
+**Matrix multiplication and polyhedral gravity, `ncu`:**
+
+```bash
+ppbcc profile -b build-cuda-llvm-profiling -p src -r "matMul_.*" "polyhedral_.*" \
+  -x ".*_cpp$" ".*_ocl$" ".*_boost$" ".*_vulkan$" -d $D/ncu-roofline-rtx5080 -H "NVIDIA RTX5080" \
+  -O ncu-arg=--set=roofline --no-csv --timeout 900
+ppbcc profile -b build-cuda-nvhpc-profiling -p src \
+  -r "matMul_acc$" "matMul_stdpar$" "polyhedral_acc$" "polyhedral_stdpar$" \
+  -d $D/ncu-roofline-rtx5080 -H "NVIDIA RTX5080" -O ncu-arg=--set=roofline --no-csv --timeout 900
+```
+
+Matrix multiplication at 16384² is the same with build directories configured with
+`-DPPB_PROFILING_MATMUL_SIZE=16384`, only `matMul_*` and `-d $D/ncu-roofline-rtx5080-matmul16384`.
+
+**Polyhedral gravity, `nsys`:**
+
+```bash
+ppbcc profile --profiler nsys -b build-cuda-llvm-profiling -p src \
+  -r "polyhedral_ocl$" "polyhedral_boost$" "polyhedral_vulkan$" "polyhedral_slang_vulkan$" \
+  -d $D/nsys-rtx5080 -H "NVIDIA RTX5080" --timeout 900 -O iterations=20 \
+  --peak-performance 5.737e13 --peak-bandwidth 9.607e11 \
+  --analytic-flop 'polyhedral_.*\[evaluate\]=1.84705e9' \
+  -o $D/Profiling_NSYS_NVIDIA_RTX5080
+```
+
+The analytic count is the median of the `evaluate` FLOPs `ncu` counted for the CUDA-context
+paradigms. Every executable is profiled twice (one and `iterations` iterations), and the difference
+cancels the one-time setup.
+
+**N-body (naive), `ncu` and `nsys`:**
+
+```bash
+ppbcc profile -b build-cuda-llvm-profiling -p src \
+  -r "nbody_cuda$" "nbody_kokkos$" "nbody_raja$" "nbody_slang_cuda_naive$" "nbody_acpp$" \
+  -d $D/ncu-roofline-rtx5080 -H "NVIDIA RTX5080" -O ncu-arg=--set=roofline \
+  -O ncu-arg=--launch-skip=6 -O ncu-arg=--launch-count=12 --no-csv --timeout 1800
+ppbcc profile --profiler nsys -b build-cuda-llvm-profiling -p src -r "nbody_ocl$" "nbody_boost$" \
+  -d $D/nsys-rtx5080 -H "NVIDIA RTX5080" --timeout 1800 -O iterations=2 -O frequency=10000 \
+  -O activity-ratio=0.05 --peak-performance 5.741e13 --peak-bandwidth 9.613e11 \
+  --analytic-flop 'nbody_.*\[forces\]=2.799972e11' \
+  -o $D/Profiling_NSYS_nbody_NVIDIA_RTX5080
+```
+
+`ncu` only collects four complete time steps after a warm-up step, since all 1000 time steps of the
+profiling run launch the same kernels. `-O activity-ratio=0.05` effectively disables the filter that
+separates compute-shader data movement from the kernel: the `forces` region contains nothing but the
+force kernel.
 
 > [!NOTE]
-> `ncu` used to hang on `matMul_kokkos` and `matMul_omp` — one CPU core at 100 %, the application
-> suspended, the GPU idle, no progress. The cause is not the size of the working set but Google
-> Benchmark's `MaybeReenterWithoutASLR`, which `execv`s the process: the profiler attaches to the
-> pre-exec process and, with `--target-processes all`, to the re-executed one as well. `ppbcc
-> profile` now launches through `setarch <arch> -R`, so Google Benchmark skips the re-exec and both
-> binaries finish in seconds. `-O aslr=on` restores the old behaviour, `--timeout` bounds it.
+> `ppbcc profile` launches the binaries through `setarch <arch> -R`, which stops Google Benchmark
+> from re-executing itself under the profiler; `ncu` otherwise hangs on `matMul_kokkos` and
+> `matMul_omp`. `polyhedral_stdpar` aborts under `ncu` after its report is written, so the collection
+> run logs it as failed — the consolidation below still reads its report.
 
-The plot places one point per implementation — work, traffic and kernel time summed over all its
-launches — and uses the same paradigm colors as the `p2analysis` and `p3analysis` charts of step 4.
-Both roofs are *measured*: every `peak_sustained` counter is scaled with the clock the corresponding
-unit actually ran at, which on the RTX 5080 gives 57.4 TFLOP/s (FP32) and 959 GB/s. Use
-`-a dominant` for the longest kernel only, `-a none` for one point per launch, and `-m l2`/`-m l1` to
-move the arithmetic intensity to another level of the memory hierarchy.
+### 5.2 Consolidate the reports into CSVs
 
-### 5.2 LIKWID
-
-LIKWID reads the counters from *inside* the application, around regions the source opens itself.
-`src/common/Marker.h` provides the wrapper and every matrix-multiplication and polyhedral
-implementation marks the kernel it already times — one region `matmul`, one region `evaluate`. The
-markers are compiled in only with `PPB_ENABLE_LIKWID=ON` and expand to nothing otherwise, so the
-measuring build is unaffected:
+`--skip-profile` runs nothing and only parses the reports already in `--report-dir` (relative to
+`-b`), next to which each run leaves the Google Benchmark `.json` that supplies paradigm and
+precision:
 
 ```bash
-module load likwid
-LIKWID_PREFIX=$(dirname $(dirname $(which likwid-perfctr)))
-cmake --preset cuda-llvm-profiling -B build-likwid \
-  -DPPB_ENABLE_LIKWID=ON -DLIKWID_ROOT="$LIKWID_PREFIX"
-cmake --build build-likwid -j
+cd results/profiling
+ppbcc profile -b . -d ncu-roofline-rtx5080 -r "matMul_.*" "polyhedral_.*" --skip-profile \
+  -H "NVIDIA RTX5080" -o Profiling_NCU_NVIDIA_RTX5080
+ppbcc profile -b . -d ncu-roofline-rtx5080-matmul16384 -r "matMul_.*" --skip-profile \
+  -H "NVIDIA RTX5080" -o Profiling_NCU_matmul16384_NVIDIA_RTX5080
+ppbcc profile -b . -d ncu-roofline-rtx5080 -r "nbody_.*" --skip-profile \
+  -H "NVIDIA RTX5080" -o Profiling_NCU_nbody_NVIDIA_RTX5080
 ```
 
-LIKWID exposes no `peak_sustained` counters, so the two roofs have to be supplied. They are a
-property of the hardware rather than of the measuring tool, so the values step 5.1 measured are the
-right ones to pass:
+The `nsys` runs above already write their CSVs. To re-consolidate them with `--profiler nsys
+--skip-profile` (and the same `--analytic-flop` and peaks), `ppbcc` reads the `.sqlite` exports,
+which have to be recreated first:
 
 ```bash
-# Collect. Every executable runs twice, once per event group.
-ppbcc profile --profiler likwid -b build-likwid -p src \
-  -r "matMul_.*" "polyhedral_.*" -x ".*_cpp$" \
-  -O lib="$LIKWID_PREFIX/lib" -d ../profiling-likwid-marker \
-  --peak-performance 5.74e13 --peak-bandwidth 9.592e11 \
-  -H "NVIDIA RTX5080" -o "$PWD/results/Profiling_LIKWID_NVIDIA_RTX5080"
-
-# Plot, re-reading the marker files without running anything.
-for problem in matMul polyhedral; do
-  ppbcc profile --profiler likwid -b . -r "${problem}_.*" --skip-profile \
-    -d profiling-likwid-marker -a none \
-    --peak-performance 5.74e13 --peak-bandwidth 9.592e11 \
-    -H "NVIDIA RTX5080" --no-csv --roofline \
-    --roofline "results/${problem}_roofline_likwid_NVIDIA_RTX5080.pdf"
-done
+for f in nsys-rtx5080/*.nsys-rep; do nsys export --type sqlite -o "${f%.nsys-rep}.sqlite" "$f"; done
 ```
 
-`-a none` puts one point per marked region rather than one per implementation. It matters for
-`matMul_cuda`, which links cuBLAS and the naive kernel into one binary: they are separate regions
-(`matmul-cublas`, `matmul-naive`) and the default `-a sum` would add them together.
+`Profiling_ANALYTIC_{ncu,nsys}_nbody_NVIDIA_RTX5080.csv` are the `forces` rows of the two N-body
+tables with the FLOP column replaced by the analytic count of the kernel, 22 FLOP per interaction,
+i.e. `22·N·(N−1) = 2.199978e11` at N = 10⁵, so that every implementation is credited with the same
+work.
 
-> [!IMPORTANT]
-> A region tag has to be unique within an executable. LIKWID accumulates every entry of a tag into
-> one record, so two implementations sharing a tag report their counters merged, with no way to tell
-> them apart afterwards.
+### 5.3 Roofline plots
 
-Three things about LIKWID 5.5.1 are worth knowing, because `ppbcc` works around all of them.
-
-**`likwid-perfctr` is not used.** It programs the counters from a separate daemon process, which on
-this hardware fails with `CUPTI_ERROR_INVALID_PARAMETER` — identically under CUDA 12.9 and 13.3, so
-it is not a CUDA-version problem. `ppbcc` instead sets `LIKWID_NVMON_GPUS`, `LIKWID_NVMON_EVENTS`
-and `LIKWID_NVMON_FILEPATH` and runs the binary directly, so the instrumented process programs its
-own counters.
-
-**Every executable runs twice.** The floating-point (SMSP) and DRAM counters cannot be programmed in
-one pass — `createConfigImage` rejects the combination — so the events are split into two groups and
-merged afterwards. That is why the report directory holds `<executable>.flops.likwid-marker` and
-`<executable>.memory.likwid-marker`. The two runs do not cost the same: programming three SMSP
-counters perturbs a kernel far more than a single DRAM counter — the 16384² matrix multiplication
-takes ~36 s in the first group and ~3.6 s in the second. The counters are unaffected by that
-overhead, the clock is not, so the reported duration is the **smaller** of the two.
-
-**The counters are corrected by a factor of two.** On this hardware LIKWID reports every Nvidia
-counter at exactly half its true value. This was established against kernels with an analytically
-known instruction count: for `FADD`, `FMUL`, `FFMA` and `DRAM_BYTES_SUM` alike, `ncu` reproduces the
-analytic value exactly and LIKWID returns half of it, independently of the counter domain and of how
-many launches a region contains. `COUNTER_SCALE` in `ppbcc/profiling/likwid.py` compensates.
-Arithmetic intensity is a ratio of two equally scaled counters and is therefore unaffected either
-way; only the absolute rates need the correction.
-
-**What the counters cannot see.** NvMarker reads the counters through CUPTI, which needs a *current
-CUDA context*. Five of the thirteen matrix-multiplication paradigms produce a timed region with all
-counters at zero, and they are kept in the CSV precisely so the gap is visible:
-
-| Executable | Why |
-|---|---|
-| `*_ocl`, `*_boost` | OpenCL builds its own context |
-| `*_vulkan`, `*_slang_vulkan` | Vulkan builds its own context |
-| `matMul_slang_cuda` | CUDA, but through the *driver* API: it calls `cuInit` and `cuCtxSetCurrent` with a context of its own, so the counter session LIKWID opened belongs to a different context |
-
-The last row is the interesting one: being written in CUDA is not sufficient, the kernel has to run
-in the context NvMarker bound to. `polyhedral_slang_cuda` does and is measured normally.
-
-### 5.3 Cross-validating the two
-
-`scripts/compare_profilers.py` merges the two CSVs per executable and prints the LIKWID/ncu ratio of
-every roofline quantity, so the agreement is checkable rather than asserted:
+`--from-csv` skips discovery and profiling and draws one roofline from several profiling CSVs, which
+is how the `ncu` and `nsys` tables become one chart. `--region` restricts the plot to the kernel under
+study:
 
 ```bash
-python scripts/compare_profilers.py \
-  results/Profiling_NVIDIA_RTX5080.csv results/Profiling_LIKWID_NVIDIA_RTX5080.csv \
-  -o results/Profiling_comparison_NVIDIA_RTX5080.csv
+# Polyhedral gravity, all paradigms (ncu + nsys), and ncu only
+ppbcc profile --from-csv Profiling_NCU_NVIDIA_RTX5080.csv Profiling_NSYS_NVIDIA_RTX5080.csv \
+  -r "polyhedral_" -H "NVIDIA RTX5080" --no-csv --region "^evaluate$" \
+  --roofline polyhedral_roofline_NVIDIA_RTX5080.pdf
+ppbcc profile --from-csv Profiling_NCU_NVIDIA_RTX5080.csv \
+  -r "polyhedral_" -H "NVIDIA RTX5080" --no-csv --region "^evaluate$" \
+  --roofline polyhedral_roofline_ncu_NVIDIA_RTX5080.pdf
+
+# Matrix multiplication, ncu (matMul_cuda keeps its cuBLAS and naive regions apart)
+ppbcc profile --from-csv Profiling_NCU_NVIDIA_RTX5080.csv \
+  -r "matMul_" -H "NVIDIA RTX5080" --no-csv \
+  --roofline matmul_roofline_ncu_NVIDIA_RTX5080.pdf
+ppbcc profile --from-csv Profiling_NCU_matmul16384_NVIDIA_RTX5080.csv \
+  -r "matMul_" -H "NVIDIA RTX5080" --no-csv \
+  --roofline matmul16384_roofline_ncu_NVIDIA_RTX5080.pdf
+
+# N-body force kernel: analytic FLOP count for every row, and each tool's own count
+ppbcc profile --from-csv Profiling_ANALYTIC_ncu_nbody_NVIDIA_RTX5080.csv \
+  Profiling_ANALYTIC_nsys_nbody_NVIDIA_RTX5080.csv \
+  -r "nbody_" -H "NVIDIA RTX5080" --no-csv --region "^forces$" \
+  --roofline nbody_forces_roofline_NVIDIA_RTX5080.pdf
+ppbcc profile --from-csv Profiling_NCU_nbody_NVIDIA_RTX5080.csv \
+  Profiling_NSYS_nbody_NVIDIA_RTX5080.csv \
+  -r "nbody_" -H "NVIDIA RTX5080" --no-csv --region "^forces$" \
+  --roofline nbody_forces_roofline_counted_NVIDIA_RTX5080.pdf
 ```
 
-### 5.4 What can profile OpenCL and Vulkan?
-
-Both profilers above read their counters through **CUPTI**, which needs a current
-CUDA context. Nine of the thirteen paradigms have one — CUDA, HIP-on-Nvidia,
-Kokkos, RAJA, Alpaka, AdaptiveCpp, stdpar, OpenACC and OpenMP target all reach the
-GPU through the CUDA driver, so both tools see them. OpenCL and Vulkan build their
-own contexts and are invisible to both, which is a property of the vendor's
-instrumentation stack rather than of the tool. On this machine:
-
-* Nvidia's OpenCL exposes **no** counter extension. The device advertises
-  `cl_nv_device_attribute_query` (static properties) and nothing matching
-  performance, counter or profiling; CUPTI has no OpenCL interface; and Nsight
-  Systems dropped OpenCL entirely — `nsys profile --trace` in CUDA 13.3 no
-  longer lists it.
-* `VK_KHR_performance_query`, the Vulkan extension that would expose hardware
-  counters, is **absent** from the RTX 5080's device extension list. It is
-  supported by Mesa (AMD, Intel), not by Nvidia's proprietary driver.
-
-That leaves the following, in the order we would reach for them.
-
-| Route | OpenCL | Vulkan | What it yields |
-|---|:-:|:-:|---|
-| API timing (`clGetEventProfilingInfo`, `vkCmdWriteTimestamp`) | ✅ | ✅ | Kernel duration only — already what the benchmark reports |
-| Analytic work model | ✅ | ✅ | FLOPs and bytes from the algorithm, no tool needed |
-| HPCToolkit `hpcrun -e gpu=opencl` | ✅ | ❌ | Per-kernel time and transfer bytes; no FLOP or DRAM counters |
-| Nsight Systems `--trace=vulkan` | ❌ | ✅ | Dispatch timeline; no counters |
-| Nsight Graphics, *GPU Trace Profiler* | ❌ | ✅ | Unit throughputs (SM, DRAM, L2) as % of peak |
-| `VK_KHR_performance_query` | ❌ | ✅* | Vendor counters — *AMD and Intel only* |
-
-Only the last two can close the counter gap at all, and both are Vulkan-only.
-**Nsight Graphics' GPU Trace Profiler** is the one Nvidia tool that reads hardware
-counters for a Vulkan workload; it reports time-sliced *unit throughputs* rather
-than SASS instruction counts, so a roofline built from it uses (% of peak × peak)
-instead of a counted FLOP total. It is not installed here, so we have not verified
-it against this benchmark. For OpenCL on Nvidia there is no counter route at all.
-
-**Recommendation.** Do not try to close the gap tool-side. The comparable quantity
-across all thirteen paradigms is an **analytic work model**: matrix multiplication
-does exactly `2·M·N·K` FLOPs and moves a known number of bytes, and the polyhedral
-kernel has a fixed per-face operation count. Combined with the kernel time each
-implementation already measures through its own API, that gives an arithmetic
-intensity and an attained FLOP/s for *every* paradigm, on *every* vendor, with no
-profiler in the loop. The counters from `ncu` then serve as a validation of that
-model on the subset where they exist — which is exactly the role they play above,
-where `ncu` reproduced an analytically known instruction count exactly.
+One point is one implementation and region: FLOP, duration and memory traffic are summed over all
+its launches (or sampled windows) before the two ratios are taken (`-a sum`, the default). Use
+`-a dominant` for the longest kernel only, `-a none` for one point per launch, `-m l2`/`-m l1` to move
+the arithmetic intensity to another level of the memory hierarchy, and `-l` to drop the legend. The
+`ncu` ceilings are measured (`peak_sustained` scaled with the actual clock); the `nsys` ones are the
+values passed on the command line.
